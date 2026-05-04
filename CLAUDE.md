@@ -15,7 +15,7 @@ AI (Claude Code) がこのプロジェクトを素早く理解し、効率よく
 ### 構成
 
 - **Python バックエンド**: FastAPI + uvicorn（`vis serve` コマンド）
-- **フロントエンド**: Vite + React + TypeScript（`visualizer/` ディレクトリ）
+- **フロントエンド**: Vite + React + TypeScript（`frontend/` ディレクトリ）
 - **データソース**: `forge.db`（SQLite）を SQLAlchemy で直接読み取り（alpha-forge への依存なし）
 
 ### 利用方法
@@ -42,11 +42,11 @@ uv run ruff check src/ tests/
 # サーバー起動（ローカル確認用）
 vis serve --forge-dir /path/to/alpha-strategies
 
-# フロントエンドビルド（visualizer/ → src/alpha_visualizer/static/）
-cd visualizer && npm install && npm run build
+# フロントエンドビルド（frontend/ → src/alpha_frontend/static/）
+cd frontend && npm install && npm run build
 
 # フロントエンド開発サーバー（バックエンドと同時起動）
-cd visualizer && npm run dev
+cd frontend && npm run dev
 ```
 
 ---
@@ -55,16 +55,16 @@ cd visualizer && npm run dev
 
 | モジュール | パス | 役割 |
 |----------|------|------|
-| CLI | `src/alpha_visualizer/cli.py` | Click ベースのエントリーポイント（`vis serve`） |
-| アプリファクトリ | `src/alpha_visualizer/app.py` | FastAPI アプリ生成・ルーター登録・SPA 配信 |
-| DB 定義 | `src/alpha_visualizer/db.py` | SQLAlchemy Table 定義（`backtest_results`, `optimization_runs`） |
-| パス設定 | `src/alpha_visualizer/forge_config.py` | `ForgeConfig` — forge_dir から各データパスを解決 |
-| Results ルーター | `src/alpha_visualizer/routers/results.py` | `/api/results`, `/api/results/{run_id}` |
-| Strategies ルーター | `src/alpha_visualizer/routers/strategies.py` | `/api/strategies`, `/api/strategies/compare`, `/api/strategies/{id}` |
-| Ideas ルーター | `src/alpha_visualizer/routers/ideas.py` | `/api/ideas`（`ideas.json` を直接読み取り） |
-| WFO ルーター | `src/alpha_visualizer/routers/wfo.py` | `/api/wfo/{strategy_id}` |
-| Static | `src/alpha_visualizer/static/` | Vite ビルド成果物（`visualizer/` で `npm run build` して生成） |
-| Visualizer | `visualizer/` | Vite + React + TS の SPA 本体 |
+| CLI | `src/alpha_frontend/cli.py` | Click ベースのエントリーポイント（`vis serve`） |
+| アプリファクトリ | `src/alpha_frontend/app.py` | FastAPI アプリ生成・ルーター登録・SPA 配信 |
+| DB 定義 | `src/alpha_frontend/db.py` | SQLAlchemy Table 定義（`backtest_results`, `optimization_runs`） |
+| パス設定 | `src/alpha_frontend/forge_config.py` | `ForgeConfig` — forge_dir から各データパスを解決 |
+| Results ルーター | `src/alpha_frontend/routers/results.py` | `/api/results`, `/api/results/{run_id}` |
+| Strategies ルーター | `src/alpha_frontend/routers/strategies.py` | `/api/strategies`, `/api/strategies/compare`, `/api/strategies/{id}` |
+| Ideas ルーター | `src/alpha_frontend/routers/ideas.py` | `/api/ideas`（`ideas.json` を直接読み取り） |
+| WFO ルーター | `src/alpha_frontend/routers/wfo.py` | `/api/wfo/{strategy_id}` |
+| Static | `src/alpha_frontend/static/` | Vite ビルド成果物（`frontend/` で `npm run build` して生成） |
+| Frontend | `frontend/` | Vite + React + TS の SPA 本体 |
 
 ---
 
@@ -77,7 +77,7 @@ vis serve --forge-dir <dir>
     → forge_dir/data/strategies/*.json    ← JSON ファイルを直接読み取り
     → forge_dir/data/ideas/ideas.json     ← JSON ファイルを直接読み取り
   → FastAPI ルーター → JSON レスポンス
-  → React SPA (src/alpha_visualizer/static/)
+  → React SPA (src/alpha_frontend/static/)
 ```
 
 ---
@@ -113,7 +113,7 @@ vis serve --forge-dir <dir>
 
 - **TDD**: 新機能実装前にテストを書く（`tests/` に対応するテストファイルが必要）
 - **Python 3.12**: 型アノテーションを積極的に使う
-- **alpha-forge 非依存**: `src/alpha_visualizer/` 内から `alpha_forge` をインポートしないこと。DB は SQLAlchemy で直接読み取る
+- **alpha-forge 非依存**: `src/alpha_frontend/` 内から `alpha_forge` をインポートしないこと。DB は SQLAlchemy で直接読み取る
 - **パッケージ管理**: `pip` ではなく `uv` を使う（`uv add <package>` でパッケージ追加）
 - **GitHub Flow（必須）**: `main` ブランチには直接コミット・プッシュしないこと。必ずフィーチャーブランチ（`feat/xxx`, `fix/xxx` 等）を作成し、Pull Request 経由でマージすること
 - **ワークツリーの活用**: ごく単純な作業（1ファイルの誤字修正・読み取り専用調査など）を除き、コードを変更する作業はすべてワークツリーを使って隔離された環境で行うこと
@@ -122,10 +122,10 @@ vis serve --forge-dir <dir>
 
 ## フロントエンド開発
 
-`visualizer/` は Vite + React + TypeScript で実装された SPA。ビルド成果物は `src/alpha_visualizer/static/` に配置する。
+`frontend/` は Vite + React + TypeScript で実装された SPA。ビルド成果物は `src/alpha_frontend/static/` に配置する。
 
 ```bash
-cd visualizer
+cd frontend
 
 # 依存インストール
 npm install
@@ -133,14 +133,14 @@ npm install
 # 開発サーバー（http://localhost:5173）
 npm run dev
 
-# 本番ビルド → src/alpha_visualizer/static/ に出力
+# 本番ビルド → src/alpha_frontend/static/ に出力
 npm run build
 
 # Lint
 npm run lint
 ```
 
-バックエンド API のプロキシ設定は `visualizer/vite.config.ts` で定義。
+バックエンド API のプロキシ設定は `frontend/vite.config.ts` で定義。
 
 ---
 
