@@ -36,7 +36,27 @@ ignore = ["E501"]
 
 [dependency-groups]
 dev = [
+    "bump-my-version>=0.32.0",
     "httpx>=0.28.1",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+message = "chore: バージョン {new_version} にバンプ"
+tag = true
+tag_name = "v{new_version}"
+tag_message = "v{new_version}"
+allow_dirty = false
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "src/alpha_visualizer/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
