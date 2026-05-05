@@ -37,3 +37,7 @@ uv run ruff check src/ tests/
 ## 関連
 
 - [alpha-forge](https://github.com/ysakae/alpha-forge) — バックテストエンジン
+
+## ライセンス
+
+[MIT License](LICENSE) © alforge-labs

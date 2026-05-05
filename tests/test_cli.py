@@ -2,6 +2,7 @@
 
 from click.testing import CliRunner
 
+from alpha_visualizer import __version__
 from alpha_visualizer.cli import cli
 
 
@@ -16,7 +17,7 @@ def test_version() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert __version__ in result.output
 
 
 def test_serve_help() -> None:
