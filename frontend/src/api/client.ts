@@ -42,8 +42,35 @@ export const api = {
   listStrategies: (): Promise<StrategyListItem[]> =>
     request<StrategyListItem[]>('/strategies'),
 
-  getStrategyRuns: (strategyId: string): Promise<StrategyRun[]> =>
-    request<StrategyRun[]>(`/strategies/${encodeURIComponent(strategyId)}/runs`),
+  // backend に専用 /runs エンドポイントが無いため、/strategies/{id} の results を整形して返す
+  getStrategyRuns: async (strategyId: string): Promise<StrategyRun[]> => {
+    interface StrategyResultRow {
+      run_id?: string | null
+      run_at?: string | null
+      sharpe?: number | null
+      return_pct?: number | null
+      max_drawdown_pct?: number | null
+    }
+    interface StrategyDetailLite {
+      results?: StrategyResultRow[]
+    }
+    const detail = await request<StrategyDetailLite>(
+      `/strategies/${encodeURIComponent(strategyId)}`,
+    )
+    const rows = detail.results ?? []
+    return rows
+      .filter((r): r is StrategyResultRow & { run_id: string; run_at: string } =>
+        typeof r.run_id === 'string' && r.run_id.length > 0
+        && typeof r.run_at === 'string' && r.run_at.length > 0,
+      )
+      .map<StrategyRun>(r => ({
+        run_id: r.run_id,
+        run_at: r.run_at,
+        sharpe_ratio: r.sharpe ?? null,
+        total_return_pct: r.return_pct ?? null,
+        max_drawdown_pct: r.max_drawdown_pct ?? null,
+      }))
+  },
 
   runBacktest: (strategyId: string, symbol: string, timeframe: string): Promise<{ run_id: string; status: string }> =>
     request<{ run_id: string; status: string }>('/run', {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
 import type { StrategyListItem } from '../../api/types'
 import type { SortKey, SortDir, StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
@@ -23,7 +24,7 @@ interface Props {
 }
 
 const HOVER_DELAY_MS = 220
-const COL_COUNT = 10
+const COL_COUNT = 9
 
 function fmt(v: number | null | undefined, suffix = '', decimals = 2): string {
   if (v == null) return '—'
@@ -56,6 +57,9 @@ const TH_BASE: CSSProperties = {
   borderBottom: '1px solid var(--border)',
   userSelect: 'none',
   whiteSpace: 'nowrap',
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
 }
 
 const TD_BASE: CSSProperties = {
@@ -158,13 +162,19 @@ function StrategyRow({
     <tr
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
+      onClick={() => onSelect(s.strategy_id)}
+      title={L('クリックでプレビュー', 'Click to preview')}
       style={{
         background: trBackground,
         borderLeft: selected ? '2px solid var(--accent)' : '2px solid transparent',
         transition: 'background var(--motion-fast)',
+        cursor: 'pointer',
       }}
     >
-      <td style={{ ...TD_BASE, textAlign: 'center', padding: '10px 4px', width: 36 }}>
+      <td
+        style={{ ...TD_BASE, textAlign: 'center', padding: '10px 4px', width: 36 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <input
           type="checkbox"
           checked={inCompare}
@@ -181,18 +191,26 @@ function StrategyRow({
         />
       </td>
       <td style={{ ...TD_BASE, textAlign: 'left' }}>
-        <div
+        <Link
+          to={`/detail/${s.strategy_id}`}
+          title={L('フル詳細を開く', 'Open full detail')}
+          onClick={(e) => e.stopPropagation()}
           style={{
+            display: 'inline-block',
             fontFamily: 'var(--serif)',
             fontSize: '1.0625rem',
             fontWeight: 600,
             color: 'var(--text)',
             letterSpacing: '-0.005em',
             lineHeight: 1.2,
+            textDecoration: 'none',
+            transition: 'color var(--motion-fast)',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text)' }}
         >
           {s.name}
-        </div>
+        </Link>
         <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
           {s.symbol ? <Chip>{s.symbol}</Chip> : null}
           {s.timeframe ? <Chip>{s.timeframe}</Chip> : null}
@@ -262,25 +280,6 @@ function StrategyRow({
         <div style={{ display: 'inline-flex', justifyContent: 'flex-end', minHeight: 26 }}>
           {sparkRendered}
         </div>
-      </td>
-      <td style={{ ...TD_BASE, textAlign: 'center', width: 40, padding: '10px 4px' }}>
-        <button
-          type="button"
-          onClick={() => onSelect(s.strategy_id)}
-          aria-label={L('プレビューを開く', 'Open preview')}
-          title={L('プレビューを開く', 'Open preview')}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: selected ? 'var(--accent)' : 'var(--text3)',
-            fontSize: 16,
-            padding: '2px 6px',
-            transition: 'color var(--motion-fast)',
-          }}
-        >
-          ›
-        </button>
       </td>
     </tr>
   )
@@ -369,7 +368,6 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
       <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
       <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
       <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
-      <td style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
       <td style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
     </tr>
   )
@@ -472,7 +470,6 @@ export function StrategyTable({
             <th style={{ ...TH_BASE, width: 132, textAlign: 'right' }}>
               {L('推移', 'Trend')}
             </th>
-            <th style={{ ...TH_BASE, width: 40, padding: '14px 4px' }}></th>
           </tr>
         </thead>
         <tbody>

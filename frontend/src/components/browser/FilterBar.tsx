@@ -111,7 +111,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
   const hasFilters = q || symbolFilter.length > 0 || tfFilter.length > 0 || sharpeMin || ddMax
 
   return (
-    <Toolbar sticky>
+    <Toolbar>
       <input
         style={SEARCH_INPUT}
         placeholder={L('戦略名・銘柄を検索…', 'Search strategy or symbol…')}

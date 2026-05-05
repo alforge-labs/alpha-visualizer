@@ -129,6 +129,7 @@ def _get_all_results(config: ForgeConfig, strategy_id: str) -> list[dict[str, An
     with engine.connect() as conn:
         rows = conn.execute(
             select(
+                backtest_results.c.run_id,
                 backtest_results.c.symbol,
                 backtest_results.c.sharpe_ratio,
                 backtest_results.c.total_return_pct,
@@ -141,6 +142,7 @@ def _get_all_results(config: ForgeConfig, strategy_id: str) -> list[dict[str, An
         ).fetchall()
     return [
         {
+            "run_id": r.run_id,
             "symbol": r.symbol,
             "sharpe": r.sharpe_ratio,
             "return_pct": r.total_return_pct,

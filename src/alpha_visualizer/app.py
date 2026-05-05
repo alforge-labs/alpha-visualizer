@@ -4,7 +4,7 @@ from __future__ import annotations
 import pathlib
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers import ideas as ideas_router
@@ -52,8 +52,22 @@ def create_app(
 
     static_dir = pathlib.Path(__file__).parent / "static"
     if static_dir.exists():
-        from fastapi.staticfiles import StaticFiles
+        index_html = static_dir / "index.html"
+        static_root = static_dir.resolve()
 
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+        @app.get("/{full_path:path}")
+        async def spa_fallback(full_path: str) -> FileResponse:
+            """SPA ルート対応: /api 配下以外で実ファイルがあればそれを返し、
+            無ければ index.html を返して history mode の直アクセス・リロードに対応する。
+            """
+            requested = (static_dir / full_path).resolve()
+            # ディレクトリトラバーサル対策
+            try:
+                requested.relative_to(static_root)
+            except ValueError:
+                return FileResponse(index_html)
+            if requested.is_file():
+                return FileResponse(requested)
+            return FileResponse(index_html)
 
     return app

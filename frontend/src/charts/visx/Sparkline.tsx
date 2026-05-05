@@ -7,18 +7,21 @@ interface SparklineProps {
   values: number[]
   width: number
   height: number
+  /** 未指定時は始値 vs 終値で自動判定（上昇=success、下降=danger） */
   color?: string
   strokeWidth?: number
 }
 
 /**
  * 軽量 sparkline。軸・グリッド・tooltip は持たない（Browse の行ホバー用）
+ *
+ * 色は EquityChartV と同じ判定（始値 < 終値 → success、それ以外 → danger）。
  */
 export function Sparkline({
   values,
   width,
   height,
-  color = 'var(--accent)',
+  color,
   strokeWidth = 1.25,
 }: SparklineProps): React.ReactElement | null {
   const points = useMemo(
@@ -47,6 +50,14 @@ export function Sparkline({
     })
   }, [points, height])
 
+  const resolvedColor = useMemo(() => {
+    if (color) return color
+    if (values.length < 2) return 'var(--text3)'
+    const first = values[0]!
+    const last = values[values.length - 1]!
+    return last >= first ? 'var(--success)' : 'var(--danger)'
+  }, [color, values])
+
   if (points.length < 2) return null
 
   return (
@@ -55,7 +66,7 @@ export function Sparkline({
         data={points}
         x={(d) => xScale(d.x)}
         y={(d) => yScale(d.y)}
-        stroke={color}
+        stroke={resolvedColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         curve={curveMonotoneX}

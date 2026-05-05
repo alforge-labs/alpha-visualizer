@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useStrategyList } from '../hooks/useStrategyList'
+import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { FilterBar } from '../components/browser/FilterBar'
 import { StrategyTable } from '../components/browser/StrategyTable'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
+import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
 import { SymbolAtlas } from '../components/browser/SymbolAtlas'
 import { SettingsToggles } from '../components/SettingsToggles'
@@ -16,6 +18,7 @@ export function BrowsePage(): React.ReactElement {
   const { lang, variation } = settings
   const L = makeL(lang)
   const list = useStrategyList()
+  useScrollRestoration(!list.loading)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [compareIds, setCompareIds] = useState<string[]>([])
 
@@ -118,6 +121,7 @@ export function BrowsePage(): React.ReactElement {
             'Scan the latest backtests at a glance, hover a row to peek at its recent equity, and dive into the full detail when something stands out.',
           )}
         </p>
+        {!list.loading && <Heroline items={list.all} lang={lang} />}
         </div>
         <SettingsToggles
           variation={variation}
