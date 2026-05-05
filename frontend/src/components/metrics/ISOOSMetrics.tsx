@@ -1,6 +1,5 @@
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import type { Variation } from '../../hooks/useTheme'
 import type { BacktestMetrics } from '../../api/types'
 
 type Key =
@@ -33,10 +32,9 @@ interface Props {
   isM: BacktestMetrics
   oosM: BacktestMetrics
   lang: Lang
-  variation: Variation
 }
 
-export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
+export function ISOOSMetrics({ isM, oosM, lang }: Props) {
   const L = makeL(lang)
   const ROWS: Row[] = [
     { key: 'total_return_pct', label: L('総リターン', 'Total Return'), suffix: '%', hb: true },
@@ -52,15 +50,15 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
     {
       label: L('インサンプル (IS)', 'In-Sample (IS)'),
       m: isM,
-      accent: 'rgba(0,228,154,0.4)',
-      bg: 'rgba(0,228,154,0.03)',
-      labelColor: '#00e49a',
+      accent: 'var(--accent-glow)',
+      bg: 'var(--accent-bg)',
+      labelColor: 'var(--accent)',
     },
     {
       label: L('アウトオブサンプル (OOS)', 'Out-of-Sample (OOS)'),
       m: oosM,
-      accent: 'rgba(115,120,144,0.3)',
-      bg: 'rgba(255,255,255,0.01)',
+      accent: 'var(--border-h)',
+      bg: 'var(--surface-2)',
       labelColor: 'var(--text2)',
     },
   ]
@@ -73,7 +71,7 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
           style={{
             background: 'var(--surface)',
             border: `1px solid ${accent}`,
-            borderRadius: variation === 'clarity' ? 10 : 7,
+            borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
           }}
         >
@@ -90,7 +88,7 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
             <span
               style={{
                 fontFamily: 'var(--sans)',
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: 700,
                 color: labelColor,
               }}
@@ -101,9 +99,9 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
               <span
                 style={{
                   fontFamily: 'var(--mono)',
-                  fontSize: 11,
+                  fontSize: 13,
                   color: 'var(--text3)',
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'var(--bg2)',
                   padding: '2px 6px',
                   borderRadius: 3,
                 }}
@@ -127,11 +125,11 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
                 row.hb === null
                   ? 'var(--text)'
                   : degraded
-                    ? '#f5a623'
+                    ? 'var(--warn)'
                     : row.hb
                       ? typeof v === 'number' && v > 0
-                        ? '#00e49a'
-                        : '#ff5c5c'
+                        ? 'var(--success)'
+                        : 'var(--danger)'
                       : 'var(--text)'
               const display =
                 typeof v === 'number'
@@ -147,18 +145,18 @@ export function ISOOSMetrics({ isM, oosM, lang, variation }: Props) {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 16px',
-                    borderBottom: '1px solid rgba(255,255,255,0.035)',
+                    borderBottom: '1px solid var(--border)',
                   }}
                 >
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text3)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text3)' }}>
                     {row.label}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {degraded && <span style={{ fontSize: 11, color: '#f5a623' }}>⚠</span>}
+                    {degraded && <span style={{ fontSize: 13, color: 'var(--warn)' }}>⚠</span>}
                     <span
                       style={{
                         fontFamily: 'var(--mono)',
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: 700,
                         color: vc,
                       }}

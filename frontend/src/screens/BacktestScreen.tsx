@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
-import type { Theme, Variation } from '../hooks/useTheme'
 import type { BacktestDetail } from '../api/types'
-import { Pill, SecHead, SectionLabel } from '../components/common'
+import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
-import { MetricsSummaryBar } from '../components/MetricsSummaryBar'
-import { DrawdownChart } from '../components/charts/DrawdownChart'
-import { BenchmarkChart } from '../components/charts/BenchmarkChart'
-import { MonthlyHeatmap } from '../components/charts/MonthlyHeatmap'
+import { EquityChartV } from '../charts/visx/EquityChartV'
+import { DrawdownChartV } from '../charts/visx/DrawdownChartV'
+import { MonthlyHeatmapV } from '../charts/visx/MonthlyHeatmapV'
 import { RollingMetricsChart } from '../components/charts/RollingMetricsChart'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
@@ -24,13 +22,11 @@ interface Props {
   data: BacktestDetail
   compact: boolean
   lang: Lang
-  variation: Variation
-  theme: Theme
 }
 
 type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte'
 
-function BacktestScreenInner({ data, compact, lang, variation, theme }: Props) {
+function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const L = makeL(lang)
 
@@ -43,55 +39,49 @@ function BacktestScreenInner({ data, compact, lang, variation, theme }: Props) {
     ['monte', L('モンテカルロ', 'Monte Carlo')],
   ]
 
-  const period = `${data.period.start} → ${data.period.end}`
-  const subtitle = `${data.symbol} · ${data.strategy_name} · ${data.timeframe} · ${period}`
-
-  const strategyDataset = {
-    label: L('戦略', 'Strategy'),
-    values: data.equity.values,
-    dates: data.equity.dates,
-    color: 'var(--accent)',
-  }
-  const buyHoldDataset = data.buy_hold_equity.length > 0 ? {
-    label: 'Buy & Hold',
-    values: data.buy_hold_equity,
-    dates: data.equity.dates,
-    color: 'var(--text3)',
-  } : undefined
-
   const skew = data.metrics.deflated_sharpe?.skewness
   const kurt = data.metrics.deflated_sharpe?.excess_kurtosis
+  const showBuyHold = data.buy_hold_equity.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <SecHead title={L('バックテスト結果', 'Backtest Results')} subtitle={subtitle} />
-      <MetricsSummaryBar metrics={data.metrics} lang={lang} />
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      <TabBar bordered>
         {tabs.map(([id, label]) => (
-          <Pill key={id} active={tab === id} onClick={() => setTab(id)}>{label}</Pill>
+          <Tab key={id} active={tab === id} onClick={() => setTab(id)} small>
+            {label}
+          </Tab>
         ))}
-      </div>
+      </TabBar>
 
       {tab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
             <SectionLabel>{L('エクイティ vs Buy&Hold', 'Equity vs Buy & Hold')}</SectionLabel>
-            <BenchmarkChart
-              datasets={buyHoldDataset ? [strategyDataset, buyHoldDataset] : [strategyDataset]}
+            <EquityChartV
+              equity={data.equity.values}
+              dates={data.equity.dates}
+              isCutoffIdx={data.is_cutoff.index}
+              benchmark={showBuyHold ? data.buy_hold_equity : undefined}
+              showBenchmark={showBuyHold}
               compact={compact}
             />
           </div>
           <div>
             <SectionLabel>{L('ドローダウン', 'Drawdown')}</SectionLabel>
-            <DrawdownChart dd={data.drawdown} dates={data.equity.dates} isCutoffIdx={data.is_cutoff.index} compact={compact} />
+            <DrawdownChartV
+              dd={data.drawdown}
+              dates={data.equity.dates}
+              isCutoffIdx={data.is_cutoff.index}
+              compact={compact}
+            />
           </div>
         </div>
       )}
 
       {tab === 'metrics' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <MetricsGrid metrics={data.metrics} compact={compact} lang={lang} variation={variation} />
-          <SignalQualityBadge metrics={data.metrics} lang={lang} variation={variation} />
+          <MetricsGrid metrics={data.metrics} compact={compact} lang={lang} />
+          <SignalQualityBadge metrics={data.metrics} lang={lang} />
         </div>
       )}
 
@@ -99,7 +89,7 @@ function BacktestScreenInner({ data, compact, lang, variation, theme }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
             <SectionLabel>{L('月別リターン', 'Monthly Returns')}</SectionLabel>
-            <MonthlyHeatmap data={data.monthly_returns} lang={lang} theme={theme} />
+            <MonthlyHeatmapV data={data.monthly_returns} lang={lang} />
           </div>
           <div>
             <SectionLabel>{L('ローリング Sharpe', 'Rolling Sharpe')}</SectionLabel>

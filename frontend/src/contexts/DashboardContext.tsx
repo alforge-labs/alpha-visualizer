@@ -15,6 +15,7 @@ interface DashboardContextValue {
   setHighlightedDateRange: (r: DateRange | null) => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const DashboardContext = createContext<DashboardContextValue | null>(null)
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDashboard(): DashboardContextValue {
   const ctx = useContext(DashboardContext)
   if (!ctx) throw new Error('useDashboard must be used within DashboardProvider')

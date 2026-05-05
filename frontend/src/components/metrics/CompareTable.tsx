@@ -1,7 +1,9 @@
 import { Fragment } from 'react'
+import type { CSSProperties } from 'react'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { StrategyComparison } from '../../api/types'
+import { Card, Chip } from '../../design/primitives'
 
 type CompareKey =
   | 'total_return_pct'
@@ -17,10 +19,7 @@ interface CompareCol {
   key: CompareKey
   label: string
   suffix: string
-  /**
-   * higher-is-better. null means neither (e.g. trade count).
-   * false means lower-is-better (max drawdown).
-   */
+  /** higher-is-better. null = neutral (取引数), false = lower-is-better (Max DD) */
   hb: boolean | null
 }
 
@@ -29,9 +28,57 @@ interface CompareTableProps {
   lang: Lang
 }
 
-export function CompareTable({ strategies, lang }: CompareTableProps) {
+const TH_BASE: CSSProperties = {
+  fontFamily: 'var(--serif)',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  color: 'var(--text2)',
+  letterSpacing: '-0.005em',
+  textAlign: 'right',
+  padding: '14px 14px',
+  borderBottom: '1px solid var(--border-strong)',
+  whiteSpace: 'nowrap',
+}
+
+const TD_BASE: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 'var(--fs-mono-md)',
+  letterSpacing: 'var(--tracking-mono)',
+  textAlign: 'right',
+  padding: '14px 14px',
+  borderBottom: '1px solid var(--border)',
+}
+
+const TD_DELTA: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 'var(--fs-mono-sm)',
+  letterSpacing: 'var(--tracking-mono)',
+  textAlign: 'right',
+  padding: '4px 14px 12px',
+  borderBottom: '1px solid var(--border)',
+}
+
+function fmt(v: number | null | undefined, suffix: string): string {
+  if (v == null) return '—'
+  return `${v.toFixed(Math.abs(v) > 99 ? 0 : 2)}${suffix}`
+}
+
+function valueColor(v: number | null, hb: boolean | null): string {
+  if (v == null || hb === null) return 'var(--text)'
+  if (hb) {
+    return v >= 0 ? 'var(--success)' : 'var(--danger)'
+  }
+  return v >= -25 ? 'var(--text)' : 'var(--danger)'
+}
+
+function deltaColor(delta: number | null, improved: boolean | null): string {
+  if (improved === null || delta === null) return 'var(--text2)'
+  return improved ? 'var(--success)' : 'var(--danger)'
+}
+
+export function CompareTable({ strategies, lang }: CompareTableProps): React.ReactElement | null {
   const L = makeL(lang)
-  const baseline = strategies.find((s) => s.is_baseline) ?? strategies[0]
+  const baseline = strategies.find(s => s.is_baseline) ?? strategies[0]
   if (!baseline) return null
 
   const COLS: CompareCol[] = [
@@ -45,171 +92,142 @@ export function CompareTable({ strategies, lang }: CompareTableProps) {
     { key: 'total_trades', label: L('取引数', 'Trades'), suffix: '', hb: null },
   ]
 
-  const th: React.CSSProperties = {
-    fontFamily: 'var(--mono)',
-    fontSize: 11,
-    fontWeight: 500,
-    color: 'var(--text3)',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    padding: '8px 12px',
-    textAlign: 'right',
-    borderBottom: '1px solid var(--border)',
-    whiteSpace: 'nowrap',
-  }
-
-  const td = (base: boolean): React.CSSProperties => ({
-    padding: '11px 12px',
-    textAlign: 'right',
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
-    background: base ? 'rgba(0,228,154,0.025)' : 'transparent',
-  })
-
-  const fmt = (v: number, suffix: string) => `${v.toFixed(v > 99 ? 0 : 2)}${suffix}`
-
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={{ ...th, textAlign: 'left', paddingLeft: 16 }}>
-              {L('戦略', 'Strategy')}
-            </th>
-            {COLS.map((c) => (
-              <th key={c.key} style={th}>
-                {c.label}
+    <Card pad={false} style={{ overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            minWidth: 720,
+          }}
+        >
+          <thead style={{ background: 'var(--surface-2)' }}>
+            <tr>
+              <th
+                style={{
+                  ...TH_BASE,
+                  textAlign: 'left',
+                  paddingLeft: 20,
+                  fontFamily: 'var(--serif)',
+                }}
+              >
+                {L('戦略', 'Strategy')}
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {strategies.map((s) => {
-            const isBase = s.is_baseline
-            return (
-              <Fragment key={s.id}>
-                <tr>
-                  <td style={{ ...td(isBase), textAlign: 'left', paddingLeft: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {isBase && (
-                        <span
-                          style={{
-                            background: 'var(--accent-bg)',
-                            border: '1px solid var(--accent-glow)',
-                            borderRadius: 3,
-                            padding: '1px 6px',
-                            fontFamily: 'var(--mono)',
-                            fontSize: 11,
-                            color: '#00e49a',
-                          }}
-                        >
-                          BASE
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          fontFamily: 'var(--sans)',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: 'var(--text)',
-                        }}
-                      >
-                        {s.name}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--mono)',
-                        fontSize: 11,
-                        color: 'var(--text3)',
-                        marginTop: 2,
-                      }}
-                    >
-                      {s.symbol} · {s.total_trades} {L('取引', 'trades')}
-                    </div>
-                  </td>
-                  {COLS.map((c) => {
-                    const v = s[c.key]
-                    const color =
-                      c.hb === null
-                        ? 'var(--text)'
-                        : c.hb
-                          ? v >= 0
-                            ? '#00e49a'
-                            : '#ff5c5c'
-                          : v >= -25
-                            ? 'var(--text)'
-                            : '#ff5c5c'
-                    return (
-                      <td key={c.key} style={td(isBase)}>
-                        <span
-                          style={{
-                            fontFamily: 'var(--mono)',
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color,
-                          }}
-                        >
-                          {fmt(v, c.suffix)}
-                        </span>
-                      </td>
-                    )
-                  })}
-                </tr>
-                {!isBase && (
-                  <tr>
+              {COLS.map(c => (
+                <th key={c.key} style={TH_BASE}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {strategies.map((s, rowIdx) => {
+              const isBase = s.is_baseline
+              const zebra = rowIdx % 2 === 1 ? 'var(--surface-2)' : 'var(--surface)'
+              return (
+                <Fragment key={s.id}>
+                  <tr style={{ background: zebra }}>
                     <td
                       style={{
-                        padding: '3px 16px 9px',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        ...TD_BASE,
                         textAlign: 'left',
+                        paddingLeft: 20,
+                        borderLeft: isBase ? '2px solid var(--accent)' : '2px solid transparent',
                       }}
                     >
-                      <span
-                        style={{
-                          fontFamily: 'var(--mono)',
-                          fontSize: 11,
-                          color: 'var(--text3)',
-                        }}
-                      >
-                        ↳ vs {baseline.name}
-                      </span>
-                    </td>
-                    {COLS.map((c) => {
-                      const delta = s[c.key] - baseline[c.key]
-                      const imp = c.hb === null ? null : c.hb ? delta > 0 : delta < 0
-                      const dc = imp === true ? '#00e49a' : imp === false ? '#ff5c5c' : 'var(--text2)'
-                      const sign = delta >= 0 ? '+' : ''
-                      return (
-                        <td
-                          key={c.key}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        {isBase && <Chip tone="accent">Base</Chip>}
+                        <span
                           style={{
-                            padding: '3px 12px 9px',
-                            textAlign: 'right',
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
+                            fontFamily: 'var(--serif)',
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            letterSpacing: '-0.005em',
                           }}
                         >
+                          {s.name}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: 'var(--mono)',
+                          fontSize: 'var(--fs-mono-sm)',
+                          color: 'var(--text3)',
+                          marginTop: 4,
+                          letterSpacing: 'var(--tracking-mono)',
+                        }}
+                      >
+                        {s.symbol} · {s.total_trades} {L('取引', 'trades')}
+                      </div>
+                    </td>
+                    {COLS.map(c => {
+                      const v = s[c.key] ?? null
+                      return (
+                        <td key={c.key} style={TD_BASE}>
                           <span
                             style={{
-                              fontFamily: 'var(--mono)',
-                              fontSize: 11,
-                              color: dc,
+                              fontWeight: 700,
+                              color: valueColor(v as number | null, c.hb),
                             }}
                           >
-                            {sign}
-                            {delta.toFixed(Math.abs(delta) > 99 ? 0 : 2)}
-                            {c.suffix}
-                            {imp === true ? ' ↑' : imp === false ? ' ↓' : ''}
+                            {fmt(v as number | null, c.suffix)}
                           </span>
                         </td>
                       )
                     })}
                   </tr>
-                )}
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+                  {!isBase && (
+                    <tr style={{ background: zebra }}>
+                      <td
+                        style={{
+                          ...TD_DELTA,
+                          textAlign: 'left',
+                          paddingLeft: 20,
+                          color: 'var(--text3)',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: 'var(--sans)',
+                            fontSize: 'var(--fs-caption)',
+                            fontWeight: 500,
+                            color: 'var(--text3)',
+                            letterSpacing: 'var(--tracking-caption)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {L('vs', 'vs')} {baseline.name}
+                        </span>
+                      </td>
+                      {COLS.map(c => {
+                        const sv = (s[c.key] ?? null) as number | null
+                        const bv = (baseline[c.key] ?? null) as number | null
+                        const delta = sv != null && bv != null ? sv - bv : null
+                        const improved =
+                          delta == null || c.hb === null ? null : c.hb ? delta > 0 : delta < 0
+                        const sign = delta != null && delta >= 0 ? '+' : ''
+                        return (
+                          <td key={c.key} style={TD_DELTA}>
+                            <span style={{ color: deltaColor(delta, improved), fontWeight: 600 }}>
+                              {delta == null
+                                ? '—'
+                                : `${sign}${delta.toFixed(Math.abs(delta) > 99 ? 0 : 2)}${c.suffix}${
+                                    improved === true ? ' ↑' : improved === false ? ' ↓' : ''
+                                  }`}
+                            </span>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   )
 }

@@ -1,6 +1,17 @@
-import { useMemo, useState } from 'react'
-import { useDashboard } from '../../contexts/DashboardContext'
-import { getRangeN } from '../../contexts/dashboardConstants'
+import { useCallback, useMemo, useState } from 'react'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { LinePath, Bar, Line } from '@visx/shape'
+import { scaleLinear, scaleTime } from '@visx/scale'
+import { AxisBottom, AxisLeft } from '@visx/axis'
+import { GridRows } from '@visx/grid'
+import { curveMonotoneX } from '@visx/curve'
+import { useTooltip, TooltipWithBounds, defaultStyles } from '@visx/tooltip'
+import { localPoint } from '@visx/event'
+import { bisector } from 'd3-array'
+
+import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface Props {
   dailyReturns: number[]
@@ -9,7 +20,14 @@ interface Props {
 }
 
 const WINDOWS = [30, 60, 90] as const
-type Window = (typeof WINDOWS)[number]
+type WindowOption = (typeof WINDOWS)[number]
+
+interface Point {
+  date: Date
+  value: number
+}
+
+const bisectDate = bisector<Point, Date>(d => d.date).left
 
 function computeRollingSharpe(returns: number[], window: number): (number | null)[] {
   const result: (number | null)[] = new Array(returns.length).fill(null)
@@ -23,86 +41,267 @@ function computeRollingSharpe(returns: number[], window: number): (number | null
   return result
 }
 
-export function RollingMetricsChart({ dailyReturns, dates, compact = false }: Props) {
+export function RollingMetricsChart(props: Props): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <RollingMetricsInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
+
+function RollingMetricsInner({
+  width,
+  dailyReturns,
+  dates,
+  compact = false,
+}: Props & { width: number }) {
   const { selectedRange } = useDashboard()
-  const [win, setWin] = useState<Window>(60)
-  const [tooltip, setTooltip] = useState<{ x: number; v: number; date: string } | null>(null)
+  const theme = useChartTheme()
+  const [win, setWin] = useState<WindowOption>(60)
 
-  const W = 800, H = compact ? 160 : 220
-  const P = { l: 58, r: 20, t: 16, b: compact ? 24 : 32 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
+  const height = compact ? 200 : 240
+  const margin = useMemo(
+    () =>
+      compact
+        ? { top: 12, right: 24, bottom: 24, left: 56 }
+        : { top: 16, right: 24, bottom: 32, left: 60 },
+    [compact],
+  )
+  const innerW = Math.max(0, width - margin.left - margin.right)
+  const innerH = Math.max(0, height - margin.top - margin.bottom)
 
-  const { slicedSharpe, slicedDates } = useMemo(() => {
+  const points = useMemo<Point[]>(() => {
     const n = dailyReturns.length
-    const bars = Math.min(getRangeN(selectedRange), n)
-    const s = Math.max(0, n - bars)
+    const bars = Math.min(RANGE_N[selectedRange], n)
+    const start = Math.max(0, n - bars)
     const sharpe = computeRollingSharpe(dailyReturns, win)
-    return {
-      slicedSharpe: sharpe.slice(s),
-      slicedDates: dates.slice(s + 1),
+    const result: Point[] = []
+    for (let i = start; i < sharpe.length; i++) {
+      const v = sharpe[i]
+      if (v == null) continue
+      const date = new Date(dates[i + 1] ?? dates[i] ?? '')
+      if (Number.isNaN(date.getTime())) continue
+      result.push({ date, value: v })
     }
+    return result
   }, [dailyReturns, dates, selectedRange, win])
 
-  const valid = slicedSharpe.filter((v): v is number => v !== null)
-  const minV = Math.min(...valid, -1)
-  const maxV = Math.max(...valid, 1)
-  const span = maxV - minV || 1
-  const len = slicedSharpe.length
+  const xDomain = useMemo<[Date, Date]>(() => {
+    if (points.length === 0) {
+      const now = new Date()
+      return [now, now]
+    }
+    return [points[0]!.date, points[points.length - 1]!.date]
+  }, [points])
 
-  function toX(i: number) { return P.l + (i / Math.max(len - 1, 1)) * pW }
-  function toY(v: number) { return P.t + pH - ((v - minV) / span) * pH }
+  const yDomain = useMemo<[number, number]>(() => {
+    if (points.length === 0) return [-1, 1]
+    const vs = points.map(p => p.value)
+    const lo = Math.min(...vs, -1)
+    const hi = Math.max(...vs, 1)
+    return [lo, hi]
+  }, [points])
 
-  const pathD = slicedSharpe.reduce<string>((acc, v, i) => {
-    if (v === null) return acc
-    return acc + (acc === '' ? 'M' : 'L') + `${toX(i).toFixed(1)},${toY(v).toFixed(1)}`
-  }, '')
+  const xScale = useMemo(
+    () => scaleTime({ domain: xDomain, range: [0, innerW] }),
+    [xDomain, innerW],
+  )
+
+  const yScale = useMemo(
+    () => scaleLinear({ domain: yDomain, range: [innerH, 0], nice: true }),
+    [yDomain, innerH],
+  )
+
+  const { tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip } =
+    useTooltip<Point>()
+
+  const handleMove = useCallback(
+    (e: React.MouseEvent<SVGRectElement> | React.TouchEvent<SVGRectElement>) => {
+      if (points.length === 0) return
+      const lp = localPoint(e) ?? { x: 0, y: 0 }
+      const x = lp.x - margin.left
+      const x0 = xScale.invert(x)
+      const idx = bisectDate(points, x0, 1)
+      const a = points[idx - 1]
+      const b = points[idx]
+      const p = !b
+        ? a
+        : !a
+          ? b
+          : Math.abs(x0.getTime() - a.date.getTime()) <= Math.abs(b.date.getTime() - x0.getTime())
+            ? a
+            : b
+      if (!p) return
+      showTooltip({
+        tooltipData: p,
+        tooltipLeft: xScale(p.date) + margin.left,
+        tooltipTop: yScale(p.value) + margin.top,
+      })
+    },
+    [points, xScale, yScale, margin, showTooltip],
+  )
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-        {WINDOWS.map(w => (
-          <button key={w} onClick={() => setWin(w)} style={{
-            height: 22, padding: '0 8px', borderRadius: 4, cursor: 'pointer',
-            fontFamily: 'var(--mono)', fontSize: 11,
-            background: win === w ? 'var(--accent-bg)' : 'var(--surface)',
-            border: win === w ? '1px solid var(--accent-glow)' : '1px solid var(--border)',
-            color: win === w ? 'var(--accent)' : 'var(--text2)',
-          }}>{w}d</button>
-        ))}
+    <div style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {WINDOWS.map(w => {
+          const active = w === win
+          return (
+            <button
+              key={w}
+              type="button"
+              onClick={() => setWin(w)}
+              style={{
+                height: 24,
+                padding: '0 10px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                fontWeight: 600,
+                letterSpacing: 'var(--tracking-mono)',
+                background: active ? 'var(--accent-bg)' : 'transparent',
+                border: active ? '1px solid var(--accent-glow)' : '1px solid var(--border)',
+                color: active ? 'var(--accent)' : 'var(--text3)',
+                transition: 'all var(--motion-fast)',
+              }}
+            >
+              {w}d
+            </button>
+          )
+        })}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}
-        onMouseMove={e => {
-          const rect = (e.currentTarget as SVGElement).getBoundingClientRect()
-          const mx = (e.clientX - rect.left) * (W / rect.width)
-          const i = Math.round(((mx - P.l) / pW) * Math.max(len - 1, 1))
-          const ci = Math.max(0, Math.min(len - 1, i))
-          const v = slicedSharpe[ci] ?? null
-          if (v !== null) setTooltip({ x: toX(ci), v, date: slicedDates[ci] ?? '' })
-        }}
-        onMouseLeave={() => setTooltip(null)}
+
+      <svg
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`Rolling Sharpe (${win}-day window), ${points.length} points`}
+        style={{ display: 'block', overflow: 'visible' }}
       >
-        {[-2, -1, 0, 1, 2].filter(v => v >= minV - 0.1 && v <= maxV + 0.1).map(v => (
-          <g key={v}>
-            <line x1={P.l} x2={P.l + pW} y1={toY(v)} y2={toY(v)}
-              stroke={v === 0 ? 'var(--text3)' : 'var(--border)'}
-              strokeWidth={v === 0 ? 1 : 0.5}
-              strokeDasharray={v === 0 ? undefined : '3,3'} />
-            <text x={P.l - 4} y={toY(v) + 4} textAnchor="end" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">{v}</text>
-          </g>
-        ))}
-        <path d={pathD} fill="none" stroke="#00e49a" strokeWidth={1.5} />
-        {tooltip && <line x1={tooltip.x} x2={tooltip.x} y1={P.t} y2={P.t + pH} stroke="var(--text3)" strokeWidth={0.5} />}
-        {len > 1 && [0, Math.floor(len / 2), len - 1].map(i => (
-          <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">
-            {(slicedDates[i] ?? '').slice(0, 7)}
-          </text>
-        ))}
+        <Group left={margin.left} top={margin.top}>
+          <GridRows
+            scale={yScale}
+            width={innerW}
+            stroke={theme.border}
+            strokeDasharray="2,4"
+            numTicks={5}
+          />
+
+          <Line
+            from={{ x: 0, y: yScale(0) }}
+            to={{ x: innerW, y: yScale(0) }}
+            stroke={theme.text3}
+            strokeWidth={1}
+            strokeDasharray="3,4"
+            opacity={0.6}
+          />
+
+          <LinePath
+            data={points}
+            x={(d) => xScale(d.date)}
+            y={(d) => yScale(d.value)}
+            stroke={theme.accent}
+            strokeWidth={1.75}
+            curve={curveMonotoneX}
+          />
+
+          <AxisLeft
+            scale={yScale}
+            numTicks={5}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'end',
+              dx: '-0.4em',
+              dy: '0.32em',
+            })}
+            hideAxisLine
+          />
+          <AxisBottom
+            top={innerH}
+            scale={xScale}
+            numTicks={compact ? 4 : 6}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'middle',
+              dy: '0.5em',
+            })}
+            hideAxisLine
+          />
+
+          {tooltipData && (
+            <>
+              <Line
+                from={{ x: xScale(tooltipData.date), y: 0 }}
+                to={{ x: xScale(tooltipData.date), y: innerH }}
+                stroke={theme.text3}
+                strokeWidth={1}
+                strokeDasharray="3,3"
+                opacity={0.5}
+                pointerEvents="none"
+              />
+              <circle
+                cx={xScale(tooltipData.date)}
+                cy={yScale(tooltipData.value)}
+                r={4}
+                fill={theme.accent}
+                stroke={theme.surface}
+                strokeWidth={1.5}
+                pointerEvents="none"
+              />
+            </>
+          )}
+
+          <Bar
+            x={0}
+            y={0}
+            width={innerW}
+            height={innerH}
+            fill="transparent"
+            onMouseMove={handleMove}
+            onTouchMove={handleMove}
+            onMouseLeave={hideTooltip}
+            onTouchEnd={hideTooltip}
+          />
+        </Group>
       </svg>
-      {tooltip && (
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text)', marginTop: 4 }}>
-          {tooltip.date} — Sharpe({win}d): <span style={{ color: tooltip.v >= 0 ? '#00e49a' : '#ff5c5c' }}>{tooltip.v.toFixed(3)}</span>
-        </div>
+
+      {tooltipData && (
+        <TooltipWithBounds
+          top={tooltipTop}
+          left={tooltipLeft}
+          style={{
+            ...defaultStyles,
+            background: theme.surface,
+            border: `1px solid ${theme.borderStrong}`,
+            color: theme.text,
+            borderRadius: 8,
+            padding: '8px 12px',
+            fontFamily: theme.mono,
+            fontSize: 12,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ color: theme.text3, fontSize: 11 }}>
+              {tooltipData.date.toISOString().slice(0, 10)}
+            </span>
+            <span style={{ fontWeight: 600 }}>
+              Sharpe ({win}d):{' '}
+              <span style={{ color: tooltipData.value >= 0 ? theme.success : theme.danger }}>
+                {tooltipData.value.toFixed(3)}
+              </span>
+            </span>
+          </div>
+        </TooltipWithBounds>
       )}
     </div>
   )

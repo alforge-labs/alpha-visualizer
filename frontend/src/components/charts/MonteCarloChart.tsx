@@ -1,7 +1,16 @@
 import { useMemo } from 'react'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { LinePath, Line } from '@visx/shape'
+import { scaleLinear } from '@visx/scale'
+import { AxisBottom, AxisLeft } from '@visx/axis'
+import { GridRows } from '@visx/grid'
+import { curveMonotoneX } from '@visx/curve'
+
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface MonteCarloChartProps {
   trades: Trade[]
@@ -15,294 +24,335 @@ interface Pt {
 }
 
 const N_SIM = 400
+const MARGIN = { top: 16, right: 36, bottom: 32, left: 60 }
 
-export function MonteCarloChart({ trades, lang, compact }: MonteCarloChartProps) {
+export function MonteCarloChart(props: MonteCarloChartProps): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <MonteCarloInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
+
+function MonteCarloInner({
+  width,
+  trades,
+  lang,
+  compact,
+}: MonteCarloChartProps & { width: number }): React.ReactElement {
+  const theme = useChartTheme()
   const L = makeL(lang)
+  const n = trades.length
 
   const { pCurves, stats } = useMemo(() => {
-    const rets = trades.map((t) => t.return_pct / 100)
-    const n = rets.length
+    const rets = trades.map(t => t.return_pct / 100)
+    const trades_n = rets.length
     let seed = 0x12345678
-    const rand = () => {
+    const rand = (): number => {
+      // eslint-disable-next-line react-hooks/immutability
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0
-      return (seed >>> 0) % n
+      return (seed >>> 0) % Math.max(1, trades_n)
     }
 
     const sims: number[][] = []
     for (let s = 0; s < N_SIM; s++) {
       let eq = 100
       const curve: number[] = [100]
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < trades_n; i++) {
         eq = Math.max(eq * (1 + (rets[rand()] ?? 0)), 0.01)
         curve.push(eq)
       }
       sims.push(curve)
     }
 
-    const step = Math.max(1, Math.floor(n / 120))
+    const step = Math.max(1, Math.floor(trades_n / 120))
     const xs: number[] = []
-    for (let i = 0; i <= n; i += step) xs.push(i)
-    if (xs[xs.length - 1] !== n) xs.push(n)
+    for (let i = 0; i <= trades_n; i += step) xs.push(i)
+    if (xs[xs.length - 1] !== trades_n) xs.push(trades_n)
 
     const PCT = [5, 25, 50, 75, 95] as const
     const out: Record<number, Pt[]> = { 5: [], 25: [], 50: [], 75: [], 95: [] }
 
     xs.forEach((xi) => {
-      const vals = sims.map((s) => s[xi] ?? 0).sort((a, b) => a - b)
+      const vals = sims.map(s => s[xi] ?? 0).sort((a, b) => a - b)
       PCT.forEach((p) => {
         const v = vals[Math.floor((p / 100) * (N_SIM - 1))] ?? 0
         out[p]!.push({ xi, v })
       })
     })
 
-    const finals = sims.map((s) => s[n] ?? 100).sort((a, b) => a - b)
-    const stats = {
+    const finals = sims.map(s => s[trades_n] ?? 100).sort((a, b) => a - b)
+    const finalStats = {
       p5: finals[Math.floor(0.05 * (N_SIM - 1))] ?? 100,
       p50: finals[Math.floor(0.5 * (N_SIM - 1))] ?? 100,
       p95: finals[Math.floor(0.95 * (N_SIM - 1))] ?? 100,
-      lossProb: (finals.filter((f) => f < 100).length / N_SIM) * 100,
+      lossProb: (finals.filter(f => f < 100).length / N_SIM) * 100,
     }
 
-    return { pCurves: out, stats }
+    return { pCurves: out, stats: finalStats }
   }, [trades])
 
-  const W = 800
-  const H = compact ? 200 : 262
-  const P = { l: 60, r: 36, t: 18, b: 32 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
-  const n = trades.length
+  const height = compact ? 240 : 300
+  const innerW = Math.max(0, width - MARGIN.left - MARGIN.right)
+  const innerH = Math.max(0, height - MARGIN.top - MARGIN.bottom)
 
-  const allV = [...(pCurves[5] ?? []), ...(pCurves[95] ?? [])].map((d) => d.v)
+  const allV = [...(pCurves[5] ?? []), ...(pCurves[95] ?? [])].map(d => d.v)
   const minV = (Math.min(...allV) || 90) * 0.97
   const maxV = (Math.max(...allV) || 110) * 1.03
-  const span = Math.max(maxV - minV, 1e-9)
 
-  const toX = (xi: number) => P.l + (xi / Math.max(n, 1)) * pW
-  const toY = (v: number) => P.t + (1 - (v - minV) / span) * pH
+  const xScale = useMemo(
+    () => scaleLinear<number>({ domain: [0, Math.max(n, 1)], range: [0, innerW] }),
+    [n, innerW],
+  )
+  const yScale = useMemo(
+    () => scaleLinear<number>({ domain: [minV, maxV], range: [innerH, 0], nice: true }),
+    [minV, maxV, innerH],
+  )
 
-  const makePath = (pts: Pt[]) =>
-    pts.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(d.xi).toFixed(1)},${toY(d.v).toFixed(1)}`).join(' ')
-
-  const makeBand = (upper: Pt[], lower: Pt[]) =>
-    `${makePath(upper)} ${[...lower]
-      .reverse()
-      .map((d) => `L${toX(d.xi).toFixed(1)},${toY(d.v).toFixed(1)}`)
-      .join(' ')} Z`
-
-  const baseY = toY(100)
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => {
-    const v = minV + (1 - f) * (maxV - minV)
-    return { y: toY(v), label: v.toFixed(0) }
-  })
+  const success = theme.success || '#4F7A3F'
+  const successFaint = `color-mix(in srgb, ${success} 18%, transparent)`
+  const successSoft = `color-mix(in srgb, ${success} 8%, transparent)`
 
   const statRows: ReadonlyArray<readonly [string, string, string]> = [
     [
-      L('中央値リターン', 'Median Return'),
+      L('中央値リターン', 'Median return'),
       `${((stats.p50 / 100 - 1) * 100).toFixed(1)}%`,
-      stats.p50 >= 100 ? '#00e49a' : '#ff5c5c',
+      stats.p50 >= 100 ? theme.success : theme.danger,
     ],
-    [L('最良 95%ile', 'Best 95%ile'), `${((stats.p95 / 100 - 1) * 100).toFixed(1)}%`, '#00e49a'],
+    [L('最良 95%ile', 'Best 95%ile'), `${((stats.p95 / 100 - 1) * 100).toFixed(1)}%`, theme.success],
     [
       L('最悪 5%ile', 'Worst 5%ile'),
       `${((stats.p5 / 100 - 1) * 100).toFixed(1)}%`,
-      stats.p5 < 100 ? '#ff5c5c' : '#f5a623',
+      stats.p5 < 100 ? theme.danger : theme.warn,
     ],
     [
-      L('損失確率', 'Loss Prob.'),
+      L('損失確率', 'Loss prob.'),
       `${stats.lossProb.toFixed(1)}%`,
-      stats.lossProb > 30 ? '#ff5c5c' : '#f5a623',
+      stats.lossProb > 30 ? theme.danger : theme.warn,
     ],
-  ]
-
-  const legend: ReadonlyArray<readonly [string, number, string]> = [
-    ['rgba(0,228,154,0.1)', 10, L('90% CI', '90% CI')],
-    ['rgba(0,228,154,0.22)', 10, L('50% CI', '50% CI')],
-    ['#00e49a', 2, L('中央値', 'Median')],
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', paddingLeft: P.l }}>
-        {statRows.map(([lbl, val, c], i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 28,
+          flexWrap: 'wrap',
+          paddingLeft: MARGIN.left,
+        }}
+      >
+        {statRows.map(([lbl, val, col], i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span
               style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 11,
+                fontFamily: 'var(--sans)',
+                fontSize: 'var(--fs-caption)',
+                fontWeight: 500,
                 color: 'var(--text3)',
-                letterSpacing: '0.08em',
+                letterSpacing: 'var(--tracking-caption)',
+                textTransform: 'uppercase',
               }}
             >
               {lbl}
             </span>
             <span
               style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 20,
-                fontWeight: 700,
-                color: c,
-                letterSpacing: '-0.03em',
+                fontFamily: 'var(--serif)',
+                fontSize: '1.5rem',
+                fontWeight: 600,
+                color: col,
+                letterSpacing: 'var(--tracking-display)',
+                lineHeight: 1.05,
               }}
             >
               {val}
             </span>
           </div>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'center' }}>
-          {legend.map(([c, h, l], i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 20, height: h, background: c, borderRadius: 2 }} />
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text2)' }}>
-                {l}
-              </span>
-            </div>
-          ))}
+        <div
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            gap: 14,
+            alignItems: 'center',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            color: 'var(--text2)',
+            letterSpacing: 'var(--tracking-mono)',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 16, height: 6, background: successSoft, borderRadius: 2 }} />
+            90% CI
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 16, height: 6, background: successFaint, borderRadius: 2 }} />
+            50% CI
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 16, height: 2, background: success, borderRadius: 1 }} />
+            {L('中央値', 'Median')}
+          </span>
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-        <defs>
-          <clipPath id="mcClip">
-            <rect x={P.l} y={P.t} width={pW} height={pH} />
-          </clipPath>
-        </defs>
-
-        {yTicks.map((t, i) => (
-          <g key={i}>
-            <line
-              x1={P.l}
-              y1={t.y}
-              x2={P.l + pW}
-              y2={t.y}
-              stroke="rgba(255,255,255,0.04)"
-              strokeWidth="1"
-            />
-            <text
-              x={P.l - 6}
-              y={t.y + 4}
-              textAnchor="end"
-              fill="var(--text3)"
-              fontSize="11"
-              fontFamily="var(--mono)"
-            >
-              {t.label}
-            </text>
-          </g>
-        ))}
-
-        {baseY >= P.t && baseY <= P.t + pH && (
-          <line
-            x1={P.l}
-            y1={baseY}
-            x2={P.l + pW}
-            y2={baseY}
-            stroke="rgba(255,255,255,0.12)"
-            strokeWidth="1"
-            strokeDasharray="5,4"
-            clipPath="url(#mcClip)"
+      <svg
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`Monte Carlo equity bands, ${N_SIM} simulations`}
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <Group left={MARGIN.left} top={MARGIN.top}>
+          <GridRows
+            scale={yScale}
+            width={innerW}
+            stroke={theme.border}
+            strokeDasharray="2,4"
+            numTicks={5}
           />
-        )}
 
-        <path
-          d={makeBand(pCurves[95] ?? [], pCurves[5] ?? [])}
-          fill="rgba(0,228,154,0.07)"
-          clipPath="url(#mcClip)"
-        />
-        <path
-          d={makeBand(pCurves[75] ?? [], pCurves[25] ?? [])}
-          fill="rgba(0,228,154,0.15)"
-          clipPath="url(#mcClip)"
-        />
+          <BandPath
+            upper={pCurves[95] ?? []}
+            lower={pCurves[5] ?? []}
+            xScale={xScale}
+            yScale={yScale}
+            fill={successSoft}
+          />
+          <BandPath
+            upper={pCurves[75] ?? []}
+            lower={pCurves[25] ?? []}
+            xScale={xScale}
+            yScale={yScale}
+            fill={successFaint}
+          />
 
-        <path
-          d={makePath(pCurves[95] ?? [])}
-          fill="none"
-          stroke="rgba(0,228,154,0.28)"
-          strokeWidth="1"
-          clipPath="url(#mcClip)"
-        />
-        <path
-          d={makePath(pCurves[75] ?? [])}
-          fill="none"
-          stroke="rgba(0,228,154,0.42)"
-          strokeWidth="1"
-          clipPath="url(#mcClip)"
-        />
-        <path
-          d={makePath(pCurves[50] ?? [])}
-          fill="none"
-          stroke="#00e49a"
-          strokeWidth="2.5"
-          clipPath="url(#mcClip)"
-        />
-        <path
-          d={makePath(pCurves[25] ?? [])}
-          fill="none"
-          stroke="rgba(0,228,154,0.42)"
-          strokeWidth="1"
-          clipPath="url(#mcClip)"
-        />
-        <path
-          d={makePath(pCurves[5] ?? [])}
-          fill="none"
-          stroke="rgba(0,228,154,0.28)"
-          strokeWidth="1"
-          clipPath="url(#mcClip)"
-        />
+          {/* baseline 100 */}
+          <Line
+            from={{ x: 0, y: yScale(100) }}
+            to={{ x: innerW, y: yScale(100) }}
+            stroke={theme.text3}
+            strokeWidth={1}
+            strokeDasharray="4,4"
+            opacity={0.6}
+          />
 
-        {(
-          [
-            [pCurves[95] ?? [], '95%'],
-            [pCurves[50] ?? [], '50%'],
-            [pCurves[5] ?? [], '5%'],
-          ] as const
-        ).map(([pts, lbl], i) => {
-          const last = pts[pts.length - 1]
-          if (!last) return null
-          return (
-            <text
-              key={i}
-              x={toX(last.xi) + 5}
-              y={toY(last.v) + 4}
-              fill="var(--text2)"
-              fontSize="11"
-              fontFamily="var(--mono)"
-            >
-              {lbl}
-            </text>
-          )
-        })}
+          {/* percentile lines */}
+          {([95, 75, 25, 5] as const).map(p => {
+            const data = pCurves[p] ?? []
+            return (
+              <LinePath
+                key={p}
+                data={data}
+                x={(d) => xScale(d.xi)}
+                y={(d) => yScale(d.v)}
+                stroke={success}
+                strokeOpacity={p === 95 || p === 5 ? 0.32 : 0.55}
+                strokeWidth={1}
+                curve={curveMonotoneX}
+              />
+            )
+          })}
 
-        {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
-          <text
-            key={i}
-            x={P.l + f * pW}
-            y={H - 4}
-            textAnchor="middle"
-            fill="var(--text3)"
-            fontSize="11"
-            fontFamily="var(--mono)"
-          >
-            {Math.round(f * n)}
-          </text>
-        ))}
+          {/* median */}
+          <LinePath
+            data={pCurves[50] ?? []}
+            x={(d) => xScale(d.xi)}
+            y={(d) => yScale(d.v)}
+            stroke={success}
+            strokeWidth={2.25}
+            curve={curveMonotoneX}
+          />
+
+          <AxisLeft
+            scale={yScale}
+            numTicks={5}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'end',
+              dx: '-0.4em',
+              dy: '0.32em',
+            })}
+            hideAxisLine
+          />
+          <AxisBottom
+            top={innerH}
+            scale={xScale}
+            numTicks={5}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickFormat={(v) => `${Math.round(v as number)}`}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'middle',
+              dy: '0.5em',
+            })}
+            hideAxisLine
+          />
+
+          {/* end labels */}
+          {([95, 50, 5] as const).map(p => {
+            const pts = pCurves[p] ?? []
+            const last = pts[pts.length - 1]
+            if (!last) return null
+            return (
+              <text
+                key={p}
+                x={xScale(last.xi) + 6}
+                y={yScale(last.v) + 4}
+                fontSize={11}
+                fontFamily={theme.mono}
+                fill={theme.text2}
+              >
+                {p}%
+              </text>
+            )
+          })}
+        </Group>
       </svg>
 
       <div
         style={{
-          paddingLeft: P.l,
+          paddingLeft: MARGIN.left,
           fontFamily: 'var(--mono)',
-          fontSize: 11,
+          fontSize: 'var(--fs-mono-sm)',
           color: 'var(--text3)',
+          letterSpacing: 'var(--tracking-mono)',
         }}
       >
         {N_SIM}
         {L(
-          'シミュレーション · トレードをランダムリサンプリング（シード固定）',
-          ' simulations · random resampling of trades (fixed seed)'
+          ' シミュレーション · トレードをランダムリサンプリング（シード固定）',
+          ' simulations · random resampling of trades (fixed seed)',
         )}
       </div>
     </div>
   )
+}
+
+interface BandPathProps {
+  upper: Pt[]
+  lower: Pt[]
+  xScale: (n: number) => number
+  yScale: (n: number) => number
+  fill: string
+}
+
+function BandPath({ upper, lower, xScale, yScale, fill }: BandPathProps): React.ReactElement | null {
+  if (upper.length === 0 || lower.length === 0) return null
+  const upperD = upper
+    .map((u, i) => `${i === 0 ? 'M' : 'L'}${xScale(u.xi)},${yScale(u.v)}`)
+    .join('')
+  const lowerD = [...lower]
+    .reverse()
+    .map(l => `L${xScale(l.xi)},${yScale(l.v)}`)
+    .join('')
+  return <path d={`${upperD}${lowerD}Z`} fill={fill} />
 }

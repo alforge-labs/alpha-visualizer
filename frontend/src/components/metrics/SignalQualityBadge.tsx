@@ -1,15 +1,13 @@
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import type { Variation } from '../../hooks/useTheme'
 import type { BacktestMetrics } from '../../api/types'
 
 interface Props {
   metrics: BacktestMetrics
   lang: Lang
-  variation: Variation
 }
 
-export function SignalQualityBadge({ metrics, lang, variation }: Props) {
+export function SignalQualityBadge({ metrics, lang }: Props) {
   const sv = metrics.statistical_validity
   const ds = metrics.deflated_sharpe
   if (!sv) return null
@@ -17,14 +15,15 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
   const score = sv.signal_quality_score
   const psr = ds?.probabilistic_sr
   const dsr = ds?.deflated_sr
-  const scoreColor = score >= 0.7 ? '#00e49a' : score >= 0.4 ? '#f5a623' : '#ff5c5c'
+  const scoreColor =
+    score >= 0.7 ? 'var(--success)' : score >= 0.4 ? 'var(--warn)' : 'var(--danger)'
 
   return (
     <div
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: variation === 'clarity' ? 10 : 7,
+        borderRadius: 'var(--radius-md)',
         padding: '16px 20px',
         display: 'flex',
         flexDirection: 'column',
@@ -34,10 +33,10 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span
           style={{
-            fontFamily: 'var(--mono)',
-            fontSize: 11,
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
             color: 'var(--text3)',
-            letterSpacing: '0.1em',
+            letterSpacing: 'var(--tracking-caption)',
             textTransform: 'uppercase',
           }}
         >
@@ -45,14 +44,15 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
         </span>
         <span
           style={{
-            background: sv.is_valid ? 'var(--accent-bg)' : 'rgba(245,166,35,0.1)',
-            border: `1px solid ${sv.is_valid ? 'var(--accent-glow)' : 'rgba(245,166,35,0.3)'}`,
-            borderRadius: 4,
-            padding: '2px 8px',
+            background: sv.is_valid ? 'var(--accent-bg)' : 'color-mix(in srgb, var(--warn) 12%, transparent)',
+            border: `1px solid ${sv.is_valid ? 'var(--accent-glow)' : 'color-mix(in srgb, var(--warn) 30%, transparent)'}`,
+            borderRadius: 'var(--radius-sm)',
+            padding: '2px 10px',
             fontFamily: 'var(--mono)',
-            fontSize: 11,
+            fontSize: 'var(--fs-mono-sm)',
             fontWeight: 700,
-            color: sv.is_valid ? '#00e49a' : '#f5a623',
+            letterSpacing: 'var(--tracking-mono)',
+            color: sv.is_valid ? 'var(--success)' : 'var(--warn)',
           }}
         >
           {sv.is_valid ? L('有効', 'VALID') : L('要注意', 'WARN')}
@@ -60,13 +60,13 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--text2)' }}>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text2)' }}>
             {L('品質スコア', 'Quality Score')}
           </span>
           <span
             style={{
               fontFamily: 'var(--mono)',
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: 700,
               color: scoreColor,
             }}
@@ -74,7 +74,7 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
             {(score * 100).toFixed(0)}/100
           </span>
         </div>
-        <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
+        <div style={{ height: 5, background: 'var(--bg2)', borderRadius: 3 }}>
           <div
             style={{
               height: '100%',
@@ -90,11 +90,11 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           {(
             [
-              [L('PSR', 'PSR'), `${(psr * 100).toFixed(1)}%`, psr >= 0.9 ? '#00e49a' : '#f5a623'],
+              [L('PSR', 'PSR'), `${(psr * 100).toFixed(1)}%`, psr >= 0.9 ? 'var(--success)' : 'var(--warn)'],
               [
                 L('DSR（補正済）', 'DSR (deflated)'),
                 `${(dsr * 100).toFixed(1)}%`,
-                dsr >= 0.9 ? '#00e49a' : '#f5a623',
+                dsr >= 0.9 ? 'var(--success)' : 'var(--warn)',
               ],
               [L('試行数', 'N trials'), String(ds.n_trials), 'var(--text2)'],
             ] as const
@@ -103,9 +103,9 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
               <span
                 style={{
                   fontFamily: 'var(--mono)',
-                  fontSize: 11,
+                  fontSize: 'var(--fs-caption)',
                   color: 'var(--text3)',
-                  letterSpacing: '0.08em',
+                  letterSpacing: 'var(--tracking-caption)',
                 }}
               >
                 {lbl}
@@ -130,13 +130,13 @@ export function SignalQualityBadge({ metrics, lang, variation }: Props) {
             display: 'flex',
             gap: 8,
             padding: '8px 10px',
-            background: 'rgba(245,166,35,0.07)',
-            border: '1px solid rgba(245,166,35,0.2)',
-            borderRadius: 5,
+            background: 'color-mix(in srgb, var(--warn) 10%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--warn) 24%, transparent)',
+            borderRadius: 'var(--radius-sm)',
           }}
         >
-          <span style={{ color: '#f5a623', flexShrink: 0 }}>⚠</span>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 11, color: '#f5a623', lineHeight: 1.5 }}>
+          <span style={{ color: 'var(--warn)', flexShrink: 0 }}>⚠</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--warn)', lineHeight: 1.5 }}>
             {sv.warning}
           </span>
         </div>

@@ -1,4 +1,4 @@
-import type { BacktestDetail, StrategyComparison, WFOResult } from './types'
+import type { BacktestDetail, StrategyComparison, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -38,6 +38,19 @@ export const api = {
 
   compareStrategies: (ids: string[]): Promise<StrategyComparison[]> =>
     request<StrategyComparison[]>(`/strategies/compare?ids=${encodeURIComponent(ids.join(','))}`),
+
+  listStrategies: (): Promise<StrategyListItem[]> =>
+    request<StrategyListItem[]>('/strategies'),
+
+  getStrategyRuns: (strategyId: string): Promise<StrategyRun[]> =>
+    request<StrategyRun[]>(`/strategies/${encodeURIComponent(strategyId)}/runs`),
+
+  runBacktest: (strategyId: string, symbol: string, timeframe: string): Promise<{ run_id: string; status: string }> =>
+    request<{ run_id: string; status: string }>('/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strategy_id: strategyId, symbol, timeframe }),
+    }),
 }
 
 export { ApiError }

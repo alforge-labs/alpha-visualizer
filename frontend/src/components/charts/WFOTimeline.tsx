@@ -1,77 +1,61 @@
+import { useMemo } from 'react'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { Bar } from '@visx/shape'
+import { scaleTime, scaleBand, scaleLinear } from '@visx/scale'
+import { AxisBottom } from '@visx/axis'
+
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { WFOWindow } from '../../api/types'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface WFOTimelineProps {
   windows: WFOWindow[]
   lang: Lang
 }
 
-interface Tick {
-  left: string
-  label: string
-}
+const TIMELINE_MARGIN = { top: 12, right: 24, bottom: 36, left: 48 }
+const ROW_HEIGHT = 36
+const ROW_GAP = 6
 
-export function WFOTimeline({ windows, lang }: WFOTimelineProps) {
+export function WFOTimeline({ windows, lang }: WFOTimelineProps): React.ReactElement {
   const L = makeL(lang)
-  const tStart = new Date('2020-01-01')
-  const tEnd = new Date('2023-07-01')
-  const totalMs = tEnd.getTime() - tStart.getTime()
+  const theme = useChartTheme()
 
-  const pct = (d: string) =>
-    ((new Date(`${d}-01`).getTime() - tStart.getTime()) / totalMs) * 100 + '%'
-
-  const wPct = (s: string, e: string) => {
-    const eDate = new Date(`${e}-01`)
-    eDate.setMonth(eDate.getMonth() + 1)
-    return ((eDate.getTime() - new Date(`${s}-01`).getTime()) / totalMs) * 100 + '%'
-  }
-
-  const ticks: Tick[] = []
-  const td = new Date('2020-01-01')
-  while (td < tEnd) {
-    if (td.getMonth() % 6 === 0) {
-      ticks.push({
-        left: pct(td.toISOString().slice(0, 7)),
-        label: `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}`,
-      })
-    }
-    td.setMonth(td.getMonth() + 1)
-  }
-
-  const passN = windows.filter((w) => w.pass).length
+  const passN = windows.filter(w => w.pass).length
+  const total = Math.max(windows.length, 1)
   const ratioSum = windows.reduce((s, w) => s + w.oos_is_ratio, 0)
   const isSum = windows.reduce((s, w) => s + w.is_sharpe, 0)
   const oosSum = windows.reduce((s, w) => s + w.oos_sharpe, 0)
-  const avgRatio = (ratioSum / windows.length).toFixed(2)
-  const avgIS = (isSum / windows.length).toFixed(2)
-  const avgOOS = (oosSum / windows.length).toFixed(2)
+  const avgRatio = (ratioSum / total).toFixed(2)
+  const avgIS = (isSum / total).toFixed(2)
+  const avgOOS = (oosSum / total).toFixed(2)
 
-  const passRateColor = passN / windows.length >= 0.7 ? '#00e49a' : '#f5a623'
+  const passRateColor = passN / total >= 0.7 ? theme.success : theme.warn
   const ratioNum = parseFloat(avgRatio)
-  const ratioColor = ratioNum >= 0.7 ? '#00e49a' : ratioNum < 0 ? '#ff5c5c' : '#f5a623'
-  const oosColor = parseFloat(avgOOS) > 0 ? '#00e49a' : '#ff5c5c'
+  const ratioColor = ratioNum >= 0.7 ? theme.success : ratioNum < 0 ? theme.danger : theme.warn
+  const oosColor = parseFloat(avgOOS) > 0 ? theme.success : theme.danger
 
   const summaryItems: ReadonlyArray<readonly [string, string, string]> = [
-    [L('パス率', 'Pass Rate'), `${passN}/${windows.length}`, passRateColor],
-    [L('平均OOS/IS比', 'Avg OOS/IS'), avgRatio, ratioColor],
-    [L('IS 平均Sharpe', 'Avg IS Sharpe'), avgIS, 'var(--text)'],
-    [L('OOS 平均Sharpe', 'Avg OOS Sharpe'), avgOOS, oosColor],
+    [L('パス率', 'Pass rate'), `${passN}/${total}`, passRateColor],
+    [L('平均 OOS/IS 比', 'Avg OOS/IS'), avgRatio, ratioColor],
+    [L('IS 平均 Sharpe', 'Avg IS Sharpe'), avgIS, theme.text],
+    [L('OOS 平均 Sharpe', 'Avg OOS Sharpe'), avgOOS, oosColor],
   ]
 
-  const maxIs = Math.max(...windows.map((w) => w.is_sharpe)) * 1.1 || 1
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
         {summaryItems.map(([lbl, val, col], i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span
               style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 11,
+                fontFamily: 'var(--sans)',
+                fontSize: 'var(--fs-caption)',
+                fontWeight: 500,
                 color: 'var(--text3)',
-                letterSpacing: '0.09em',
+                letterSpacing: 'var(--tracking-caption)',
                 textTransform: 'uppercase',
               }}
             >
@@ -79,11 +63,12 @@ export function WFOTimeline({ windows, lang }: WFOTimelineProps) {
             </span>
             <span
               style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 22,
-                fontWeight: 700,
+                fontFamily: 'var(--serif)',
+                fontSize: '1.625rem',
+                fontWeight: 600,
                 color: col,
-                letterSpacing: '-0.03em',
+                letterSpacing: 'var(--tracking-display)',
+                lineHeight: 1.05,
               }}
             >
               {val}
@@ -92,196 +77,303 @@ export function WFOTimeline({ windows, lang }: WFOTimelineProps) {
         ))}
       </div>
 
-      <div style={{ position: 'relative', paddingLeft: 40 }}>
-        {ticks.map((t, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: `calc(40px + ${t.left})`,
-              top: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ width: 1, height: 8, background: 'rgba(255,255,255,0.08)' }} />
+      <ParentSize>
+        {({ width }) => (width > 0 ? <TimelineSection width={width} windows={windows} lang={lang} /> : null)}
+      </ParentSize>
+
+      <SharpeBars windows={windows} lang={lang} />
+    </div>
+  )
+}
+
+interface TimelineSectionProps {
+  width: number
+  windows: WFOWindow[]
+  lang: Lang
+}
+
+function parseMonth(s: string): Date {
+  return new Date(`${s}-01`)
+}
+function parseMonthEnd(s: string): Date {
+  const d = new Date(`${s}-01`)
+  d.setMonth(d.getMonth() + 1)
+  return d
+}
+
+function TimelineSection({ width, windows, lang }: TimelineSectionProps): React.ReactElement {
+  const theme = useChartTheme()
+  const L = makeL(lang)
+
+  const xDomain = useMemo<[Date, Date]>(() => {
+    const dates: Date[] = []
+    for (const w of windows) {
+      dates.push(parseMonth(w.is_start), parseMonthEnd(w.oos_end))
+    }
+    if (dates.length === 0) {
+      const now = new Date()
+      return [now, now]
+    }
+    const min = new Date(Math.min(...dates.map(d => d.getTime())))
+    const max = new Date(Math.max(...dates.map(d => d.getTime())))
+    return [min, max]
+  }, [windows])
+
+  const innerW = Math.max(0, width - TIMELINE_MARGIN.left - TIMELINE_MARGIN.right)
+  const totalH =
+    windows.length * (ROW_HEIGHT + ROW_GAP) + TIMELINE_MARGIN.top + TIMELINE_MARGIN.bottom + 8
+
+  const xScale = useMemo(
+    () => scaleTime({ domain: xDomain, range: [0, innerW] }),
+    [xDomain, innerW],
+  )
+
+  const yScale = useMemo(
+    () =>
+      scaleBand<number>({
+        domain: windows.map(w => w.id),
+        range: [0, windows.length * (ROW_HEIGHT + ROW_GAP)],
+        padding: 0.1,
+      }),
+    [windows],
+  )
+
+  const successFaint = `color-mix(in srgb, ${theme.success} 14%, transparent)`
+  const successStroke = `color-mix(in srgb, ${theme.success} 35%, transparent)`
+  const accentSoft = `color-mix(in srgb, ${theme.accent} 18%, transparent)`
+  const accentStroke = `color-mix(in srgb, ${theme.accent} 40%, transparent)`
+  const dangerFaint = `color-mix(in srgb, ${theme.danger} 18%, transparent)`
+  const dangerStroke = `color-mix(in srgb, ${theme.danger} 40%, transparent)`
+
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: 'var(--sans)',
+          fontSize: 'var(--fs-caption)',
+          fontWeight: 500,
+          color: 'var(--text3)',
+          letterSpacing: 'var(--tracking-caption)',
+          textTransform: 'uppercase',
+          marginBottom: 8,
+        }}
+      >
+        {L('タイムライン', 'Timeline')}
+      </div>
+      <svg
+        width={width}
+        height={totalH}
+        role="img"
+        aria-label={`Walk-forward timeline, ${windows.length} windows`}
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <Group left={TIMELINE_MARGIN.left} top={TIMELINE_MARGIN.top}>
+          {windows.map(w => {
+            const yBase = yScale(w.id) ?? 0
+            const isStart = parseMonth(w.is_start)
+            const isEnd = parseMonthEnd(w.is_end)
+            const oosStart = parseMonth(w.oos_start)
+            const oosEnd = parseMonthEnd(w.oos_end)
+            const isX = xScale(isStart)
+            const isW = Math.max(2, xScale(isEnd) - isX)
+            const oosX = xScale(oosStart)
+            const oosW = Math.max(2, xScale(oosEnd) - oosX)
+            return (
+              <g key={w.id}>
+                <text
+                  x={-12}
+                  y={yBase + ROW_HEIGHT / 2}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  fontFamily={theme.mono}
+                  fontSize={12}
+                  fontWeight={600}
+                  fill={theme.text2}
+                >
+                  {w.label}
+                </text>
+                <Bar
+                  x={isX}
+                  y={yBase}
+                  width={isW}
+                  height={ROW_HEIGHT}
+                  fill={accentSoft}
+                  stroke={accentStroke}
+                  strokeWidth={1}
+                  rx={5}
+                />
+                <text
+                  x={isX + 6}
+                  y={yBase + ROW_HEIGHT / 2 + 4}
+                  fontFamily={theme.mono}
+                  fontSize={11}
+                  fill={theme.accent}
+                  fontWeight={600}
+                >
+                  IS {w.is_sharpe.toFixed(2)}
+                </text>
+                <Bar
+                  x={oosX}
+                  y={yBase}
+                  width={oosW}
+                  height={ROW_HEIGHT}
+                  fill={w.pass ? successFaint : dangerFaint}
+                  stroke={w.pass ? successStroke : dangerStroke}
+                  strokeWidth={1}
+                  rx={5}
+                />
+                <text
+                  x={oosX + 6}
+                  y={yBase + ROW_HEIGHT / 2 + 4}
+                  fontFamily={theme.mono}
+                  fontSize={11}
+                  fontWeight={700}
+                  fill={w.pass ? theme.success : theme.danger}
+                >
+                  OOS {w.oos_sharpe.toFixed(2)}
+                </text>
+              </g>
+            )
+          })}
+          <AxisBottom
+            top={windows.length * (ROW_HEIGHT + ROW_GAP) + 4}
+            scale={xScale}
+            numTicks={Math.min(8, Math.max(2, Math.round(width / 120)))}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'middle',
+              dy: '0.5em',
+            })}
+            hideAxisLine
+          />
+        </Group>
+      </svg>
+    </div>
+  )
+}
+
+interface SharpeBarsProps {
+  windows: WFOWindow[]
+  lang: Lang
+}
+
+function SharpeBars({ windows, lang }: SharpeBarsProps): React.ReactElement {
+  const theme = useChartTheme()
+  const L = makeL(lang)
+
+  const maxSharpe = useMemo(
+    () => Math.max(...windows.map(w => Math.max(w.is_sharpe, Math.abs(w.oos_sharpe))), 1) * 1.1,
+    [windows],
+  )
+
+  const barScale = useMemo(
+    () => scaleLinear<number>({ domain: [0, maxSharpe], range: [0, 100] }),
+    [maxSharpe],
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span
+        style={{
+          fontFamily: 'var(--sans)',
+          fontSize: 'var(--fs-caption)',
+          fontWeight: 500,
+          color: 'var(--text3)',
+          letterSpacing: 'var(--tracking-caption)',
+          textTransform: 'uppercase',
+        }}
+      >
+        {L('IS と OOS の Sharpe', 'IS vs OOS Sharpe')}
+      </span>
+      {windows.map(w => {
+        const isW = barScale(Math.max(w.is_sharpe, 0))
+        const oosW = barScale(Math.min(Math.abs(w.oos_sharpe), maxSharpe))
+        return (
+          <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span
               style={{
                 fontFamily: 'var(--mono)',
-                fontSize: 11,
-                color: 'var(--text3)',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
+                fontSize: 'var(--fs-mono-sm)',
+                fontWeight: 700,
+                color: 'var(--text2)',
+                width: 28,
+                flexShrink: 0,
+                letterSpacing: 'var(--tracking-mono)',
               }}
             >
-              {t.label}
+              {w.label}
+            </span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <BarRow
+                width={isW}
+                color={`color-mix(in srgb, ${theme.accent} 35%, transparent)`}
+                label={`IS ${w.is_sharpe.toFixed(2)}`}
+                color2={theme.text3}
+              />
+              <BarRow
+                width={oosW}
+                color={
+                  w.pass
+                    ? `color-mix(in srgb, ${theme.success} 65%, transparent)`
+                    : `color-mix(in srgb, ${theme.danger} 55%, transparent)`
+                }
+                label={`OOS ${w.oos_sharpe.toFixed(2)}${w.pass ? ' ✓' : ' ✗'}`}
+                color2={w.pass ? theme.success : theme.danger}
+              />
+            </div>
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: w.oos_is_ratio > 0 ? 'var(--text3)' : 'var(--danger)',
+                width: 80,
+                textAlign: 'right',
+                flexShrink: 0,
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              ratio {w.oos_is_ratio.toFixed(3)}
             </span>
           </div>
-        ))}
-        <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {windows.map((w) => (
-            <div key={w.id} style={{ position: 'relative', height: 34 }}>
-              <span
-                style={{
-                  position: 'absolute',
-                  left: -34,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--text2)',
-                }}
-              >
-                {w.label}
-              </span>
-              <div
-                title={`IS ${w.is_start}→${w.is_end}  Sharpe: ${w.is_sharpe}`}
-                style={{
-                  position: 'absolute',
-                  left: pct(w.is_start),
-                  width: wPct(w.is_start, w.is_end),
-                  height: '100%',
-                  background: 'rgba(0,228,154,0.1)',
-                  border: '1px solid rgba(0,228,154,0.22)',
-                  borderRadius: 5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  cursor: 'default',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--mono)',
-                    fontSize: 11,
-                    color: 'rgba(0,228,154,0.7)',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  IS {w.is_sharpe.toFixed(2)}
-                </span>
-              </div>
-              <div
-                title={`OOS ${w.oos_start}→${w.oos_end}  Sharpe: ${w.oos_sharpe}`}
-                style={{
-                  position: 'absolute',
-                  left: pct(w.oos_start),
-                  width: wPct(w.oos_start, w.oos_end),
-                  height: '100%',
-                  background: w.pass ? 'rgba(0,228,154,0.2)' : 'rgba(255,92,92,0.18)',
-                  border: w.pass ? '1px solid rgba(0,228,154,0.45)' : '1px solid rgba(255,92,92,0.4)',
-                  borderRadius: 5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  cursor: 'default',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--mono)',
-                    fontSize: 11,
-                    color: w.pass ? '#00e49a' : '#ff5c5c',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  OOS {w.oos_sharpe.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        )
+      })}
+    </div>
+  )
+}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4 }}>
-        <span
-          style={{
-            fontFamily: 'var(--mono)',
-            fontSize: 11,
-            color: 'var(--text3)',
-            letterSpacing: '0.09em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-          }}
-        >
-          {L('IS vs OOS シャープレシオ', 'IS vs OOS Sharpe Ratio')}
-        </span>
-        {windows.map((w) => {
-          const isW = (Math.max(w.is_sharpe, 0) / maxIs) * 65
-          const oosW = (Math.min(Math.abs(w.oos_sharpe), maxIs) / maxIs) * 65
-          return (
-            <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--text2)',
-                  width: 26,
-                  flexShrink: 0,
-                }}
-              >
-                {w.label}
-              </span>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div
-                    style={{
-                      width: `${isW}%`,
-                      height: 5,
-                      background: 'rgba(0,228,154,0.3)',
-                      borderRadius: 3,
-                    }}
-                  />
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text3)' }}>
-                    IS {w.is_sharpe.toFixed(2)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div
-                    style={{
-                      width: `${oosW}%`,
-                      height: 5,
-                      background: w.pass ? 'rgba(0,228,154,0.65)' : 'rgba(255,92,92,0.5)',
-                      borderRadius: 3,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: 'var(--mono)',
-                      fontSize: 11,
-                      color: w.pass ? '#00e49a' : '#ff5c5c',
-                      fontWeight: 600,
-                    }}
-                  >
-                    OOS {w.oos_sharpe.toFixed(2)}
-                  </span>
-                  <span style={{ fontSize: 11, color: w.pass ? '#00e49a' : '#ff5c5c' }}>
-                    {w.pass ? '✓' : '✗'}
-                  </span>
-                </div>
-              </div>
-              <div style={{ width: 70, textAlign: 'right', flexShrink: 0 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--mono)',
-                    fontSize: 11,
-                    color: w.oos_is_ratio > 0 ? 'var(--text3)' : '#ff5c5c',
-                  }}
-                >
-                  ratio {w.oos_is_ratio.toFixed(3)}
-                </span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+interface BarRowProps {
+  width: number
+  color: string
+  label: string
+  color2: string
+}
+
+function BarRow({ width, color, label, color2 }: BarRowProps): React.ReactElement {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div
+        style={{
+          width: `${width}%`,
+          height: 6,
+          background: color,
+          borderRadius: 3,
+        }}
+      />
+      <span
+        style={{
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          color: color2,
+          letterSpacing: 'var(--tracking-mono)',
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </span>
     </div>
   )
 }
