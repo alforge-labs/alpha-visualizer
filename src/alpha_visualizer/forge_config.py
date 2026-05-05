@@ -1,21 +1,133 @@
-"""forge が生成するディレクトリ構造からパスを解決するデータクラス"""
+"""forge.yaml を読み取り、forge が生成するディレクトリ構造からパスを解決するデータクラス
 
+forge.yaml の探索順序:
+1. 引数 ``config_path`` が明示指定されていればそれ
+2. 環境変数 ``FORGE_CONFIG`` が指すパス（存在する場合のみ）
+3. ``<forge_dir>/forge.yaml``
+4. 見つからなければ既存ハードコード値（後方互換）
+
+forge.yaml 内の相対パスは、forge.yaml ファイルの親ディレクトリ基準で絶対化される。
+これは alpha-forge の ``alpha_forge/config.py:_resolve_paths`` と同じ規約。
+"""
+
+from __future__ import annotations
+
+import os
 import pathlib
 from dataclasses import dataclass
+from typing import Any
+
+import yaml
 
 
 @dataclass(frozen=True)
 class ForgeConfig:
+    """forge プロジェクトのパス解決結果。
+
+    すべてのパスは ``from_forge_dir`` ファクトリで構築時に解決済みの絶対パスになる。
+    """
+
     forge_dir: pathlib.Path
+    forge_db: pathlib.Path
+    strategies_dir: pathlib.Path
+    strategies_db: pathlib.Path | None
+    ideas_json: pathlib.Path
 
-    @property
-    def forge_db(self) -> pathlib.Path:
-        return self.forge_dir / "data" / "results" / "forge.db"
+    @classmethod
+    def from_forge_dir(
+        cls,
+        forge_dir: pathlib.Path,
+        config_path: pathlib.Path | None = None,
+    ) -> ForgeConfig:
+        """forge.yaml を読み込んで設定を構築する。
 
-    @property
-    def strategies_dir(self) -> pathlib.Path:
-        return self.forge_dir / "data" / "strategies"
+        Args:
+            forge_dir: forge プロジェクトのルートディレクトリ。
+            config_path: 明示指定する forge.yaml のパス（最優先）。
 
-    @property
-    def ideas_json(self) -> pathlib.Path:
-        return self.forge_dir / "data" / "ideas" / "ideas.json"
+        Returns:
+            解決済みパスを持つ ``ForgeConfig`` インスタンス。
+        """
+        forge_dir = pathlib.Path(forge_dir).resolve()
+        yaml_path = _resolve_yaml_path(forge_dir, config_path)
+        raw = _load_yaml(yaml_path) if yaml_path is not None else {}
+
+        # 相対パス解決の基準は forge.yaml の親ディレクトリ。
+        # forge.yaml が見つからない場合は forge_dir を基準にする（後方互換）。
+        base = yaml_path.parent if yaml_path is not None else forge_dir
+
+        report = raw.get("report") or {}
+        strategies = raw.get("strategies") or {}
+        ideas = raw.get("ideas") or {}
+
+        report_output = _resolve_path(
+            base, report.get("output_path"), default=forge_dir / "data" / "results"
+        )
+        forge_db_filename = report.get("db_filename") or "forge.db"
+        forge_db = report_output / forge_db_filename
+
+        strategies_path = _resolve_path(
+            base, strategies.get("path"), default=forge_dir / "data" / "strategies"
+        )
+        strategies_db: pathlib.Path | None = None
+        if bool(strategies.get("use_db", False)):
+            strategies_db_filename = strategies.get("db_filename") or "strategies.db"
+            strategies_db = strategies_path / strategies_db_filename
+
+        ideas_path = _resolve_path(
+            base, ideas.get("ideas_path"), default=forge_dir / "data" / "ideas"
+        )
+        ideas_json = ideas_path / "ideas.json"
+
+        return cls(
+            forge_dir=forge_dir,
+            forge_db=forge_db,
+            strategies_dir=strategies_path,
+            strategies_db=strategies_db,
+            ideas_json=ideas_json,
+        )
+
+
+def _resolve_yaml_path(
+    forge_dir: pathlib.Path, explicit: pathlib.Path | None
+) -> pathlib.Path | None:
+    """forge.yaml の最終的な探索結果を返す（見つからなければ None）。"""
+    if explicit is not None:
+        path = pathlib.Path(explicit).resolve()
+        return path if path.is_file() else None
+
+    env_value = os.environ.get("FORGE_CONFIG")
+    if env_value:
+        path = pathlib.Path(env_value).expanduser().resolve()
+        if path.is_file():
+            return path
+
+    candidate = (forge_dir / "forge.yaml").resolve()
+    return candidate if candidate.is_file() else None
+
+
+def _load_yaml(path: pathlib.Path) -> dict[str, Any]:
+    """forge.yaml を安全にロードする。空ファイルや非辞書ルートは ``{}`` 扱い。"""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    raw = yaml.safe_load(text)
+    if isinstance(raw, dict):
+        return raw
+    return {}
+
+
+def _resolve_path(
+    base: pathlib.Path, value: Any, *, default: pathlib.Path
+) -> pathlib.Path:
+    """forge.yaml の相対パス文字列を ``base`` 基準で絶対化する。
+
+    値が ``None`` または空のときは ``default`` をそのまま返す。
+    """
+    if value in (None, ""):
+        return default.resolve()
+    candidate = pathlib.Path(str(value)).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (base / candidate).resolve()
