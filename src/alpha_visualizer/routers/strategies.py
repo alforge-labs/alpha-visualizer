@@ -40,6 +40,8 @@ def _load_strategies_from_db(db_path: pathlib.Path) -> list[dict[str, Any]]:
                 continue
             data.setdefault("strategy_id", row.strategy_id)
             data.setdefault("name", row.name)
+            # 戦略定義 JSON に timeframe が無ければ strategies テーブルの列値を使う。
+            data.setdefault("timeframe", row.timeframe)
             out.append(data)
     return out
 
@@ -187,15 +189,24 @@ async def list_strategies(request: Request) -> list[dict[str, Any]]:
         entry: dict[str, Any] = {
             "strategy_id": sid,
             "name": record.get("name", sid),
+            "symbol": None,
+            "timeframe": record.get("timeframe"),
             "latest_sharpe": None,
             "latest_return_pct": None,
+            "latest_max_drawdown_pct": None,
+            "latest_profit_factor": None,
+            "latest_win_rate_pct": None,
             "latest_total_trades": None,
             "last_run_at": None,
         }
         latest = _get_latest_result(config, sid)
         if latest:
+            entry["symbol"] = latest.get("symbol")
             entry["latest_sharpe"] = latest.get("sharpe_ratio")
             entry["latest_return_pct"] = latest.get("total_return_pct")
+            entry["latest_max_drawdown_pct"] = latest.get("max_drawdown_pct")
+            entry["latest_profit_factor"] = latest.get("profit_factor")
+            entry["latest_win_rate_pct"] = latest.get("win_rate_pct")
             entry["latest_total_trades"] = latest.get("total_trades")
             entry["last_run_at"] = latest.get("run_at")
         result.append(entry)
