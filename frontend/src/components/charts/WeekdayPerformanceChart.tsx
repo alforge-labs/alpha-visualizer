@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useDashboard } from '../../contexts/DashboardContext'
-import { getRangeN } from '../../contexts/dashboardConstants'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { Bar, Line } from '@visx/shape'
+import { scaleBand, scaleLinear } from '@visx/scale'
+import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface Props {
   dailyReturns: number[]
@@ -11,43 +15,74 @@ interface Props {
   compact?: boolean
 }
 
-interface WeekdayStat { day: string; avg: number; count: number; winRate: number }
+interface WeekdayStat {
+  day: string
+  avg: number
+  count: number
+  winRate: number
+}
 
-function computeWeekdayStats(returns: number[], dates: string[]): WeekdayStat[] {
-  const dayLabels = ['月', '火', '水', '木', '金']
-  const stats = dayLabels.map(() => ({ total: 0, count: 0, wins: 0 }))
+const WEEKDAY_LABELS_JA = ['月', '火', '水', '木', '金']
+const WEEKDAY_LABELS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
+const MARGIN = { top: 16, right: 16, bottom: 32, left: 56 }
+
+function computeWeekdayStats(
+  returns: number[],
+  dates: string[],
+  labels: string[],
+): WeekdayStat[] {
+  const stats = labels.map(() => ({ total: 0, count: 0, wins: 0 }))
   for (let i = 0; i < returns.length; i++) {
-    const d = new Date(dates[i + 1] ?? '')
+    const dateStr = dates[i + 1]
+    if (!dateStr) continue
+    const d = new Date(dateStr)
+    if (Number.isNaN(d.getTime())) continue
     const idx = d.getDay() - 1
     if (idx >= 0 && idx <= 4) {
-      const s = stats[idx]
-      const r = returns[i]
-      if (s != null && r != null) {
-        s.total += r
-        s.count++
-        if (r > 0) s.wins++
-      }
+      const stat = stats[idx]!
+      const r = returns[i] ?? 0
+      stat.total += r
+      stat.count += 1
+      if (r > 0) stat.wins += 1
     }
   }
-  return dayLabels.map((day, i) => {
-    const s = stats[i] ?? { total: 0, count: 0, wins: 0 }
+  return labels.map((day, i) => {
+    const stat = stats[i]!
     return {
       day,
-      avg: s.count > 0 ? s.total / s.count : 0,
-      count: s.count,
-      winRate: s.count > 0 ? (s.wins / s.count) * 100 : 0,
+      avg: stat.count > 0 ? stat.total / stat.count : 0,
+      count: stat.count,
+      winRate: stat.count > 0 ? (stat.wins / stat.count) * 100 : 0,
     }
   })
 }
 
-export function WeekdayPerformanceChart({ dailyReturns, dates, lang, compact = false }: Props) {
+export function WeekdayPerformanceChart(props: Props): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <WeekdayInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
+
+function WeekdayInner({
+  width,
+  dailyReturns,
+  dates,
+  lang,
+  compact = false,
+}: Props & { width: number }): React.ReactElement {
   const { selectedRange } = useDashboard()
-  const [hovIdx, setHovIdx] = useState<number | null>(null)
+  const theme = useChartTheme()
   const L = makeL(lang)
+  const [hovIdx, setHovIdx] = useState<number | null>(null)
+
+  const labels = lang === 'ja' ? WEEKDAY_LABELS_JA : WEEKDAY_LABELS_EN
 
   const { slicedReturns, slicedDates } = useMemo(() => {
     const n = dailyReturns.length
-    const bars = Math.min(getRangeN(selectedRange), n)
+    const bars = Math.min(RANGE_N[selectedRange], n)
     const s = Math.max(0, n - bars)
     return {
       slicedReturns: dailyReturns.slice(s),
@@ -55,64 +90,128 @@ export function WeekdayPerformanceChart({ dailyReturns, dates, lang, compact = f
     }
   }, [dailyReturns, dates, selectedRange])
 
-  const stats = useMemo(() => computeWeekdayStats(slicedReturns, slicedDates), [slicedReturns, slicedDates])
+  const stats = useMemo(
+    () => computeWeekdayStats(slicedReturns, slicedDates, labels),
+    [slicedReturns, slicedDates, labels],
+  )
 
-  const W = 400, H = compact ? 160 : 200
-  const P = { l: 40, r: 20, t: 20, b: 36 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
+  const height = compact ? 200 : 240
+  const innerW = Math.max(0, width - MARGIN.left - MARGIN.right)
+  const innerH = Math.max(0, height - MARGIN.top - MARGIN.bottom)
 
   const maxAbs = Math.max(...stats.map(s => Math.abs(s.avg)), 0.01)
-  const barW = pW / stats.length - 4
-  const midY = P.t + pH / 2
 
-  function barH(avg: number) { return Math.abs(avg) / maxAbs * (pH / 2) }
+  const xScale = useMemo(
+    () =>
+      scaleBand<string>({
+        domain: stats.map(s => s.day),
+        range: [0, innerW],
+        padding: 0.32,
+      }),
+    [stats, innerW],
+  )
+
+  const yScale = useMemo(
+    () => scaleLinear<number>({ domain: [-maxAbs, maxAbs], range: [innerH, 0], nice: true }),
+    [maxAbs, innerH],
+  )
+
+  const zeroY = yScale(0)
 
   return (
     <div style={{ position: 'relative' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
-        <line x1={P.l} x2={P.l + pW} y1={midY} y2={midY} stroke="var(--text3)" strokeWidth={0.75} />
-        {[-maxAbs, -maxAbs / 2, maxAbs / 2, maxAbs].map(v => {
-          const y = midY - (v / maxAbs) * (pH / 2)
-          return (
-            <g key={v}>
-              <line x1={P.l} x2={P.l + pW} y1={y} y2={y} stroke="var(--border)" strokeWidth={0.4} />
-              <text x={P.l - 4} y={y + 4} textAnchor="end" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">
-                {v.toFixed(2)}%
+      <svg
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`Weekday average return, ${stats.length} weekdays`}
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <Group left={MARGIN.left} top={MARGIN.top}>
+          {[-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs].map((v, i) => (
+            <g key={i}>
+              <Line
+                from={{ x: 0, y: yScale(v) }}
+                to={{ x: innerW, y: yScale(v) }}
+                stroke={v === 0 ? theme.text3 : theme.border}
+                strokeWidth={v === 0 ? 1 : 0.5}
+                strokeDasharray={v === 0 ? undefined : '2,4'}
+                opacity={v === 0 ? 0.6 : 1}
+              />
+              <text
+                x={-8}
+                y={yScale(v) + 4}
+                textAnchor="end"
+                fontSize={11}
+                fontFamily={theme.mono}
+                fill={theme.text3}
+              >
+                {`${v.toFixed(2)}%`}
               </text>
             </g>
-          )
-        })}
-        {stats.map((s, i) => {
-          const x = P.l + i * (pW / stats.length) + 2
-          const h = barH(s.avg)
-          const y = s.avg >= 0 ? midY - h : midY
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={h}
-                fill={s.avg >= 0 ? 'rgba(0,228,154,0.7)' : 'rgba(255,92,92,0.7)'}
-                opacity={hovIdx === i ? 1 : 0.8}
+          ))}
+
+          {stats.map((s, i) => {
+            const x = xScale(s.day) ?? 0
+            const w = xScale.bandwidth()
+            const positive = s.avg >= 0
+            const y = positive ? yScale(s.avg) : zeroY
+            const h = Math.abs(yScale(s.avg) - zeroY)
+            return (
+              <g
+                key={s.day}
                 onMouseEnter={() => setHovIdx(i)}
                 onMouseLeave={() => setHovIdx(null)}
                 style={{ cursor: 'pointer' }}
-              />
-              <text x={x + barW / 2} y={H - 4} textAnchor="middle" fontSize={10} fill="var(--text2)" fontFamily="var(--sans)">
-                {s.day}
-              </text>
-            </g>
-          )
-        })}
+              >
+                <Bar
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={Math.max(h, 1)}
+                  fill={positive ? theme.success : theme.danger}
+                  opacity={hovIdx === null || hovIdx === i ? 0.85 : 0.4}
+                />
+                <text
+                  x={x + w / 2}
+                  y={innerH + 18}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fontFamily={theme.sans}
+                  fontWeight={500}
+                  fill={hovIdx === i ? theme.text : theme.text2}
+                >
+                  {s.day}
+                </text>
+              </g>
+            )
+          })}
+        </Group>
       </svg>
       {hovIdx !== null && stats[hovIdx] && (
-        <div style={{
-          position: 'absolute', top: 8, right: 8, background: 'var(--surface)',
-          border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px',
-          fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text)',
-        }}>
-          <div>{stats[hovIdx].day}曜日</div>
-          <div>平均: {stats[hovIdx].avg.toFixed(3)}%</div>
-          <div>勝率: {stats[hovIdx].winRate.toFixed(1)}%</div>
-          <div>{L('件数', 'Count')}: {stats[hovIdx].count}</div>
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            background: 'var(--surface)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-md)',
+            padding: '8px 12px',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            color: 'var(--text)',
+            letterSpacing: 'var(--tracking-mono)',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ color: 'var(--text2)', marginBottom: 4 }}>{stats[hovIdx].day}</div>
+          <div>Avg {stats[hovIdx].avg.toFixed(3)}%</div>
+          <div>Win {stats[hovIdx].winRate.toFixed(1)}%</div>
+          <div>
+            {L('件数', 'Count')} {stats[hovIdx].count}
+          </div>
         </div>
       )}
     </div>

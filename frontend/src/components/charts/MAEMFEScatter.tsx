@@ -1,8 +1,18 @@
-import { useContext, useState } from 'react'
+import { useCallback, useContext, useMemo } from 'react'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { Circle, Line, Bar } from '@visx/shape'
+import { scaleLinear } from '@visx/scale'
+import { AxisBottom, AxisLeft } from '@visx/axis'
+import { GridRows, GridColumns } from '@visx/grid'
+import { useTooltip, TooltipWithBounds, defaultStyles } from '@visx/tooltip'
+import { localPoint } from '@visx/event'
+
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
 import { DashboardContext } from '../../contexts/DashboardContext'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface MAEMFEScatterProps {
   trades: Trade[]
@@ -10,283 +20,302 @@ interface MAEMFEScatterProps {
   compact: boolean
 }
 
+const MARGIN = { top: 16, right: 24, bottom: 56, left: 64 }
+
 interface Tip {
-  t: Trade
+  trade: Trade
   cx: number
   cy: number
 }
 
-export function MAEMFEScatter({ trades, lang, compact }: MAEMFEScatterProps) {
-  const [tooltip, setTooltip] = useState<Tip | null>(null)
+export function MAEMFEScatter(props: MAEMFEScatterProps): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <MAEMFEInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
+
+function MAEMFEInner({
+  width,
+  trades,
+  lang,
+  compact,
+}: MAEMFEScatterProps & { width: number }): React.ReactElement {
+  const theme = useChartTheme()
   const ctx = useContext(DashboardContext)
   const highlightedTradeId = ctx?.highlightedTradeId ?? null
-  const setHighlightedTradeId = ctx?.setHighlightedTradeId ?? (() => {})
+  const setHighlightedTradeId = useMemo(
+    () => ctx?.setHighlightedTradeId ?? ((): void => undefined),
+    [ctx],
+  )
   const L = makeL(lang)
 
-  const valid = trades.filter((t) => t.mae_pct != null && t.mfe_pct != null)
-  const maxMAE = (Math.max(...valid.map((t) => t.mae_pct), 1) || 1) * 1.12
-  const maxMFE = (Math.max(...valid.map((t) => t.mfe_pct), 1) || 1) * 1.12
+  const valid = trades.filter(t => t.mae_pct != null && t.mfe_pct != null)
+  const maxMAE = Math.max(...valid.map(t => t.mae_pct), 1) * 1.12
+  const maxMFE = Math.max(...valid.map(t => t.mfe_pct), 1) * 1.12
 
-  const W = 800
-  const H = compact ? 240 : 300
-  const P = { l: 60, r: 24, t: 20, b: 56 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
+  const height = compact ? 280 : 340
+  const innerW = Math.max(0, width - MARGIN.left - MARGIN.right)
+  const innerH = Math.max(0, height - MARGIN.top - MARGIN.bottom)
 
-  const toX = (v: number) => P.l + (v / maxMAE) * pW
-  const toY = (v: number) => P.t + (1 - v / maxMFE) * pH
+  const xScale = scaleLinear<number>({ domain: [0, maxMAE], range: [0, innerW], nice: true })
+  const yScale = scaleLinear<number>({ domain: [0, maxMFE], range: [innerH, 0], nice: true })
 
-  const wins = valid.filter((t) => t.return_pct > 0)
-  const losses = valid.filter((t) => t.return_pct <= 0)
+  const wins = valid.filter(t => t.return_pct > 0)
+  const losses = valid.filter(t => t.return_pct <= 0)
 
-  const avg = (xs: number[]) =>
-    xs.length ? (xs.reduce((s, n) => s + n, 0) / xs.length).toFixed(2) : '—'
-  const avgMAEWin = avg(wins.map((t) => t.mae_pct))
-  const avgMFEWin = avg(wins.map((t) => t.mfe_pct))
-  const avgMAELoss = avg(losses.map((t) => t.mae_pct))
-
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
-    x: toX(f * maxMAE),
-    label: `${(f * maxMAE).toFixed(1)}%`,
-  }))
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
-    y: toY(f * maxMFE),
-    label: `${(f * maxMFE).toFixed(1)}%`,
-  }))
+  const avg = (xs: number[]): string =>
+    xs.length === 0 ? '—' : (xs.reduce((s, n) => s + n, 0) / xs.length).toFixed(2)
+  const avgMAEWin = avg(wins.map(t => t.mae_pct))
+  const avgMFEWin = avg(wins.map(t => t.mfe_pct))
+  const avgMAELoss = avg(losses.map(t => t.mae_pct))
 
   const diagEnd = Math.min(maxMAE, maxMFE)
 
-  const legend: ReadonlyArray<readonly [string, string, string]> = [
-    ['#00e49a', L('利益トレード', 'Winning'), `${wins.length}件 MAE avg ${avgMAEWin}% / MFE avg ${avgMFEWin}%`],
-    ['#ff5c5c', L('損失トレード', 'Losing'), `${losses.length}件 MAE avg ${avgMAELoss}%`],
-  ]
+  const { tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip } =
+    useTooltip<Tip>()
+
+  const handleEnter = useCallback(
+    (
+      e: React.MouseEvent<SVGCircleElement>,
+      t: Trade,
+    ) => {
+      const lp = localPoint(e) ?? { x: 0, y: 0 }
+      showTooltip({
+        tooltipData: { trade: t, cx: lp.x, cy: lp.y },
+        tooltipLeft: lp.x,
+        tooltipTop: lp.y,
+      })
+      setHighlightedTradeId(String(t.id))
+    },
+    [showTooltip, setHighlightedTradeId],
+  )
+
+  const handleLeave = useCallback(() => {
+    hideTooltip()
+    setHighlightedTradeId(null)
+  }, [hideTooltip, setHighlightedTradeId])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', paddingLeft: P.l }}>
-        {legend.map(([c, lbl, sub], i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div
-              style={{ width: 10, height: 10, borderRadius: '50%', background: c, opacity: 0.75 }}
-            />
-            <div>
-              <span
-                style={{
-                  fontFamily: 'var(--sans)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                }}
-              >
-                {lbl}
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 11,
-                  color: 'var(--text3)',
-                  marginLeft: 6,
-                }}
-              >
-                {sub}
-              </span>
-            </div>
-          </div>
-        ))}
-        <span
-          style={{
-            fontFamily: 'var(--mono)',
-            fontSize: 11,
-            color: 'var(--text3)',
-            marginLeft: 'auto',
-          }}
-        >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 24,
+          flexWrap: 'wrap',
+          paddingLeft: MARGIN.left,
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          letterSpacing: 'var(--tracking-mono)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: theme.success,
+              opacity: 0.75,
+            }}
+          />
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text)' }}>
+            {L('利益', 'Winning')}
+          </span>
+          <span style={{ color: 'var(--text3)', marginLeft: 6 }}>
+            {wins.length} · MAE {avgMAEWin}% / MFE {avgMFEWin}%
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: theme.danger,
+              opacity: 0.75,
+            }}
+          />
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text)' }}>
+            {L('損失', 'Losing')}
+          </span>
+          <span style={{ color: 'var(--text3)', marginLeft: 6 }}>
+            {losses.length} · MAE {avgMAELoss}%
+          </span>
+        </div>
+        <span style={{ color: 'var(--text3)', marginLeft: 'auto' }}>
           {L('円サイズ = |リターン|', 'dot size = |return|')}
         </span>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-        <defs>
-          <clipPath id="scClip">
-            <rect x={P.l} y={P.t} width={pW} height={pH} />
-          </clipPath>
-        </defs>
+      <svg
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`MAE versus MFE scatter, ${valid.length} trades (${wins.length} winning, ${losses.length} losing)`}
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <Group left={MARGIN.left} top={MARGIN.top}>
+          <GridRows
+            scale={yScale}
+            width={innerW}
+            stroke={theme.border}
+            strokeDasharray="2,4"
+            numTicks={5}
+          />
+          <GridColumns
+            scale={xScale}
+            height={innerH}
+            stroke={theme.border}
+            strokeDasharray="2,4"
+            numTicks={5}
+          />
 
-        {xTicks.map((t, i) => (
-          <g key={i}>
-            <line
-              x1={t.x}
-              y1={P.t}
-              x2={t.x}
-              y2={P.t + pH}
-              stroke="rgba(255,255,255,0.04)"
-              strokeWidth="1"
-            />
-            <text
-              x={t.x}
-              y={P.t + pH + 16}
-              textAnchor="middle"
-              fill="var(--text3)"
-              fontSize="11"
-              fontFamily="var(--mono)"
-            >
-              {t.label}
-            </text>
-          </g>
-        ))}
-        {yTicks.map((t, i) => (
-          <g key={i}>
-            <line
-              x1={P.l}
-              y1={t.y}
-              x2={P.l + pW}
-              y2={t.y}
-              stroke="rgba(255,255,255,0.04)"
-              strokeWidth="1"
-            />
-            <text
-              x={P.l - 6}
-              y={t.y + 4}
-              textAnchor="end"
-              fill="var(--text3)"
-              fontSize="11"
-              fontFamily="var(--mono)"
-            >
-              {t.label}
-            </text>
-          </g>
-        ))}
+          {/* MAE = MFE 対角線 */}
+          <Line
+            from={{ x: xScale(0), y: yScale(0) }}
+            to={{ x: xScale(diagEnd), y: yScale(diagEnd) }}
+            stroke={theme.text3}
+            strokeWidth={1.25}
+            strokeDasharray="5,4"
+            opacity={0.5}
+          />
+          <text
+            x={xScale(diagEnd * 0.65) + 6}
+            y={yScale(diagEnd * 0.65) - 6}
+            fontFamily={theme.mono}
+            fontSize={11}
+            fill={theme.text3}
+          >
+            MAE = MFE
+          </text>
 
-        <text
-          x={P.l + pW / 2}
-          y={H - 6}
-          textAnchor="middle"
-          fill="var(--text2)"
-          fontSize="12"
-          fontFamily="var(--mono)"
-          fontWeight="500"
-        >
-          MAE% — {L('最大不利変動', 'Max Adverse Excursion')}
-        </text>
-        <text
-          transform={`translate(13,${P.t + pH / 2}) rotate(-90)`}
-          textAnchor="middle"
-          fill="var(--text2)"
-          fontSize="12"
-          fontFamily="var(--mono)"
-          fontWeight="500"
-        >
-          MFE% — {L('最大有利変動', 'Max Favorable Excursion')}
-        </text>
-
-        <line
-          x1={toX(0)}
-          y1={toY(0)}
-          x2={toX(diagEnd)}
-          y2={toY(diagEnd)}
-          stroke="rgba(115,120,144,0.3)"
-          strokeWidth="1.5"
-          strokeDasharray="5,4"
-          clipPath="url(#scClip)"
-        />
-        <text
-          x={toX(diagEnd * 0.62) + 6}
-          y={toY(diagEnd * 0.62) - 5}
-          fill="var(--text3)"
-          fontSize="11"
-          fontFamily="var(--mono)"
-        >
-          MAE=MFE
-        </text>
-
-        {valid.map((t, i) => {
-          const win = t.return_pct > 0
-          const r = Math.max(3.5, Math.min(12, Math.abs(t.return_pct) * 1.3))
-          return (
-            <circle
-              key={i}
-              cx={toX(t.mae_pct)}
-              cy={toY(t.mfe_pct)}
-              r={r}
-              fill={win ? 'rgba(0,228,154,0.55)' : 'rgba(255,92,92,0.55)'}
-              stroke={win ? '#00e49a' : '#ff5c5c'}
-              strokeWidth="1"
-              clipPath="url(#scClip)"
-              opacity={highlightedTradeId === null || highlightedTradeId === String(t.id) ? 0.85 : 0.25}
-              onMouseEnter={() => {
-                setTooltip({ t, cx: toX(t.mae_pct), cy: toY(t.mfe_pct) })
-                setHighlightedTradeId(String(t.id))
-              }}
-              onMouseLeave={() => {
-                setTooltip(null)
-                setHighlightedTradeId(null)
-              }}
-              style={{ cursor: 'default' }}
-            />
-          )
-        })}
-
-        {tooltip &&
-          (() => {
-            const { t, cx, cy } = tooltip
-            const tipW = 152
-            const tipH = 76
-            const tx = cx + 12 + tipW > W ? cx - tipW - 12 : cx + 12
-            const ty = Math.max(P.t, Math.min(P.t + pH - tipH, cy - tipH / 2))
+          {valid.map((t) => {
             const win = t.return_pct > 0
+            const r = Math.max(3.5, Math.min(12, Math.abs(t.return_pct) * 1.3))
+            const isHighlighted =
+              highlightedTradeId === null || highlightedTradeId === String(t.id)
             return (
-              <g>
-                <rect
-                  x={tx}
-                  y={ty}
-                  width={tipW}
-                  height={tipH}
-                  rx="5"
-                  fill="var(--surface)"
-                  stroke="var(--border-h)"
-                />
-                <text
-                  x={tx + 10}
-                  y={ty + 16}
-                  fill="var(--text2)"
-                  fontSize="11"
-                  fontFamily="var(--mono)"
-                >
-                  #{t.id} {t.direction} · {t.holding_days}d
-                </text>
-                <text
-                  x={tx + 10}
-                  y={ty + 31}
-                  fill={win ? '#00e49a' : '#ff5c5c'}
-                  fontSize="14"
-                  fontFamily="var(--mono)"
-                  fontWeight="700"
-                >
-                  {win ? '+' : ''}
-                  {t.return_pct.toFixed(2)}%
-                </text>
-                <text
-                  x={tx + 10}
-                  y={ty + 47}
-                  fill="var(--text3)"
-                  fontSize="11"
-                  fontFamily="var(--mono)"
-                >
-                  MAE {t.mae_pct.toFixed(2)}%
-                </text>
-                <text
-                  x={tx + 10}
-                  y={ty + 62}
-                  fill="var(--text3)"
-                  fontSize="11"
-                  fontFamily="var(--mono)"
-                >
-                  MFE {t.mfe_pct.toFixed(2)}%
-                </text>
-              </g>
+              <Circle
+                key={t.id}
+                cx={xScale(t.mae_pct)}
+                cy={yScale(t.mfe_pct)}
+                r={r}
+                fill={win ? theme.success : theme.danger}
+                fillOpacity={isHighlighted ? 0.6 : 0.18}
+                stroke={win ? theme.success : theme.danger}
+                strokeWidth={isHighlighted ? 1 : 0.5}
+                strokeOpacity={isHighlighted ? 0.9 : 0.35}
+                onMouseEnter={(e) => handleEnter(e, t)}
+                onMouseLeave={handleLeave}
+                style={{ cursor: 'default' }}
+              />
             )
-          })()}
+          })}
+
+          <AxisLeft
+            scale={yScale}
+            numTicks={5}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickFormat={(v) => `${(v as number).toFixed(1)}%`}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'end',
+              dx: '-0.4em',
+              dy: '0.32em',
+            })}
+            hideAxisLine
+          />
+          <AxisBottom
+            top={innerH}
+            scale={xScale}
+            numTicks={5}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickFormat={(v) => `${(v as number).toFixed(1)}%`}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'middle',
+              dy: '0.5em',
+            })}
+            hideAxisLine
+          />
+
+          <text
+            x={innerW / 2}
+            y={innerH + 36}
+            textAnchor="middle"
+            fontFamily={theme.mono}
+            fontSize={12}
+            fontWeight={500}
+            fill={theme.text2}
+            letterSpacing="0.04em"
+          >
+            MAE % — {L('最大不利変動', 'Max adverse excursion')}
+          </text>
+          <text
+            transform={`translate(${-MARGIN.left + 14},${innerH / 2}) rotate(-90)`}
+            textAnchor="middle"
+            fontFamily={theme.mono}
+            fontSize={12}
+            fontWeight={500}
+            fill={theme.text2}
+            letterSpacing="0.04em"
+          >
+            MFE % — {L('最大有利変動', 'Max favorable excursion')}
+          </text>
+
+          <Bar
+            x={0}
+            y={0}
+            width={innerW}
+            height={innerH}
+            fill="transparent"
+            pointerEvents="none"
+          />
+        </Group>
       </svg>
+
+      {tooltipData && (
+        <TooltipWithBounds
+          top={tooltipTop}
+          left={tooltipLeft}
+          style={{
+            ...defaultStyles,
+            background: theme.surface,
+            border: `1px solid ${theme.borderStrong}`,
+            color: theme.text,
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontFamily: theme.mono,
+            fontSize: 12,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ color: theme.text3, fontSize: 11 }}>
+              #{tooltipData.trade.id} · {tooltipData.trade.direction} · {tooltipData.trade.holding_days}d
+            </span>
+            <span
+              style={{
+                fontWeight: 700,
+                color: tooltipData.trade.return_pct > 0 ? theme.success : theme.danger,
+              }}
+            >
+              {tooltipData.trade.return_pct > 0 ? '+' : ''}
+              {tooltipData.trade.return_pct.toFixed(2)}%
+            </span>
+            <span style={{ color: theme.text3 }}>MAE {tooltipData.trade.mae_pct.toFixed(2)}%</span>
+            <span style={{ color: theme.text3 }}>MFE {tooltipData.trade.mfe_pct.toFixed(2)}%</span>
+          </div>
+        </TooltipWithBounds>
+      )}
     </div>
   )
 }

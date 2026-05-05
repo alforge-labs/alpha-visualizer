@@ -1,17 +1,31 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-variation="atelier">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AlphaForge — Backtest Viewer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <script type="module" crossorigin src="/assets/index-7DLjlMGw.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DOH376pM.css">
+    <script>
+      // FOUC 回避: localStorage / URL から variation を即時反映
+      (function () {
+        try {
+          var p = new URLSearchParams(window.location.search);
+          var v = p.get('variation');
+          if (v !== 'atelier' && v !== 'lab') {
+            var raw = window.localStorage.getItem('alphaforge.viewer.settings.v1');
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              v = parsed && parsed.variation;
+            }
+          }
+          if (v !== 'atelier' && v !== 'lab') v = 'atelier';
+          document.documentElement.setAttribute('data-variation', v);
+        } catch (_) {
+          document.documentElement.setAttribute('data-variation', 'atelier');
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-CopBB53h.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-16K3BxVS.css">
   </head>
   <body>
     <div id="root"></div>

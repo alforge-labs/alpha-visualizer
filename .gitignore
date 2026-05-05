@@ -1,3 +1,4 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
@@ -7,7 +8,18 @@ __pycache__/
 dist/
 *.egg-info/
 .env
+.env.*
+.coverage
+htmlcov/
+coverage.xml
+
+# SQLite
 *.db
-visualizer/node_modules/
-visualizer/.tsbuildinfo
+*.db-wal
+*.db-shm
+
+# Frontend
+frontend/node_modules/
+frontend/.tsbuildinfo
+
 src/alpha_forge/

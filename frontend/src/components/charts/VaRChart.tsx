@@ -1,8 +1,14 @@
 import { useMemo } from 'react'
-import { useDashboard } from '../../contexts/DashboardContext'
-import { getRangeN } from '../../contexts/dashboardConstants'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { Bar, Line } from '@visx/shape'
+import { scaleLinear } from '@visx/scale'
+import { AxisBottom } from '@visx/axis'
+import { GridRows } from '@visx/grid'
+import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
+import { useChartTheme } from '../../design/useChartTheme'
 
 interface Props {
   dailyReturns: number[]
@@ -11,73 +17,189 @@ interface Props {
   lang: Lang
 }
 
-export function VaRChart({ dailyReturns, var95, cvar95, lang }: Props) {
+const HEIGHT = 220
+const MARGIN = { top: 16, right: 24, bottom: 36, left: 56 }
+const BINS = 40
+
+interface Bucket {
+  x: number
+  count: number
+  width: number
+  isTail: boolean
+}
+
+export function VaRChart(props: Props): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <VaRChartInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
+
+function VaRChartInner({
+  width,
+  dailyReturns,
+  var95,
+  cvar95,
+  lang,
+}: Props & { width: number }): React.ReactElement {
   const { selectedRange } = useDashboard()
+  const theme = useChartTheme()
   const L = makeL(lang)
+
+  const innerW = Math.max(0, width - MARGIN.left - MARGIN.right)
+  const innerH = Math.max(0, HEIGHT - MARGIN.top - MARGIN.bottom)
 
   const returns = useMemo(() => {
     const n = dailyReturns.length
-    const bars = Math.min(getRangeN(selectedRange), n)
+    const bars = Math.min(RANGE_N[selectedRange], n)
     return dailyReturns.slice(Math.max(0, n - bars))
   }, [dailyReturns, selectedRange])
 
-  const W = 800, H = 200
-  const P = { l: 50, r: 20, t: 24, b: 36 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
+  const buckets = useMemo<Bucket[]>(() => {
+    if (returns.length === 0) return []
+    const minX = Math.min(...returns, -0.5)
+    const maxX = Math.min(Math.max(...returns, 0), 0)
+    const binW = (maxX - minX) / BINS || 0.01
+    const counts = new Array(BINS).fill(0) as number[]
+    for (const v of returns) {
+      const idx = Math.min(Math.floor((v - minX) / binW), BINS - 1)
+      if (idx >= 0) counts[idx] = (counts[idx] ?? 0) + 1
+    }
+    return counts.map((count, i) => {
+      const center = minX + (i + 0.5) * binW
+      return { x: center, count, width: binW, isTail: center < -var95 }
+    })
+  }, [returns, var95])
 
-  const sorted = [...returns].sort((a, b) => a - b)
-  const BINS = 40
-  const minX = Math.min(sorted[0] ?? -5, -0.5)
-  const maxX = Math.min(sorted[sorted.length - 1] ?? 0, 0)
-  const spanX = maxX - minX || 1
-  const binW = (maxX - minX) / BINS || 0.01
+  const xDomain = useMemo<[number, number]>(() => {
+    if (buckets.length === 0) return [-3, 0]
+    const lo = Math.min(...buckets.map(b => b.x - b.width / 2), -var95 - 0.5)
+    const hi = Math.max(...buckets.map(b => b.x + b.width / 2), 0)
+    return [lo, hi]
+  }, [buckets, var95])
 
-  const hist = Array.from({ length: BINS }, (_, i) => {
-    const lo = minX + i * binW
-    const hi = lo + binW
-    return { x: lo + binW / 2, count: sorted.filter(v => v >= lo && v < hi).length }
-  })
+  const xScale = useMemo(
+    () => scaleLinear<number>({ domain: xDomain, range: [0, innerW] }),
+    [xDomain, innerW],
+  )
 
-  const maxCount = Math.max(...hist.map(h => h.count), 1)
-  function toX(x: number) { return P.l + ((x - minX) / spanX) * pW }
-  function toY(count: number) { return P.t + pH - (count / maxCount) * pH }
+  const maxCount = Math.max(...buckets.map(b => b.count), 1)
+  const yScale = useMemo(
+    () => scaleLinear<number>({ domain: [0, maxCount], range: [innerH, 0], nice: true }),
+    [maxCount, innerH],
+  )
 
-  const varLine = toX(-var95)
-  const cvarLine = toX(-cvar95)
+  const danger = theme.danger || '#B33A2F'
+  const warn = theme.warn || '#B27A1F'
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-        {hist.map((h, i) => {
-          const x = toX(h.x - binW / 2)
-          const bw = Math.max((pW / BINS) - 1, 1)
-          const isTail = h.x < -var95
-          return (
-            <rect key={i} x={x} y={toY(h.count)} width={bw} height={toY(0) - toY(h.count)}
-              fill={isTail ? 'rgba(255,92,92,0.8)' : 'rgba(255,92,92,0.3)'} />
-          )
-        })}
-        <line x1={varLine} x2={varLine} y1={P.t} y2={P.t + pH} stroke="#ff5c5c" strokeWidth={2} />
-        <text x={varLine - 4} y={P.t + 12} textAnchor="end" fontSize={9} fill="#ff5c5c" fontFamily="var(--mono)">
-          VaR95 {var95.toFixed(2)}%
-        </text>
-        {cvar95 > var95 && (
-          <g>
-            <line x1={cvarLine} x2={cvarLine} y1={P.t} y2={P.t + pH} stroke="#ff8c42" strokeWidth={2} strokeDasharray="4,2" />
-            <text x={cvarLine - 4} y={P.t + 22} textAnchor="end" fontSize={9} fill="#ff8c42" fontFamily="var(--mono)">
-              CVaR95 {cvar95.toFixed(2)}%
-            </text>
-          </g>
-        )}
-        {[-4, -3, -2, -1, 0].filter(v => v >= minX && v <= maxX).map(v => (
-          <text key={v} x={toX(v)} y={H - 4} textAnchor="middle" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">{v}%</text>
-        ))}
+      <svg
+        width={width}
+        height={HEIGHT}
+        role="img"
+        aria-label={`VaR distribution histogram, VaR95 ${var95.toFixed(2)}%, CVaR95 ${cvar95.toFixed(2)}%`}
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <Group left={MARGIN.left} top={MARGIN.top}>
+          <GridRows
+            scale={yScale}
+            width={innerW}
+            stroke={theme.border}
+            strokeDasharray="2,4"
+            numTicks={4}
+          />
+
+          {buckets.map((b, i) => {
+            const x = xScale(b.x - b.width / 2)
+            const w = Math.max(xScale(b.x + b.width / 2) - x - 1, 1)
+            const y = yScale(b.count)
+            const h = innerH - y
+            return (
+              <Bar
+                key={i}
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                fill={danger}
+                opacity={b.isTail ? 0.8 : 0.32}
+              />
+            )
+          })}
+
+          {/* VaR line */}
+          <Line
+            from={{ x: xScale(-var95), y: 0 }}
+            to={{ x: xScale(-var95), y: innerH }}
+            stroke={danger}
+            strokeWidth={1.75}
+          />
+          <text
+            x={xScale(-var95) - 6}
+            y={12}
+            textAnchor="end"
+            fontSize={11}
+            fontFamily={theme.mono}
+            fill={danger}
+          >
+            VaR95 {var95.toFixed(2)}%
+          </text>
+
+          {/* CVaR line */}
+          {cvar95 > var95 && (
+            <>
+              <Line
+                from={{ x: xScale(-cvar95), y: 0 }}
+                to={{ x: xScale(-cvar95), y: innerH }}
+                stroke={warn}
+                strokeWidth={1.75}
+                strokeDasharray="4,2"
+              />
+              <text
+                x={xScale(-cvar95) - 6}
+                y={26}
+                textAnchor="end"
+                fontSize={11}
+                fontFamily={theme.mono}
+                fill={warn}
+              >
+                CVaR95 {cvar95.toFixed(2)}%
+              </text>
+            </>
+          )}
+
+          <AxisBottom
+            top={innerH}
+            scale={xScale}
+            numTicks={6}
+            stroke={theme.border}
+            tickStroke={theme.border}
+            tickFormat={(v) => `${(v as number).toFixed(0)}%`}
+            tickLabelProps={() => ({
+              fill: theme.text3,
+              fontFamily: theme.mono,
+              fontSize: 11,
+              textAnchor: 'middle',
+              dy: '0.5em',
+            })}
+            hideAxisLine
+          />
+        </Group>
       </svg>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>
+      <div
+        style={{
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          color: 'var(--text3)',
+          letterSpacing: 'var(--tracking-mono)',
+          marginTop: 6,
+        }}
+      >
         {L(
-          `5%の確率で1日あたり ${var95.toFixed(2)}% 以上の損失が発生（VaR95）。テール期待損失は ${cvar95.toFixed(2)}%（CVaR95）。`,
-          `5% chance of losing more than ${var95.toFixed(2)}% per day (VaR95). Expected tail loss: ${cvar95.toFixed(2)}% (CVaR95).`
+          `5%の確率で1日あたり ${var95.toFixed(2)}% 以上の損失（VaR95）。テール期待損失は ${cvar95.toFixed(2)}%（CVaR95）。`,
+          `5% chance of losing more than ${var95.toFixed(2)}% per day (VaR95). Expected tail loss: ${cvar95.toFixed(2)}% (CVaR95).`,
         )}
       </div>
     </div>

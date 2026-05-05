@@ -3,7 +3,7 @@ import type { Lang } from '../i18n/strings'
 
 export type Theme = 'dark' | 'light'
 export type Density = 'comfortable' | 'compact'
-export type Variation = 'atlas' | 'terminal' | 'clarity'
+export type Variation = 'atelier' | 'lab'
 
 export interface ViewerSettings {
   theme: Theme
@@ -14,15 +14,15 @@ export interface ViewerSettings {
 
 const STORAGE_KEY = 'alphaforge.viewer.settings.v1'
 const DEFAULTS: ViewerSettings = {
-  theme: 'dark',
+  theme: 'light',
   density: 'comfortable',
-  variation: 'atlas',
+  variation: 'atelier',
   lang: 'ja',
 }
 
 const THEMES: readonly Theme[] = ['dark', 'light']
 const DENSITIES: readonly Density[] = ['comfortable', 'compact']
-const VARIATIONS: readonly Variation[] = ['atlas', 'terminal', 'clarity']
+const VARIATIONS: readonly Variation[] = ['atelier', 'lab']
 const LANGS: readonly Lang[] = ['ja', 'en']
 
 function readUrlOverrides(): Partial<ViewerSettings> {
@@ -48,7 +48,17 @@ function readStorage(): Partial<ViewerSettings> {
     if (!raw) return {}
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return {}
-    return parsed as Partial<ViewerSettings>
+    const obj = parsed as Record<string, unknown>
+    const out: Partial<ViewerSettings> = {}
+    if (typeof obj.theme === 'string' && (THEMES as readonly string[]).includes(obj.theme))
+      out.theme = obj.theme as Theme
+    if (typeof obj.density === 'string' && (DENSITIES as readonly string[]).includes(obj.density))
+      out.density = obj.density as Density
+    if (typeof obj.variation === 'string' && (VARIATIONS as readonly string[]).includes(obj.variation))
+      out.variation = obj.variation as Variation
+    if (typeof obj.lang === 'string' && (LANGS as readonly string[]).includes(obj.lang))
+      out.lang = obj.lang as Lang
+    return out
   } catch {
     return {}
   }
@@ -68,6 +78,12 @@ export function useViewerSettings() {
       // storage may be disabled (private mode etc.) — ignore silently
     }
   }, [settings])
+
+  // variation を <html data-variation> に同期し、tokens.css の切替トリガーにする
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.dataset.variation = settings.variation
+  }, [settings.variation])
 
   const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))

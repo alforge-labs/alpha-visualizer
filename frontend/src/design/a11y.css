@@ -1,0 +1,41 @@
+/*
+ * a11y 補完スタイル — Issue ysakae/alpha-visualizer#16
+ *
+ * tokens.css の :focus-visible ルールは button / [role="button"] / a 限定だったため、
+ * input・select・textarea にも同じフォーカスリングを当てる。
+ * tokens.css の --focus-ring は variation 別に切替えられているのでそのまま参照する。
+ */
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring);
+  border-color: var(--accent-glow);
+}
+
+/* role="radio" を持つ button にもしっかりリングを当てる（既存の button:focus-visible と冗長だが
+   inline-style box-shadow に上書きされないよう important で保険）。 */
+[role="radio"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--focus-ring) !important;
+}
+
+/* テーブル行に Tab フォーカスを当てたいケース用（現状は使っていないが、将来 Browse 行を
+   キーボードフォーカス可能にする際の足場）。 */
+[role="row"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/*
+ * SVG（visx チャート）の focusable 化を不要に抑える。
+ * IE の名残で <svg> は tabindex なしでも focus 可能になる場合があるが、
+ * モダンブラウザの現状ではアクセシビリティ上ノイズになるため明示的に外す。
+ */
+svg[role="img"] {
+  outline: none;
+}

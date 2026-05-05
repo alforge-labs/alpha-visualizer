@@ -1,0 +1,179 @@
+/* AlphaForge Visualizer — Design Tokens
+ *
+ *  Atelier (Light) — anthropic.com 風のクリーム + テラコッタ。エディトリアルに静か。
+ *  Lab     (Dark)  — 深いプラム背景 + 温かい琥珀の発光。研究機関の計器パネル。
+ *
+ *  既存トークン名 (--bg / --bg2 / --surface / --text / --text2 / --text3 / --border /
+ *  --border-h / --accent / --accent-glow / --accent-bg / --sans / --mono) は名前を維持し、
+ *  値のみ刷新。新規トークン (--surface-2 / --accent-strong / --success / --warn / --danger /
+ *  --serif / --space-* / --radius-* / --shadow-* / --motion-* / --fs-*) を追加。
+ */
+
+:root {
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radii */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --motion-fast: 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-base: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-stage: 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Container widths */
+  --container-narrow: 880px;
+  --container-wide: 1200px;
+
+  /* Type families */
+  --serif: 'Source Serif 4', 'Iowan Old Style', 'Charter', Georgia, serif;
+  --sans: 'Inter Tight', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale (rem) — generous, editorial */
+  --fs-display: 3rem;
+  --fs-h1: 1.875rem;
+  --fs-h2: 1.375rem;
+  --fs-h3: 1.0625rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.8125rem;
+  --fs-mono-sm: 0.75rem;
+
+  /* Line heights */
+  --lh-tight: 1.05;
+  --lh-snug: 1.15;
+  --lh-base: 1.5;
+  --lh-caption: 1.3;
+
+  /* Tracking */
+  --tracking-display: -0.01em;
+  --tracking-caption: 0.06em;
+  --tracking-mono: 0.04em;
+
+  /* ------------------------------------------------------------- */
+  /* Default = Atelier (Light) — html[data-variation="lab"] で上書き */
+  /* ------------------------------------------------------------- */
+  --bg: #F0EEE6;
+  --bg2: #E8E5DA;
+  --surface: #FBFAF5;
+  --surface-2: #F5F2E9;
+  --border: rgba(40, 28, 18, 0.10);
+  --border-h: rgba(40, 28, 18, 0.20);
+  --text: #1F1B16;
+  --text2: #4B453C;
+  --text3: #7B7368;
+  --accent: #C25A2A;
+  --accent-strong: #A0431E;
+  --accent-glow: rgba(194, 90, 42, 0.16);
+  --accent-bg: rgba(194, 90, 42, 0.08);
+  --success: #4F7A3F;
+  --warn: #B27A1F;
+  --danger: #B33A2F;
+  --focus-ring: rgba(194, 90, 42, 0.45);
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgba(20, 18, 14, 0.06), 0 1px 1px rgba(20, 18, 14, 0.04);
+  --shadow-2: 0 6px 24px rgba(20, 18, 14, 0.08), 0 2px 6px rgba(20, 18, 14, 0.05);
+  color-scheme: light;
+}
+
+html[data-variation="lab"] {
+  --bg: #15131C;
+  --bg2: #1B1825;
+  --surface: #221E2C;
+  --surface-2: #2A2536;
+  --border: rgba(245, 240, 230, 0.08);
+  --border-h: rgba(245, 240, 230, 0.16);
+  --text: #F1ECE0;
+  --text2: #C1B9A8;
+  --text3: #8E8675;
+  --accent: #E89464;
+  --accent-strong: #F1A877;
+  --accent-glow: rgba(232, 148, 100, 0.18);
+  --accent-bg: rgba(232, 148, 100, 0.08);
+  --success: #7FB36A;
+  --warn: #E2B26C;
+  --danger: #E07466;
+  --focus-ring: rgba(232, 148, 100, 0.50);
+  --shadow-1: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-2: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 8px 24px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+/* Global resets */
+html {
+  /* Base 17px — rem 換算が 1.0625x になり caption/body 系がゆとり */
+  font-size: 17px;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--motion-fast);
+}
+
+a:hover {
+  color: var(--accent-strong);
+}
+
+::selection {
+  background: var(--accent-glow);
+  color: var(--text);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring);
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -1,0 +1,199 @@
+import { useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCompare } from '../hooks/useBacktestData'
+import { useViewerSettings } from '../hooks/useTheme'
+import { CompareScreen } from '../screens/CompareScreen'
+import { makeL } from '../i18n/strings'
+import { Button, Toolbar } from '../design/primitives'
+
+export function ComparePage(): React.ReactElement {
+  const { settings } = useViewerSettings()
+  const { lang } = settings
+  const L = makeL(lang)
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const idsParam = searchParams.get('ids') ?? ''
+  const ids = useMemo(() => idsParam.split(',').filter(Boolean), [idsParam])
+  const compare = useCompare(ids.length > 0 ? ids : null)
+
+  const removeId = (id: string): void => {
+    const next = ids.filter(x => x !== id)
+    if (next.length === 0) navigate('/browse')
+    else setSearchParams({ ids: next.join(',') }, { replace: true })
+  }
+
+  const symbol =
+    compare.status === 'ready' && compare.data[0] ? compare.data[0].symbol : '—'
+
+  // ID -> 表示名（ロード後のみ正確、それまでは ID をそのまま表示）
+  const labelOf = (id: string): string => {
+    if (compare.status !== 'ready') return id
+    return compare.data.find(s => s.id === id)?.name ?? id
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: 'var(--bg)',
+        overflow: 'hidden',
+      }}
+    >
+      <header
+        style={{
+          padding: 'var(--space-6) var(--space-7) var(--space-5)',
+          background: 'var(--bg)',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            fontWeight: 500,
+            color: 'var(--text3)',
+            letterSpacing: 'var(--tracking-caption)',
+            textTransform: 'uppercase',
+          }}
+        >
+          {L('戦略比較', 'Strategy comparison')}
+        </div>
+        <h1
+          style={{
+            margin: '6px 0 0 0',
+            fontFamily: 'var(--serif)',
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: 'var(--text)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.1,
+          }}
+        >
+          {ids.length > 0
+            ? L(`${ids.length}件の戦略を並べる`, `Comparing ${ids.length} strategies`)
+            : L('比較する戦略を選んでください', 'Choose strategies to compare')}
+        </h1>
+        <p
+          style={{
+            margin: '12px 0 0 0',
+            maxWidth: 720,
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-body)',
+            color: 'var(--text2)',
+            lineHeight: 1.55,
+          }}
+        >
+          {L(
+            'エクイティの形・リスクとリターンの形・分布の歪みまで、複数戦略を同じ尺度で比較します。',
+            'See multiple strategies side by side—equity shape, risk/reward, distribution skew—on the same axes.',
+          )}
+        </p>
+      </header>
+
+      <Toolbar
+        sticky
+        leading={
+          <Button variant="ghost" size="sm" onClick={() => navigate('/browse')}>
+            ← {L('一覧に戻る', 'Back to list')}
+          </Button>
+        }
+        trailing={
+          <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+            + {L('戦略を追加', 'Add strategy')}
+          </Button>
+        }
+      >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {ids.map(id => (
+            <span
+              key={id}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 8px 4px 12px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-pill)',
+                fontFamily: 'var(--sans)',
+                fontSize: 'var(--fs-caption)',
+                color: 'var(--text2)',
+                maxWidth: 240,
+              }}
+            >
+              <span
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {labelOf(id)}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeId(id)}
+                aria-label={L('外す', 'Remove')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text3)',
+                  fontSize: 14,
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      </Toolbar>
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 'var(--space-6) var(--space-7)',
+        }}
+      >
+        {compare.status === 'loading' && (
+          <div
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-md)',
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-mono)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {L('読み込み中…', 'Loading…')}
+          </div>
+        )}
+        {compare.status === 'error' && (
+          <div
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-md)',
+              color: 'var(--danger)',
+              letterSpacing: 'var(--tracking-mono)',
+              padding: '12px 16px',
+              background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--danger) 22%, transparent)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            {compare.error}
+          </div>
+        )}
+        {compare.status === 'ready' && (
+          <CompareScreen data={compare.data} lang={lang} symbol={symbol} />
+        )}
+      </div>
+    </div>
+  )
+}

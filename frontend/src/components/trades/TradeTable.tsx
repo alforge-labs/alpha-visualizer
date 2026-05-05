@@ -62,7 +62,7 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
 
   const thS: React.CSSProperties = {
     fontFamily: 'var(--mono)',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
     color: 'var(--text3)',
     letterSpacing: '0.07em',
@@ -106,9 +106,9 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                   const isNum = typeof v === 'number'
                   const color = c.color
                     ? isNum && v > 0
-                      ? '#00e49a'
+                      ? 'var(--success)'
                       : isNum && v <= 0
-                        ? '#ff5c5c'
+                        ? 'var(--danger)'
                         : 'var(--text)'
                     : 'var(--text)'
                   let display = isNum
@@ -123,9 +123,9 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                         <span
                           style={{
                             fontFamily: 'var(--mono)',
-                            fontSize: 11,
+                            fontSize: 13,
                             fontWeight: 600,
-                            color: v === 'long' ? '#00e49a' : '#f5a623',
+                            color: v === 'long' ? 'var(--success)' : 'var(--warn)',
                             background:
                               v === 'long' ? 'rgba(0,228,154,0.08)' : 'rgba(245,166,35,0.08)',
                             padding: '1px 6px',
@@ -135,7 +135,7 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                           {String(v)}
                         </span>
                       ) : (
-                        <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color }}>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 14, color }}>
                           {display}
                           {c.suffix ?? ''}
                         </span>
@@ -161,13 +161,13 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
               border: '1px solid var(--border)',
               cursor: page === 0 ? 'default' : 'pointer',
               fontFamily: 'var(--mono)',
-              fontSize: 11,
+              fontSize: 13,
               color: page === 0 ? 'var(--text3)' : 'var(--text2)',
             }}
           >
             ←
           </button>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text3)' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text3)' }}>
             {page + 1} / {totalPages}
           </span>
           <button
@@ -181,7 +181,7 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
               border: '1px solid var(--border)',
               cursor: page === totalPages - 1 ? 'default' : 'pointer',
               fontFamily: 'var(--mono)',
-              fontSize: 11,
+              fontSize: 13,
               color: page === totalPages - 1 ? 'var(--text3)' : 'var(--text2)',
             }}
           >

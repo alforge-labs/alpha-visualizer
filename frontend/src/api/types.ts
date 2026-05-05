@@ -115,3 +115,25 @@ export interface StrategyComparison {
   equity?: { dates: string[]; values: number[] }
   daily_returns?: number[]
 }
+
+export interface StrategyListItem {
+  strategy_id: string
+  name: string
+  symbol: string | null
+  timeframe: string | null
+  latest_sharpe: number | null
+  latest_return_pct: number | null
+  latest_max_drawdown_pct: number | null
+  latest_profit_factor: number | null
+  latest_win_rate_pct: number | null
+  latest_total_trades: number | null
+  last_run_at: string | null
+}
+
+export interface StrategyRun {
+  run_id: string
+  run_at: string
+  sharpe_ratio: number | null
+  total_return_pct: number | null
+  max_drawdown_pct: number | null
+}

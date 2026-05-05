@@ -1,6 +1,13 @@
 import { useMemo } from 'react'
-import { useDashboard } from '../../contexts/DashboardContext'
-import { getRangeN } from '../../contexts/dashboardConstants'
+import { ParentSize } from '@visx/responsive'
+import { Group } from '@visx/group'
+import { Bar, LinePath, Line } from '@visx/shape'
+import { scaleLinear } from '@visx/scale'
+import { AxisBottom } from '@visx/axis'
+import { GridRows } from '@visx/grid'
+import { curveBasis } from '@visx/curve'
+import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
+import { useChartTheme } from '../../design/useChartTheme'
 
 export interface ReturnDataset {
   label: string
@@ -16,15 +23,24 @@ interface Props {
   compact?: boolean
 }
 
-function computeHistogram(returns: number[], bins = 40): { x: number; count: number; width: number }[] {
+interface Bucket {
+  x: number
+  count: number
+  width: number
+}
+
+const MARGIN = { top: 24, right: 24, bottom: 36, left: 56 }
+const BIN_COUNT = 40
+
+function computeHistogram(returns: number[]): Bucket[] {
   if (returns.length === 0) return []
   const min = Math.min(...returns)
   const max = Math.max(...returns)
-  const width = (max - min) / bins || 0.01
-  const counts = new Array(bins).fill(0)
+  const width = (max - min) / BIN_COUNT || 0.01
+  const counts = new Array(BIN_COUNT).fill(0) as number[]
   for (const r of returns) {
-    const idx = Math.min(Math.floor((r - min) / width), bins - 1)
-    counts[idx]++
+    const idx = Math.min(Math.floor((r - min) / width), BIN_COUNT - 1)
+    if (idx >= 0) counts[idx] = (counts[idx] ?? 0) + 1
   }
   return counts.map((count, i) => ({ x: min + (i + 0.5) * width, count, width }))
 }
@@ -34,77 +50,194 @@ function normalPdf(x: number, mean: number, std: number): number {
   return Math.exp(-0.5 * ((x - mean) / std) ** 2) / (std * Math.sqrt(2 * Math.PI))
 }
 
-export function ReturnDistributionChart({ datasets, var95, skewness, excessKurtosis, compact = false }: Props) {
-  const { selectedRange } = useDashboard()
+export function ReturnDistributionChart(props: Props): React.ReactElement {
+  return (
+    <ParentSize>
+      {({ width }) => (width > 0 ? <ReturnDistributionInner width={width} {...props} /> : null)}
+    </ParentSize>
+  )
+}
 
-  const W = 800, H = compact ? 200 : 260
-  const P = { l: 50, r: 20, t: 24, b: 36 }
-  const pW = W - P.l - P.r
-  const pH = H - P.t - P.b
+function ReturnDistributionInner({
+  width,
+  datasets,
+  var95,
+  skewness,
+  excessKurtosis,
+  compact = false,
+}: Props & { width: number }): React.ReactElement | null {
+  const { selectedRange } = useDashboard()
+  const theme = useChartTheme()
+
+  const height = compact ? 220 : 280
+  const innerW = Math.max(0, width - MARGIN.left - MARGIN.right)
+  const innerH = Math.max(0, height - MARGIN.top - MARGIN.bottom)
 
   const primary = datasets[0]
   const returns = useMemo(() => {
     if (!primary) return []
     const n = primary.returns.length
-    const bars = Math.min(getRangeN(selectedRange), n)
+    const bars = Math.min(RANGE_N[selectedRange], n)
     return primary.returns.slice(Math.max(0, n - bars))
   }, [primary, selectedRange])
 
-  const hist = useMemo(() => computeHistogram(returns), [returns])
+  const buckets = useMemo(() => computeHistogram(returns), [returns])
 
-  const allX = hist.map(h => h.x)
-  const minX = Math.min(...allX, -3)
-  const maxX = Math.max(...allX, 3)
-  const maxCount = Math.max(...hist.map(h => h.count), 1)
+  const xDomain = useMemo<[number, number]>(() => {
+    if (buckets.length === 0) return [-3, 3]
+    const lo = Math.min(...buckets.map(b => b.x - b.width / 2), -3)
+    const hi = Math.max(...buckets.map(b => b.x + b.width / 2), 3)
+    return [lo, hi]
+  }, [buckets])
 
-  function toX(x: number) { return P.l + ((x - minX) / (maxX - minX)) * pW }
-  function toY(count: number) { return P.t + pH - (count / maxCount) * pH }
+  const maxCount = Math.max(...buckets.map(b => b.count), 1)
 
-  const mean = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0
-  const std = returns.length > 1
-    ? Math.sqrt(returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1))
-    : 1
+  const xScale = useMemo(
+    () => scaleLinear<number>({ domain: xDomain, range: [0, innerW] }),
+    [xDomain, innerW],
+  )
+  const yScale = useMemo(
+    () => scaleLinear<number>({ domain: [0, maxCount], range: [innerH, 0], nice: true }),
+    [maxCount, innerH],
+  )
 
-  const normalPath = (() => {
+  const stats = useMemo(() => {
+    if (returns.length === 0) return { mean: 0, std: 1 }
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length
+    const variance =
+      returns.length > 1
+        ? returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1)
+        : 1
+    return { mean, std: Math.sqrt(variance) || 1 }
+  }, [returns])
+
+  const normalCurve = useMemo(() => {
+    if (returns.length === 0 || buckets.length === 0) return []
     const steps = 100
-    const step = (maxX - minX) / steps
-    return Array.from({ length: steps + 1 }, (_, i) => {
-      const x = minX + i * step
-      const density = normalPdf(x, mean, std)
-      const scaledCount = density * returns.length * (hist[0]?.width ?? 0.1)
-      return `${i === 0 ? 'M' : 'L'}${toX(x).toFixed(1)},${toY(scaledCount).toFixed(1)}`
-    }).join(' ')
-  })()
+    const [lo, hi] = xDomain
+    const step = (hi - lo) / steps
+    const binWidth = buckets[0]?.width ?? 0.1
+    const points: { x: number; y: number }[] = []
+    for (let i = 0; i <= steps; i++) {
+      const x = lo + i * step
+      const density = normalPdf(x, stats.mean, stats.std)
+      const scaled = density * returns.length * binWidth
+      points.push({ x, y: scaled })
+    }
+    return points
+  }, [returns.length, xDomain, stats, buckets])
+
+  if (!primary) return null
 
   return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-        {hist.map((h, i) => {
-          const x = toX(h.x - h.width / 2)
-          const w = Math.max((pW / hist.length) - 1, 1)
-          const isLeft = h.x < 0
+    <svg
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`Return distribution histogram, ${returns.length} samples`}
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      <Group left={MARGIN.left} top={MARGIN.top}>
+        <GridRows
+          scale={yScale}
+          width={innerW}
+          stroke={theme.border}
+          strokeDasharray="2,4"
+          numTicks={4}
+        />
+
+        {buckets.map((b, i) => {
+          const x = xScale(b.x - b.width / 2)
+          const w = Math.max(xScale(b.x + b.width / 2) - x - 1, 1)
+          const y = yScale(b.count)
+          const h = innerH - y
+          const isLeft = b.x < 0
           return (
-            <rect key={i} x={x} y={toY(h.count)} width={w} height={toY(0) - toY(h.count)}
-              fill={isLeft ? 'rgba(255,92,92,0.5)' : 'rgba(0,228,154,0.5)'} />
+            <Bar
+              key={i}
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              fill={isLeft ? theme.danger : theme.success}
+              opacity={0.55}
+            />
           )
         })}
-        <path d={normalPath} fill="none" stroke="var(--text3)" strokeWidth={1} strokeDasharray="4,3" />
-        <line x1={toX(0)} x2={toX(0)} y1={P.t} y2={P.t + pH} stroke="var(--text3)" strokeWidth={0.5} />
+
+        {/* normal pdf overlay */}
+        <LinePath
+          data={normalCurve}
+          x={(d) => xScale(d.x)}
+          y={(d) => yScale(d.y)}
+          stroke={theme.text3}
+          strokeWidth={1.25}
+          strokeDasharray="3,3"
+          curve={curveBasis}
+        />
+
+        {/* x = 0 ライン */}
+        <Line
+          from={{ x: xScale(0), y: 0 }}
+          to={{ x: xScale(0), y: innerH }}
+          stroke={theme.text3}
+          strokeWidth={0.75}
+          opacity={0.6}
+        />
+
+        {/* VaR ライン */}
         {var95 != null && (
-          <g>
-            <line x1={toX(-var95)} x2={toX(-var95)} y1={P.t} y2={P.t + pH} stroke="#ff5c5c" strokeWidth={1.5} strokeDasharray="4,2" />
-            <text x={toX(-var95) - 3} y={P.t + 12} textAnchor="end" fontSize={9} fill="#ff5c5c" fontFamily="var(--mono)">VaR95</text>
-          </g>
+          <>
+            <Line
+              from={{ x: xScale(-var95), y: 0 }}
+              to={{ x: xScale(-var95), y: innerH }}
+              stroke={theme.danger}
+              strokeWidth={1.5}
+              strokeDasharray="4,2"
+            />
+            <text
+              x={xScale(-var95) - 4}
+              y={12}
+              textAnchor="end"
+              fontSize={11}
+              fontFamily={theme.mono}
+              fill={theme.danger}
+            >
+              VaR95
+            </text>
+          </>
         )}
-        {[-2, -1, 0, 1, 2].filter(v => v >= minX && v <= maxX).map(v => (
-          <text key={v} x={toX(v)} y={H - 4} textAnchor="middle" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">{v}%</text>
-        ))}
+
+        <AxisBottom
+          top={innerH}
+          scale={xScale}
+          numTicks={6}
+          stroke={theme.border}
+          tickStroke={theme.border}
+          tickFormat={(v) => `${(v as number).toFixed(0)}%`}
+          tickLabelProps={() => ({
+            fill: theme.text3,
+            fontFamily: theme.mono,
+            fontSize: 11,
+            textAnchor: 'middle',
+            dy: '0.5em',
+          })}
+          hideAxisLine
+        />
+
         {skewness != null && (
-          <text x={P.l + pW - 4} y={P.t + 14} textAnchor="end" fontSize={9} fill="var(--text3)" fontFamily="var(--mono)">
-            {`歪度: ${skewness.toFixed(2)}  尖度: ${(excessKurtosis ?? 0).toFixed(2)}`}
+          <text
+            x={innerW - 4}
+            y={14}
+            textAnchor="end"
+            fontSize={11}
+            fontFamily={theme.mono}
+            fill={theme.text3}
+          >
+            {`skew ${skewness.toFixed(2)} · kurt ${(excessKurtosis ?? 0).toFixed(2)}`}
           </text>
         )}
-      </svg>
-    </div>
+      </Group>
+    </svg>
   )
 }

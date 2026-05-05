@@ -1,6 +1,5 @@
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import type { Variation } from '../../hooks/useTheme'
 import type { BacktestMetrics } from '../../api/types'
 
 type GoodWhen = 'pos' | 'neg' | 'gte1' | 'gte15' | 'wr' | null
@@ -12,7 +11,6 @@ interface MetricCardProps {
   goodWhen?: GoodWhen
   big?: boolean
   sub?: string | null
-  variation?: Variation
 }
 
 function evaluateGood(num: number | null, goodWhen: GoodWhen): boolean | null {
@@ -33,18 +31,11 @@ function evaluateGood(num: number | null, goodWhen: GoodWhen): boolean | null {
   }
 }
 
-function MetricCard({
-  label,
-  value,
-  suffix = '',
-  goodWhen = null,
-  big = false,
-  sub = null,
-  variation = 'atlas',
-}: MetricCardProps) {
+function MetricCard({ label, value, suffix = '', goodWhen = null, big = false, sub = null }: MetricCardProps) {
   const num = typeof value === 'number' ? value : null
   const isGood = evaluateGood(num, goodWhen)
-  const valColor = isGood === true ? '#00e49a' : isGood === false ? '#ff5c5c' : 'var(--text)'
+  const valColor =
+    isGood === true ? 'var(--success)' : isGood === false ? 'var(--danger)' : 'var(--text)'
   const display =
     num === null
       ? String(value ?? '—')
@@ -54,42 +45,25 @@ function MetricCard({
           ? num.toFixed(2)
           : num.toFixed(3)
 
-  const cardPad =
-    variation === 'clarity' ? '18px 22px' : variation === 'terminal' ? '10px 13px' : '13px 16px'
-  const cardR = variation === 'clarity' ? 10 : 7
-  const claritySide =
-    variation === 'clarity'
-      ? {
-          borderLeft: `3px solid ${
-            isGood === true
-              ? 'rgba(0,228,154,0.4)'
-              : isGood === false
-                ? 'rgba(255,92,92,0.35)'
-                : 'rgba(255,255,255,0.07)'
-          }`,
-        }
-      : {}
-
   return (
     <div
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: cardR,
-        padding: cardPad,
+        borderRadius: 'var(--radius-md)',
+        padding: '14px 18px',
         display: 'flex',
         flexDirection: 'column',
         gap: big ? 6 : 3,
-        ...claritySide,
       }}
     >
       <span
         style={{
-          fontFamily: 'var(--mono)',
-          fontSize: 11,
+          fontFamily: 'var(--sans)',
+          fontSize: 'var(--fs-caption)',
           fontWeight: 500,
           color: 'var(--text3)',
-          letterSpacing: '0.1em',
+          letterSpacing: 'var(--tracking-caption)',
           textTransform: 'uppercase',
         }}
       >
@@ -97,19 +71,19 @@ function MetricCard({
       </span>
       <span
         style={{
-          fontFamily: 'var(--mono)',
-          fontSize: big ? (variation === 'clarity' ? '1.9rem' : '1.65rem') : '1rem',
-          fontWeight: 700,
+          fontFamily: big ? 'var(--serif)' : 'var(--mono)',
+          fontSize: big ? '1.75rem' : '1rem',
+          fontWeight: big ? 600 : 500,
           color: valColor,
-          letterSpacing: '-0.03em',
-          lineHeight: 1,
+          letterSpacing: big ? 'var(--tracking-display)' : 0,
+          lineHeight: 1.05,
         }}
       >
         {display}
         {suffix}
       </span>
       {sub && (
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text3)' }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-mono-sm)', color: 'var(--text3)' }}>
           {sub}
         </span>
       )}
@@ -121,10 +95,9 @@ interface MetricsGridProps {
   metrics: BacktestMetrics
   compact: boolean
   lang: Lang
-  variation: Variation
 }
 
-export function MetricsGrid({ metrics: m, compact, lang, variation }: MetricsGridProps) {
+export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
   const L = makeL(lang)
   const kpis: MetricCardProps[] = [
     { label: L('総リターン', 'Total Return'), value: m.total_return_pct, suffix: '%', goodWhen: 'pos', big: true },
@@ -156,24 +129,23 @@ export function MetricsGrid({ metrics: m, compact, lang, variation }: MetricsGri
       suffix: m.recovery_days ? 'd' : '',
     },
   ]
-  const cols = variation === 'terminal' ? 4 : 6
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
         {kpis.map((c, i) => (
-          <MetricCard key={i} {...c} variation={variation} />
+          <MetricCard key={i} {...c} />
         ))}
       </div>
       {!compact && (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${cols},1fr)`,
-            gap: variation === 'terminal' ? 5 : 6,
+            gridTemplateColumns: 'repeat(6,1fr)',
+            gap: 8,
           }}
         >
           {secondary.map((c, i) => (
-            <MetricCard key={i} {...c} variation={variation} />
+            <MetricCard key={i} {...c} />
           ))}
         </div>
       )}

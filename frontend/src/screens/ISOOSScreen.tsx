@@ -1,28 +1,26 @@
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
-import type { Variation } from '../hooks/useTheme'
 import type { BacktestDetail, BacktestMetrics } from '../api/types'
-import { SecHead, SectionLabel } from '../components/common'
-import { EquityChart } from '../components/charts/EquityChart'
+import { SectionHeader, SectionLabel } from '../design/primitives'
+import { EquityChartV } from '../charts/visx/EquityChartV'
 import { ISOOSMetrics } from '../components/metrics/ISOOSMetrics'
 
 interface Props {
   data: BacktestDetail
   compact: boolean
   lang: Lang
-  variation: Variation
 }
 
 const DEGRADE_KEYS = ['sharpe_ratio', 'win_rate_pct', 'profit_factor'] as const
 
-export function ISOOSScreen({ data, compact, lang, variation }: Props) {
+export function ISOOSScreen({ data, compact, lang }: Props) {
   const L = makeL(lang)
   const isM = data.is_metrics
   const oosM = data.oos_metrics
   if (!isM || !oosM) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <SecHead
+        <SectionHeader
           title={L('IS / OOS 詳細比較', 'IS / OOS Deep Comparison')}
           subtitle={L(
             'このバックテストには IS/OOS 分割が設定されていません',
@@ -44,12 +42,12 @@ export function ISOOSScreen({ data, compact, lang, variation }: Props) {
     <div style={{ display: 'flex', gap: 12 }}>
       {(
         [
-          [L('OOS効率', 'OOS Efficiency'), `${eff}%`, effNum >= 70 ? '#00e49a' : '#f5a623'],
-          [L('IS Sharpe', 'IS Sharpe'), isM.sharpe_ratio.toFixed(2), '#00e49a'],
+          [L('OOS効率', 'OOS Efficiency'), `${eff}%`, effNum >= 70 ? 'var(--success)' : 'var(--warn)'],
+          [L('IS Sharpe', 'IS Sharpe'), isM.sharpe_ratio.toFixed(2), 'var(--success)'],
           [
             L('OOS Sharpe', 'OOS Sharpe'),
             oosM.sharpe_ratio.toFixed(2),
-            oosM.sharpe_ratio >= 0.8 ? '#00e49a' : '#f5a623',
+            oosM.sharpe_ratio >= 0.8 ? 'var(--success)' : 'var(--warn)',
           ],
         ] as const
       ).map(([lbl, val, c], i) => (
@@ -65,9 +63,9 @@ export function ISOOSScreen({ data, compact, lang, variation }: Props) {
           <span
             style={{
               fontFamily: 'var(--mono)',
-              fontSize: 11,
+              fontSize: 13,
               color: 'var(--text3)',
-              letterSpacing: '0.08em',
+              letterSpacing: 'var(--tracking-caption)',
             }}
           >
             {lbl}
@@ -89,7 +87,7 @@ export function ISOOSScreen({ data, compact, lang, variation }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <SecHead
+      <SectionHeader
         title={L('IS / OOS 詳細比較', 'IS / OOS Deep Comparison')}
         subtitle={`IS 60% (〜${data.is_cutoff.date ?? '—'})  /  OOS 40%`}
         right={right}
@@ -102,17 +100,17 @@ export function ISOOSScreen({ data, compact, lang, variation }: Props) {
             display: 'flex',
             gap: 8,
             padding: '10px 14px',
-            background: 'rgba(245,166,35,0.06)',
-            border: '1px solid rgba(245,166,35,0.2)',
-            borderRadius: 7,
+            background: 'color-mix(in srgb, var(--warn) 10%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--warn) 25%, transparent)',
+            borderRadius: 'var(--radius-md)',
           }}
         >
-          <span style={{ color: '#f5a623', fontSize: 14 }}>⚠</span>
+          <span style={{ color: 'var(--warn)', fontSize: 15 }}>⚠</span>
           <span
             style={{
               fontFamily: 'var(--sans)',
-              fontSize: 12,
-              color: '#f5a623',
+              fontSize: 14,
+              color: 'var(--warn)',
               lineHeight: 1.5,
             }}
           >
@@ -128,16 +126,15 @@ export function ISOOSScreen({ data, compact, lang, variation }: Props) {
         <SectionLabel>
           {L('エクイティカーブ (IS/OOS境界線付き)', 'Equity Curve with IS/OOS Boundary')}
         </SectionLabel>
-        <EquityChart
+        <EquityChartV
           equity={data.equity.values}
           dates={data.equity.dates}
           isCutoffIdx={data.is_cutoff.index}
           compact={compact}
-          variation={variation}
         />
       </div>
 
-      <ISOOSMetrics isM={isM} oosM={oosM} lang={lang} variation={variation} />
+      <ISOOSMetrics isM={isM} oosM={oosM} lang={lang} />
     </div>
   )
 }
