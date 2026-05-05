@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      contents: read   # private repo で actions/checkout が読み取れるようにする
       id-token: write  # PyPI Trusted Publisher 用
     steps:
       - uses: actions/checkout@v4
