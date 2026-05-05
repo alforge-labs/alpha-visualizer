@@ -26,3 +26,4 @@ def test_serve_help() -> None:
     assert "--host" in result.output
     assert "--port" in result.output
     assert "--forge-dir" in result.output
+    assert "--forge-config" in result.output

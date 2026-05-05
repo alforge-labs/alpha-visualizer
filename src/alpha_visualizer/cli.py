@@ -19,23 +19,44 @@ def cli() -> None:
     default=".",
     show_default=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="forge が生成する DB（exploration.db / forge.db）のディレクトリパス",
+    help="forge が生成するデータディレクトリのパス",
+)
+@click.option(
+    "--forge-config",
+    "forge_config",
+    default=None,
+    type=click.Path(exists=False, file_okay=True, dir_okay=False),
+    help="forge.yaml のパス。未指定なら $FORGE_CONFIG → <forge-dir>/forge.yaml の順で探索",
 )
 @click.option("--no-open", "no_open", is_flag=True, default=False, help="ブラウザを自動で開かない")
-def serve(host: str, port: int, forge_dir: str, no_open: bool) -> None:
+def serve(
+    host: str,
+    port: int,
+    forge_dir: str,
+    forge_config: str | None,
+    no_open: bool,
+) -> None:
     """Web ダッシュボードを起動する"""
     import pathlib
 
     import uvicorn
 
     from alpha_visualizer.app import create_app
+    from alpha_visualizer.forge_config import ForgeConfig
 
     forge_path = pathlib.Path(forge_dir).resolve()
-    app = create_app(forge_dir=forge_path)
+    config_path = pathlib.Path(forge_config).resolve() if forge_config else None
+    config = ForgeConfig.from_forge_dir(forge_path, config_path=config_path)
+    app = create_app(config=config)
 
     url = f"http://{host}:{port}"
     click.echo(f"vis serve: {url}  (Ctrl+C で停止)")
     click.echo(f"forge-dir: {forge_path}")
+    click.echo(f"forge-db:  {config.forge_db}")
+    if config.strategies_db is not None:
+        click.echo(f"strategies-db: {config.strategies_db}")
+    else:
+        click.echo(f"strategies-dir: {config.strategies_dir} (JSON モード)")
 
     if not no_open:
         import webbrowser

@@ -1,8 +1,25 @@
-"""forge.db の SQLAlchemy テーブル定義（読み取り専用）"""
+"""forge.db / strategies.db の SQLAlchemy テーブル定義（読み取り専用）"""
 
 from sqlalchemy import REAL, Column, Integer, MetaData, Table, Text
 
 metadata = MetaData()
+
+strategies = Table(
+    "strategies",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("strategy_id", Text, nullable=False, unique=True),
+    Column("name", Text, nullable=False),
+    Column("version", Text),
+    Column("asset_type", Text),
+    Column("timeframe", Text),
+    Column("tags", Text),
+    Column("notes", Text),
+    Column("definition_json", Text, nullable=False),
+    Column("source_file", Text),
+    Column("created_at", Text),
+    Column("updated_at", Text),
+)
 
 backtest_results = Table(
     "backtest_results",

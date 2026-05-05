@@ -1,12 +1,15 @@
-"""ルーターエンドポイントのテスト（forge.db 不在時の挙動を確認）"""
+"""ルーターエンドポイントのテスト（forge.db 不在時の挙動・forge.yaml 反映）"""
 
 import json
 import pathlib
+import sqlite3
+import textwrap
 
 import pytest
 from fastapi.testclient import TestClient
 
 from alpha_visualizer.app import create_app
+from alpha_visualizer.forge_config import ForgeConfig
 
 
 @pytest.fixture()
@@ -140,3 +143,211 @@ class TestWfoRouter:
         """forge.db が存在しない場合は 404 を返す"""
         response = client.get("/api/wfo/some_strategy")
         assert response.status_code == 404
+
+
+# --- forge.yaml 反映 + 実 DB ありのテスト ----------------------------------
+
+
+def _create_backtest_db(db_path: pathlib.Path) -> None:
+    """alpha-forge と互換のスキーマで最小の backtest_results.db を作る。"""
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE backtest_results (
+                id INTEGER PRIMARY KEY,
+                run_id TEXT NOT NULL UNIQUE,
+                strategy_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                run_at TEXT NOT NULL,
+                total_return_pct REAL,
+                cagr_pct REAL,
+                sharpe_ratio REAL,
+                sortino_ratio REAL,
+                calmar_ratio REAL,
+                max_drawdown_pct REAL,
+                total_trades INTEGER,
+                win_rate_pct REAL,
+                profit_factor REAL,
+                avg_holding_days REAL,
+                metrics_json TEXT NOT NULL,
+                equity_curve_json TEXT,
+                trades_json TEXT,
+                oos_start TEXT,
+                buy_hold_curve_json TEXT
+            );
+            CREATE TABLE optimization_runs (
+                id INTEGER PRIMARY KEY,
+                run_id TEXT NOT NULL UNIQUE,
+                strategy_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                run_at TEXT NOT NULL,
+                n_trials INTEGER,
+                best_metric_name TEXT,
+                best_metric_value REAL,
+                best_params_json TEXT,
+                duration_seconds REAL,
+                all_trials_json TEXT
+            );
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO backtest_results (
+                run_id, strategy_id, symbol, run_at,
+                total_return_pct, sharpe_ratio, max_drawdown_pct, total_trades,
+                metrics_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "run_aapl_001",
+                "ema_cross_aapl",
+                "AAPL",
+                "2026-04-01T12:00:00",
+                12.5,
+                1.42,
+                -8.3,
+                42,
+                "{}",
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _create_strategies_db(db_path: pathlib.Path, strategy_id: str, name: str) -> None:
+    """alpha-forge と互換のスキーマで最小の strategies.db を作る。"""
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE strategies (
+                id INTEGER PRIMARY KEY,
+                strategy_id TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                asset_type TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                tags TEXT NOT NULL,
+                notes TEXT NOT NULL,
+                definition_json TEXT NOT NULL,
+                source_file TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            """
+        )
+        definition = json.dumps(
+            {
+                "strategy_id": strategy_id,
+                "name": name,
+                "parameters": {"fast": 12, "slow": 26},
+            }
+        )
+        conn.execute(
+            """
+            INSERT INTO strategies (
+                strategy_id, name, version, asset_type, timeframe,
+                tags, notes, definition_json,
+                created_at, updated_at
+            ) VALUES (?, ?, '1.0.0', 'stock', '1d', '[]', '', ?, '2026-04-01', '2026-04-01')
+            """,
+            (strategy_id, name, definition),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.fixture()
+def client_with_forge_yaml(tmp_path: pathlib.Path) -> TestClient:
+    """forge.yaml + 実 SQLite DB（backtest_results / strategies）を持つクライアント。"""
+    _create_backtest_db(tmp_path / "data" / "results" / "backtest_results.db")
+    _create_strategies_db(
+        tmp_path / "data" / "strategies" / "strategies.db",
+        strategy_id="ema_cross_aapl",
+        name="EMA クロス AAPL",
+    )
+    (tmp_path / "forge.yaml").write_text(
+        textwrap.dedent(
+            """
+            report:
+              output_path: ./data/results
+              db_filename: backtest_results.db
+            strategies:
+              path: ./data/strategies
+              use_db: true
+              db_filename: strategies.db
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    config = ForgeConfig.from_forge_dir(tmp_path)
+    app = create_app(config=config)
+    return TestClient(app)
+
+
+class TestForgeYamlIntegration:
+    def test_list_results_returns_real_data(
+        self, client_with_forge_yaml: TestClient
+    ) -> None:
+        """forge.yaml の report.db_filename を反映して /api/results が実データを返す"""
+        response = client_with_forge_yaml.get("/api/results")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["run_id"] == "run_aapl_001"
+        assert data[0]["strategy_id"] == "ema_cross_aapl"
+
+    def test_list_strategies_uses_db(
+        self, client_with_forge_yaml: TestClient
+    ) -> None:
+        """strategies.use_db: true で strategies.db から戦略一覧を返す"""
+        response = client_with_forge_yaml.get("/api/strategies")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["strategy_id"] == "ema_cross_aapl"
+        assert data[0]["name"] == "EMA クロス AAPL"
+        assert data[0]["latest_sharpe"] == pytest.approx(1.42)
+
+    def test_get_strategy_uses_db(
+        self, client_with_forge_yaml: TestClient
+    ) -> None:
+        """戦略詳細も strategies.db から取得される"""
+        response = client_with_forge_yaml.get("/api/strategies/ema_cross_aapl")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["strategy_id"] == "ema_cross_aapl"
+        assert data["parameters"] == {"fast": 12, "slow": 26}
+
+    def test_compare_strategies_uses_db(
+        self, client_with_forge_yaml: TestClient
+    ) -> None:
+        """戦略比較も strategies.db からの戦略名と forge_db からの結果を結合する"""
+        response = client_with_forge_yaml.get(
+            "/api/strategies/compare?ids=ema_cross_aapl"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["id"] == "ema_cross_aapl"
+        assert data[0]["name"] == "EMA クロス AAPL"
+        assert data[0]["sharpe_ratio"] == pytest.approx(1.42)
+
+
+class TestStrategiesRouterJsonFallback:
+    def test_json_mode_still_works_without_yaml(
+        self, client_with_strategies: TestClient
+    ) -> None:
+        """forge.yaml が無いとき従来通り JSON glob から戦略を読む"""
+        response = client_with_strategies.get("/api/strategies")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["strategy_id"] == "test_strategy"

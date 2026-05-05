@@ -1,23 +1,83 @@
 """戦略 API ルーター
 
 `/api/strategies`、`/api/strategies/compare`、`/api/strategies/{strategy_id}` を提供する。
-戦略 JSON は ForgeConfig.strategies_dir/*.json から直接読み取る。
+戦略定義の取得元は forge.yaml の ``strategies.use_db`` で切り替わる:
+- ``true``: ``strategies.db`` の ``strategies`` テーブルから読む
+- ``false`` または未設定: ``strategies_dir/*.json`` を glob する（後方互換）
 """
 from __future__ import annotations
 
 import json
 import logging
+import pathlib
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import create_engine, select
 
-from alpha_visualizer.db import backtest_results, optimization_runs
+from alpha_visualizer.db import backtest_results, optimization_runs, strategies
 from alpha_visualizer.forge_config import ForgeConfig
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _load_strategies_from_db(db_path: pathlib.Path) -> list[dict[str, Any]]:
+    """``strategies.db`` から戦略定義を読み取る。"""
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+    out: list[dict[str, Any]] = []
+    with engine.connect() as conn:
+        for row in conn.execute(select(strategies)):
+            try:
+                data = json.loads(row.definition_json)
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(
+                    "戦略定義 JSON のパースに失敗: %s (%s)", row.strategy_id, e
+                )
+                continue
+            if not isinstance(data, dict):
+                continue
+            data.setdefault("strategy_id", row.strategy_id)
+            data.setdefault("name", row.name)
+            out.append(data)
+    return out
+
+
+def _load_strategies_from_json(strategies_dir: pathlib.Path) -> list[dict[str, Any]]:
+    """``strategies_dir/*.json`` から戦略定義を読み取る（後方互換経路）。"""
+    if not strategies_dir.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for p in sorted(strategies_dir.glob("*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("戦略ファイルの読み込みをスキップ: %s (%s)", p, e)
+            continue
+        if not isinstance(data, dict):
+            continue
+        data.setdefault("strategy_id", p.stem)
+        data.setdefault("name", p.stem)
+        out.append(data)
+    return out
+
+
+def _load_all_strategy_records(config: ForgeConfig) -> list[dict[str, Any]]:
+    """forge.yaml の設定に従って戦略定義の一覧を返す。"""
+    if config.strategies_db is not None and config.strategies_db.exists():
+        return _load_strategies_from_db(config.strategies_db)
+    return _load_strategies_from_json(config.strategies_dir)
+
+
+def _load_strategy_record(
+    config: ForgeConfig, strategy_id: str
+) -> dict[str, Any] | None:
+    """指定 strategy_id の戦略定義を取得する。"""
+    for record in _load_all_strategy_records(config):
+        if record.get("strategy_id") == strategy_id:
+            return record
+    return None
 
 
 def _get_latest_result(config: ForgeConfig, strategy_id: str) -> dict[str, Any] | None:
@@ -119,32 +179,26 @@ def _get_optimization_history(config: ForgeConfig, strategy_id: str) -> list[dic
 @router.get("/strategies")
 async def list_strategies(request: Request) -> list[dict[str, Any]]:
     config: ForgeConfig = request.app.state.forge_config
-    strategies_dir = config.strategies_dir
-    if not strategies_dir.exists():
-        return []
     result: list[dict[str, Any]] = []
-    for p in sorted(strategies_dir.glob("*.json")):
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            sid = data.get("strategy_id", p.stem)
-            entry: dict[str, Any] = {
-                "strategy_id": sid,
-                "name": data.get("name", p.stem),
-                "latest_sharpe": None,
-                "latest_return_pct": None,
-                "latest_total_trades": None,
-                "last_run_at": None,
-            }
-            latest = _get_latest_result(config, sid)
-            if latest:
-                entry["latest_sharpe"] = latest.get("sharpe_ratio")
-                entry["latest_return_pct"] = latest.get("total_return_pct")
-                entry["latest_total_trades"] = latest.get("total_trades")
-                entry["last_run_at"] = latest.get("run_at")
-            result.append(entry)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning("戦略ファイルの読み込みをスキップ: %s (%s)", p, e)
+    for record in _load_all_strategy_records(config):
+        sid = record.get("strategy_id")
+        if not isinstance(sid, str):
             continue
+        entry: dict[str, Any] = {
+            "strategy_id": sid,
+            "name": record.get("name", sid),
+            "latest_sharpe": None,
+            "latest_return_pct": None,
+            "latest_total_trades": None,
+            "last_run_at": None,
+        }
+        latest = _get_latest_result(config, sid)
+        if latest:
+            entry["latest_sharpe"] = latest.get("sharpe_ratio")
+            entry["latest_return_pct"] = latest.get("total_return_pct")
+            entry["latest_total_trades"] = latest.get("total_trades")
+            entry["last_run_at"] = latest.get("run_at")
+        result.append(entry)
     return result
 
 
@@ -162,14 +216,8 @@ async def compare_strategies(
         latest = _get_latest_result(config, sid)
         if not latest:
             continue
-        strategy_file = config.strategies_dir / f"{sid}.json"
-        name = sid
-        if strategy_file.exists():
-            try:
-                data = json.loads(strategy_file.read_text(encoding="utf-8"))
-                name = data.get("name", sid)
-            except (json.JSONDecodeError, OSError):
-                pass
+        record = _load_strategy_record(config, sid)
+        name = record.get("name", sid) if record else sid
         out.append(
             {
                 "id": sid,
@@ -197,17 +245,15 @@ async def compare_strategies(
 @router.get("/strategies/{strategy_id}")
 async def get_strategy(strategy_id: str, request: Request) -> dict[str, Any]:
     config: ForgeConfig = request.app.state.forge_config
-    json_file = config.strategies_dir / f"{strategy_id}.json"
-    if not json_file.exists():
-        raise HTTPException(status_code=404, detail=f"strategy_id '{strategy_id}' が見つかりません")
-    try:
-        data = json.loads(json_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
-        raise HTTPException(status_code=500, detail=f"戦略ファイルの読み込みに失敗: {e}") from e
+    record = _load_strategy_record(config, strategy_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404, detail=f"strategy_id '{strategy_id}' が見つかりません"
+        )
     return {
-        "strategy_id": data.get("strategy_id", strategy_id),
-        "name": data.get("name", strategy_id),
-        "parameters": data.get("parameters", {}),
+        "strategy_id": record.get("strategy_id", strategy_id),
+        "name": record.get("name", strategy_id),
+        "parameters": record.get("parameters", {}),
         "results": _get_all_results(config, strategy_id),
         "optimization_history": _get_optimization_history(config, strategy_id),
     }
