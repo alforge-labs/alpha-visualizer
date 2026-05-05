@@ -3,12 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCompare } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
 import { CompareScreen } from '../screens/CompareScreen'
+import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
-import { Button, Toolbar } from '../design/primitives'
+import { Button, Divider, Toolbar } from '../design/primitives'
 
 export function ComparePage(): React.ReactElement {
-  const { settings } = useViewerSettings()
-  const { lang } = settings
+  const { settings, update } = useViewerSettings()
+  const { lang, variation } = settings
   const L = makeL(lang)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -101,9 +102,18 @@ export function ComparePage(): React.ReactElement {
           </Button>
         }
         trailing={
-          <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
-            + {L('戦略を追加', 'Add strategy')}
-          </Button>
+          <>
+            <SettingsToggles
+              variation={variation}
+              onSetVariation={(v) => update('variation', v)}
+              lang={lang}
+              onSetLang={(l) => update('lang', l)}
+            />
+            <Divider orientation="vertical" />
+            <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+              + {L('戦略を追加', 'Add strategy')}
+            </Button>
+          </>
         }
       >
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
