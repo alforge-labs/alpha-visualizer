@@ -6,6 +6,7 @@ import { StrategyTable } from '../components/browser/StrategyTable'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
+import { SymbolAtlas } from '../components/browser/SymbolAtlas'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
 
@@ -139,6 +140,10 @@ export function BrowsePage(): React.ReactElement {
       >
         <GroupByToggle groupBy={list.groupBy} onChange={list.setGroupBy} lang={lang} />
       </div>
+
+      {!list.loading && list.all.length > 0 && (
+        <SymbolAtlas items={list.all} lang={lang} />
+      )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {list.loading ? (
