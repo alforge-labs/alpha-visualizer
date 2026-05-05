@@ -119,15 +119,17 @@ export interface StrategyComparison {
 export interface StrategyListItem {
   strategy_id: string
   name: string
-  symbol: string | null
-  timeframe: string | null
-  latest_sharpe: number | null
-  latest_return_pct: number | null
-  latest_max_drawdown_pct: number | null
-  latest_profit_factor: number | null
-  latest_win_rate_pct: number | null
-  latest_total_trades: number | null
-  last_run_at: string | null
+  // 以下は backend が必ず返すとは限らない（バックテスト履歴がない場合や、
+  // API 拡張が未追従のときは undefined になる）。表示側は null/undefined 両対応する。
+  symbol?: string | null
+  timeframe?: string | null
+  latest_sharpe?: number | null
+  latest_return_pct?: number | null
+  latest_max_drawdown_pct?: number | null
+  latest_profit_factor?: number | null
+  latest_win_rate_pct?: number | null
+  latest_total_trades?: number | null
+  last_run_at?: string | null
 }
 
 export interface StrategyRun {

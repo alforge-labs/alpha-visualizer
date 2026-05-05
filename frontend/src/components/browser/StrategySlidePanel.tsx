@@ -20,13 +20,13 @@ const SECTION_LABEL: React.CSSProperties = {
   textTransform: 'uppercase',
 }
 
-function returnTone(v: number | null): 'positive' | 'negative' | 'neutral' {
-  if (v === null) return 'neutral'
+function returnTone(v: number | null | undefined): 'positive' | 'negative' | 'neutral' {
+  if (v == null) return 'neutral'
   return v >= 0 ? 'positive' : 'negative'
 }
 
-function sharpeTone(v: number | null): 'positive' | 'warning' | 'negative' | 'neutral' {
-  if (v === null) return 'neutral'
+function sharpeTone(v: number | null | undefined): 'positive' | 'warning' | 'negative' | 'neutral' {
+  if (v == null) return 'neutral'
   if (v >= 1.5) return 'positive'
   if (v >= 1.0) return 'warning'
   return 'negative'
@@ -151,25 +151,25 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
       >
         <Stat
           label="Sharpe"
-          value={s.latest_sharpe !== null ? s.latest_sharpe.toFixed(2) : '—'}
+          value={s.latest_sharpe != null ? s.latest_sharpe.toFixed(2) : '—'}
           tone={sharpeTone(s.latest_sharpe)}
           size="lg"
         />
         <Stat
           label={L('リターン', 'Return')}
-          value={s.latest_return_pct !== null ? `${s.latest_return_pct.toFixed(1)}%` : '—'}
+          value={s.latest_return_pct != null ? `${s.latest_return_pct.toFixed(1)}%` : '—'}
           tone={returnTone(s.latest_return_pct)}
           size="lg"
         />
         <Stat
           label="Max DD"
-          value={s.latest_max_drawdown_pct !== null ? `${s.latest_max_drawdown_pct.toFixed(1)}%` : '—'}
-          tone={s.latest_max_drawdown_pct !== null ? 'negative' : 'neutral'}
+          value={s.latest_max_drawdown_pct != null ? `${s.latest_max_drawdown_pct.toFixed(1)}%` : '—'}
+          tone={s.latest_max_drawdown_pct != null ? 'negative' : 'neutral'}
           size="lg"
         />
         <Stat
           label="Win %"
-          value={s.latest_win_rate_pct !== null ? `${s.latest_win_rate_pct.toFixed(1)}%` : '—'}
+          value={s.latest_win_rate_pct != null ? `${s.latest_win_rate_pct.toFixed(1)}%` : '—'}
           tone="neutral"
           size="lg"
         />

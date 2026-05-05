@@ -23,18 +23,18 @@ interface Props {
 
 const HOVER_DELAY_MS = 220
 
-function fmt(v: number | null, suffix = '', decimals = 2): string {
-  if (v === null) return '—'
+function fmt(v: number | null | undefined, suffix = '', decimals = 2): string {
+  if (v == null) return '—'
   return `${v.toFixed(decimals)}${suffix}`
 }
 
-function fmtDate(s: string | null): string {
+function fmtDate(s: string | null | undefined): string {
   if (!s) return '—'
   return s.slice(0, 10)
 }
 
-function sharpeTone(v: number | null): string {
-  if (v === null) return 'var(--text3)'
+function sharpeTone(v: number | null | undefined): string {
+  if (v == null) return 'var(--text3)'
   if (v >= 1.5) return 'var(--success)'
   if (v >= 1.0) return 'var(--warn)'
   return 'var(--danger)'
@@ -221,7 +221,7 @@ function StrategyRow({
         style={{
           ...TD_BASE,
           color:
-            s.latest_return_pct === null
+            s.latest_return_pct == null
               ? 'var(--text3)'
               : s.latest_return_pct >= 0
                 ? 'var(--success)'

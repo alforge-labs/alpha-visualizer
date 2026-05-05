@@ -31,7 +31,7 @@ export interface StrategyListState {
   timeframes: string[]
 }
 
-function numVal(v: number | null): number {
+function numVal(v: number | null | undefined): number {
   return v ?? -Infinity
 }
 
