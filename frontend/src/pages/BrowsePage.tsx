@@ -6,6 +6,7 @@ import { StrategyTable } from '../components/browser/StrategyTable'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
+import { SavedViews } from '../components/browser/SavedViews'
 import { SymbolAtlas } from '../components/browser/SymbolAtlas'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
@@ -61,7 +62,7 @@ export function BrowsePage(): React.ReactElement {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        minHeight: '100vh',
         background: 'var(--bg)',
       }}
     >
@@ -126,6 +127,8 @@ export function BrowsePage(): React.ReactElement {
         />
       </header>
 
+      <SavedViews lang={lang} />
+
       <FilterBar symbols={list.symbols} timeframes={list.timeframes} lang={lang} />
 
       <div
@@ -145,7 +148,7 @@ export function BrowsePage(): React.ReactElement {
         <SymbolAtlas items={list.all} lang={lang} />
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1 }}>
         {list.loading ? (
           <div
             style={{
