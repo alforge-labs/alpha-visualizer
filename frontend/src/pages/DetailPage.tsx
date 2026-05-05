@@ -92,7 +92,7 @@ export function DetailPage() {
         variation={variation}
         onSetVariation={(v) => update('variation', v)}
         onSetLang={(l) => update('lang', l)}
-        onBack={() => navigate('/browse')}
+        onBack={() => navigate(-1)}
         onRun={handleRun}
         onAddToCompare={handleAddToCompare}
         running={btRunning}

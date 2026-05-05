@@ -1,9 +1,12 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import type { StrategyListItem } from '../../api/types'
 import { useRunBacktest, useStrategyRuns } from '../../hooks/useBacktestData'
+import { useSparklineCache } from '../../hooks/useSparklineCache'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { Button, Chip, Divider, Stat } from '../../design/primitives'
+import { Button, Chip, Divider } from '../../design/primitives'
+import { Sparkline } from '../../charts/visx/Sparkline'
 
 interface Props {
   strategy: StrategyListItem
@@ -20,23 +23,17 @@ const SECTION_LABEL: React.CSSProperties = {
   textTransform: 'uppercase',
 }
 
-function returnTone(v: number | null | undefined): 'positive' | 'negative' | 'neutral' {
-  if (v == null) return 'neutral'
-  return v >= 0 ? 'positive' : 'negative'
-}
-
-function sharpeTone(v: number | null | undefined): 'positive' | 'warning' | 'negative' | 'neutral' {
-  if (v == null) return 'neutral'
-  if (v >= 1.5) return 'positive'
-  if (v >= 1.0) return 'warning'
-  return 'negative'
-}
-
 export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React.ReactElement {
   const L = makeL(lang)
   const runs = useStrategyRuns(s.strategy_id)
-  const recentRuns = runs.status === 'ready' ? runs.data.slice(0, 3) : []
+  const recentRuns = runs.status === 'ready' ? runs.data.slice(0, 5) : []
   const { run, running, error: runError } = useRunBacktest()
+  const sparkline = useSparklineCache()
+  const sparkValues = sparkline.entries[s.strategy_id]
+
+  useEffect(() => {
+    sparkline.prefetch(s.strategy_id)
+  }, [s.strategy_id, sparkline])
 
   const handleRun = async (): Promise<void> => {
     if (!s.symbol || !s.timeframe) return
@@ -57,6 +54,10 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
       style={{
         width: 380,
         flexShrink: 0,
+        alignSelf: 'flex-start',
+        position: 'sticky',
+        top: 0,
+        maxHeight: '100vh',
         background: 'var(--surface)',
         borderLeft: '1px solid var(--border)',
         display: 'flex',
@@ -110,14 +111,44 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
         </button>
       </header>
 
-      <div style={{ padding: '0 var(--space-5) var(--space-4)' }}>
+      <div
+        style={{
+          padding: '0 var(--space-5) var(--space-4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <Link
+          to={`/detail/${s.strategy_id}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            background: 'var(--accent)',
+            color: 'var(--surface)',
+            border: '1px solid var(--accent-strong, var(--accent))',
+            borderRadius: 'var(--radius-sm)',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            fontWeight: 600,
+            letterSpacing: 'var(--tracking-mono)',
+            textTransform: 'uppercase',
+            textDecoration: 'none',
+            transition: 'background var(--motion-fast)',
+          }}
+        >
+          {L('フル詳細を開く', 'Open full detail')} →
+        </Link>
         <Button
-          variant="primary"
+          variant="subtle"
           size="sm"
           onClick={handleRun}
           disabled={running || !s.symbol || !s.timeframe}
         >
-          {running ? L('実行中…', 'Running…') : L('バックテスト実行', 'Run backtest')}
+          {running ? L('実行中…', 'Running…') : L('バックテスト再実行', 'Re-run backtest')}
         </Button>
         {runError && (
           <p
@@ -140,39 +171,49 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
 
       <Divider />
 
-      {/* メトリクス 4 セル */}
-      <section
-        style={{
-          padding: 'var(--space-5)',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 'var(--space-4)',
-        }}
-      >
-        <Stat
-          label="Sharpe"
-          value={s.latest_sharpe != null ? s.latest_sharpe.toFixed(2) : '—'}
-          tone={sharpeTone(s.latest_sharpe)}
-          size="lg"
-        />
-        <Stat
-          label={L('リターン', 'Return')}
-          value={s.latest_return_pct != null ? `${s.latest_return_pct.toFixed(1)}%` : '—'}
-          tone={returnTone(s.latest_return_pct)}
-          size="lg"
-        />
-        <Stat
-          label="Max DD"
-          value={s.latest_max_drawdown_pct != null ? `${s.latest_max_drawdown_pct.toFixed(1)}%` : '—'}
-          tone={s.latest_max_drawdown_pct != null ? 'negative' : 'neutral'}
-          size="lg"
-        />
-        <Stat
-          label="Win %"
-          value={s.latest_win_rate_pct != null ? `${s.latest_win_rate_pct.toFixed(1)}%` : '—'}
-          tone="neutral"
-          size="lg"
-        />
+      {/* エクイティ推移（テーブルのミニ Sparkline より大きく表示） */}
+      <section style={{ padding: 'var(--space-4) var(--space-5)' }}>
+        <div style={SECTION_LABEL}>{L('エクイティ推移', 'Equity curve')}</div>
+        <div
+          style={{
+            marginTop: 'var(--space-3)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 'var(--space-3)',
+            minHeight: 132,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {Array.isArray(sparkValues) && sparkValues.length >= 2 ? (
+            <Sparkline values={sparkValues} width={300} height={108} strokeWidth={1.5} />
+          ) : sparkValues === 'loading' ? (
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              {L('読み込み中…', 'Loading…')}
+            </span>
+          ) : (
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {L('データなし', 'No data')}
+            </span>
+          )}
+        </div>
       </section>
 
       <Divider />
@@ -237,23 +278,6 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
         </div>
       </section>
 
-      <div style={{ marginTop: 'auto' }}>
-        <Divider />
-        <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
-          <Link
-            to={`/detail/${s.strategy_id}`}
-            style={{
-              fontFamily: 'var(--sans)',
-              fontSize: 'var(--fs-body)',
-              fontWeight: 600,
-              color: 'var(--accent)',
-              textDecoration: 'none',
-            }}
-          >
-            {L('フル詳細を開く →', 'Open full detail →')}
-          </Link>
-        </div>
-      </div>
     </aside>
   )
 }
