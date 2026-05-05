@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers import ideas as ideas_router
 from alpha_visualizer.routers import results as results_router
+from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
 from alpha_visualizer.routers import wfo as wfo_router
 
@@ -43,6 +44,7 @@ def create_app(
     app.include_router(strategies_router.router, prefix="/api")
     app.include_router(ideas_router.router, prefix="/api")
     app.include_router(wfo_router.router, prefix="/api")
+    app.include_router(run_router.router, prefix="/api")
 
     forge_dir_str = str(config.forge_dir)
 
