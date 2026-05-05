@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { StrategyListItem } from '../../api/types'
-import type { SortKey, SortDir } from '../../hooks/useStrategyList'
+import type { SortKey, SortDir, StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Chip } from '../../design/primitives'
@@ -19,9 +19,11 @@ interface Props {
   compareIds: string[]
   onToggleCompare: (id: string) => void
   lang: Lang
+  groups?: StrategyGroup[]   // 与えられたらグループモード、無ければ従来 items を 1 グループ扱い
 }
 
 const HOVER_DELAY_MS = 220
+const COL_COUNT = 10
 
 function fmt(v: number | null | undefined, suffix = '', decimals = 2): string {
   if (v == null) return '—'
@@ -230,7 +232,7 @@ function StrategyRow({
       >
         {fmt(s.latest_return_pct, '%', 1)}
       </td>
-      <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct === null ? 'var(--text3)' : 'var(--danger)' }}>
+      <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
         {fmt(s.latest_max_drawdown_pct, '%', 1)}
       </td>
       <td style={{ ...TD_BASE, color: 'var(--text2)' }}>
@@ -284,6 +286,95 @@ function StrategyRow({
   )
 }
 
+interface GroupHeaderRowProps {
+  group: StrategyGroup
+  collapsed: boolean
+  onToggle: (key: string) => void
+  lang: Lang
+}
+
+function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProps) {
+  const L = makeL(lang)
+  const { aggregate: agg } = group
+  return (
+    <tr
+      onClick={() => onToggle(group.key)}
+      style={{
+        background: 'var(--surface-2)',
+        cursor: 'pointer',
+        borderTop: '1px solid var(--border)',
+      }}
+    >
+      <td colSpan={2} style={{ ...TD_BASE, textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-block',
+              width: 14,
+              fontFamily: 'var(--mono)',
+              color: 'var(--text2)',
+              transition: 'transform var(--motion-fast)',
+              transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+            }}
+          >
+            ▾
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--serif)',
+              fontSize: '1.0625rem',
+              fontWeight: 600,
+              color: 'var(--text)',
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {group.label}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-mono)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {L(`${agg.count}件`, `${agg.count} strategies`)}
+          </span>
+        </div>
+      </td>
+      <td
+        style={{
+          ...TD_BASE,
+          color: sharpeTone(agg.bestSharpe),
+          fontWeight: 700,
+          borderBottom: '1px solid var(--border)',
+        }}
+        title={L('グループ内の最高 Sharpe', 'Best Sharpe in group')}
+      >
+        {fmt(agg.bestSharpe, '', 2)}
+      </td>
+      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td
+        style={{
+          ...TD_BASE,
+          color: agg.worstDrawdownPct == null ? 'var(--text3)' : 'var(--danger)',
+          borderBottom: '1px solid var(--border)',
+        }}
+        title={L('グループ内の最悪 DD', 'Worst drawdown in group')}
+      >
+        {fmt(agg.worstDrawdownPct, '%', 1)}
+      </td>
+      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
+      <td style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
+    </tr>
+  )
+}
+
 export function StrategyTable({
   items,
   total,
@@ -295,10 +386,12 @@ export function StrategyTable({
   compareIds,
   onToggleCompare,
   lang,
+  groups,
 }: Props): React.ReactElement {
   const L = makeL(lang)
   const sparkline = useSparklineCache()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
 
   // 行ホバーが HOVER_DELAY_MS 続いたら sparkline を fetch
   useEffect(() => {
@@ -308,6 +401,42 @@ export function StrategyTable({
     }, HOVER_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [hoveredId, sparkline])
+
+  // groups が指定された場合のみグループモード。グループ数が 1 以下なら見出し非表示。
+  const renderGroups = useMemo<StrategyGroup[] | null>(() => {
+    if (!groups) return null
+    if (groups.length <= 1) return null   // 'none' は 1 グループ → 見出しをそもそも出さない
+    return groups
+  }, [groups])
+
+  const toggleGroup = (key: string): void => {
+    setCollapsedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const renderRow = (s: StrategyListItem): React.ReactElement => {
+    const isSelected = selectedId === s.strategy_id
+    const inCompare = compareIds.includes(s.strategy_id)
+    const maxCompareReached = compareIds.length >= 6 && !inCompare
+    return (
+      <StrategyRow
+        key={s.strategy_id}
+        s={s}
+        selected={isSelected}
+        inCompare={inCompare}
+        maxCompareReached={maxCompareReached}
+        onSelect={onSelect}
+        onToggleCompare={onToggleCompare}
+        onHover={setHoveredId}
+        sparkValues={sparkline.entries[s.strategy_id]}
+        lang={lang}
+      />
+    )
+  }
 
   return (
     <div
@@ -347,29 +476,28 @@ export function StrategyTable({
           </tr>
         </thead>
         <tbody>
-          {items.map(s => {
-            const isSelected = selectedId === s.strategy_id
-            const inCompare = compareIds.includes(s.strategy_id)
-            const maxCompareReached = compareIds.length >= 6 && !inCompare
-            return (
-              <StrategyRow
-                key={s.strategy_id}
-                s={s}
-                selected={isSelected}
-                inCompare={inCompare}
-                maxCompareReached={maxCompareReached}
-                onSelect={onSelect}
-                onToggleCompare={onToggleCompare}
-                onHover={setHoveredId}
-                sparkValues={sparkline.entries[s.strategy_id]}
-                lang={lang}
-              />
-            )
-          })}
+          {renderGroups ? (
+            renderGroups.flatMap(group => {
+              const isCollapsed = collapsedKeys.has(group.key)
+              const header = (
+                <GroupHeaderRow
+                  key={`__header__${group.key}`}
+                  group={group}
+                  collapsed={isCollapsed}
+                  onToggle={toggleGroup}
+                  lang={lang}
+                />
+              )
+              if (isCollapsed) return [header]
+              return [header, ...group.items.map(renderRow)]
+            })
+          ) : (
+            items.map(renderRow)
+          )}
           {items.length === 0 && (
             <tr>
               <td
-                colSpan={10}
+                colSpan={COL_COUNT}
                 style={{
                   ...TD_BASE,
                   textAlign: 'center',
