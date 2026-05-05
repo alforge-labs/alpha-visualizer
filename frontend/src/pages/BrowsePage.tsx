@@ -5,6 +5,7 @@ import { FilterBar } from '../components/browser/FilterBar'
 import { StrategyTable } from '../components/browser/StrategyTable'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
+import { GroupByToggle } from '../components/browser/GroupByToggle'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
 
@@ -126,6 +127,19 @@ export function BrowsePage(): React.ReactElement {
 
       <FilterBar symbols={list.symbols} timeframes={list.timeframes} lang={lang} />
 
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-4)',
+          padding: 'var(--space-3) var(--space-7)',
+          background: 'var(--bg)',
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
+        <GroupByToggle groupBy={list.groupBy} onChange={list.setGroupBy} lang={lang} />
+      </div>
+
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {list.loading ? (
           <div
@@ -143,6 +157,7 @@ export function BrowsePage(): React.ReactElement {
         ) : (
           <StrategyTable
             items={list.filtered}
+            groups={list.groups}
             total={list.all.length}
             sortKey={list.sortKey}
             sortDir={list.sortDir}
