@@ -442,7 +442,7 @@ export function StrategyTable({
     <div
       style={{
         flex: 1,
-        overflowY: 'auto',
+        minWidth: 0,
         background: 'var(--bg)',
       }}
     >
