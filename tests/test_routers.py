@@ -4,6 +4,7 @@ import json
 import pathlib
 import sqlite3
 import textwrap
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -237,6 +238,42 @@ def _create_backtest_db(db_path: pathlib.Path) -> None:
         conn.close()
 
 
+@pytest.fixture()
+def client_with_db(tmp_path: pathlib.Path) -> TestClient:
+    """backtest_results.db に1件の run が入った状態のクライアント"""
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_backtest_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO backtest_results"
+            " (run_id, strategy_id, symbol, run_at,"
+            " total_return_pct, sharpe_ratio, max_drawdown_pct, win_rate_pct,"
+            " profit_factor, total_trades, metrics_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "run-abc123",
+                "test_strategy",
+                "AAPL",
+                "2026-01-01T00:00:00",
+                10.0,
+                1.5,
+                -5.0,
+                60.0,
+                1.8,
+                50,
+                "{}",
+            ),
+        )
+    forge_yaml = tmp_path / "forge.yaml"
+    forge_yaml.write_text(
+        "report:\n  db_filename: backtest_results.db\n"
+        "  output_path: ./data/results\n"
+    )
+    app = create_app(forge_dir=tmp_path)
+    return TestClient(app)
+
+
 def _create_strategies_db(db_path: pathlib.Path, strategy_id: str, name: str) -> None:
     """alpha-forge と互換のスキーマで最小の strategies.db を作る。"""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -379,3 +416,51 @@ class TestStrategiesRouterJsonFallback:
         data = response.json()
         assert len(data) == 1
         assert data[0]["strategy_id"] == "test_strategy"
+
+
+class TestRunRouter:
+    def test_run_success(self, client_with_db: TestClient) -> None:
+        """forge コマンドが成功したとき run_id と status="ok" を返す"""
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=mock.Mock(returncode=0, stdout="", stderr=""),
+            ),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL", "timeframe": "1d"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["run_id"] == "run-abc123"
+        assert body["status"] == "ok"
+
+    def test_run_forge_not_found(self, client_with_db: TestClient) -> None:
+        """forge コマンドが PATH にないとき 500 を返す"""
+        with mock.patch("shutil.which", return_value=None):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL", "timeframe": "1d"},
+            )
+        assert resp.status_code == 500
+        assert "forge" in resp.json()["detail"].lower()
+
+    def test_run_subprocess_failure(self, client_with_db: TestClient) -> None:
+        """forge コマンドが非ゼロで終了したとき 500 を返す"""
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=mock.Mock(
+                    returncode=1, stdout="", stderr="Error: strategy not found"
+                ),
+            ),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL", "timeframe": "1d"},
+            )
+        assert resp.status_code == 500
+        assert "Error: strategy not found" in resp.json()["detail"]
