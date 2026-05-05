@@ -5,11 +5,12 @@ import { FilterBar } from '../components/browser/FilterBar'
 import { StrategyTable } from '../components/browser/StrategyTable'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
+import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
 
 export function BrowsePage(): React.ReactElement {
-  const { settings } = useViewerSettings()
-  const { lang } = settings
+  const { settings, update } = useViewerSettings()
+  const { lang, variation } = settings
   const L = makeL(lang)
   const list = useStrategyList()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -67,8 +68,13 @@ export function BrowsePage(): React.ReactElement {
           padding: 'var(--space-6) var(--space-7) var(--space-5)',
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 'var(--space-4)',
         }}
       >
+        <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             fontFamily: 'var(--sans)',
@@ -109,6 +115,13 @@ export function BrowsePage(): React.ReactElement {
             'Scan the latest backtests at a glance, hover a row to peek at its recent equity, and dive into the full detail when something stands out.',
           )}
         </p>
+        </div>
+        <SettingsToggles
+          variation={variation}
+          onSetVariation={(v) => update('variation', v)}
+          lang={lang}
+          onSetLang={(l) => update('lang', l)}
+        />
       </header>
 
       <FilterBar symbols={list.symbols} timeframes={list.timeframes} lang={lang} />
