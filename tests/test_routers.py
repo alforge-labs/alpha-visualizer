@@ -23,7 +23,14 @@ def client_with_strategies(tmp_path: pathlib.Path) -> TestClient:
     strategies_dir = tmp_path / "data" / "strategies"
     strategies_dir.mkdir(parents=True)
     (strategies_dir / "test_strategy.json").write_text(
-        json.dumps({"strategy_id": "test_strategy", "name": "テスト戦略", "parameters": {"period": 20}}),
+        json.dumps(
+            {
+                "strategy_id": "test_strategy",
+                "name": "テスト戦略",
+                "timeframe": "1h",
+                "parameters": {"period": 20},
+            }
+        ),
         encoding="utf-8",
     )
     ideas_dir = tmp_path / "data" / "ideas"
@@ -68,13 +75,22 @@ class TestStrategiesRouter:
         assert response.json() == []
 
     def test_list_strategies_with_files(self, client_with_strategies: TestClient) -> None:
-        """strategies_dir に JSON ファイルがある場合はリストを返す"""
+        """strategies_dir に JSON ファイルがある場合はリストを返す。
+        timeframe は戦略 JSON から取得され、バックテスト履歴がない latest_* は null。"""
         response = client_with_strategies.get("/api/strategies")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
-        assert data[0]["strategy_id"] == "test_strategy"
-        assert data[0]["name"] == "テスト戦略"
+        item = data[0]
+        assert item["strategy_id"] == "test_strategy"
+        assert item["name"] == "テスト戦略"
+        assert item["timeframe"] == "1h"
+        # バックテスト履歴がないので latest_* は null
+        assert item["symbol"] is None
+        assert item["latest_sharpe"] is None
+        assert item["latest_max_drawdown_pct"] is None
+        assert item["latest_profit_factor"] is None
+        assert item["latest_win_rate_pct"] is None
 
     def test_get_strategy_not_found(self, client: TestClient) -> None:
         """存在しない strategy_id は 404 を返す"""
@@ -197,9 +213,10 @@ def _create_backtest_db(db_path: pathlib.Path) -> None:
             INSERT INTO backtest_results (
                 run_id, strategy_id, symbol, run_at,
                 total_return_pct, sharpe_ratio, max_drawdown_pct, total_trades,
+                profit_factor, win_rate_pct,
                 metrics_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "run_aapl_001",
@@ -210,6 +227,8 @@ def _create_backtest_db(db_path: pathlib.Path) -> None:
                 1.42,
                 -8.3,
                 42,
+                1.86,
+                63.2,
                 "{}",
             ),
         )
@@ -307,14 +326,23 @@ class TestForgeYamlIntegration:
     def test_list_strategies_uses_db(
         self, client_with_forge_yaml: TestClient
     ) -> None:
-        """strategies.use_db: true で strategies.db から戦略一覧を返す"""
+        """strategies.use_db: true で strategies.db から戦略一覧を返す。
+        symbol / timeframe / max_drawdown / profit_factor / win_rate も含む。"""
         response = client_with_forge_yaml.get("/api/strategies")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
-        assert data[0]["strategy_id"] == "ema_cross_aapl"
-        assert data[0]["name"] == "EMA クロス AAPL"
-        assert data[0]["latest_sharpe"] == pytest.approx(1.42)
+        item = data[0]
+        assert item["strategy_id"] == "ema_cross_aapl"
+        assert item["name"] == "EMA クロス AAPL"
+        assert item["symbol"] == "AAPL"
+        assert item["timeframe"] == "1d"
+        assert item["latest_sharpe"] == pytest.approx(1.42)
+        assert item["latest_return_pct"] == pytest.approx(12.5)
+        assert item["latest_max_drawdown_pct"] == pytest.approx(-8.3)
+        assert item["latest_profit_factor"] == pytest.approx(1.86)
+        assert item["latest_win_rate_pct"] == pytest.approx(63.2)
+        assert item["latest_total_trades"] == 42
 
     def test_get_strategy_uses_db(
         self, client_with_forge_yaml: TestClient
