@@ -53,6 +53,9 @@ jobs:
       - name: Test (vitest)
         run: npm run test:ci
 
+      - name: Build (tsc -b && vite build)
+        run: npm run build
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
