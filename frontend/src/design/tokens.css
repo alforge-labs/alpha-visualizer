@@ -87,6 +87,8 @@
   color-scheme: light;
 }
 
+/* Dark mode: data-theme="dark" は data-variation="lab" と等価 */
+html[data-theme="dark"],
 html[data-variation="lab"] {
   --bg: #15131C;
   --bg2: #1B1825;
