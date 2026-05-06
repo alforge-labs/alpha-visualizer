@@ -4,6 +4,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { StrategyComparison } from '../../api/types'
 import { Card, Chip } from '../../design/primitives'
+import { buildCompareCsv, downloadCsv } from '../../lib/csv'
 
 type CompareKey =
   | 'total_return_pct'
@@ -94,6 +95,26 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
 
   return (
     <Card pad={false} style={{ overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 14px 0' }}>
+        <button
+          type="button"
+          onClick={() => downloadCsv('compare.csv', buildCompareCsv(strategies))}
+          style={{
+            height: 28,
+            padding: '0 10px',
+            borderRadius: 4,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)',
+            fontSize: 12,
+            color: 'var(--text2)',
+            letterSpacing: '0.05em',
+          }}
+        >
+          CSV
+        </button>
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table
           style={{

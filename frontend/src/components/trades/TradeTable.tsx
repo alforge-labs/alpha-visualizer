@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
+import { buildTradesCsv, downloadCsv } from '../../lib/csv'
 
 type SortKey =
   | 'id'
@@ -80,8 +81,30 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
     background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.012)',
   })
 
+  const exportBtnS: React.CSSProperties = {
+    height: 28,
+    padding: '0 10px',
+    borderRadius: 4,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    cursor: 'pointer',
+    fontFamily: 'var(--mono)',
+    fontSize: 12,
+    color: 'var(--text2)',
+    letterSpacing: '0.05em',
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          style={exportBtnS}
+          onClick={() => downloadCsv('trades.csv', buildTradesCsv(trades))}
+        >
+          CSV
+        </button>
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
           <thead>

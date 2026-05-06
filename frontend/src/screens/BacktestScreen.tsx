@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { BacktestDetail } from '../api/types'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
+import { useChartTheme } from '../design/useChartTheme'
+import { buildEquityCsv, downloadCsv } from '../lib/csv'
+import { exportSvgAsPng } from '../lib/exportPng'
 import { EquityChartV } from '../charts/visx/EquityChartV'
 import { DrawdownChartV } from '../charts/visx/DrawdownChartV'
 import { MonthlyHeatmapV } from '../charts/visx/MonthlyHeatmapV'
@@ -30,6 +33,36 @@ type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte'
 function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const L = makeL(lang)
+  const chartTheme = useChartTheme()
+
+  const equityRef = useRef<HTMLDivElement>(null)
+  const drawdownRef = useRef<HTMLDivElement>(null)
+  const heatmapRef = useRef<HTMLDivElement>(null)
+
+  const exportChartPng = (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    const svg = ref.current?.querySelector('svg')
+    if (svg) void exportSvgAsPng(svg as SVGSVGElement, filename, chartTheme.bg)
+  }
+
+  const exportBtnS: React.CSSProperties = {
+    height: 26,
+    padding: '0 9px',
+    borderRadius: 4,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    cursor: 'pointer',
+    fontFamily: 'var(--mono)',
+    fontSize: 12,
+    color: 'var(--text2)',
+    letterSpacing: '0.05em',
+  }
+
+  const sectionHeaderS: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  }
 
   const tabs: ReadonlyArray<readonly [Tab, string]> = [
     ['overview', L('概要', 'Overview')],
@@ -57,24 +90,55 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
       {tab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <SectionLabel>{L('エクイティ vs Buy&Hold', 'Equity vs Buy & Hold')}</SectionLabel>
-            <EquityChartV
-              equity={data.equity.values}
-              dates={data.equity.dates}
-              isCutoffIdx={data.is_cutoff.index}
-              benchmark={showBuyHold ? data.buy_hold_equity : undefined}
-              showBenchmark={showBuyHold}
-              compact={compact}
-            />
+            <div style={sectionHeaderS}>
+              <SectionLabel>{L('エクイティ vs Buy&Hold', 'Equity vs Buy & Hold')}</SectionLabel>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  type="button"
+                  style={exportBtnS}
+                  onClick={() => downloadCsv('equity.csv', buildEquityCsv(data.equity, data.drawdown, data.daily_returns))}
+                >
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  style={exportBtnS}
+                  onClick={() => exportChartPng(equityRef, 'equity.png')}
+                >
+                  PNG
+                </button>
+              </div>
+            </div>
+            <div ref={equityRef}>
+              <EquityChartV
+                equity={data.equity.values}
+                dates={data.equity.dates}
+                isCutoffIdx={data.is_cutoff.index}
+                benchmark={showBuyHold ? data.buy_hold_equity : undefined}
+                showBenchmark={showBuyHold}
+                compact={compact}
+              />
+            </div>
           </div>
           <div>
-            <SectionLabel>{L('ドローダウン', 'Drawdown')}</SectionLabel>
-            <DrawdownChartV
-              dd={data.drawdown}
-              dates={data.equity.dates}
-              isCutoffIdx={data.is_cutoff.index}
-              compact={compact}
-            />
+            <div style={sectionHeaderS}>
+              <SectionLabel>{L('ドローダウン', 'Drawdown')}</SectionLabel>
+              <button
+                type="button"
+                style={exportBtnS}
+                onClick={() => exportChartPng(drawdownRef, 'drawdown.png')}
+              >
+                PNG
+              </button>
+            </div>
+            <div ref={drawdownRef}>
+              <DrawdownChartV
+                dd={data.drawdown}
+                dates={data.equity.dates}
+                isCutoffIdx={data.is_cutoff.index}
+                compact={compact}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -100,8 +164,19 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
             </div>
           )}
           <div>
-            <SectionLabel>{L('月別リターン', 'Monthly Returns')}</SectionLabel>
-            <MonthlyHeatmapV data={data.monthly_returns} lang={lang} />
+            <div style={sectionHeaderS}>
+              <SectionLabel>{L('月別リターン', 'Monthly Returns')}</SectionLabel>
+              <button
+                type="button"
+                style={exportBtnS}
+                onClick={() => exportChartPng(heatmapRef, 'monthly_heatmap.png')}
+              >
+                PNG
+              </button>
+            </div>
+            <div ref={heatmapRef}>
+              <MonthlyHeatmapV data={data.monthly_returns} lang={lang} />
+            </div>
           </div>
           <div>
             <SectionLabel>{L('ローリング Sharpe', 'Rolling Sharpe')}</SectionLabel>
