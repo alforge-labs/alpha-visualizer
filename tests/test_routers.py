@@ -687,3 +687,80 @@ class TestRunRouter:
             )
         assert resp.status_code == 500
         assert "Error: strategy not found" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# ベンチマーク指標のパススルーテスト
+# ---------------------------------------------------------------------------
+
+_BENCHMARK_METRICS_JSON = json.dumps(
+    {
+        "total_return_pct": 15.0,
+        "sharpe_ratio": 1.2,
+        "benchmark": {
+            "alpha_pct": 3.5,
+            "beta": 0.85,
+            "information_ratio": 0.72,
+            "correlation": 0.91,
+            "benchmark_total_return_pct": 11.5,
+            "benchmark_cagr_pct": 5.2,
+        },
+    }
+)
+
+
+@pytest.fixture()
+def client_with_benchmark_db(tmp_path: pathlib.Path) -> TestClient:
+    """metrics_json に benchmark サブオブジェクトを含む run が入った状態のクライアント"""
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True)
+    _create_backtest_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO backtest_results"
+            " (run_id, strategy_id, symbol, run_at,"
+            " total_return_pct, sharpe_ratio, max_drawdown_pct, win_rate_pct,"
+            " profit_factor, total_trades, metrics_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "run-bench01",
+                "bench_strategy",
+                "SPY",
+                "2026-01-01T00:00:00",
+                15.0,
+                1.2,
+                -8.0,
+                62.0,
+                1.9,
+                40,
+                _BENCHMARK_METRICS_JSON,
+            ),
+        )
+    forge_yaml = tmp_path / "forge.yaml"
+    forge_yaml.write_text(
+        "report:\n  db_filename: backtest_results.db\n"
+        "  output_path: ./data/results\n"
+    )
+    return TestClient(create_app(forge_dir=tmp_path))
+
+
+class TestBenchmarkMetrics:
+    def test_get_result_includes_benchmark(self, client_with_benchmark_db: TestClient) -> None:
+        """benchmark を含む metrics_json を持つ run の詳細 API が benchmark を返す"""
+        response = client_with_benchmark_db.get("/api/results/run-bench01")
+        assert response.status_code == 200
+        data = response.json()
+        bm = data["metrics"]["benchmark"]
+        assert bm["alpha_pct"] == pytest.approx(3.5)
+        assert bm["beta"] == pytest.approx(0.85)
+        assert bm["information_ratio"] == pytest.approx(0.72)
+        assert bm["correlation"] == pytest.approx(0.91)
+        assert bm["benchmark_total_return_pct"] == pytest.approx(11.5)
+        assert bm["benchmark_cagr_pct"] == pytest.approx(5.2)
+
+    def test_get_result_without_benchmark_is_safe(self, client_with_db: TestClient) -> None:
+        """benchmark を持たない旧 run でも 200 を返し、metrics に benchmark キーが存在しない"""
+        response = client_with_db.get("/api/results/run-abc123")
+        assert response.status_code == 200
+        data = response.json()
+        assert "benchmark" not in data["metrics"]

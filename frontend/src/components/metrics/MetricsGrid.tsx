@@ -149,6 +149,31 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
           ))}
         </div>
       )}
+      {!compact && m.benchmark && (
+        <>
+          <div
+            style={{
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              fontWeight: 600,
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-caption)',
+              textTransform: 'uppercase',
+              paddingTop: 4,
+            }}
+          >
+            {L('ベンチマーク', 'Benchmark')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
+            <MetricCard label={L('アルファ α', 'Alpha α')} value={m.benchmark.alpha_pct} suffix="%" goodWhen="pos" />
+            <MetricCard label="Beta β" value={m.benchmark.beta} />
+            <MetricCard label="Info Ratio" value={m.benchmark.information_ratio} goodWhen="gte1" />
+            <MetricCard label={L('相関係数', 'Correlation')} value={m.benchmark.correlation} />
+            <MetricCard label="B/M Total Ret" value={m.benchmark.benchmark_total_return_pct} suffix="%" goodWhen="pos" />
+            <MetricCard label="B/M CAGR" value={m.benchmark.benchmark_cagr_pct} suffix="%" goodWhen="pos" />
+          </div>
+        </>
+      )}
     </div>
   )
 }
