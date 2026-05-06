@@ -133,6 +133,8 @@ export interface StrategyListItem {
   // API 拡張が未追従のときは undefined になる）。表示側は null/undefined 両対応する。
   symbol?: string | null
   timeframe?: string | null
+  tags?: string[] | null
+  target_symbols?: string[] | null
   latest_sharpe?: number | null
   latest_return_pct?: number | null
   latest_max_drawdown_pct?: number | null

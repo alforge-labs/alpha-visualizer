@@ -93,6 +93,116 @@ class TestStrategiesRouter:
         assert item["latest_profit_factor"] is None
         assert item["latest_win_rate_pct"] is None
 
+    def test_list_strategies_includes_tags_and_target_symbols(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """戦略 JSON に含まれる tags / target_symbols が一覧 API レスポンスに露出される"""
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True)
+        (strategies_dir / "tagged.json").write_text(
+            json.dumps(
+                {
+                    "strategy_id": "tagged",
+                    "name": "タグ付き戦略",
+                    "timeframe": "1h",
+                    "tags": ["mean_reversion", "rsi"],
+                    "target_symbols": ["TQQQ", "QQQ"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/strategies")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["tags"] == ["mean_reversion", "rsi"]
+        assert data[0]["target_symbols"] == ["TQQQ", "QQQ"]
+
+    def test_list_strategies_defaults_tags_and_target_symbols_to_empty(
+        self, client_with_strategies: TestClient
+    ) -> None:
+        """tags / target_symbols が戦略 JSON にない場合は空配列で返す"""
+        response = client_with_strategies.get("/api/strategies")
+        assert response.status_code == 200
+        item = response.json()[0]
+        assert item["tags"] == []
+        assert item["target_symbols"] == []
+
+    def test_list_strategies_from_db_parses_tags_text_column(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """strategies.db の tags TEXT 列（JSON 文字列）を配列として復元する"""
+        db_path = tmp_path / "data" / "strategies" / "strategies.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.executescript(
+                """
+                CREATE TABLE strategies (
+                    id INTEGER PRIMARY KEY,
+                    strategy_id TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    asset_type TEXT NOT NULL,
+                    timeframe TEXT NOT NULL,
+                    tags TEXT NOT NULL,
+                    notes TEXT NOT NULL,
+                    definition_json TEXT NOT NULL,
+                    source_file TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                """
+            )
+            definition = json.dumps(
+                {
+                    "strategy_id": "db_tagged",
+                    "name": "DB タグ戦略",
+                    "target_symbols": ["TQQQ"],
+                }
+            )
+            conn.execute(
+                """
+                INSERT INTO strategies (
+                    strategy_id, name, version, asset_type, timeframe,
+                    tags, notes, definition_json,
+                    created_at, updated_at
+                ) VALUES (
+                    'db_tagged', 'DB タグ戦略', '1.0.0', 'stock', '1d',
+                    '["momentum","leveraged"]', '', ?, '2026-04-01', '2026-04-01'
+                )
+                """,
+                (definition,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                strategies:
+                  path: ./data/strategies
+                  use_db: true
+                  db_filename: strategies.db
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        app = create_app(config=config)
+        client = TestClient(app)
+
+        response = client.get("/api/strategies")
+        assert response.status_code == 200
+        item = response.json()[0]
+        assert item["strategy_id"] == "db_tagged"
+        assert item["tags"] == ["momentum", "leveraged"]
+        assert item["target_symbols"] == ["TQQQ"]
+
     def test_get_strategy_not_found(self, client: TestClient) -> None:
         """存在しない strategy_id は 404 を返す"""
         response = client.get("/api/strategies/nonexistent")
