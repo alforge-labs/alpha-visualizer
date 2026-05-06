@@ -22,7 +22,7 @@ export function WFOScreen({ data, compact, lang }: Props) {
     ['equity', L('OOS合成曲線', 'OOS Composite')],
   ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-testid="wfo-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
         title={L('ウォークフォーワード検証', 'Walk-Forward Optimization')}
         subtitle={L(

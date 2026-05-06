@@ -12,7 +12,7 @@ interface StrategyScreenProps {
 export function StrategyScreen({ data, lang }: StrategyScreenProps) {
   const L = makeL(lang)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', paddingTop: 'var(--space-5)' }}>
+    <div data-testid="strategy-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', paddingTop: 'var(--space-5)' }}>
       <ParametersCard parameters={data.parameters} lang={lang} />
       <IndicatorsCard indicators={data.indicators} lang={lang} />
       {(data.entry_conditions || data.exit_conditions) && (

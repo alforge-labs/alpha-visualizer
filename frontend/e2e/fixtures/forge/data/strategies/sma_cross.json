@@ -1,0 +1,44 @@
+{
+  "strategy_id": "sma_cross",
+  "name": "SMA Cross",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "e2e-fixture"
+  ],
+  "target_symbols": [
+    "SPY"
+  ],
+  "parameters": {
+    "fast_period": 10,
+    "slow_period": 30
+  },
+  "indicators": [
+    {
+      "name": "sma_fast",
+      "type": "SMA",
+      "params": {
+        "period": 10
+      }
+    },
+    {
+      "name": "sma_slow",
+      "type": "SMA",
+      "params": {
+        "period": 30
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "sma_fast > sma_slow"
+  },
+  "exit_conditions": {
+    "long": "sma_fast < sma_slow"
+  },
+  "risk_management": {
+    "stop_loss_pct": 5.0,
+    "take_profit_pct": 15.0
+  }
+}

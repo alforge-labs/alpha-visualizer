@@ -117,6 +117,7 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table
+          data-testid="compare-table"
           style={{
             width: '100%',
             borderCollapse: 'collapse',

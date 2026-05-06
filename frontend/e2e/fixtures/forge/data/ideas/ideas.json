@@ -1,0 +1,11 @@
+[
+  {
+    "idea_id": "idea_e2e_001",
+    "title": "E2E スモーク用ダミーアイデア",
+    "status": "draft",
+    "tags": [
+      "e2e-fixture"
+    ],
+    "created_at": "2024-01-02T00:00:00"
+  }
+]

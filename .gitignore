@@ -17,9 +17,17 @@ coverage.xml
 *.db
 *.db-wal
 *.db-shm
+# E2E fixture DB は例外（< 100KB の決定論的フィクスチャ。tests/fixtures/build_e2e_fixture.py で再生成可能）
+!frontend/e2e/fixtures/**/*.db
 
 # Frontend
 frontend/node_modules/
 frontend/.tsbuildinfo
+
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/playwright/.cache/
 
 src/alpha_forge/
