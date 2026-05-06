@@ -1,0 +1,9 @@
+# E2E フィクスチャ用の最小 forge.yaml（再生成は build_e2e_fixture.py から）
+report:
+  output_path: ./data/results
+  db_filename: forge.db
+strategies:
+  path: ./data/strategies
+  use_db: false
+ideas:
+  ideas_path: ./data/ideas

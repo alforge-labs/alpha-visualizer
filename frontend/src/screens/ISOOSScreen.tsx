@@ -19,7 +19,7 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
   const oosM = data.oos_metrics
   if (!isM || !oosM) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div data-testid="isoos-screen" style={{ display: 'flex', flexDirection: 'column' }}>
         <SectionHeader
           title={L('IS / OOS 詳細比較', 'IS / OOS Deep Comparison')}
           subtitle={L(
@@ -86,7 +86,7 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-testid="isoos-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
         title={L('IS / OOS 詳細比較', 'IS / OOS Deep Comparison')}
         subtitle={`IS 60% (〜${data.is_cutoff.date ?? '—'})  /  OOS 40%`}

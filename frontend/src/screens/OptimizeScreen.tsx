@@ -30,7 +30,7 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
   const metricLabel = data.metric_name.replace(/_/g, ' ')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-testid="optimize-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
         title={L('最適化トライアル分析', 'Optimization Trial Analysis')}
         subtitle={

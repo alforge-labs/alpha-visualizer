@@ -12,7 +12,7 @@ interface Props {
 export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) {
   const L = makeL(lang)
   return (
-    <div style={{ padding: 16 }}>
+    <div data-testid="history-tab" style={{ padding: 16 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--mono)', fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>

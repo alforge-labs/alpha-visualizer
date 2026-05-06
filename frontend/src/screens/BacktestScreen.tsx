@@ -109,7 +109,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
   const showBuyHold = data.buy_hold_equity.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+    <div data-testid="backtest-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       <TabBar bordered>
         {tabs.map(([id, label]) => (
           <Tab key={id} active={tab === id} onClick={() => setTab(id)} small>
@@ -155,7 +155,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 </button>
               </div>
             </div>
-            <div ref={equityRef}>
+            <div ref={equityRef} data-testid="backtest-equity-chart">
               <EquityChartV
                 equity={data.equity.values}
                 dates={data.equity.dates}
