@@ -34,6 +34,7 @@ const MOCK_METRICS: BacktestMetrics = {
   avg_loss_pct: -1,
   max_drawdown_duration_days: 30,
   recovery_days: 15,
+  annual_returns: {},
 }
 
 describe('Responsive styles (issue #54)', () => {
