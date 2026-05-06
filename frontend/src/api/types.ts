@@ -214,3 +214,12 @@ export interface StrategyDetail {
   results: StrategyRun[]
   optimization_history: Array<{ trial: number; best_sharpe: number; run_at: string; n_trials: number }>
 }
+
+export interface IdeaItem {
+  idea_id: string
+  title?: string
+  status?: string
+  tags?: string[]
+  memo?: string
+  linked_runs?: string[]
+}

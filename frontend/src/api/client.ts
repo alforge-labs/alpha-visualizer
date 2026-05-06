@@ -1,4 +1,4 @@
-import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, IdeaItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -84,6 +84,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ strategy_id: strategyId, symbol, timeframe }),
     }),
+
+  listIdeas: (status?: string): Promise<IdeaItem[]> =>
+    request<IdeaItem[]>(`/ideas${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+
+  getIdea: (ideaId: string): Promise<IdeaItem> =>
+    request<IdeaItem>(`/ideas/${encodeURIComponent(ideaId)}`),
 }
 
 export { ApiError }

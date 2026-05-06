@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { BrowsePage } from './pages/BrowsePage'
 import { DetailPage } from './pages/DetailPage'
 import { ComparePage } from './pages/ComparePage'
+import { IdeasPage } from './pages/IdeasPage'
 import { RootLayout } from './components/RootLayout'
 
 export const router = createBrowserRouter([
@@ -12,6 +13,7 @@ export const router = createBrowserRouter([
       { path: '/browse', element: <BrowsePage /> },
       { path: '/detail/:strategyId', element: <DetailPage /> },
       { path: '/compare', element: <ComparePage /> },
+      { path: '/ideas', element: <IdeasPage /> },
     ],
   },
 ])
