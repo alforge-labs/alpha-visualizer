@@ -32,6 +32,7 @@ class ForgeConfig:
     strategies_dir: pathlib.Path
     strategies_db: pathlib.Path | None
     ideas_json: pathlib.Path
+    live_dir: pathlib.Path
 
     @classmethod
     def from_forge_dir(
@@ -59,6 +60,7 @@ class ForgeConfig:
         report = raw.get("report") or {}
         strategies = raw.get("strategies") or {}
         ideas = raw.get("ideas") or {}
+        live = raw.get("live") or {}
 
         report_output = _resolve_path(
             base, report.get("output_path"), default=forge_dir / "data" / "results"
@@ -79,12 +81,17 @@ class ForgeConfig:
         )
         ideas_json = ideas_path / "ideas.json"
 
+        live_dir = _resolve_path(
+            base, live.get("output_path"), default=forge_dir / "data" / "live"
+        )
+
         return cls(
             forge_dir=forge_dir,
             forge_db=forge_db,
             strategies_dir=strategies_path,
             strategies_db=strategies_db,
             ideas_json=ideas_json,
+            live_dir=live_dir,
         )
 
 

@@ -8,6 +8,7 @@ alpha-visualizer の全バージョン変更履歴です。
 
 ### 機能追加
 
+- ライブ実績ビューを Detail 画面に追加し、`data/live/` 配下の summaries / trades を読み込んでバックテストとの期間整合 diff を表示 (Closes #57)
 - レジーム / HMM ステートを EquityChart の背景帯として可視化、Risk タブにレジーム別サマリーカードを追加 (Closes #56)
 
 

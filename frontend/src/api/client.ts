@@ -1,4 +1,4 @@
-import type { BacktestDetail, IdeaItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -90,6 +90,14 @@ export const api = {
 
   getIdea: (ideaId: string): Promise<IdeaItem> =>
     request<IdeaItem>(`/ideas/${encodeURIComponent(ideaId)}`),
+
+  listLive: (): Promise<LiveListItem[]> =>
+    request<LiveListItem[]>('/live'),
+
+  getLive: (strategyId: string, runId?: string): Promise<LiveDetailResponse> => {
+    const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : ''
+    return request<LiveDetailResponse>(`/live/${encodeURIComponent(strategyId)}${qs}`)
+  },
 }
 
 export { ApiError }

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { api } from '../api/client'
 import type { BacktestDetail } from '../api/types'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
@@ -22,6 +23,7 @@ import { RegimeBreakdownCards } from '../components/metrics/RegimeBreakdownCards
 import { SignalQualityBadge } from '../components/metrics/SignalQualityBadge'
 import { TradeTable } from '../components/trades/TradeTable'
 import { AnnualReturnsBar } from '../components/charts/AnnualReturnsBar'
+import { LiveTab } from '../components/live/LiveTab'
 
 interface Props {
   data: BacktestDetail
@@ -29,14 +31,34 @@ interface Props {
   lang: Lang
 }
 
-type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte'
+type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte' | 'live'
 
 function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const hasRegime = !!data.regime_series
   const [showRegime, setShowRegime] = useState<boolean>(hasRegime)
+  const [hasLive, setHasLive] = useState<boolean>(false)
   const L = makeL(lang)
   const chartTheme = useChartTheme()
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .listLive()
+      .then((items) => {
+        if (cancelled) return
+        const match = items.some(
+          (it) => it.strategy_id === data.strategy_id && it.has_summary,
+        )
+        setHasLive(match)
+      })
+      .catch(() => {
+        if (!cancelled) setHasLive(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [data.strategy_id])
 
   const equityRef = useRef<HTMLDivElement>(null)
   const drawdownRef = useRef<HTMLDivElement>(null)
@@ -70,7 +92,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
     marginBottom: 8,
   }
 
-  const tabs: ReadonlyArray<readonly [Tab, string]> = [
+  const baseTabs: ReadonlyArray<readonly [Tab, string]> = [
     ['overview', L('概要', 'Overview')],
     ['metrics', L('メトリクス', 'Metrics')],
     ['performance', L('パフォーマンス', 'Performance')],
@@ -78,6 +100,9 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
     ['risk', L('リスク', 'Risk')],
     ['monte', L('モンテカルロ', 'Monte Carlo')],
   ]
+  const tabs: ReadonlyArray<readonly [Tab, string]> = hasLive
+    ? [...baseTabs, ['live', L('ライブ', 'Live')] as const]
+    : baseTabs
 
   const skew = data.metrics.deflated_sharpe?.skewness
   const kurt = data.metrics.deflated_sharpe?.excess_kurtosis
@@ -267,6 +292,10 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           <SectionLabel>{L('モンテカルロ シミュレーション', 'Monte Carlo Simulation')}</SectionLabel>
           <MonteCarloChart trades={data.trades} lang={lang} compact={compact} />
         </div>
+      )}
+
+      {tab === 'live' && (
+        <LiveTab strategyId={data.strategy_id} runId={data.run_id} lang={lang} />
       )}
     </div>
   )

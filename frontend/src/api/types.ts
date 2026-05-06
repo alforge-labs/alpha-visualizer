@@ -270,3 +270,84 @@ export interface IdeaItem {
   result_summary?: string | null
   notes_history?: string[]
 }
+
+// ===== Live (issue #57) =====
+
+export interface LiveSummary {
+  strategy_id: string
+  strategy_version?: string | null
+  snapshot_id?: string | null
+  broker?: string | null
+  total_trades?: number
+  win_rate_pct?: number
+  gross_pnl?: number
+  net_pnl?: number
+  profit_factor?: number
+  avg_win?: number
+  avg_loss?: number
+  avg_slippage_bps?: number
+  total_commission?: number
+  max_drawdown_pct?: number
+  symbols?: string[]
+  // 仕様未確定のフィールドも許容
+  [key: string]: unknown
+}
+
+export interface LiveTrade {
+  trade_id: string
+  symbol: string
+  side: 'long' | 'short'
+  entry_at: string
+  exit_at: string
+  qty: number
+  entry_price: number
+  exit_price: number
+  net_pnl: number
+  return_pct?: number | null
+  exit_reason?: string | null
+}
+
+export interface LivePeriod {
+  start: string
+  end: string
+}
+
+export interface LiveBacktestAligned {
+  total_trades: number
+  win_rate_pct: number
+  profit_factor: number
+  max_drawdown_pct: number
+  net_pnl: number | null
+}
+
+export interface LiveBacktestSection {
+  run_id: string
+  period: LivePeriod
+  aligned: LiveBacktestAligned | null
+}
+
+export interface LiveDiff {
+  total_trades: number | null
+  win_rate_pct: number | null
+  profit_factor: number | null
+  max_drawdown_pct: number | null
+  net_pnl: number | null
+}
+
+export interface LiveDetailResponse {
+  strategy_id: string
+  live: {
+    summary: LiveSummary
+    trades: LiveTrade[]
+    period: LivePeriod | null
+  }
+  backtest: LiveBacktestSection | null
+  diff: LiveDiff | null
+  warnings: string[]
+}
+
+export interface LiveListItem {
+  strategy_id: string
+  has_summary: boolean
+  has_trades: boolean
+}
