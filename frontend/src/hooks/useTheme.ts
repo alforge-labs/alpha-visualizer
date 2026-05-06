@@ -20,6 +20,11 @@ const DEFAULTS: ViewerSettings = {
   lang: 'ja',
 }
 
+function getSystemTheme(): Theme {
+  if (typeof window === 'undefined') return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 const THEMES: readonly Theme[] = ['dark', 'light']
 const DENSITIES: readonly Density[] = ['comfortable', 'compact']
 const VARIATIONS: readonly Variation[] = ['atelier', 'lab']
@@ -66,7 +71,7 @@ function readStorage(): Partial<ViewerSettings> {
 
 export function useViewerSettings() {
   const initial = useMemo<ViewerSettings>(
-    () => ({ ...DEFAULTS, ...readStorage(), ...readUrlOverrides() }),
+    () => ({ ...DEFAULTS, theme: getSystemTheme(), ...readStorage(), ...readUrlOverrides() }),
     []
   )
   const [settings, setSettings] = useState<ViewerSettings>(initial)
@@ -84,6 +89,12 @@ export function useViewerSettings() {
     if (typeof document === 'undefined') return
     document.documentElement.dataset.variation = settings.variation
   }, [settings.variation])
+
+  // theme を <html data-theme> に同期する
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.dataset.theme = settings.theme
+  }, [settings.theme])
 
   const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))

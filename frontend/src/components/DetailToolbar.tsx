@@ -1,6 +1,6 @@
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
-import type { Variation } from '../hooks/useTheme'
+import type { Theme } from '../hooks/useTheme'
 import { Button } from '../design/primitives/Button'
 import { Chip } from '../design/primitives/Chip'
 import { Toolbar } from '../design/primitives/Toolbar'
@@ -12,9 +12,9 @@ interface DetailToolbarProps {
   symbol: string
   timeframe: string
   lang: Lang
-  variation: Variation
-  onSetVariation: (v: Variation) => void
   onSetLang: (l: Lang) => void
+  theme: Theme
+  onSetTheme: (t: Theme) => void
   onBack: () => void
   onRun: () => void
   onAddToCompare: () => void
@@ -27,9 +27,9 @@ export function DetailToolbar({
   symbol,
   timeframe,
   lang,
-  variation,
-  onSetVariation,
   onSetLang,
+  theme,
+  onSetTheme,
   onBack,
   onRun,
   onAddToCompare,
@@ -49,10 +49,10 @@ export function DetailToolbar({
       trailing={
         <>
           <SettingsToggles
-            variation={variation}
-            onSetVariation={onSetVariation}
             lang={lang}
             onSetLang={onSetLang}
+            theme={theme}
+            onSetTheme={onSetTheme}
           />
           <Divider orientation="vertical" />
           <Button variant="subtle" onClick={onAddToCompare}>

@@ -16,7 +16,7 @@ import { makeL } from '../i18n/strings'
 
 export function BrowsePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
-  const { lang, variation } = settings
+  const { lang, theme } = settings
   const L = makeL(lang)
   const list = useStrategyList()
   useScrollRestoration(!list.loading)
@@ -142,10 +142,13 @@ export function BrowsePage(): React.ReactElement {
         </Link>
         </div>
         <SettingsToggles
-          variation={variation}
-          onSetVariation={(v) => update('variation', v)}
           lang={lang}
           onSetLang={(l) => update('lang', l)}
+          theme={theme}
+          onSetTheme={(t) => {
+            update('theme', t)
+            update('variation', t === 'dark' ? 'lab' : 'atelier')
+          }}
         />
       </header>
 

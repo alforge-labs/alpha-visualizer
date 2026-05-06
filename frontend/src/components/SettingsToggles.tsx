@@ -1,6 +1,6 @@
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
-import type { Variation } from '../hooks/useTheme'
+import type { Theme, Variation } from '../hooks/useTheme'
 
 interface VariationToggleProps {
   variation: Variation
@@ -113,22 +113,70 @@ export function LangToggle({ lang, onChange }: LangToggleProps) {
   )
 }
 
-interface SettingsTogglesProps {
-  variation: Variation
-  onSetVariation: (v: Variation) => void
-  lang: Lang
-  onSetLang: (l: Lang) => void
+interface ThemeToggleProps {
+  theme: Theme
+  onChange: (t: Theme) => void
+  lang?: Lang
 }
 
-export function SettingsToggles({
-  variation,
-  onSetVariation,
-  lang,
-  onSetLang,
-}: SettingsTogglesProps) {
+export function ThemeToggle({ theme, onChange, lang = 'en' }: ThemeToggleProps) {
+  const L = makeL(lang)
+  return (
+    <div
+      role="radiogroup"
+      aria-label={L('カラーモード', 'Color mode')}
+      style={{
+        display: 'inline-flex',
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-pill)',
+        padding: 2,
+        gap: 2,
+      }}
+    >
+      {(['light', 'dark'] as const).map((t) => {
+        const active = t === theme
+        return (
+          <button
+            key={t}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={t === 'light' ? L('ライトモード', 'Light mode') : L('ダークモード', 'Dark mode')}
+            onClick={() => onChange(t)}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-pill)',
+              border: 'none',
+              background: active ? 'var(--accent)' : 'transparent',
+              color: active ? 'var(--surface)' : 'var(--text2)',
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              fontWeight: 600,
+              letterSpacing: 'var(--tracking-mono)',
+              cursor: 'pointer',
+              transition: 'background var(--motion-fast), color var(--motion-fast)',
+            }}
+          >
+            {t === 'light' ? '☀' : '☾'}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+interface SettingsTogglesProps {
+  lang: Lang
+  onSetLang: (l: Lang) => void
+  theme: Theme
+  onSetTheme: (t: Theme) => void
+}
+
+export function SettingsToggles({ lang, onSetLang, theme, onSetTheme }: SettingsTogglesProps) {
   return (
     <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-      <VariationToggle variation={variation} onChange={onSetVariation} lang={lang} />
+      <ThemeToggle theme={theme} onChange={onSetTheme} lang={lang} />
       <LangToggle lang={lang} onChange={onSetLang} />
     </div>
   )

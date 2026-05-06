@@ -19,7 +19,7 @@ type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history' | 'strate
 export function DetailPage() {
   const { strategyId } = useParams<{ strategyId: string }>()
   const { settings, update } = useViewerSettings()
-  const { lang, density, variation } = settings
+  const { lang, density, theme } = settings
   const L = makeL(lang)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -95,9 +95,12 @@ export function DetailPage() {
         symbol={symbol}
         timeframe={timeframe}
         lang={lang}
-        variation={variation}
-        onSetVariation={(v) => update('variation', v)}
         onSetLang={(l) => update('lang', l)}
+        theme={theme}
+        onSetTheme={(t) => {
+          update('theme', t)
+          update('variation', t === 'dark' ? 'lab' : 'atelier')
+        }}
         onBack={() => navigate(-1)}
         onRun={handleRun}
         onAddToCompare={handleAddToCompare}

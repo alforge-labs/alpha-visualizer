@@ -9,7 +9,7 @@ import { Button, Divider, Toolbar } from '../design/primitives'
 
 export function ComparePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
-  const { lang, variation } = settings
+  const { lang, theme } = settings
   const L = makeL(lang)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -104,10 +104,13 @@ export function ComparePage(): React.ReactElement {
         trailing={
           <>
             <SettingsToggles
-              variation={variation}
-              onSetVariation={(v) => update('variation', v)}
               lang={lang}
               onSetLang={(l) => update('lang', l)}
+              theme={theme}
+              onSetTheme={(t) => {
+                update('theme', t)
+                update('variation', t === 'dark' ? 'lab' : 'atelier')
+              }}
             />
             <Divider orientation="vertical" />
             <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>

@@ -228,7 +228,7 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
 
 export function IdeasPage(): ReactElement {
   const { settings, update } = useViewerSettings()
-  const { lang, variation } = settings
+  const { lang, theme } = settings
   const L = makeL(lang)
   const list = useIdeasList()
 
@@ -312,10 +312,13 @@ export function IdeasPage(): ReactElement {
           </p>
         </div>
         <SettingsToggles
-          variation={variation}
-          onSetVariation={(v) => update('variation', v)}
           lang={lang}
           onSetLang={(l) => update('lang', l)}
+          theme={theme}
+          onSetTheme={(t) => {
+            update('theme', t)
+            update('variation', t === 'dark' ? 'lab' : 'atelier')
+          }}
         />
       </header>
 
