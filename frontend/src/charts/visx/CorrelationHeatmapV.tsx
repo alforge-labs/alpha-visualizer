@@ -27,14 +27,27 @@ interface Hover {
 
 const CELL_MIN = 36
 const CELL_MAX = 64
-const LABEL_W = 132
-const LABEL_H = 88
 const PAD = 12
+const LABEL_FONT_PX = 12
+/** 列ラベルの回転角度（-35度。小さいほど上方向に伸びる） */
+const COL_LABEL_DEG = 35
+/** ラベルを SVG 内で切り詰める最大文字数（はみ出し回避用） */
+const LABEL_MAX_CHARS = 22
 
 function formatR(r: number | null): string {
   if (r === null) return '—'
   const sign = r >= 0 ? '+' : ''
   return `${sign}${r.toFixed(2)}`
+}
+
+function truncate(label: string, max: number): string {
+  if (label.length <= max) return label
+  return `${label.slice(0, max - 1)}…`
+}
+
+/** ラベル文字数から SVG 上の概算幅（px）を返す */
+function approxLabelWidth(text: string, fontPx: number): number {
+  return Math.ceil(text.length * fontPx * 0.55)
 }
 
 /**
@@ -65,12 +78,31 @@ function Inner({
   const [hov, setHov] = useState<Hover | null>(null)
 
   const n = labels.length
-  const innerW = Math.max(0, width - LABEL_W - PAD * 2)
+  const truncatedLabels = useMemo(
+    () => labels.map(l => truncate(l, LABEL_MAX_CHARS)),
+    [labels],
+  )
+  // 行ラベル幅: 最長のラベル長から動的に算出（凡例用銘柄に必要な余白も加味）
+  const longestRowChars = useMemo(
+    () => Math.max(0, ...truncatedLabels.map(l => l.length)),
+    [truncatedLabels],
+  )
+  const labelW = Math.max(120, approxLabelWidth('M'.repeat(longestRowChars), 13) + PAD * 2)
+
+  // 列ラベル高: -COL_LABEL_DEG 度の回転で必要な縦方向余白
+  const longestColPx = useMemo(
+    () => Math.max(...truncatedLabels.map(l => approxLabelWidth(l, LABEL_FONT_PX)), 1),
+    [truncatedLabels],
+  )
+  const colLabelHeight = Math.ceil(longestColPx * Math.sin((COL_LABEL_DEG * Math.PI) / 180))
+  const labelH = Math.max(64, colLabelHeight + PAD * 2)
+
+  const innerW = Math.max(0, width - labelW - PAD * 2)
   const cell = Math.max(CELL_MIN, Math.min(CELL_MAX, n > 0 ? innerW / n : CELL_MIN))
   const gridSize = cell * n
-  const totalH = height ?? LABEL_H + gridSize + PAD * 2
-  const gridLeft = LABEL_W
-  const gridTop = LABEL_H
+  const totalH = height ?? labelH + gridSize + PAD * 2
+  const gridLeft = labelW
+  const gridTop = labelH
 
   const cellColor = useMemo(() => {
     return (r: number | null): string => {
@@ -95,7 +127,7 @@ function Inner({
         style={{ display: 'block' }}
       >
         <Group left={gridLeft} top={gridTop}>
-          {labels.map((label, i) => (
+          {truncatedLabels.map((label, i) => (
             <g key={`row-${i}`}>
               <text
                 x={-PAD}
@@ -106,6 +138,7 @@ function Inner({
                 fontSize={13}
                 fontWeight={600}
               >
+                <title>{labels[i]}</title>
                 {label}
               </text>
               {symbols?.[i] && (
@@ -123,15 +156,19 @@ function Inner({
               )}
             </g>
           ))}
-          {labels.map((label, j) => (
-            <g key={`col-${j}`} transform={`translate(${j * cell + cell / 2}, ${-PAD}) rotate(-35)`}>
+          {truncatedLabels.map((label, j) => (
+            <g
+              key={`col-${j}`}
+              transform={`translate(${j * cell + cell / 2}, ${-PAD}) rotate(-${COL_LABEL_DEG})`}
+            >
               <text
                 textAnchor="start"
                 fill={theme.text2}
                 fontFamily={theme.serif}
-                fontSize={12}
+                fontSize={LABEL_FONT_PX}
                 fontWeight={600}
               >
+                <title>{labels[j]}</title>
                 {label}
               </text>
             </g>
