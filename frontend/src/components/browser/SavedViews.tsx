@@ -31,7 +31,7 @@ const VIEWS: readonly ViewDef[] = [
   },
 ] as const
 
-const FILTER_KEYS = ['q', 'symbol', 'tf', 'sharpe_min', 'dd_max', 'sort', 'dir'] as const
+const FILTER_KEYS = ['q', 'symbol', 'tf', 'sharpe_min', 'dd_max', 'sort', 'dir', 'selected', 'compare'] as const
 
 interface Props {
   lang: Lang

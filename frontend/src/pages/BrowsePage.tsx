@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useStrategyList } from '../hooks/useStrategyList'
@@ -20,27 +19,11 @@ export function BrowsePage(): React.ReactElement {
   const L = makeL(lang)
   const list = useStrategyList()
   useScrollRestoration(!list.loading)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [compareIds, setCompareIds] = useState<string[]>([])
 
-  const selectedStrategy = list.all.find(s => s.strategy_id === selectedId) ?? null
+  const selectedStrategy = list.all.find(s => s.strategy_id === list.selectedId) ?? null
 
   const handleSelect = (id: string): void => {
-    setSelectedId(prev => (prev === id ? null : id))
-  }
-
-  const handleToggleCompare = (id: string): void => {
-    setCompareIds(prev =>
-      prev.includes(id)
-        ? prev.filter(x => x !== id)
-        : prev.length < 6
-          ? [...prev, id]
-          : prev,
-    )
-  }
-
-  const handleRemoveCompare = (id: string): void => {
-    setCompareIds(prev => prev.filter(x => x !== id))
+    list.setSelectedId(list.selectedId === id ? null : id)
   }
 
   if (list.error) {
@@ -195,26 +178,26 @@ export function BrowsePage(): React.ReactElement {
             sortKey={list.sortKey}
             sortDir={list.sortDir}
             onSort={list.setSort}
-            selectedId={selectedId}
+            selectedId={list.selectedId}
             onSelect={handleSelect}
-            compareIds={compareIds}
-            onToggleCompare={handleToggleCompare}
+            compareIds={list.compareIds}
+            onToggleCompare={list.toggleCompareId}
             lang={lang}
           />
         )}
         {selectedStrategy && (
           <StrategySlidePanel
             strategy={selectedStrategy}
-            onClose={() => setSelectedId(null)}
+            onClose={() => list.setSelectedId(null)}
             lang={lang}
           />
         )}
       </div>
 
       <CompareFloatingBar
-        compareIds={compareIds}
+        compareIds={list.compareIds}
         strategies={list.all}
-        onRemove={handleRemoveCompare}
+        onRemove={list.removeCompareId}
         lang={lang}
       />
     </div>

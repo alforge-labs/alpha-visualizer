@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import type { StrategyListItem } from '../../api/types'
-import type { SortKey, SortDir, StrategyGroup } from '../../hooks/useStrategyList'
+import { COMPARE_MAX, type SortKey, type SortDir, type StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Chip } from '../../design/primitives'
@@ -419,7 +419,7 @@ export function StrategyTable({
   const renderRow = (s: StrategyListItem): React.ReactElement => {
     const isSelected = selectedId === s.strategy_id
     const inCompare = compareIds.includes(s.strategy_id)
-    const maxCompareReached = compareIds.length >= 6 && !inCompare
+    const maxCompareReached = compareIds.length >= COMPARE_MAX && !inCompare
     return (
       <StrategyRow
         key={s.strategy_id}
