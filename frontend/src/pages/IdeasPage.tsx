@@ -5,7 +5,7 @@ import { useIdeasList } from '../hooks/useIdeasList'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Card, Chip } from '../design/primitives'
 import { makeL } from '../i18n/strings'
-import type { IdeaItem } from '../api/types'
+import type { IdeaItem, LinkedRun } from '../api/types'
 
 const STATUS_VALUES = ['backlog', 'in_progress', 'tested', 'archived'] as const
 type Status = typeof STATUS_VALUES[number]
@@ -35,16 +35,20 @@ interface IdeaCardProps {
 
 function IdeaCard({ idea, lang }: IdeaCardProps) {
   const L = makeL(lang)
-  const memo = typeof idea.memo === 'string' ? idea.memo : ''
-  const tags = Array.isArray(idea.tags) ? idea.tags : []
-  const linkedRuns = Array.isArray(idea.linked_runs) ? idea.linked_runs : []
-  const title = typeof idea.title === 'string' ? idea.title : idea.idea_id
-  const status = typeof idea.status === 'string' ? idea.status : ''
+  const description = idea.description ?? ''
+  const tags = idea.tags ?? []
+  const linkedStrategies = idea.linked_strategies ?? []
+  const linkedRuns: LinkedRun[] = Array.isArray(idea.linked_runs)
+    ? idea.linked_runs.filter((r): r is LinkedRun => typeof r === 'object' && r !== null && 'strategy_id' in r)
+    : []
+  const title = idea.title ?? idea.idea_id
+  const status = idea.status ?? ''
+  const notesHistory = idea.notes_history ?? []
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
               fontFamily: 'var(--mono)',
@@ -76,7 +80,7 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
         )}
       </div>
 
-      {memo && (
+      {description && (
         <div
           style={{
             fontFamily: 'var(--sans)',
@@ -89,7 +93,7 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
             overflow: 'hidden',
           }}
         >
-          {memo}
+          {description}
         </div>
       )}
 
@@ -101,7 +105,7 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
         </div>
       )}
 
-      {linkedRuns.length > 0 && (
+      {linkedStrategies.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           <div
             style={{
@@ -115,10 +119,10 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
             {L('リンク済み戦略', 'Linked strategies')}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            {linkedRuns.map(runId => (
+            {linkedStrategies.map(strategyId => (
               <Link
-                key={runId}
-                to={`/detail/${encodeURIComponent(runId)}`}
+                key={strategyId}
+                to={`/detail/${encodeURIComponent(strategyId)}`}
                 style={{
                   fontFamily: 'var(--mono)',
                   fontSize: 'var(--fs-mono-sm)',
@@ -127,9 +131,94 @@ function IdeaCard({ idea, lang }: IdeaCardProps) {
                   letterSpacing: 'var(--tracking-mono)',
                 }}
               >
-                {runId} →
+                {strategyId} →
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {linkedRuns.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-mono)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {L('バックテスト結果', 'Backtest runs')}
+          </div>
+          {linkedRuns.map(run => (
+            <div
+              key={run.run_id}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--surface-2)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <Link
+                to={`/detail/${encodeURIComponent(run.strategy_id)}`}
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: 'var(--fs-mono-sm)',
+                  color: 'var(--accent)',
+                  textDecoration: 'none',
+                  letterSpacing: 'var(--tracking-mono)',
+                }}
+              >
+                {run.strategy_id} →
+              </Link>
+              {run.notes && (
+                <div
+                  style={{
+                    fontFamily: 'var(--sans)',
+                    fontSize: 'var(--fs-caption)',
+                    color: 'var(--text2)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {run.notes}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {notesHistory.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-mono)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {L('メモ', 'Notes')}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              color: 'var(--text2)',
+              lineHeight: 1.5,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {notesHistory[notesHistory.length - 1]}
           </div>
         </div>
       )}
