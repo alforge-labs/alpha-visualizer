@@ -42,58 +42,6 @@ export function ComparePage(): React.ReactElement {
         overflow: 'hidden',
       }}
     >
-      <header
-        style={{
-          padding: 'var(--layout-gutter-y) var(--layout-gutter) var(--space-5)',
-          background: 'var(--bg)',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--sans)',
-            fontSize: 'var(--fs-caption)',
-            fontWeight: 500,
-            color: 'var(--text3)',
-            letterSpacing: 'var(--tracking-caption)',
-            textTransform: 'uppercase',
-          }}
-        >
-          {L('戦略比較', 'Strategy comparison')}
-        </div>
-        <h1
-          style={{
-            margin: '6px 0 0 0',
-            fontFamily: 'var(--serif)',
-            fontSize: 'var(--hero-fs-h1)',
-            fontWeight: 700,
-            color: 'var(--text)',
-            letterSpacing: '-0.01em',
-            lineHeight: 1.1,
-          }}
-        >
-          {ids.length > 0
-            ? L(`${ids.length}件の戦略を並べる`, `Comparing ${ids.length} strategies`)
-            : L('比較する戦略を選んでください', 'Choose strategies to compare')}
-        </h1>
-        <p
-          style={{
-            margin: '12px 0 0 0',
-            maxWidth: 720,
-            fontFamily: 'var(--sans)',
-            fontSize: 'var(--fs-body)',
-            color: 'var(--text2)',
-            lineHeight: 1.55,
-          }}
-        >
-          {L(
-            'エクイティの形・リスクとリターンの形・分布の歪みまで、複数戦略を同じ尺度で比較します。',
-            'See multiple strategies side by side—equity shape, risk/reward, distribution skew—on the same axes.',
-          )}
-        </p>
-      </header>
-
       <Toolbar
         sticky
         leading={
@@ -171,9 +119,59 @@ export function ComparePage(): React.ReactElement {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: 'var(--space-6) var(--layout-gutter)',
         }}
       >
+        <header
+          style={{
+            padding: 'var(--layout-gutter-y) var(--layout-gutter) var(--space-5)',
+            background: 'var(--bg)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              fontWeight: 500,
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-caption)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {L('戦略比較', 'Strategy comparison')}
+          </div>
+          <h1
+            style={{
+              margin: '6px 0 0 0',
+              fontFamily: 'var(--serif)',
+              fontSize: 'var(--hero-fs-h1)',
+              fontWeight: 700,
+              color: 'var(--text)',
+              letterSpacing: '-0.01em',
+              lineHeight: 1.1,
+            }}
+          >
+            {ids.length > 0
+              ? L(`${ids.length}件の戦略を並べる`, `Comparing ${ids.length} strategies`)
+              : L('比較する戦略を選んでください', 'Choose strategies to compare')}
+          </h1>
+          <p
+            style={{
+              margin: '12px 0 0 0',
+              maxWidth: 720,
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-body)',
+              color: 'var(--text2)',
+              lineHeight: 1.55,
+            }}
+          >
+            {L(
+              'エクイティの形・リスクとリターンの形・分布の歪みまで、複数戦略を同じ尺度で比較します。',
+              'See multiple strategies side by side—equity shape, risk/reward, distribution skew—on the same axes.',
+            )}
+          </p>
+        </header>
+        <div style={{ padding: 'var(--space-6) var(--layout-gutter)' }}>
         {compare.status === 'loading' && (
           <div
             style={{
@@ -206,6 +204,7 @@ export function ComparePage(): React.ReactElement {
         {compare.status === 'ready' && (
           <CompareScreen data={compare.data} lang={lang} symbol={symbol} />
         )}
+        </div>
       </div>
     </div>
   )

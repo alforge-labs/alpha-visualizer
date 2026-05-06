@@ -21,3 +21,18 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
       dispatchEvent: vi.fn(),
     }) as unknown as MediaQueryList
 }
+
+// jsdom には ResizeObserver が無いため、@visx/responsive の <ParentSize /> が依存する
+// useParentSize フックでテストが落ちないよう no-op 実装を注入する（issue #55）。
+if (typeof globalThis !== 'undefined' && !('ResizeObserver' in globalThis)) {
+  class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: ResizeObserverMock,
+  })
+}

@@ -7,6 +7,7 @@ import { CompareTable } from '../components/metrics/CompareTable'
 import { CompareEquityV } from '../charts/visx/CompareEquityV'
 import type { CompareSeries } from '../charts/visx/CompareEquityV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
+import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
 
@@ -288,6 +289,9 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
           </Card>
         </DashboardProvider>
       )}
+
+      {/* 末尾: 戦略間相関ヒートマップ（issue #55） */}
+      <CorrelationHeatmap strategies={data} lang={lang} />
     </div>
   )
 }
