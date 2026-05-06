@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import pathlib
 from typing import Any
 
@@ -123,6 +124,7 @@ def _get_latest_result(config: ForgeConfig, strategy_id: str) -> dict[str, Any] 
                 backtest_results.c.win_rate_pct,
                 backtest_results.c.profit_factor,
                 backtest_results.c.run_at,
+                backtest_results.c.equity_curve_json,
             )
             .where(backtest_results.c.strategy_id == strategy_id)
             .order_by(backtest_results.c.run_at.desc())
@@ -141,6 +143,7 @@ def _get_latest_result(config: ForgeConfig, strategy_id: str) -> dict[str, Any] 
         "win_rate_pct": row.win_rate_pct,
         "profit_factor": row.profit_factor,
         "run_at": row.run_at,
+        "equity_curve_json": row.equity_curve_json,
     }
 
 
@@ -240,6 +243,49 @@ async def list_strategies(request: Request) -> list[dict[str, Any]]:
     return result
 
 
+def _shape_equity_curve(raw_json: str | None) -> tuple[list[str], list[float]]:
+    """equity_curve_json を解析して (dates, values) を返す。"""
+    if not raw_json:
+        return [], []
+    try:
+        raw = json.loads(raw_json)
+    except (TypeError, ValueError):
+        return [], []
+    if not isinstance(raw, list) or not raw:
+        return [], []
+    dates: list[str] = []
+    values: list[float] = []
+    for item in raw:
+        if isinstance(item, dict):
+            try:
+                values.append(float(item.get("value", 0.0)))
+                dates.append(str(item.get("date", "")))
+            except (TypeError, ValueError):
+                continue
+        else:
+            try:
+                values.append(float(item))
+                dates.append("")
+            except (TypeError, ValueError):
+                continue
+    return dates, values
+
+
+def _compute_daily_returns_pct(values: list[float]) -> list[float]:
+    """equity values から日次リターン (%) を計算する。"""
+    if len(values) < 2:
+        return []
+    out: list[float] = []
+    for i in range(1, len(values)):
+        prev = values[i - 1]
+        curr = values[i]
+        if prev == 0.0 or not math.isfinite(prev) or not math.isfinite(curr):
+            out.append(0.0)
+        else:
+            out.append(round((curr - prev) / prev * 100.0, 6))
+    return out
+
+
 @router.get("/strategies/compare")
 async def compare_strategies(
     request: Request,
@@ -256,6 +302,8 @@ async def compare_strategies(
             continue
         record = _load_strategy_record(config, sid)
         name = record.get("name", sid) if record else sid
+        dates, values = _shape_equity_curve(latest.get("equity_curve_json"))
+        daily_returns = _compute_daily_returns_pct(values)
         out.append(
             {
                 "id": sid,
@@ -270,6 +318,8 @@ async def compare_strategies(
                 "profit_factor": float(latest.get("profit_factor") or 0.0),
                 "total_trades": int(latest.get("total_trades") or 0),
                 "is_baseline": idx == 0,
+                "equity": {"dates": dates, "values": values},
+                "daily_returns": daily_returns,
             }
         )
     if not out:
