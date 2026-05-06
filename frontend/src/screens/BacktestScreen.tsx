@@ -18,6 +18,7 @@ import { DrawdownDetailChart } from '../components/charts/DrawdownDetailChart'
 import { VaRChart } from '../components/charts/VaRChart'
 import { MonteCarloChart } from '../components/charts/MonteCarloChart'
 import { MetricsGrid } from '../components/metrics/MetricsGrid'
+import { RegimeBreakdownCards } from '../components/metrics/RegimeBreakdownCards'
 import { SignalQualityBadge } from '../components/metrics/SignalQualityBadge'
 import { TradeTable } from '../components/trades/TradeTable'
 import { AnnualReturnsBar } from '../components/charts/AnnualReturnsBar'
@@ -32,6 +33,8 @@ type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte'
 
 function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
+  const hasRegime = !!data.regime_series
+  const [showRegime, setShowRegime] = useState<boolean>(hasRegime)
   const L = makeL(lang)
   const chartTheme = useChartTheme()
 
@@ -96,6 +99,21 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
             <div style={sectionHeaderS}>
               <SectionLabel>{L('エクイティ vs Buy&Hold', 'Equity vs Buy & Hold')}</SectionLabel>
               <div style={{ display: 'flex', gap: 6 }}>
+                {hasRegime && (
+                  <button
+                    type="button"
+                    aria-pressed={showRegime}
+                    style={{
+                      ...exportBtnS,
+                      background: showRegime ? 'var(--accent-bg)' : 'var(--surface)',
+                      borderColor: showRegime ? 'var(--accent-glow)' : 'var(--border)',
+                      color: showRegime ? 'var(--accent)' : 'var(--text2)',
+                    }}
+                    onClick={() => setShowRegime((v) => !v)}
+                  >
+                    {L('レジーム', 'Regime')}
+                  </button>
+                )}
                 <button
                   type="button"
                   style={exportBtnS}
@@ -120,6 +138,8 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 benchmark={showBuyHold ? data.buy_hold_equity : undefined}
                 showBenchmark={showBuyHold}
                 compact={compact}
+                regimeSeries={data.regime_series}
+                showRegime={showRegime}
               />
             </div>
           </div>
@@ -213,6 +233,13 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
       {tab === 'risk' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {data.regime_breakdown && (
+            <RegimeBreakdownCards
+              breakdown={data.regime_breakdown}
+              series={data.regime_series}
+              lang={lang}
+            />
+          )}
           <div>
             <SectionLabel>{L('MAE / MFE 散布図', 'MAE / MFE Scatter')}</SectionLabel>
             <MAEMFEScatter trades={data.trades} lang={lang} compact={compact} />

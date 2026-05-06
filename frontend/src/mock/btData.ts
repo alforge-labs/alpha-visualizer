@@ -206,6 +206,43 @@ function genTrades(n: number, seed: number): Trade[] {
 
 const TRADES = genTrades(183, 555)
 
+/* ── Mock regime series (cycle 60 で 0/1 を反転) ─────────────────────────── */
+const REGIME_STATES = dates.map((_, i) => Math.floor(i / 60) % 2)
+const REGIME_SERIES = {
+  dates: [...dates],
+  states: REGIME_STATES,
+  n_states: 2,
+  label_names: { '0': 'Bear', '1': 'Bull' },
+}
+const REGIME_BREAKDOWN = {
+  method: 'HMM',
+  description: 'GaussianHMM(n_components=2)',
+  periods: [
+    {
+      label: 'Bull',
+      start: dates[0] ?? '',
+      end: dates[59] ?? '',
+      sharpe: 1.42,
+      win_rate_pct: 58.3,
+      total_trades: 28,
+      max_drawdown_pct: -8.4,
+    },
+    {
+      label: 'Bear',
+      start: dates[60] ?? '',
+      end: dates[119] ?? '',
+      sharpe: -0.21,
+      win_rate_pct: 41.7,
+      total_trades: 22,
+      max_drawdown_pct: -14.8,
+    },
+  ],
+  aggregates: {
+    Bull: { sharpe_avg: 1.42, win_rate_avg: 58.3, trades_total: 92, max_drawdown_avg: -8.4 },
+    Bear: { sharpe_avg: -0.21, win_rate_avg: 41.7, trades_total: 91, max_drawdown_avg: -14.8 },
+  },
+}
+
 /* ── Public mock objects ──────────────────────────────────────────────────── */
 export const MOCK_BACKTEST: BacktestDetail = {
   run_id: 'mock-ema-cross-aapl',
@@ -226,6 +263,8 @@ export const MOCK_BACKTEST: BacktestDetail = {
   daily_returns: [],
   buy_hold_equity: [],
   benchmark_annual_returns: {},
+  regime_series: REGIME_SERIES,
+  regime_breakdown: REGIME_BREAKDOWN,
 }
 
 export const MOCK_WFO: WFOResult = {

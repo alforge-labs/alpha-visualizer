@@ -14,6 +14,13 @@ import { bisector } from 'd3-array'
 import { DashboardContext } from '../../contexts/DashboardContext'
 import { RANGES, RANGE_N } from '../../contexts/dashboardConstants'
 import { useChartTheme } from '../../design/useChartTheme'
+import { buildRegimeBands, type RegimeBand } from './regimeBands'
+
+interface RegimeSeriesInput {
+  states: number[]
+  n_states: number
+  label_names?: Record<string, string>
+}
 
 interface EquityChartVProps {
   equity: number[]
@@ -23,6 +30,8 @@ interface EquityChartVProps {
   showBenchmark?: boolean
   compact?: boolean
   highlightedDateRange?: { start: string; end: string } | null
+  regimeSeries?: RegimeSeriesInput
+  showRegime?: boolean
 }
 
 interface Point {
@@ -30,6 +39,17 @@ interface Point {
   value: number
   benchmark: number | null
   origIdx: number
+}
+
+function regimeColor(state: number, n: number, palette: readonly string[]): string {
+  const c = palette[state]
+  if (state >= 0 && state < palette.length && c) return c
+  const safeN = Math.max(n, 1)
+  return `hsl(${(state * 360) / safeN}, 55%, 55%)`
+}
+
+function regimeLabel(state: number, names?: Record<string, string>): string {
+  return names?.[String(state)] ?? `S${state}`
 }
 
 const MARGIN = { top: 20, right: 24, bottom: 32, left: 64 }
@@ -54,6 +74,8 @@ function EquityChartInner({
   showBenchmark = false,
   compact = false,
   highlightedDateRange,
+  regimeSeries,
+  showRegime = false,
 }: EquityChartVProps & { width: number }) {
   type Range = (typeof RANGES)[number]
   const ctx = useContext(DashboardContext)
@@ -129,6 +151,45 @@ function EquityChartInner({
     if (Number.isNaN(x1) || Number.isNaN(x2)) return null
     return { x: Math.min(x1, x2), w: Math.max(2, Math.abs(x2 - x1)) }
   }, [highlightedDateRange, xScale])
+
+  const regimeBands = useMemo<RegimeBand[]>(() => {
+    if (!regimeSeries || !showRegime) return []
+    return buildRegimeBands(regimeSeries.states)
+  }, [regimeSeries, showRegime])
+
+  const regimeRects = useMemo(() => {
+    if (regimeBands.length === 0 || points.length === 0) return []
+    const lastPoint = points[points.length - 1]
+    if (!lastPoint) return []
+    const lastVisibleIdx = lastPoint.origIdx
+    const out: Array<{ key: string; x: number; w: number; state: number }> = []
+    regimeBands.forEach((b, i) => {
+      if (b.endIdx < startIdx || b.startIdx > lastVisibleIdx) return
+      const sLocal = Math.max(b.startIdx - startIdx, 0)
+      const eLocal = Math.min(b.endIdx - startIdx, points.length - 1)
+      const sp = points[sLocal]
+      const ep = points[eLocal]
+      if (!sp || !ep) return
+      const xA = xScale(sp.date)
+      const xB = xScale(ep.date)
+      const x = Math.min(xA, xB)
+      const w = Math.max(2, Math.abs(xB - xA))
+      out.push({ key: `reg-${i}-${b.state}`, x, w, state: b.state })
+    })
+    return out
+  }, [regimeBands, points, startIdx, xScale])
+
+  const regimeLegend = useMemo(() => {
+    if (!regimeSeries || !showRegime) return [] as Array<{ state: number; label: string }>
+    const seen = new Set<number>()
+    const out: Array<{ state: number; label: string }> = []
+    for (const s of regimeSeries.states) {
+      if (seen.has(s)) continue
+      seen.add(s)
+      out.push({ state: s, label: regimeLabel(s, regimeSeries.label_names) })
+    }
+    return out.sort((a, b) => a.state - b.state)
+  }, [regimeSeries, showRegime])
 
   const {
     tooltipData,
@@ -213,6 +274,44 @@ function EquityChartInner({
             <span>╌╌ Buy &amp; Hold</span>
           </div>
         )}
+        {regimeLegend.length > 0 && (
+          <div
+            style={{
+              marginLeft: 12,
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+              flexWrap: 'wrap',
+            }}
+            aria-label="Regime legend"
+          >
+            {regimeLegend.map((item) => (
+              <span
+                key={`legend-${item.state}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    background: regimeColor(
+                      item.state,
+                      regimeSeries?.n_states ?? regimeLegend.length,
+                      theme.series,
+                    ),
+                    opacity: 0.7,
+                    borderRadius: 2,
+                    display: 'inline-block',
+                  }}
+                />
+                <span>{item.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <svg
@@ -230,6 +329,20 @@ function EquityChartInner({
           toOpacity={0.02}
         />
         <Group left={margin.left} top={margin.top}>
+          {/* regime bands (under IS shading) */}
+          {regimeRects.map((r) => (
+            <rect
+              key={r.key}
+              x={r.x}
+              y={0}
+              width={r.w}
+              height={innerH}
+              fill={regimeColor(r.state, regimeSeries?.n_states ?? 1, theme.series)}
+              opacity={0.18}
+              pointerEvents="none"
+            />
+          ))}
+
           {/* IS shading */}
           {cutoffX != null && (
             <rect

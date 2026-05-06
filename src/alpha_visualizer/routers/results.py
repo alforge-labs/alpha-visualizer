@@ -58,6 +58,72 @@ def _shape_annual_returns(raw: dict[str, float] | None) -> dict[int, float]:
     return result
 
 
+def _shape_regime_series(
+    raw: Any, equity_dates: list[str]
+) -> dict[str, Any] | None:
+    """metrics_json の regime_series を検証・整形する。
+
+    壊れたデータ（型不正・長さ不一致など）はログを出して None を返し、
+    レスポンスから完全に除外する。
+    """
+    if not isinstance(raw, dict):
+        return None
+    raw_dates = raw.get("dates")
+    raw_states = raw.get("states")
+    if not isinstance(raw_dates, list) or not isinstance(raw_states, list):
+        return None
+    if len(raw_dates) != len(raw_states):
+        logger.warning(
+            "regime_series: dates length (%d) != states length (%d); skipping",
+            len(raw_dates),
+            len(raw_states),
+        )
+        return None
+    if equity_dates and len(raw_dates) != len(equity_dates):
+        logger.warning(
+            "regime_series: dates length (%d) != equity dates length (%d); skipping",
+            len(raw_dates),
+            len(equity_dates),
+        )
+        return None
+    try:
+        states = [int(s) for s in raw_states]
+    except (TypeError, ValueError):
+        logger.warning("regime_series: states contains non-int values; skipping")
+        return None
+    if any(isinstance(s, bool) for s in raw_states):
+        # bool は int サブクラスなので明示的に除外
+        logger.warning("regime_series: states contains bool values; skipping")
+        return None
+    raw_n_states = raw.get("n_states")
+    try:
+        n_states = int(raw_n_states) if raw_n_states is not None else (
+            max(states) + 1 if states else 0
+        )
+    except (TypeError, ValueError):
+        n_states = max(states) + 1 if states else 0
+    out: dict[str, Any] = {
+        "dates": [str(d) for d in raw_dates],
+        "states": states,
+        "n_states": n_states,
+    }
+    label_names = raw.get("label_names")
+    if isinstance(label_names, dict):
+        out["label_names"] = {str(k): str(v) for k, v in label_names.items()}
+    return out
+
+
+def _shape_regime_breakdown(raw: Any) -> dict[str, Any] | None:
+    """forge の RegimeBreakdown.to_dict() 形式をパススルー（最低限の検証付き）。"""
+    if not isinstance(raw, dict):
+        return None
+    if not isinstance(raw.get("periods"), list):
+        return None
+    if not isinstance(raw.get("aggregates"), dict):
+        return None
+    return raw
+
+
 def _shape_trades(
     raw_trades: list[dict[str, Any]] | None,
     trade_analysis: dict[str, Any] | None,
@@ -306,7 +372,13 @@ def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
         _compute_benchmark_annual_returns(dates, buy_hold_vals) if buy_hold_vals else {}
     )
 
-    return {
+    regime_series = _shape_regime_series(metrics.get("regime_series"), dates)
+    regime_breakdown = _shape_regime_breakdown(metrics.get("regime_breakdown"))
+    # 既存 BacktestMetrics 型に regime キーが混入しないよう metrics 側からは除去
+    metrics.pop("regime_series", None)
+    metrics.pop("regime_breakdown", None)
+
+    result: dict[str, Any] = {
         "run_id": record.get("run_id", ""),
         "strategy_id": record.get("strategy_id", ""),
         "strategy_name": record.get("strategy_id", ""),
@@ -326,6 +398,11 @@ def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
         "trades": trades,
         "benchmark_annual_returns": benchmark_annual,
     }
+    if regime_series is not None:
+        result["regime_series"] = regime_series
+    if regime_breakdown is not None:
+        result["regime_breakdown"] = regime_breakdown
+    return result
 
 
 def _list_results_from_db(
