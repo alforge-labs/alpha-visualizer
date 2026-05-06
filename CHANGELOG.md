@@ -6,6 +6,11 @@ alpha-visualizer の全バージョン変更履歴です。
 ## [unreleased]
 
 
+### 機能追加
+
+- レジーム / HMM ステートを EquityChart の背景帯として可視化、Risk タブにレジーム別サマリーカードを追加 (Closes #56)
+
+
 ### ドキュメント
 
 - 関連リンクを Alforge Labs 公式サイトに変更 (#41)

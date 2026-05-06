@@ -1181,6 +1181,258 @@ class TestAnnualReturns:
         assert data["benchmark_annual_returns"] == {}
 
 
+# ── regime_series / regime_breakdown ───────────────────────────────────────────
+
+_REGIME_DATES = [
+    "2022-01-03",
+    "2022-01-04",
+    "2022-01-05",
+    "2022-01-06",
+]
+
+_REGIME_EQUITY_CURVE_JSON = json.dumps(
+    [
+        {"date": _REGIME_DATES[0], "value": 100.0},
+        {"date": _REGIME_DATES[1], "value": 99.5},
+        {"date": _REGIME_DATES[2], "value": 101.0},
+        {"date": _REGIME_DATES[3], "value": 102.5},
+    ]
+)
+
+_REGIME_METRICS_JSON = json.dumps(
+    {
+        "total_return_pct": 2.5,
+        "sharpe_ratio": 1.1,
+        "regime_series": {
+            "dates": _REGIME_DATES,
+            "states": [0, 0, 1, 1],
+            "n_states": 2,
+            "label_names": {"0": "Bear", "1": "Bull"},
+        },
+        "regime_breakdown": {
+            "method": "HMM",
+            "description": "GaussianHMM(n_components=2)",
+            "periods": [
+                {
+                    "label": "Bear",
+                    "start": _REGIME_DATES[0],
+                    "end": _REGIME_DATES[1],
+                    "sharpe": -0.5,
+                    "win_rate_pct": 40.0,
+                    "total_trades": 2,
+                    "max_drawdown_pct": -3.0,
+                },
+                {
+                    "label": "Bull",
+                    "start": _REGIME_DATES[2],
+                    "end": _REGIME_DATES[3],
+                    "sharpe": 1.5,
+                    "win_rate_pct": 65.0,
+                    "total_trades": 3,
+                    "max_drawdown_pct": -1.0,
+                },
+            ],
+            "aggregates": {
+                "Bear": {
+                    "sharpe_avg": -0.5,
+                    "win_rate_avg": 40.0,
+                    "trades_total": 2,
+                    "max_drawdown_avg": -3.0,
+                },
+                "Bull": {
+                    "sharpe_avg": 1.5,
+                    "win_rate_avg": 65.0,
+                    "trades_total": 3,
+                    "max_drawdown_avg": -1.0,
+                },
+            },
+        },
+    }
+)
+
+
+def _insert_regime_run(
+    db_path: pathlib.Path,
+    *,
+    run_id: str = "run-regime01",
+    metrics_json: str = _REGIME_METRICS_JSON,
+    equity_curve_json: str = _REGIME_EQUITY_CURVE_JSON,
+) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO backtest_results"
+            " (run_id, strategy_id, symbol, run_at,"
+            " total_return_pct, sharpe_ratio, max_drawdown_pct, win_rate_pct,"
+            " profit_factor, total_trades,"
+            " metrics_json, equity_curve_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                "regime_strategy",
+                "AAPL",
+                "2026-01-01T00:00:00",
+                2.5,
+                1.1,
+                -3.0,
+                55.0,
+                1.4,
+                5,
+                metrics_json,
+                equity_curve_json,
+            ),
+        )
+
+
+@pytest.fixture()
+def client_with_regime_db(tmp_path: pathlib.Path) -> TestClient:
+    """regime_series / regime_breakdown を含む metrics_json の run を持つクライアント"""
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_backtest_db(db_path)
+    _insert_regime_run(db_path)
+    forge_yaml = tmp_path / "forge.yaml"
+    forge_yaml.write_text(
+        "report:\n  db_filename: backtest_results.db\n"
+        "  output_path: ./data/results\n"
+    )
+    return TestClient(create_app(forge_dir=tmp_path))
+
+
+class TestRegimeSeries:
+    def test_get_result_includes_regime_series(
+        self, client_with_regime_db: TestClient
+    ) -> None:
+        """regime_series が API レスポンスに含まれ、states が int 配列で返る"""
+        response = client_with_regime_db.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        rs = data["regime_series"]
+        assert rs["dates"] == _REGIME_DATES
+        assert rs["states"] == [0, 0, 1, 1]
+        assert all(isinstance(s, int) for s in rs["states"])
+        assert rs["n_states"] == 2
+        assert rs["label_names"] == {"0": "Bear", "1": "Bull"}
+
+    def test_get_result_includes_regime_breakdown(
+        self, client_with_regime_db: TestClient
+    ) -> None:
+        """regime_breakdown の aggregates がラベル別に正しく返る"""
+        response = client_with_regime_db.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        rb = data["regime_breakdown"]
+        assert rb["method"] == "HMM"
+        assert rb["description"] == "GaussianHMM(n_components=2)"
+        assert isinstance(rb["periods"], list) and len(rb["periods"]) == 2
+        agg = rb["aggregates"]
+        assert agg["Bull"]["sharpe_avg"] == pytest.approx(1.5)
+        assert agg["Bull"]["trades_total"] == 3
+        assert agg["Bear"]["max_drawdown_avg"] == pytest.approx(-3.0)
+
+    def test_get_result_omits_regime_when_missing(
+        self, client_with_db: TestClient
+    ) -> None:
+        """regime 系フィールドが無い既存 run ではレスポンスにキーが存在しない"""
+        response = client_with_db.get("/api/results/run-abc123")
+        assert response.status_code == 200
+        data = response.json()
+        assert "regime_series" not in data
+        assert "regime_breakdown" not in data
+
+    def test_regime_series_dropped_when_states_length_mismatch(
+        self,
+        tmp_path: pathlib.Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """dates と states の長さ不一致 → regime_series が省略され warning が出る"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _create_backtest_db(db_path)
+        bad_metrics = json.dumps(
+            {
+                "regime_series": {
+                    "dates": _REGIME_DATES,
+                    "states": [0, 1],  # 長さ 2、dates は 4
+                    "n_states": 2,
+                },
+            }
+        )
+        _insert_regime_run(db_path, metrics_json=bad_metrics)
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  db_filename: backtest_results.db\n"
+            "  output_path: ./data/results\n"
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        with caplog.at_level("WARNING"):
+            response = client.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        assert "regime_series" not in data
+        assert any("regime_series" in rec.message for rec in caplog.records)
+
+    def test_regime_series_dropped_when_equity_length_mismatch(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """regime_series の長さが equity_curve の dates と一致しない → 省略"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _create_backtest_db(db_path)
+        # equity は 2 点、regime は 4 点
+        equity_short = json.dumps(
+            [
+                {"date": _REGIME_DATES[0], "value": 100.0},
+                {"date": _REGIME_DATES[1], "value": 99.0},
+            ]
+        )
+        _insert_regime_run(db_path, equity_curve_json=equity_short)
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  db_filename: backtest_results.db\n"
+            "  output_path: ./data/results\n"
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        assert "regime_series" not in data
+
+    def test_regime_series_dropped_when_states_not_numeric(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """states に非数値が混入 → regime_series が省略される"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _create_backtest_db(db_path)
+        bad_metrics = json.dumps(
+            {
+                "regime_series": {
+                    "dates": _REGIME_DATES,
+                    "states": [0, "x", 1, 1],
+                    "n_states": 2,
+                },
+            }
+        )
+        _insert_regime_run(db_path, metrics_json=bad_metrics)
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  db_filename: backtest_results.db\n"
+            "  output_path: ./data/results\n"
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        assert "regime_series" not in data
+
+    def test_metrics_does_not_contain_regime_keys_after_shape(
+        self, client_with_regime_db: TestClient
+    ) -> None:
+        """整形後の metrics dict から regime_series / regime_breakdown が pop されている"""
+        response = client_with_regime_db.get("/api/results/run-regime01")
+        assert response.status_code == 200
+        data = response.json()
+        assert "regime_series" not in data["metrics"]
+        assert "regime_breakdown" not in data["metrics"]
+
+
 # ---------------------------------------------------------------------------
 # OptimizeRouter テスト
 # ---------------------------------------------------------------------------

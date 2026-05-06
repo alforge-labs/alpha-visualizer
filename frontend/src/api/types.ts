@@ -63,6 +63,37 @@ export interface MonthlyReturns {
   [year: number]: (number | null)[]
 }
 
+export interface RegimeSeries {
+  dates: string[]
+  states: number[]
+  n_states: number
+  label_names?: Record<string, string>
+}
+
+export interface RegimePeriodStats {
+  label: string
+  start: string
+  end: string
+  sharpe: number
+  win_rate_pct: number
+  total_trades: number
+  max_drawdown_pct: number
+}
+
+export interface RegimeAggregateStats {
+  sharpe_avg: number
+  win_rate_avg: number
+  trades_total: number
+  max_drawdown_avg: number
+}
+
+export interface RegimeBreakdown {
+  method: string
+  description: string
+  periods: RegimePeriodStats[]
+  aggregates: Record<string, RegimeAggregateStats>
+}
+
 export interface BacktestDetail {
   run_id: string
   strategy_id: string
@@ -82,6 +113,8 @@ export interface BacktestDetail {
   daily_returns: number[]
   buy_hold_equity: number[]
   benchmark_annual_returns: Record<string, number>
+  regime_series?: RegimeSeries
+  regime_breakdown?: RegimeBreakdown
 }
 
 export interface WFOWindow {
