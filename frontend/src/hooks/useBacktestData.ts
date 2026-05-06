@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api } from '../api/client'
-import type { BacktestDetail, StrategyComparison, StrategyRun, WFOResult } from '../api/types'
-import { MOCK_BACKTEST, MOCK_STRATEGIES, MOCK_WFO } from '../mock/btData'
+import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyRun, WFOResult } from '../api/types'
+import { MOCK_BACKTEST, MOCK_OPTIMIZE, MOCK_STRATEGIES, MOCK_WFO } from '../mock/btData'
 
 export type LoadState<T> =
   | { status: 'loading' }
@@ -103,6 +103,35 @@ export function useCompare(ids: string[] | null): LoadState<StrategyComparison[]
 
   if (!ids || ids.length === 0) return { status: 'ready', data: MOCK_STRATEGIES, isMock: true }
   if (result?.forKey === idsKey) return result.state
+  return { status: 'loading' }
+}
+
+export function useOptimize(strategyId: string | null): LoadState<OptimizeResult> {
+  const [result, setResult] = useState<{ forId: string; state: FetchedState<OptimizeResult> } | null>(null)
+
+  useEffect(() => {
+    if (!strategyId) return
+    let cancelled = false
+    api
+      .getOptimize(strategyId)
+      .then((data) => {
+        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        const state: FetchedState<OptimizeResult> =
+          err instanceof ApiError && err.status === 404
+            ? { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
+            : { status: 'error', error: err instanceof Error ? err.message : String(err) }
+        setResult({ forId: strategyId, state })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [strategyId])
+
+  if (!strategyId) return { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
+  if (result?.forId === strategyId) return result.state
   return { status: 'loading' }
 }
 

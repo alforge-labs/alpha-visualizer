@@ -149,3 +149,18 @@ export interface StrategyRun {
   total_return_pct: number | null
   max_drawdown_pct: number | null
 }
+
+export interface OptimizeTrial {
+  params: Record<string, number>
+  metric: number
+  pass: boolean
+  metrics: Record<string, number>
+}
+
+export interface OptimizeResult {
+  strategy_id: string
+  run_at: string
+  metric_name: string
+  best_metric: number
+  trials: OptimizeTrial[]
+}

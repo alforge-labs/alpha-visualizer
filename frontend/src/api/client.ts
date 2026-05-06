@@ -1,4 +1,4 @@
-import type { BacktestDetail, StrategyComparison, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -35,6 +35,9 @@ export const api = {
 
   getWFO: (strategyId: string): Promise<WFOResult> =>
     request<WFOResult>(`/wfo/${encodeURIComponent(strategyId)}`),
+
+  getOptimize: (strategyId: string): Promise<OptimizeResult> =>
+    request<OptimizeResult>(`/optimize/${encodeURIComponent(strategyId)}`),
 
   compareStrategies: (ids: string[]): Promise<StrategyComparison[]> =>
     request<StrategyComparison[]>(`/strategies/compare?ids=${encodeURIComponent(ids.join(','))}`),

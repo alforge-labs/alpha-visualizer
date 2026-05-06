@@ -1,6 +1,8 @@
 import type {
   BacktestDetail,
   BacktestMetrics,
+  OptimizeResult,
+  OptimizeTrial,
   StrategyComparison,
   Trade,
   WFOResult,
@@ -236,3 +238,41 @@ export const MOCK_WFO: WFOResult = {
 }
 
 export const MOCK_STRATEGIES: StrategyComparison[] = STRATEGIES
+
+/* ── MOCK_OPTIMIZE ─────────────────────────────────────────────────────────── */
+function genOptimizeTrials(): OptimizeTrial[] {
+  const rand = mb32(9999)
+  const fastValues = [5, 8, 10, 12, 15, 20, 25, 30]
+  const slowValues = [20, 30, 40, 50, 60, 80]
+  const trials: OptimizeTrial[] = []
+  for (const fast of fastValues) {
+    for (const slow of slowValues) {
+      if (fast >= slow) continue
+      const sharpe = +(rand() * 2.4 - 0.4).toFixed(3)
+      const ret = +(rand() * 40 - 5).toFixed(2)
+      const dd = +(-(rand() * 25 + 2)).toFixed(2)
+      trials.push({
+        params: { sma_fast: fast, sma_slow: slow },
+        metric: sharpe,
+        pass: sharpe > 0,
+        metrics: {
+          sharpe_ratio: sharpe,
+          total_return_pct: ret,
+          max_drawdown_pct: dd,
+          total_trades: Math.floor(rand() * 80 + 10),
+        },
+      })
+    }
+  }
+  return trials
+}
+
+const _OPTIMIZE_TRIALS = genOptimizeTrials()
+
+export const MOCK_OPTIMIZE: OptimizeResult = {
+  strategy_id: 'ema_cross_aapl_v1',
+  run_at: '2024-09-30T00:00:00Z',
+  metric_name: 'sharpe_ratio',
+  best_metric: Math.max(..._OPTIMIZE_TRIALS.map((t) => t.metric)),
+  trials: _OPTIMIZE_TRIALS,
+}
