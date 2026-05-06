@@ -51,8 +51,11 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
 
   return (
     <aside
+      className="u-drawer-md-down"
+      data-open="true"
+      data-testid="strategy-slide-panel"
       style={{
-        width: 380,
+        width: 'var(--slidepanel-width)',
         flexShrink: 0,
         alignSelf: 'flex-start',
         position: 'sticky',

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useStrategyList } from '../hooks/useStrategyList'
@@ -25,6 +26,18 @@ export function BrowsePage(): React.ReactElement {
   const handleSelect = (id: string): void => {
     list.setSelectedId(list.selectedId === id ? null : id)
   }
+
+  // 狭幅ドロワー時に Esc で閉じる（issue #54）
+  useEffect(() => {
+    if (!list.selectedId) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        list.setSelectedId(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [list])
 
   if (list.error) {
     return (
@@ -187,11 +200,20 @@ export function BrowsePage(): React.ReactElement {
           />
         )}
         {selectedStrategy && (
-          <StrategySlidePanel
-            strategy={selectedStrategy}
-            onClose={() => list.setSelectedId(null)}
-            lang={lang}
-          />
+          <>
+            {/* 768px 以下のドロワー時のみ表示（u-drawer-md-down-backdrop は @media で hidden→block 切替） */}
+            <div
+              className="u-drawer-md-down-backdrop u-hide-md-up"
+              data-testid="slide-panel-backdrop"
+              onClick={() => list.setSelectedId(null)}
+              aria-hidden="true"
+            />
+            <StrategySlidePanel
+              strategy={selectedStrategy}
+              onClose={() => list.setSelectedId(null)}
+              lang={lang}
+            />
+          </>
         )}
       </div>
 

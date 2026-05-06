@@ -79,12 +79,15 @@ interface SortThProps {
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey) => void
+  /** 768px 以下で列を hidden にする等の utility class（issue #54） */
+  className?: string
 }
 
-function SortTh({ col, label, align = 'right', width, sortKey, sortDir, onSort }: SortThProps) {
+function SortTh({ col, label, align = 'right', width, sortKey, sortDir, onSort, className }: SortThProps) {
   const active = sortKey === col
   return (
     <th
+      className={className}
       style={{
         ...TH_BASE,
         textAlign: align,
@@ -253,13 +256,14 @@ function StrategyRow({
       <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
         {fmt(s.latest_max_drawdown_pct, '%', 1)}
       </td>
-      <td style={{ ...TD_BASE, color: 'var(--text2)' }}>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
         {fmt(s.latest_profit_factor, '', 2)}
       </td>
-      <td style={{ ...TD_BASE, color: 'var(--text2)' }}>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
         {fmt(s.latest_win_rate_pct, '%', 1)}
       </td>
       <td
+        className="u-col-hide-md-down"
         style={{
           ...TD_BASE,
           color: 'var(--text3)',
@@ -270,6 +274,7 @@ function StrategyRow({
         {fmtDate(s.last_run_at)}
       </td>
       <td
+        className="u-col-hide-md-down"
         style={{
           ...TD_BASE,
           padding: '10px 12px',
@@ -365,10 +370,10 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
       >
         {fmt(agg.worstDrawdownPct, '%', 1)}
       </td>
-      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
-      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
-      <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
-      <td style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
+      <td className="u-col-hide-md-down" style={{ ...TD_BASE, borderBottom: '1px solid var(--border)' }}></td>
     </tr>
   )
 }
@@ -438,6 +443,8 @@ export function StrategyTable({
 
   return (
     <div
+      className="u-scroll-x"
+      data-testid="strategy-table-scroll"
       style={{
         flex: 1,
         minWidth: 0,
@@ -464,10 +471,10 @@ export function StrategyTable({
             <SortTh col="latest_sharpe" label="Sharpe" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_return_pct" label={L('リターン', 'Return')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_max_drawdown_pct" label="Max DD" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <SortTh col="latest_profit_factor" label="Profit F." sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <SortTh col="latest_win_rate_pct" label="Win %" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <SortTh col="last_run_at" label={L('最終実行', 'Last run')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <th style={{ ...TH_BASE, width: 132, textAlign: 'right' }}>
+            <SortTh col="latest_profit_factor" label="Profit F." className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+            <SortTh col="latest_win_rate_pct" label="Win %" className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+            <SortTh col="last_run_at" label={L('最終実行', 'Last run')} className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+            <th className="u-col-hide-md-down" style={{ ...TH_BASE, width: 132, textAlign: 'right' }}>
               {L('推移', 'Trend')}
             </th>
           </tr>

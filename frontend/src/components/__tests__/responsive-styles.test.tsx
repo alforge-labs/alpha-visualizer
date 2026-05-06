@@ -1,8 +1,11 @@
 import { render } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import { MetricsGrid } from '../metrics/MetricsGrid'
 import { MetricsSummaryBarV2 } from '../MetricsSummaryBarV2'
-import type { BacktestMetrics } from '../../api/types'
+import { StrategyTable } from '../browser/StrategyTable'
+import { StrategySlidePanel } from '../browser/StrategySlidePanel'
+import type { BacktestMetrics, StrategyListItem } from '../../api/types'
 
 // issue #54: tokens.css の CSS 変数を `gridTemplateColumns` 等に注入することで
 // @media による上書きを可能にしている。インラインスタイル文字列が想定通り
@@ -61,5 +64,84 @@ describe('Responsive styles (issue #54)', () => {
     const { getByTestId } = render(<MetricsSummaryBarV2 metrics={MOCK_METRICS} lang="ja" />)
     const bar = getByTestId('metrics-summary-bar') as HTMLElement
     expect(bar.classList.contains('metrics-summary-bar')).toBe(true)
+  })
+
+  it('StrategyTable wraps with u-scroll-x for horizontal scroll', () => {
+    const items: StrategyListItem[] = [
+      { strategy_id: 's1', name: 'S1', symbol: 'AAPL', timeframe: '1d' },
+    ]
+    const { getByTestId } = render(
+      <MemoryRouter>
+        <StrategyTable
+          items={items}
+          total={1}
+          sortKey="latest_sharpe"
+          sortDir="desc"
+          onSort={() => {}}
+          selectedId={null}
+          onSelect={() => {}}
+          compareIds={[]}
+          onToggleCompare={() => {}}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    const wrapper = getByTestId('strategy-table-scroll') as HTMLElement
+    expect(wrapper.classList.contains('u-scroll-x')).toBe(true)
+  })
+
+  it('StrategyTable hides 4 auxiliary columns under 768px via u-col-hide-md-down', () => {
+    const items: StrategyListItem[] = [
+      {
+        strategy_id: 's1',
+        name: 'S1',
+        symbol: 'AAPL',
+        timeframe: '1d',
+        latest_sharpe: 1.2,
+        latest_return_pct: 12,
+        latest_max_drawdown_pct: -8,
+        latest_profit_factor: 1.4,
+        latest_win_rate_pct: 55,
+        last_run_at: '2026-01-01',
+      },
+    ]
+    const { container } = render(
+      <MemoryRouter>
+        <StrategyTable
+          items={items}
+          total={1}
+          sortKey="latest_sharpe"
+          sortDir="desc"
+          onSort={() => {}}
+          selectedId={null}
+          onSelect={() => {}}
+          compareIds={[]}
+          onToggleCompare={() => {}}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    // 補助列: Profit F. / Win % / Last run / Trend の合計 4 列、
+    // ヘッダ + 1 行ぶんの td → 8 個に class が付く想定
+    const hidden = container.querySelectorAll('.u-col-hide-md-down')
+    expect(hidden.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('StrategySlidePanel applies u-drawer-md-down with data-open', () => {
+    const strategy: StrategyListItem = {
+      strategy_id: 's1',
+      name: 'S1',
+      symbol: 'AAPL',
+      timeframe: '1d',
+    }
+    const { getByTestId } = render(
+      <MemoryRouter>
+        <StrategySlidePanel strategy={strategy} onClose={() => {}} lang="ja" />
+      </MemoryRouter>,
+    )
+    const panel = getByTestId('strategy-slide-panel') as HTMLElement
+    expect(panel.classList.contains('u-drawer-md-down')).toBe(true)
+    expect(panel.getAttribute('data-open')).toBe('true')
+    expect(panel.style.width).toBe('var(--slidepanel-width)')
   })
 })
