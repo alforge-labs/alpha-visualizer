@@ -164,3 +164,53 @@ export interface OptimizeResult {
   best_metric: number
   trials: OptimizeTrial[]
 }
+
+export interface IndicatorConfig {
+  id: string
+  type: string
+  params: Record<string, unknown>
+  lock_on_entry: boolean
+}
+
+export interface VariableConfig {
+  id: string
+  expression: string
+  [key: string]: unknown
+}
+
+export interface ConditionNode {
+  type: string
+  conditions?: ConditionNode[]
+  left?: string
+  right?: unknown
+  [key: string]: unknown
+}
+
+export interface EntryExitConditions {
+  long?: ConditionNode
+  short?: ConditionNode
+  [key: string]: ConditionNode | undefined
+}
+
+export interface RiskManagement {
+  sl_pct?: number | null
+  tp_pct?: number | null
+  trailing_stop?: boolean
+  position_size_pct?: number | null
+  max_positions?: number | null
+  [key: string]: unknown
+}
+
+export interface StrategyDetail {
+  strategy_id: string
+  name: string
+  parameters: Record<string, unknown>
+  indicators: IndicatorConfig[]
+  variables: VariableConfig[]
+  entry_conditions: EntryExitConditions | null
+  exit_conditions: EntryExitConditions | null
+  risk_management: RiskManagement | null
+  regime_config: Record<string, unknown> | null
+  results: StrategyRun[]
+  optimization_history: Array<{ trial: number; best_sharpe: number; run_at: string; n_trials: number }>
+}

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useBacktest, useOptimize, useRunBacktest, useStrategyRuns, useWFO } from '../hooks/useBacktestData'
+import { useBacktest, useOptimize, useRunBacktest, useStrategyDetail, useStrategyRuns, useWFO } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
 import { BacktestScreen } from '../screens/BacktestScreen'
 import { ISOOSScreen } from '../screens/ISOOSScreen'
 import { WFOScreen } from '../screens/WFOScreen'
 import { OptimizeScreen } from '../screens/OptimizeScreen'
+import { StrategyScreen } from '../screens/StrategyScreen'
 import { RunHistoryTab } from '../components/browser/RunHistoryTab'
 import { MetricsSummaryBarV2 } from '../components/MetricsSummaryBarV2'
 import { DetailToolbar } from '../components/DetailToolbar'
@@ -13,7 +14,7 @@ import { StrategyHero } from '../components/StrategyHero'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { makeL } from '../i18n/strings'
 
-type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history'
+type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history' | 'strategy'
 
 export function DetailPage() {
   const { strategyId } = useParams<{ strategyId: string }>()
@@ -35,6 +36,7 @@ export function DetailPage() {
   const backtest = useBacktest({ runId })
   const wfo = useWFO(strategyId ?? null)
   const optimize = useOptimize(strategyId ?? null)
+  const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
   const compact = density === 'compact'
   const { run: runBt, running: btRunning, error: runError } = useRunBacktest()
 
@@ -75,6 +77,7 @@ export function DetailPage() {
     ['wfo', 'WFO'],
     ['optimize', L('最適化', 'Optimize')],
     ['history', L('実行履歴', 'Run History')],
+    ['strategy', L('戦略構成', 'Strategy')],
   ]
 
   return (
@@ -194,6 +197,14 @@ export function DetailPage() {
                 <Note tone="danger">{runsState.error}</Note>
               ) : (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ))}
+            {tab === 'strategy' &&
+              (strategyDetail.status === 'loading' ? (
+                <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : strategyDetail.status === 'error' ? (
+                <Note tone="danger">{strategyDetail.error}</Note>
+              ) : (
+                <StrategyScreen data={strategyDetail.data} lang={lang} />
               ))}
           </div>
         </div>

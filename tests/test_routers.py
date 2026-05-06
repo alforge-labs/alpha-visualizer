@@ -106,6 +106,65 @@ class TestStrategiesRouter:
         assert data["strategy_id"] == "test_strategy"
         assert data["parameters"]["period"] == 20
 
+    def test_get_strategy_found_with_structure(self, tmp_path: pathlib.Path) -> None:
+        """戦略構造フィールド（indicators / variables / entry_conditions / exit_conditions /
+        risk_management / regime_config）がレスポンスに含まれる"""
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True)
+        strategy_def = {
+            "strategy_id": "full_strategy",
+            "name": "フル戦略",
+            "timeframe": "1d",
+            "parameters": {"period": 14},
+            "indicators": [
+                {"id": "rsi", "type": "RSI", "params": {"period": 14}, "lock_on_entry": False}
+            ],
+            "variables": [{"id": "rsi_val", "expression": "rsi.value"}],
+            "entry_conditions": {
+                "long": {"type": "AND", "conditions": [{"type": "gt", "left": "rsi_val", "right": 30}]}
+            },
+            "exit_conditions": {
+                "long": {"type": "AND", "conditions": [{"type": "gt", "left": "rsi_val", "right": 70}]}
+            },
+            "risk_management": {
+                "sl_pct": 2.0,
+                "tp_pct": 4.0,
+                "trailing_stop": False,
+                "position_size_pct": 10.0,
+                "max_positions": 1,
+            },
+            "regime_config": {"model": "HMM", "n_states": 2},
+        }
+        (strategies_dir / "full_strategy.json").write_text(
+            json.dumps(strategy_def), encoding="utf-8"
+        )
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/api/strategies/full_strategy")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["indicators"] == strategy_def["indicators"]
+        assert data["variables"] == strategy_def["variables"]
+        assert data["entry_conditions"] == strategy_def["entry_conditions"]
+        assert data["exit_conditions"] == strategy_def["exit_conditions"]
+        assert data["risk_management"] == strategy_def["risk_management"]
+        assert data["regime_config"] == strategy_def["regime_config"]
+
+    def test_get_strategy_structure_missing_fields_returns_defaults(
+        self, client_with_strategies: TestClient
+    ) -> None:
+        """戦略定義に構造フィールドがない場合はデフォルト値（空）を返す"""
+        response = client_with_strategies.get("/api/strategies/test_strategy")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["indicators"] == []
+        assert data["variables"] == []
+        assert data["entry_conditions"] is None
+        assert data["exit_conditions"] is None
+        assert data["risk_management"] is None
+        assert data["regime_config"] is None
+
     def test_compare_strategies_empty_ids(self, client: TestClient) -> None:
         """ids が空の場合は 400 を返す"""
         response = client.get("/api/strategies/compare?ids=")

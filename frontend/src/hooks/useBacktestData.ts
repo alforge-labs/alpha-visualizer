@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api } from '../api/client'
-import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyRun, WFOResult } from '../api/types'
+import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyDetail, StrategyRun, WFOResult } from '../api/types'
 import { MOCK_BACKTEST, MOCK_OPTIMIZE, MOCK_STRATEGIES, MOCK_WFO } from '../mock/btData'
 
 export type LoadState<T> =
@@ -152,6 +152,27 @@ export function useStrategyRuns(strategyId: string | null): LoadState<StrategyRu
   }, [strategyId])
 
   if (!strategyId) return { status: 'ready', data: [], isMock: false }
+  if (result?.forId === strategyId) return result.state
+  return { status: 'loading' }
+}
+
+export function useStrategyDetail(strategyId: string | null): LoadState<StrategyDetail> {
+  const [result, setResult] = useState<{ forId: string; state: FetchedState<StrategyDetail> } | null>(null)
+
+  useEffect(() => {
+    if (!strategyId) return
+    let cancelled = false
+    api.getStrategyDetail(strategyId)
+      .then(data => {
+        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
+      })
+      .catch(err => {
+        if (!cancelled) setResult({ forId: strategyId, state: { status: 'error', error: err instanceof Error ? err.message : String(err) } })
+      })
+    return () => { cancelled = true }
+  }, [strategyId])
+
+  if (!strategyId) return { status: 'error', error: 'strategy_id が指定されていません' }
   if (result?.forId === strategyId) return result.state
   return { status: 'loading' }
 }

@@ -267,6 +267,12 @@ async def get_strategy(strategy_id: str, request: Request) -> dict[str, Any]:
         "strategy_id": record.get("strategy_id", strategy_id),
         "name": record.get("name", strategy_id),
         "parameters": record.get("parameters", {}),
+        "indicators": record.get("indicators", []),
+        "variables": record.get("variables", []),
+        "entry_conditions": record.get("entry_conditions"),
+        "exit_conditions": record.get("exit_conditions"),
+        "risk_management": record.get("risk_management"),
+        "regime_config": record.get("regime_config"),
         "results": _get_all_results(config, strategy_id),
         "optimization_history": _get_optimization_history(config, strategy_id),
     }

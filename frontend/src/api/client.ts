@@ -1,4 +1,4 @@
-import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -74,6 +74,9 @@ export const api = {
         max_drawdown_pct: r.max_drawdown_pct ?? null,
       }))
   },
+
+  getStrategyDetail: (strategyId: string): Promise<StrategyDetail> =>
+    request<StrategyDetail>(`/strategies/${encodeURIComponent(strategyId)}`),
 
   runBacktest: (strategyId: string, symbol: string, timeframe: string): Promise<{ run_id: string; status: string }> =>
     request<{ run_id: string; status: string }>('/run', {
