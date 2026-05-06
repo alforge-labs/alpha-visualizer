@@ -23,6 +23,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _parse_tags_column(raw: str | None) -> list[str]:
+    """``strategies.tags`` TEXT 列（JSON 配列文字列）を ``list[str]`` に復元する。"""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(t) for t in parsed if t]
+
+
+def _normalize_string_list(value: Any) -> list[str]:
+    """戦略 JSON 内の文字列配列フィールドを安全に正規化する。"""
+    if not isinstance(value, list):
+        return []
+    return [str(v) for v in value if v]
+
+
 def _load_strategies_from_db(db_path: pathlib.Path) -> list[dict[str, Any]]:
     """``strategies.db`` から戦略定義を読み取る。"""
     engine = create_engine(f"sqlite:///{db_path}", future=True)
@@ -42,6 +62,9 @@ def _load_strategies_from_db(db_path: pathlib.Path) -> list[dict[str, Any]]:
             data.setdefault("name", row.name)
             # 戦略定義 JSON に timeframe が無ければ strategies テーブルの列値を使う。
             data.setdefault("timeframe", row.timeframe)
+            db_tags = _parse_tags_column(row.tags)
+            if db_tags:
+                data.setdefault("tags", db_tags)
             out.append(data)
     return out
 
@@ -193,6 +216,8 @@ async def list_strategies(request: Request) -> list[dict[str, Any]]:
             "name": record.get("name", sid),
             "symbol": None,
             "timeframe": record.get("timeframe"),
+            "tags": _normalize_string_list(record.get("tags")),
+            "target_symbols": _normalize_string_list(record.get("target_symbols")),
             "latest_sharpe": None,
             "latest_return_pct": None,
             "latest_max_drawdown_pct": None,
