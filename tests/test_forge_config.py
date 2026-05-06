@@ -27,6 +27,7 @@ class TestForgeConfigFallback:
         assert config.strategies_dir == tmp_path / "data" / "strategies"
         assert config.strategies_db is None
         assert config.ideas_json == tmp_path / "data" / "ideas" / "ideas.json"
+        assert config.live_dir == tmp_path / "data" / "live"
 
     def test_empty_yaml_uses_defaults(self, tmp_path: pathlib.Path) -> None:
         """forge.yaml が空（None）の場合もデフォルトにフォールバックする"""
@@ -91,6 +92,30 @@ class TestForgeConfigYamlReflection:
         )
         config = ForgeConfig.from_forge_dir(tmp_path)
         assert config.ideas_json == tmp_path / "custom" / "ideas" / "ideas.json"
+
+    def test_live_output_path_reflected(self, tmp_path: pathlib.Path) -> None:
+        """live.output_path を反映する"""
+        _write_yaml(
+            tmp_path / "forge.yaml",
+            """
+            live:
+              output_path: ./custom/live
+            """,
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.live_dir == tmp_path / "custom" / "live"
+
+    def test_live_default_when_section_missing(self, tmp_path: pathlib.Path) -> None:
+        """live セクションが無い場合は <forge_dir>/data/live を使う"""
+        _write_yaml(
+            tmp_path / "forge.yaml",
+            """
+            report:
+              output_path: ./data/results
+            """,
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.live_dir == tmp_path / "data" / "live"
 
 
 class TestForgeConfigPathResolution:
