@@ -35,6 +35,14 @@ export interface BacktestMetrics {
     signal_quality_score: number
     warning: string | null
   }
+  benchmark?: {
+    alpha_pct: number
+    beta: number
+    information_ratio: number
+    correlation: number
+    benchmark_total_return_pct: number
+    benchmark_cagr_pct: number
+  }
 }
 
 export interface Trade {
