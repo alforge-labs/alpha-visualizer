@@ -14,11 +14,12 @@ interface ToolbarProps {
 export function Toolbar({ leading, children, trailing, sticky = false }: ToolbarProps) {
   return (
     <div
+      className="u-toolbar-wrap"
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 'var(--space-3)',
-        padding: '12px 24px',
+        padding: 'var(--space-3) var(--layout-gutter)',
         background: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
         position: sticky ? 'sticky' : 'static',
@@ -31,7 +32,7 @@ export function Toolbar({ leading, children, trailing, sticky = false }: Toolbar
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         {children}
       </div>
-      {trailing && <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>{trailing}</div>}
+      {trailing && <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>{trailing}</div>}
     </div>
   )
 }

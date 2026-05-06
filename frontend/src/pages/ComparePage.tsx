@@ -44,7 +44,7 @@ export function ComparePage(): React.ReactElement {
     >
       <header
         style={{
-          padding: 'var(--space-6) var(--space-7) var(--space-5)',
+          padding: 'var(--layout-gutter-y) var(--layout-gutter) var(--space-5)',
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
@@ -66,7 +66,7 @@ export function ComparePage(): React.ReactElement {
           style={{
             margin: '6px 0 0 0',
             fontFamily: 'var(--serif)',
-            fontSize: '2rem',
+            fontSize: 'var(--hero-fs-h1)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.01em',
@@ -171,7 +171,7 @@ export function ComparePage(): React.ReactElement {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: 'var(--space-6) var(--space-7)',
+          padding: 'var(--space-6) var(--layout-gutter)',
         }}
       >
         {compare.status === 'loading' && (

@@ -179,3 +179,142 @@ a:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+ * Responsive — issue #54
+ *
+ * 戦略: tokens.css の @media で CSS 変数を上書きし、コンポーネント
+ * 側のインラインスタイルは var(--cols-*) などを参照するだけに保つ。
+ * @media は var() を解決しないため --bp-* は「ドキュメント用」変数。
+ * 実際の @media (max-width: ...) には値を直書きする。
+ * ────────────────────────────────────────────────────────────── */
+:root {
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  /* レスポンシブで上書きする "ローカル" 変数。デフォルト = デスクトップ値 */
+  --layout-gutter: var(--space-7);
+  --layout-gutter-y: var(--space-6);
+  --cols-kpi: 4;
+  --cols-kpi-secondary: 6;
+  --cols-summary-bar: 6;
+  --slidepanel-width: 380px;
+  --compare-grid: minmax(0, 2fr) minmax(280px, 1fr);
+  --hero-fs-h1: 2rem;
+  --hero-fs-display: 1.625rem;
+}
+
+/* ── lg 以下 (≤1024px): タブレット横〜小ノート ─────────────── */
+@media (max-width: 1024px) {
+  :root {
+    --layout-gutter: var(--space-6);
+    --cols-kpi-secondary: 4;
+    --cols-summary-bar: 4;
+    --compare-grid: 1fr;
+    --slidepanel-width: 340px;
+  }
+}
+
+/* ── md 以下 (≤768px): タブレット縦 ─────────────── */
+@media (max-width: 768px) {
+  :root {
+    --layout-gutter: var(--space-5);
+    --layout-gutter-y: var(--space-5);
+    --cols-kpi: 2;
+    --cols-kpi-secondary: 2;
+    --cols-summary-bar: 2;
+    --slidepanel-width: 100vw;
+    --hero-fs-h1: 1.5rem;
+    --hero-fs-display: 1.375rem;
+    --space-7: 32px;
+    --space-6: 24px;
+  }
+}
+
+/* ── sm 以下 (≤480px): スマホ ─────────────── */
+@media (max-width: 480px) {
+  :root {
+    --layout-gutter: var(--space-4);
+    --layout-gutter-y: var(--space-4);
+    --cols-kpi: 1;
+    --cols-kpi-secondary: 2;
+    --cols-summary-bar: 2;
+    --hero-fs-h1: 1.375rem;
+    --hero-fs-display: 1.25rem;
+  }
+}
+
+/* ── Utility classes ──────────────────────────────────── */
+
+.u-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+.u-scroll-x:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (max-width: 768px) {
+  .u-hide-md-down { display: none !important; }
+}
+.u-hide-md-up { display: none; }
+@media (max-width: 768px) {
+  .u-hide-md-up { display: revert; }
+}
+
+@media (max-width: 768px) {
+  .u-col-hide-md-down { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .u-drawer-md-down {
+    position: fixed !important;
+    inset: 0 0 0 auto;
+    width: var(--slidepanel-width) !important;
+    max-width: 100vw;
+    z-index: 30;
+    box-shadow: var(--shadow-2);
+    transition: transform var(--motion-base);
+  }
+  .u-drawer-md-down[data-open="false"] {
+    transform: translateX(100%);
+    pointer-events: none;
+  }
+  .u-drawer-md-down-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 18, 14, 0.40);
+    z-index: 29;
+  }
+}
+
+@media (max-width: 768px) {
+  .u-toolbar-wrap {
+    flex-wrap: wrap !important;
+    row-gap: var(--space-2) !important;
+  }
+  .u-toolbar-wrap > * { min-width: 0; }
+}
+
+@media (max-width: 768px) {
+  .u-scroll-x table { min-width: 100% !important; }
+}
+
+/* MetricsSummaryBarV2 セル境界線：6 列ではセル左境界、2/4 列でも整合させる */
+.metrics-summary-bar > div { border-left: 1px solid var(--border); }
+.metrics-summary-bar > div:first-child { border-left: none; }
+@media (max-width: 768px) {
+  .metrics-summary-bar > div {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+  }
+  .metrics-summary-bar > div:nth-child(-n+2) {
+    border-top: none;
+    padding-top: 0;
+  }
+}

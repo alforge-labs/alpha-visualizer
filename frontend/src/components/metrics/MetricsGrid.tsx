@@ -131,16 +131,24 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div
+        data-testid="kpi-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(var(--cols-kpi), minmax(0,1fr))',
+          gap: 10,
+        }}
+      >
         {kpis.map((c, i) => (
           <MetricCard key={i} {...c} />
         ))}
       </div>
       {!compact && (
         <div
+          data-testid="secondary-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(6,1fr)',
+            gridTemplateColumns: 'repeat(var(--cols-kpi-secondary), minmax(0,1fr))',
             gap: 8,
           }}
         >
@@ -164,7 +172,14 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
           >
             {L('ベンチマーク', 'Benchmark')}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
+          <div
+            data-testid="benchmark-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(var(--cols-kpi-secondary), minmax(0,1fr))',
+              gap: 8,
+            }}
+          >
             <MetricCard label={L('アルファ α', 'Alpha α')} value={m.benchmark.alpha_pct} suffix="%" goodWhen="pos" />
             <MetricCard label="Beta β" value={m.benchmark.beta} />
             <MetricCard label="Info Ratio" value={m.benchmark.information_ratio} goodWhen="gte1" />
