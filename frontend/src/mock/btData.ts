@@ -105,6 +105,7 @@ const METRICS: BacktestMetrics = {
   cvar_95_pct: 2.41,
   deflated_sharpe: { probabilistic_sr: 0.923, deflated_sr: 0.871, n_trials: 12 },
   statistical_validity: { is_valid: true, signal_quality_score: 0.74, warning: null },
+  annual_returns: { '2020': 32.4, '2021': 18.7, '2022': -21.2, '2023': 28.6, '2024': 12.1 },
 }
 
 const IS_METRICS: BacktestMetrics = {
@@ -117,6 +118,7 @@ const IS_METRICS: BacktestMetrics = {
   win_rate_pct: 57.1,
   profit_factor: 1.89,
   total_trades: 112,
+  annual_returns: {},
 }
 
 const OOS_METRICS: BacktestMetrics = {
@@ -129,6 +131,7 @@ const OOS_METRICS: BacktestMetrics = {
   win_rate_pct: 50.1,
   profit_factor: 1.41,
   total_trades: 71,
+  annual_returns: {},
 }
 
 const MONTHLY_RETURNS: Record<number, (number | null)[]> = {
@@ -220,6 +223,7 @@ export const MOCK_BACKTEST: BacktestDetail = {
   trades: TRADES,
   daily_returns: [],
   buy_hold_equity: [],
+  benchmark_annual_returns: {},
 }
 
 export const MOCK_WFO: WFOResult = {

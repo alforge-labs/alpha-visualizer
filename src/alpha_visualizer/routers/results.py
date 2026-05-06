@@ -46,6 +46,18 @@ def _shape_monthly_returns(raw: dict[str, float] | None) -> dict[int, list[float
     return by_year
 
 
+def _shape_annual_returns(raw: dict[str, float] | None) -> dict[int, float]:
+    if not raw:
+        return {}
+    result: dict[int, float] = {}
+    for year_str, pct in raw.items():
+        try:
+            result[int(year_str)] = float(pct)
+        except (ValueError, TypeError):
+            continue
+    return result
+
+
 def _shape_trades(
     raw_trades: list[dict[str, Any]] | None,
     trade_analysis: dict[str, Any] | None,
@@ -117,6 +129,49 @@ def _compute_buy_hold_equity(record: dict[str, Any]) -> list[float]:
         return []
     base = vals[0]
     return [round(v / base * 100.0, 4) if math.isfinite(v) else 0.0 for v in vals]
+
+
+def _compute_benchmark_annual_returns(
+    dates: list[str],
+    buy_hold_values: list[float],
+) -> dict[int, float]:
+    """equity_curve 由来の日付と正規化済み buy_hold_equity から年次リターン % を計算する。
+    年がギャップを含む場合、前の観測年末を当年の起点として扱う。
+    """
+    if not dates or not buy_hold_values:
+        return {}
+    if len(dates) != len(buy_hold_values):
+        logger.warning(
+            "dates length (%d) != buy_hold_values length (%d); "
+            "skipping benchmark_annual_returns",
+            len(dates),
+            len(buy_hold_values),
+        )
+        return {}
+    by_year: dict[int, list[tuple[str, float]]] = {}
+    for d, v in zip(dates, buy_hold_values, strict=True):
+        if not d or not math.isfinite(v):
+            continue
+        try:
+            year = int(d[:4])
+        except (ValueError, IndexError):
+            continue
+        by_year.setdefault(year, []).append((d, v))
+    if not by_year:
+        return {}
+    sorted_years = sorted(by_year.keys())
+    result: dict[int, float] = {}
+    for i, year in enumerate(sorted_years):
+        entries = sorted(by_year[year])
+        year_end = entries[-1][1]
+        if i == 0:
+            year_start = entries[0][1]
+        else:
+            prev_entries = sorted(by_year[sorted_years[i - 1]])
+            year_start = prev_entries[-1][1]
+        if year_start != 0.0 and math.isfinite(year_start):
+            result[year] = round((year_end - year_start) / year_start * 100.0, 4)
+    return result
 
 
 def _shape_equity(raw: list[Any] | None) -> tuple[list[str], list[float]]:
@@ -235,6 +290,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
 
 def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
     metrics: dict[str, Any] = dict(record.get("metrics") or {})
+    metrics["annual_returns"] = _shape_annual_returns(metrics.get("annual_returns"))
     raw_equity = record.get("equity_curve")
     dates, values = _shape_equity(raw_equity)
     drawdown = _compute_drawdown(values)
@@ -245,6 +301,10 @@ def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
     is_m, oos_m = _split_metrics(metrics, cutoff["index"], len(values))
     period_start = dates[0][:7] if dates else ""
     period_end = dates[-1][:7] if dates else ""
+    buy_hold_vals = _compute_buy_hold_equity(record)
+    benchmark_annual = (
+        _compute_benchmark_annual_returns(dates, buy_hold_vals) if buy_hold_vals else {}
+    )
 
     return {
         "run_id": record.get("run_id", ""),
@@ -257,13 +317,14 @@ def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
         "equity": {"dates": dates, "values": values},
         "drawdown": drawdown,
         "daily_returns": _compute_daily_returns(values),
-        "buy_hold_equity": _compute_buy_hold_equity(record),
+        "buy_hold_equity": buy_hold_vals,
         "is_cutoff": cutoff,
         "metrics": metrics,
         "is_metrics": is_m,
         "oos_metrics": oos_m,
         "monthly_returns": monthly,
         "trades": trades,
+        "benchmark_annual_returns": benchmark_annual,
     }
 
 
