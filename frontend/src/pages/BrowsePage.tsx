@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useStrategyList } from '../hooks/useStrategyList'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
@@ -122,6 +123,23 @@ export function BrowsePage(): React.ReactElement {
           )}
         </p>
         {!list.loading && <Heroline items={list.all} lang={lang} />}
+        <Link
+          to="/ideas"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            marginTop: 'var(--space-3)',
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            fontWeight: 500,
+            color: 'var(--text3)',
+            textDecoration: 'none',
+            letterSpacing: 'var(--tracking-caption)',
+            textTransform: 'uppercase',
+          }}
+        >
+          {L('Ideas →', 'Ideas →')}
+        </Link>
         </div>
         <SettingsToggles
           variation={variation}

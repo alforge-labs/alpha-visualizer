@@ -214,3 +214,24 @@ export interface StrategyDetail {
   results: StrategyRun[]
   optimization_history: Array<{ trial: number; best_sharpe: number; run_at: string; n_trials: number }>
 }
+
+export interface LinkedRun {
+  strategy_id: string
+  run_id: string
+  notes?: string
+}
+
+export interface IdeaItem {
+  idea_id: string
+  title?: string
+  description?: string
+  status?: string
+  idea_type?: string
+  tags?: string[]
+  created_at?: string
+  updated_at?: string
+  linked_strategies?: string[]
+  linked_runs?: LinkedRun[]
+  result_summary?: string | null
+  notes_history?: string[]
+}
