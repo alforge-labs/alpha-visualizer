@@ -39,7 +39,10 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
   const drawdownRef = useRef<HTMLDivElement>(null)
   const heatmapRef = useRef<HTMLDivElement>(null)
 
-  const exportChartPng = (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+  const exportChartPng = (
+    ref: React.RefObject<HTMLDivElement | null>,
+    filename: string,
+  ) => {
     const svg = ref.current?.querySelector('svg')
     if (svg) void exportSvgAsPng(svg as SVGSVGElement, filename, chartTheme.bg)
   }
