@@ -161,6 +161,130 @@ class TestWfoRouter:
         response = client.get("/api/wfo/some_strategy")
         assert response.status_code == 404
 
+    def _setup_wfo_db(self, tmp_path: pathlib.Path, with_equity: bool = True) -> None:
+        """WFO テスト用 DB と forge.yaml を作成する。"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        _create_backtest_db(db_path)
+        _seed_wfo_windows(db_path)
+        if with_equity:
+            _seed_oos_equity_curves(db_path)
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                report:
+                  output_path: ./data/results
+                  db_filename: backtest_results.db
+                """
+            ).strip()
+        )
+
+    def test_wfo_composite_from_backtest_results(self, tmp_path: pathlib.Path) -> None:
+        """backtest_results の equity_curve_json から composite curve が構築される。"""
+        self._setup_wfo_db(tmp_path, with_equity=True)
+
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/wfo/wfo_strategy")
+
+        assert response.status_code == 200
+        data = response.json()
+        eq = data["composite_equity"]
+        dates = data["composite_dates"]
+
+        assert len(eq) > 0
+        assert len(eq) == len(dates)
+        assert abs(eq[0] - 100.0) < 1e-6
+        assert all(d1 <= d2 for d1, d2 in zip(dates, dates[1:], strict=False))
+
+    def test_wfo_composite_fallback_to_return_pct(self, tmp_path: pathlib.Path) -> None:
+        """backtest_results が無い場合は oos_return_pct から線形補間される。"""
+        self._setup_wfo_db(tmp_path, with_equity=False)
+
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/wfo/wfo_strategy")
+
+        assert response.status_code == 200
+        data = response.json()
+        eq = data["composite_equity"]
+        dates = data["composite_dates"]
+
+        assert len(eq) > 0
+        assert len(eq) == len(dates)
+        assert abs(eq[0] - 100.0) < 1e-6
+        w1_end_idx = len([d for d in dates if d <= "2021-12-31"]) - 1
+        assert abs(eq[w1_end_idx] - 108.0) < 0.5
+
+    def test_wfo_composite_continuous_across_windows(self, tmp_path: pathlib.Path) -> None:
+        """ウィンドウ境界で composite curve が連続している。"""
+        self._setup_wfo_db(tmp_path, with_equity=True)
+
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/wfo/wfo_strategy")
+
+        data = response.json()
+        eq = data["composite_equity"]
+        dates = data["composite_dates"]
+
+        w1_end_idx = next(i for i, d in enumerate(dates) if d >= "2022-07-01") - 1
+        w2_start_idx = w1_end_idx + 1
+        assert w1_end_idx >= 0 and w2_start_idx < len(eq)
+        assert abs(eq[w1_end_idx] - eq[w2_start_idx]) < 1e-6
+
+    def test_wfo_composite_empty_when_no_oos_dates(self, tmp_path: pathlib.Path) -> None:
+        """oos_start が空のウィンドウのみの場合、composite は空配列を返す。"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        _create_backtest_db(db_path)
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                report:
+                  output_path: ./data/results
+                  db_filename: backtest_results.db
+                """
+            ).strip()
+        )
+
+        bad_windows = [
+            {
+                "window_id": 1,
+                "is_sharpe": 1.0,
+                "oos_start": "",
+                "oos_end": "",
+                "oos_return_pct": 5.0,
+            }
+        ]
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            """INSERT INTO optimization_runs
+               (run_id, strategy_id, symbol, run_at, n_trials, best_metric_name,
+                best_metric_value, best_params_json, all_trials_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "opt_bad",
+                "bad_strat",
+                "AAPL",
+                "2026-01-01T00:00:00",
+                10,
+                "sharpe_ratio",
+                1.0,
+                "{}",
+                json.dumps(bad_windows),
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/wfo/bad_strat")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["composite_equity"] == []
+        assert data["composite_dates"] == []
+
 
 # --- forge.yaml 反映 + 実 DB ありのテスト ----------------------------------
 
@@ -272,6 +396,105 @@ def client_with_db(tmp_path: pathlib.Path) -> TestClient:
     )
     app = create_app(forge_dir=tmp_path)
     return TestClient(app)
+
+
+def _seed_wfo_windows(db_path: pathlib.Path, strategy_id: str = "wfo_strategy") -> None:
+    """optimization_runs に WFO ウィンドウ形式の all_trials_json を挿入する。"""
+    conn = sqlite3.connect(db_path)
+    windows = [
+        {
+            "window_id": 1,
+            "label": "W1",
+            "is_start": "2021-01-04",
+            "is_end": "2021-06-30",
+            "oos_start": "2021-07-01",
+            "oos_end": "2021-12-31",
+            "is_sharpe": 1.2,
+            "oos_sharpe": 0.9,
+            "is_return_pct": 12.0,
+            "oos_return_pct": 8.0,
+            "pass": True,
+        },
+        {
+            "window_id": 2,
+            "label": "W2",
+            "is_start": "2022-01-03",
+            "is_end": "2022-06-30",
+            "oos_start": "2022-07-01",
+            "oos_end": "2022-12-30",
+            "is_sharpe": 1.1,
+            "oos_sharpe": 0.7,
+            "is_return_pct": 10.0,
+            "oos_return_pct": 5.0,
+            "pass": True,
+        },
+    ]
+    conn.execute(
+        """INSERT INTO optimization_runs
+           (run_id, strategy_id, symbol, run_at, n_trials,
+            best_metric_name, best_metric_value, best_params_json, all_trials_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "opt_wfo_001",
+            strategy_id,
+            "AAPL",
+            "2026-01-01T00:00:00",
+            50,
+            "sharpe_ratio",
+            0.9,
+            "{}",
+            json.dumps(windows),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _seed_oos_equity_curves(db_path: pathlib.Path, strategy_id: str = "wfo_strategy") -> None:
+    """backtest_results に OOS 期間付きエクイティカーブを挿入する（各 WFO ウィンドウ対応）。"""
+    import datetime
+
+    def _make_curve(start_date: str, n_days: int, start_val: float, return_pct: float) -> str:
+        base = datetime.date.fromisoformat(start_date)
+        end_val = start_val * (1 + return_pct / 100)
+        curve = []
+        for i in range(n_days):
+            d = base + datetime.timedelta(days=i)
+            v = start_val + (end_val - start_val) * (i / max(n_days - 1, 1))
+            curve.append({"date": d.isoformat(), "value": round(v, 4)})
+        return json.dumps(curve)
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """INSERT INTO backtest_results
+           (run_id, strategy_id, symbol, run_at, metrics_json, equity_curve_json, oos_start)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "bt_wfo_w1",
+            strategy_id,
+            "AAPL",
+            "2026-01-01T00:00:00",
+            "{}",
+            _make_curve("2021-07-01", 184, 100000.0, 8.0),
+            "2021-07-01",
+        ),
+    )
+    conn.execute(
+        """INSERT INTO backtest_results
+           (run_id, strategy_id, symbol, run_at, metrics_json, equity_curve_json, oos_start)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "bt_wfo_w2",
+            strategy_id,
+            "AAPL",
+            "2026-01-01T00:00:01",
+            "{}",
+            _make_curve("2022-07-01", 183, 100000.0, 5.0),
+            "2022-07-01",
+        ),
+    )
+    conn.commit()
+    conn.close()
 
 
 def _create_strategies_db(db_path: pathlib.Path, strategy_id: str, name: str) -> None:
