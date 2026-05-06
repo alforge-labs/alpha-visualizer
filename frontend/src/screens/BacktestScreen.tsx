@@ -17,6 +17,7 @@ import { MonteCarloChart } from '../components/charts/MonteCarloChart'
 import { MetricsGrid } from '../components/metrics/MetricsGrid'
 import { SignalQualityBadge } from '../components/metrics/SignalQualityBadge'
 import { TradeTable } from '../components/trades/TradeTable'
+import { AnnualReturnsBar } from '../components/charts/AnnualReturnsBar'
 
 interface Props {
   data: BacktestDetail
@@ -87,6 +88,17 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
       {tab === 'performance' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {data.metrics.annual_returns && Object.keys(data.metrics.annual_returns).length > 0 && (
+            <div>
+              <SectionLabel>{L('年次リターン', 'Annual Returns')}</SectionLabel>
+              <AnnualReturnsBar
+                annualReturns={data.metrics.annual_returns}
+                benchmarkReturns={data.benchmark_annual_returns}
+                lang={lang}
+                compact={compact}
+              />
+            </div>
+          )}
           <div>
             <SectionLabel>{L('月別リターン', 'Monthly Returns')}</SectionLabel>
             <MonthlyHeatmapV data={data.monthly_returns} lang={lang} />

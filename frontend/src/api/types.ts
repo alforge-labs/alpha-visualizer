@@ -35,6 +35,7 @@ export interface BacktestMetrics {
     signal_quality_score: number
     warning: string | null
   }
+  annual_returns: Record<string, number>
   benchmark?: {
     alpha_pct: number
     beta: number
@@ -80,6 +81,7 @@ export interface BacktestDetail {
   trades: Trade[]
   daily_returns: number[]
   buy_hold_equity: number[]
+  benchmark_annual_returns: Record<string, number>
 }
 
 export interface WFOWindow {
