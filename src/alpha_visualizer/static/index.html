@@ -1,31 +1,47 @@
 <!doctype html>
-<html lang="ja" data-variation="atelier">
+<html lang="ja" data-variation="atelier" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AlphaForge — Backtest Viewer</title>
     <script>
-      // FOUC 回避: localStorage / URL から variation を即時反映
+      // FOUC 回避: localStorage / URL から variation と theme を即時反映
       (function () {
         try {
           var p = new URLSearchParams(window.location.search);
+          var raw = window.localStorage.getItem('alphaforge.viewer.settings.v1');
+          var parsed = raw ? JSON.parse(raw) : null;
+
+          // variation: URL → localStorage → fallback
           var v = p.get('variation');
           if (v !== 'atelier' && v !== 'lab') {
-            var raw = window.localStorage.getItem('alphaforge.viewer.settings.v1');
-            if (raw) {
-              var parsed = JSON.parse(raw);
-              v = parsed && parsed.variation;
-            }
+            v = parsed && parsed.variation;
           }
           if (v !== 'atelier' && v !== 'lab') v = 'atelier';
+
+          // theme: URL → localStorage → prefers-color-scheme → fallback
+          var t = p.get('theme');
+          if (t !== 'dark' && t !== 'light') {
+            t = parsed && parsed.theme;
+          }
+          if (t !== 'dark' && t !== 'light') {
+            t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+
+          // theme と variation を同期 (dark=lab, light=atelier)
+          if (t === 'dark') v = 'lab';
+          if (t === 'light') v = 'atelier';
+
           document.documentElement.setAttribute('data-variation', v);
+          document.documentElement.setAttribute('data-theme', t);
         } catch (_) {
           document.documentElement.setAttribute('data-variation', 'atelier');
+          document.documentElement.setAttribute('data-theme', 'light');
         }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-YCE0VLZW.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-16K3BxVS.css">
+    <script type="module" crossorigin src="/assets/index-BaGk5JvX.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-ACDITA0s.css">
   </head>
   <body>
     <div id="root"></div>
