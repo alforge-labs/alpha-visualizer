@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useBacktest, useRunBacktest, useStrategyRuns, useWFO } from '../hooks/useBacktestData'
+import { useBacktest, useOptimize, useRunBacktest, useStrategyRuns, useWFO } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
 import { BacktestScreen } from '../screens/BacktestScreen'
 import { ISOOSScreen } from '../screens/ISOOSScreen'
 import { WFOScreen } from '../screens/WFOScreen'
+import { OptimizeScreen } from '../screens/OptimizeScreen'
 import { RunHistoryTab } from '../components/browser/RunHistoryTab'
 import { MetricsSummaryBarV2 } from '../components/MetricsSummaryBarV2'
 import { DetailToolbar } from '../components/DetailToolbar'
@@ -12,7 +13,7 @@ import { StrategyHero } from '../components/StrategyHero'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { makeL } from '../i18n/strings'
 
-type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'history'
+type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history'
 
 export function DetailPage() {
   const { strategyId } = useParams<{ strategyId: string }>()
@@ -33,6 +34,7 @@ export function DetailPage() {
 
   const backtest = useBacktest({ runId })
   const wfo = useWFO(strategyId ?? null)
+  const optimize = useOptimize(strategyId ?? null)
   const compact = density === 'compact'
   const { run: runBt, running: btRunning, error: runError } = useRunBacktest()
 
@@ -71,6 +73,7 @@ export function DetailPage() {
     ['backtest', L('バックテスト', 'Backtest')],
     ['isoos', 'IS / OOS'],
     ['wfo', 'WFO'],
+    ['optimize', L('最適化', 'Optimize')],
     ['history', L('実行履歴', 'Run History')],
   ]
 
@@ -170,6 +173,14 @@ export function DetailPage() {
                 <Note tone="danger">{wfo.error}</Note>
               ) : (
                 <WFOScreen data={wfo.data} compact={compact} lang={lang} />
+              ))}
+            {tab === 'optimize' &&
+              (optimize.status === 'loading' ? (
+                <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : optimize.status === 'error' ? (
+                <Note tone="danger">{optimize.error}</Note>
+              ) : (
+                <OptimizeScreen data={optimize.data} compact={compact} lang={lang} />
               ))}
             {tab === 'history' &&
               (runsState.status === 'ready' ? (
