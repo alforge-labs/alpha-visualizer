@@ -76,9 +76,11 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
 
   return (
     <div
+      className="metrics-summary-bar"
+      data-testid="metrics-summary-bar"
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${ITEMS.length}, 1fr)`,
+        gridTemplateColumns: 'repeat(var(--cols-summary-bar), minmax(0, 1fr))',
         gap: 0,
         padding: 'var(--space-4) 0 var(--space-5)',
         borderBottom: '1px solid var(--border)',
@@ -86,19 +88,19 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
         position: 'relative',
       }}
     >
-      {ITEMS.map(({ key, suffix, decimals, tone }, i) => {
+      {ITEMS.map(({ key, suffix, decimals, tone }) => {
         const def = METRIC_DEFINITIONS[key]
         const val = metrics[key] as number | undefined
         const display = val == null ? '—' : val.toFixed(decimals) + suffix
         const valueColor =
           typeof val === 'number' && tone ? TONE_COLOR[tone(val)] : 'var(--text)'
 
+        // 境界線（左 or 上）は metrics-summary-bar クラス側の :nth-child セレクタが制御。
         const cellStyle: CSSProperties = {
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
           padding: '0 var(--space-4)',
-          borderLeft: i === 0 ? 'none' : '1px solid var(--border)',
           minWidth: 0,
         }
 
@@ -140,7 +142,7 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
             <span
               style={{
                 fontFamily: 'var(--serif)',
-                fontSize: '1.625rem',
+                fontSize: 'var(--hero-fs-display)',
                 fontWeight: 600,
                 letterSpacing: 'var(--tracking-display)',
                 color: valueColor,
@@ -155,18 +157,21 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
       {tip && (() => {
         const def = METRIC_DEFINITIONS[tip.key]
         if (!def) return null
+        // モバイル/狭幅で右端からはみ出さないようクランプ。
+        const TIP_W = 320
+        const left = Math.max(8, Math.min(tip.x, window.innerWidth - TIP_W - 8))
         return (
           <div
             style={{
               position: 'fixed',
-              left: tip.x,
+              left,
               top: tip.y,
               zIndex: 100,
               background: 'var(--surface)',
               border: '1px solid var(--border-h)',
               borderRadius: 'var(--radius-md)',
               padding: 'var(--space-3) var(--space-4)',
-              maxWidth: 320,
+              maxWidth: TIP_W,
               boxShadow: 'var(--shadow-2)',
             }}
           >

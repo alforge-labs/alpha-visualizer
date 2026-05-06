@@ -111,7 +111,7 @@ export function DetailPage() {
       {runError && (
         <div
           style={{
-            padding: 'var(--space-2) var(--space-6)',
+            padding: 'var(--space-2) var(--layout-gutter)',
             fontFamily: 'var(--mono)',
             fontSize: 'var(--fs-mono-sm)',
             letterSpacing: 'var(--tracking-mono)',
@@ -130,7 +130,7 @@ export function DetailPage() {
           style={{
             maxWidth: 'var(--container-wide)',
             margin: '0 auto',
-            padding: '0 var(--space-6)',
+            padding: '0 var(--layout-gutter)',
           }}
         >
           <StrategyHero

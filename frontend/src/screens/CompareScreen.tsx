@@ -114,11 +114,12 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
         }
       />
 
-      {/* メイン: 2/3 (左 chart) + 1/3 (右 stat 縦積み) */}
+      {/* メイン: 2/3 (左 chart) + 1/3 (右 stat 縦積み) — 1024px 以下では縦積み */}
       <div
+        data-testid="compare-main-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 1fr)',
+          gridTemplateColumns: 'var(--compare-grid)',
           gap: 'var(--space-5)',
         }}
       >
