@@ -19,6 +19,7 @@ from alpha_visualizer.dependencies import (
 from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
+from alpha_visualizer.schemas.optimize import OptimizeResult
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ def _extract_trials(
     return result
 
 
-@router.get("/optimize/{strategy_id}")
+@router.get("/optimize/{strategy_id}", response_model=OptimizeResult)
 async def get_optimize(
     strategy_id: str,
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],

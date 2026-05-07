@@ -29,6 +29,7 @@ from alpha_visualizer.repositories.strategies import (
     StrategiesRepository,
     StrategyRow,
 )
+from alpha_visualizer.schemas.strategies import StrategyComparison, StrategySummary
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +191,7 @@ def _list_optimization_history(
 # --- エンドポイント ---------------------------------------------------------
 
 
-@router.get("/strategies")
+@router.get("/strategies", response_model=list[StrategySummary])
 async def list_strategies(
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
@@ -210,7 +211,7 @@ async def list_strategies(
     ]
 
 
-@router.get("/strategies/compare")
+@router.get("/strategies/compare", response_model=list[StrategyComparison])
 async def compare_strategies(
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
