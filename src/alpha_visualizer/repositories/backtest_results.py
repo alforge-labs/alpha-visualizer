@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, func, select
 
 from alpha_visualizer.db import backtest_results
 
@@ -103,3 +103,42 @@ class BacktestResultsRepository:
         with self._engine.connect() as conn:
             row = conn.execute(stmt).first()
         return row.run_id if row else None
+
+    def find_latest_by_strategy_ids(
+        self, strategy_ids: list[str]
+    ) -> dict[str, BacktestResultRow]:
+        """各 ``strategy_id`` の最新（``run_at`` 降順 1 行）を 1 クエリで取得して dict で返す。
+
+        SQLite Window 関数 (``ROW_NUMBER() OVER (PARTITION BY strategy_id
+        ORDER BY run_at DESC)``) で N+1 を回避する。
+
+        :param strategy_ids: 対象 ``strategy_id`` のリスト。空リストなら
+            クエリを発行せず空 dict を返す。
+        :returns: ``{strategy_id: BacktestResultRow}``。該当行がない
+            ``strategy_id`` はキーに含まれない。
+        """
+        if not strategy_ids:
+            return {}
+
+        rn = (
+            func.row_number()
+            .over(
+                partition_by=backtest_results.c.strategy_id,
+                order_by=backtest_results.c.run_at.desc(),
+            )
+            .label("rn")
+        )
+        subq = (
+            select(*_ALL_COLUMNS, rn)
+            .where(backtest_results.c.strategy_id.in_(strategy_ids))
+            .subquery()
+        )
+        # ``rn`` 列を除外して全カラムを射影する
+        projected = [getattr(subq.c, col.name) for col in _ALL_COLUMNS]
+        stmt = select(*projected).where(subq.c.rn == 1)
+
+        with self._engine.connect() as conn:
+            rows = conn.execute(stmt).all()
+        return {
+            row.strategy_id: BacktestResultRow(**row._mapping) for row in rows
+        }
