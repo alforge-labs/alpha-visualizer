@@ -24,6 +24,7 @@ from alpha_visualizer.errors import AlphaVisualizerError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
+from alpha_visualizer.schemas.wfo import WFOResponse
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +221,7 @@ def _resolve_strategy_name(
     return row.name if row is not None else strategy_id
 
 
-@router.get("/wfo/{strategy_id}")
+@router.get("/wfo/{strategy_id}", response_model=WFOResponse)
 async def get_wfo(
     strategy_id: str,
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],

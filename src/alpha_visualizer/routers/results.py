@@ -17,12 +17,13 @@ from alpha_visualizer.dependencies import (
 from alpha_visualizer.errors import InvalidRequestError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
+from alpha_visualizer.schemas.results import BacktestSummary
 from alpha_visualizer.services import backtest as bt_service
 
 router = APIRouter()
 
 
-@router.get("/results")
+@router.get("/results", response_model=list[BacktestSummary])
 async def list_results(
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],

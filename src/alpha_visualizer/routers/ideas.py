@@ -13,13 +13,14 @@ from fastapi import APIRouter, Depends, Query
 from alpha_visualizer.dependencies import get_ideas_reader
 from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.repositories.ideas import IdeasReader
+from alpha_visualizer.schemas.ideas import Idea
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/ideas")
+@router.get("/ideas", response_model=list[Idea])
 async def list_ideas(
     reader: Annotated[IdeasReader, Depends(get_ideas_reader)],
     status: str | None = Query(default=None),
@@ -30,7 +31,7 @@ async def list_ideas(
     return ideas
 
 
-@router.get("/ideas/{idea_id}")
+@router.get("/ideas/{idea_id}", response_model=Idea)
 async def get_idea(
     idea_id: str,
     reader: Annotated[IdeasReader, Depends(get_ideas_reader)],
