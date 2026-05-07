@@ -37,14 +37,18 @@ If you cannot use GitHub, email [security@alforgelabs.com](mailto:security@alfor
 
 ## Response Process & Timeline
 
+This project is maintained by individuals working on it outside their day jobs, so the following are **best-effort targets**, not professional support SLAs.
+
 | Stage | Target |
 |---|---|
-| Acknowledgement of report | within 2 business days |
-| Triage and reproduction | within 7 business days |
-| Fix release | within 30 days (depending on severity) |
-| Public advisory | promptly after the fix release |
+| Acknowledgement of report | within 7 days |
+| Triage and reproduction | within 30 days |
+| Fix release | within 90 days (depending on severity and complexity) |
+| Public advisory | within 14 days after the fix release |
 
-Severe vulnerabilities are handled on an accelerated timeline.
+Severe vulnerabilities (remote code execution, authentication bypass, etc.) will be handled as quickly as possible — specific timelines will be coordinated directly with the reporter.
+
+Responses may be delayed during long vacations or busy periods. If you have heard nothing for a month, please send a follow-up email.
 
 ## Disclosure Policy
 
