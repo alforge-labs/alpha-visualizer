@@ -9,13 +9,19 @@ import json
 import logging
 import math
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from sqlalchemy import create_engine, select
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from alpha_visualizer.db import backtest_results
+from alpha_visualizer.dependencies import (
+    get_backtest_results_repo,
+    get_forge_config_dep,
+)
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.backtest_results import (
+    BacktestResultRow,
+    BacktestResultsRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -298,8 +304,8 @@ def _split_metrics(
     return is_m or None, oos_m or None
 
 
-def _row_to_dict(row: Any) -> dict[str, Any]:
-    """SQLAlchemy Row をフラットな dict に変換する。metrics_json 等を展開する。"""
+def _row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
+    """``BacktestResultRow`` をフラットな dict に変換する。metrics_json 等を展開する。"""
     metrics: dict[str, Any] = {}
     if row.metrics_json:
         try:
@@ -354,6 +360,23 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     }
 
 
+def _summarize(row: BacktestResultRow) -> dict[str, Any]:
+    """``/api/results`` 一覧用のサマリ dict を生成する。
+
+    既存レスポンスとの互換性を維持するため、キーは従来のまま 8 フィールドのみを返す。
+    """
+    return {
+        "run_id": row.run_id,
+        "strategy_id": row.strategy_id,
+        "symbol": row.symbol,
+        "run_at": row.run_at,
+        "sharpe_ratio": row.sharpe_ratio,
+        "total_return_pct": row.total_return_pct,
+        "max_drawdown_pct": row.max_drawdown_pct,
+        "total_trades": row.total_trades,
+    }
+
+
 def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
     metrics: dict[str, Any] = dict(record.get("metrics") or {})
     metrics["annual_returns"] = _shape_annual_returns(metrics.get("annual_returns"))
@@ -405,86 +428,62 @@ def _shape_detail(record: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _list_results_from_db(
-    config: ForgeConfig,
-    strategy_id: str | None,
-    since: datetime | None,
-) -> list[dict[str, Any]]:
-    db_path = config.forge_db
-    if not db_path.exists():
-        return []
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    stmt = select(
-        backtest_results.c.run_id,
-        backtest_results.c.strategy_id,
-        backtest_results.c.symbol,
-        backtest_results.c.run_at,
-        backtest_results.c.sharpe_ratio,
-        backtest_results.c.total_return_pct,
-        backtest_results.c.max_drawdown_pct,
-        backtest_results.c.total_trades,
-    ).order_by(backtest_results.c.run_at.desc())
-    if strategy_id:
-        stmt = stmt.where(backtest_results.c.strategy_id == strategy_id)
-    rows: list[dict[str, Any]] = []
-    with engine.connect() as conn:
-        for r in conn.execute(stmt):
-            if since is not None:
-                try:
-                    if _parse_dt(r.run_at or "") < since:
-                        continue
-                except ValueError:
-                    pass
-            rows.append({
-                "run_id": r.run_id,
-                "strategy_id": r.strategy_id,
-                "symbol": r.symbol,
-                "run_at": r.run_at,
-                "sharpe_ratio": r.sharpe_ratio,
-                "total_return_pct": r.total_return_pct,
-                "max_drawdown_pct": r.max_drawdown_pct,
-                "total_trades": r.total_trades,
-            })
-    return rows
-
-
-def _get_result_from_db(config: ForgeConfig, run_id: str) -> dict[str, Any] | None:
-    db_path = config.forge_db
-    if not db_path.exists():
-        return None
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    with engine.connect() as conn:
-        row = conn.execute(
-            backtest_results.select().where(backtest_results.c.run_id == run_id)
-        ).first()
-    if row is None:
-        return None
-    return _row_to_dict(row)
+def _filter_by_since(
+    rows: list[BacktestResultRow], since: datetime | None
+) -> list[BacktestResultRow]:
+    """``since`` 指定時に ``run_at`` を Python 側でパースして閾値以降の行のみ残す。"""
+    if since is None:
+        return rows
+    out: list[BacktestResultRow] = []
+    for r in rows:
+        try:
+            if _parse_dt(r.run_at or "") < since:
+                continue
+        except ValueError:
+            # run_at がパース不能でも従来通り残す（既存挙動の保持）
+            pass
+        out.append(r)
+    return out
 
 
 @router.get("/results")
 async def list_results(
-    request: Request,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
     strategy_id: str | None = Query(default=None),
     since: str | None = Query(default=None),
 ) -> list[dict[str, Any]]:
-    config: ForgeConfig = request.app.state.forge_config
     since_dt: datetime | None = None
     if since:
         try:
             since_dt = _parse_dt(since)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"since の形式が不正です: {since}") from e
-    return _list_results_from_db(config, strategy_id, since_dt)
+            raise HTTPException(
+                status_code=400, detail=f"since の形式が不正です: {since}"
+            ) from e
+    if not config.forge_db.exists():
+        return []
+    rows = repo.list_results(strategy_id=strategy_id)
+    rows = _filter_by_since(rows, since_dt)
+    return [_summarize(r) for r in rows]
 
 
 @router.get("/results/{run_id}")
-async def get_result(run_id: str, request: Request) -> dict[str, Any]:
-    config: ForgeConfig = request.app.state.forge_config
-    record = _get_result_from_db(config, run_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail=f"run_id '{run_id}' が見つかりません")
-    return _shape_detail(record)
+async def get_result(
+    run_id: str,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
+) -> dict[str, Any]:
+    if not config.forge_db.exists():
+        raise HTTPException(
+            status_code=404, detail=f"run_id '{run_id}' が見つかりません"
+        )
+    row = repo.get_result(run_id)
+    if row is None:
+        raise HTTPException(
+            status_code=404, detail=f"run_id '{run_id}' が見つかりません"
+        )
+    return _shape_detail(_row_to_dict(row))
 
 
 __all__ = ["router", "_shape_detail"]

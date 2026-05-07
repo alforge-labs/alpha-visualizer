@@ -100,3 +100,46 @@ def test_spa_fallback_serves_index_with_static_dir(
     # /api 配下は SPA fallback に取られない（health は 200、未知 API は 404）
     r3 = client.get("/api/strategies")
     assert r3.status_code == 200  # 200 OK の JSON 応答
+
+
+def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
+    """create_app で生成された FastAPI が app.state.engine を持つこと。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    (forge_dir / "data" / "results" / "forge.db").touch()
+
+    app = create_app(forge_dir=forge_dir)
+    engine = app.state.engine
+    assert engine is not None
+    assert engine.dialect.name == "sqlite"
+
+
+def test_create_app_strategies_engine_when_db_present(tmp_path: pathlib.Path) -> None:
+    """forge.yaml で strategies.use_db=true のときは strategies_engine がキャッシュされる。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    (forge_dir / "data" / "results" / "forge.db").touch()
+    strategies_dir = forge_dir / "data" / "strategies"
+    strategies_dir.mkdir(parents=True)
+    (strategies_dir / "strategies.db").touch()
+    # use_db=true を明示しないと ForgeConfig.strategies_db は None のまま
+    (forge_dir / "forge.yaml").write_text(
+        "strategies:\n  use_db: true\n",
+        encoding="utf-8",
+    )
+
+    app = create_app(forge_dir=forge_dir)
+    assert app.state.strategies_engine is not None
+    assert app.state.strategies_engine.dialect.name == "sqlite"
+
+
+def test_create_app_strategies_engine_none_in_json_mode(tmp_path: pathlib.Path) -> None:
+    """strategies.db が無い（JSON モード）場合は strategies_engine が None。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "strategies").mkdir(parents=True)
+    # forge.yaml なし → strategies_db は None
+
+    app = create_app(forge_dir=forge_dir)
+    assert app.state.strategies_engine is None

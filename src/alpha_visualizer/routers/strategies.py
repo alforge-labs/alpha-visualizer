@@ -1,250 +1,103 @@
 """戦略 API ルーター
 
 `/api/strategies`、`/api/strategies/compare`、`/api/strategies/{strategy_id}` を提供する。
-戦略定義の取得元は forge.yaml の ``strategies.use_db`` で切り替わる:
-- ``true``: ``strategies.db`` の ``strategies`` テーブルから読む
-- ``false`` または未設定: ``strategies_dir/*.json`` を glob する（後方互換）
+戦略定義の取得元（DB / JSON）は ``StrategiesRepository`` が吸収する。
 """
 from __future__ import annotations
 
 import json
 import logging
 import math
-import pathlib
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from sqlalchemy import create_engine, select
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from alpha_visualizer.db import backtest_results, optimization_runs, strategies
+from alpha_visualizer.dependencies import (
+    get_backtest_results_repo,
+    get_forge_config_dep,
+    get_optimization_repo,
+    get_strategies_repo,
+)
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.backtest_results import (
+    BacktestResultRow,
+    BacktestResultsRepository,
+)
+from alpha_visualizer.repositories.optimization import OptimizationRepository
+from alpha_visualizer.repositories.strategies import (
+    StrategiesRepository,
+    StrategyRow,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def _parse_tags_column(raw: str | None) -> list[str]:
-    """``strategies.tags`` TEXT 列（JSON 配列文字列）を ``list[str]`` に復元する。"""
+# --- ヘルパ -----------------------------------------------------------------
+
+
+def _latest_summary(
+    bt_repo: BacktestResultsRepository,
+    forge_db_exists: bool,
+    strategy_id: str,
+) -> BacktestResultRow | None:
+    """指定 strategy_id の最新バックテスト結果を返す。
+
+    ``list_results`` は ``run_at`` 降順で返るため先頭が最新。
+    forge.db ファイルが存在しない場合は ``None``。
+    """
+    if not forge_db_exists:
+        return None
+    rows = bt_repo.list_results(strategy_id=strategy_id)
+    return rows[0] if rows else None
+
+
+def _parsed_definition(strategy: StrategyRow) -> dict[str, Any]:
+    """``raw_definition`` を ``dict`` にパースする（失敗時は空辞書）。"""
+    raw = strategy.raw_definition
     if not raw:
-        return []
+        return {}
     try:
-        parsed = json.loads(raw)
+        data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
-        return []
-    if not isinstance(parsed, list):
-        return []
-    return [str(t) for t in parsed if t]
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
-def _normalize_string_list(value: Any) -> list[str]:
-    """戦略 JSON 内の文字列配列フィールドを安全に正規化する。"""
-    if not isinstance(value, list):
-        return []
-    return [str(v) for v in value if v]
-
-
-def _load_strategies_from_db(db_path: pathlib.Path) -> list[dict[str, Any]]:
-    """``strategies.db`` から戦略定義を読み取る。"""
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    out: list[dict[str, Any]] = []
-    with engine.connect() as conn:
-        for row in conn.execute(select(strategies)):
-            try:
-                data = json.loads(row.definition_json)
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(
-                    "戦略定義 JSON のパースに失敗: %s (%s)", row.strategy_id, e
-                )
-                continue
-            if not isinstance(data, dict):
-                continue
-            data.setdefault("strategy_id", row.strategy_id)
-            data.setdefault("name", row.name)
-            # 戦略定義 JSON に timeframe が無ければ strategies テーブルの列値を使う。
-            data.setdefault("timeframe", row.timeframe)
-            db_tags = _parse_tags_column(row.tags)
-            if db_tags:
-                data.setdefault("tags", db_tags)
-            out.append(data)
-    return out
-
-
-def _load_strategies_from_json(strategies_dir: pathlib.Path) -> list[dict[str, Any]]:
-    """``strategies_dir/*.json`` から戦略定義を読み取る（後方互換経路）。"""
-    if not strategies_dir.exists():
-        return []
-    out: list[dict[str, Any]] = []
-    for p in sorted(strategies_dir.glob("*.json")):
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning("戦略ファイルの読み込みをスキップ: %s (%s)", p, e)
-            continue
-        if not isinstance(data, dict):
-            continue
-        data.setdefault("strategy_id", p.stem)
-        data.setdefault("name", p.stem)
-        out.append(data)
-    return out
-
-
-def _load_all_strategy_records(config: ForgeConfig) -> list[dict[str, Any]]:
-    """forge.yaml の設定に従って戦略定義の一覧を返す。"""
-    if config.strategies_db is not None and config.strategies_db.exists():
-        return _load_strategies_from_db(config.strategies_db)
-    return _load_strategies_from_json(config.strategies_dir)
-
-
-def _load_strategy_record(
-    config: ForgeConfig, strategy_id: str
-) -> dict[str, Any] | None:
-    """指定 strategy_id の戦略定義を取得する。"""
-    for record in _load_all_strategy_records(config):
-        if record.get("strategy_id") == strategy_id:
-            return record
-    return None
-
-
-def _get_latest_result(config: ForgeConfig, strategy_id: str) -> dict[str, Any] | None:
-    db_path = config.forge_db
-    if not db_path.exists():
-        return None
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    with engine.connect() as conn:
-        row = conn.execute(
-            select(
-                backtest_results.c.symbol,
-                backtest_results.c.sharpe_ratio,
-                backtest_results.c.total_return_pct,
-                backtest_results.c.max_drawdown_pct,
-                backtest_results.c.total_trades,
-                backtest_results.c.cagr_pct,
-                backtest_results.c.sortino_ratio,
-                backtest_results.c.win_rate_pct,
-                backtest_results.c.profit_factor,
-                backtest_results.c.run_at,
-                backtest_results.c.equity_curve_json,
-            )
-            .where(backtest_results.c.strategy_id == strategy_id)
-            .order_by(backtest_results.c.run_at.desc())
-            .limit(1)
-        ).first()
-    if row is None:
-        return None
-    return {
-        "symbol": row.symbol,
-        "sharpe_ratio": row.sharpe_ratio,
-        "total_return_pct": row.total_return_pct,
-        "max_drawdown_pct": row.max_drawdown_pct,
-        "total_trades": row.total_trades,
-        "cagr_pct": row.cagr_pct,
-        "sortino_ratio": row.sortino_ratio,
-        "win_rate_pct": row.win_rate_pct,
-        "profit_factor": row.profit_factor,
-        "run_at": row.run_at,
-        "equity_curve_json": row.equity_curve_json,
+def _strategy_to_summary(
+    strategy: StrategyRow, latest: BacktestResultRow | None
+) -> dict[str, Any]:
+    """``/api/strategies`` 1 件分の dict を生成する。"""
+    entry: dict[str, Any] = {
+        "strategy_id": strategy.strategy_id,
+        "name": strategy.name,
+        "symbol": None,
+        "timeframe": strategy.timeframe,
+        "tags": list(strategy.tags),
+        "target_symbols": list(strategy.target_symbols),
+        "latest_sharpe": None,
+        "latest_return_pct": None,
+        "latest_max_drawdown_pct": None,
+        "latest_profit_factor": None,
+        "latest_win_rate_pct": None,
+        "latest_total_trades": None,
+        "last_run_at": None,
     }
-
-
-def _get_all_results(config: ForgeConfig, strategy_id: str) -> list[dict[str, Any]]:
-    db_path = config.forge_db
-    if not db_path.exists():
-        return []
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    with engine.connect() as conn:
-        rows = conn.execute(
-            select(
-                backtest_results.c.run_id,
-                backtest_results.c.symbol,
-                backtest_results.c.sharpe_ratio,
-                backtest_results.c.total_return_pct,
-                backtest_results.c.max_drawdown_pct,
-                backtest_results.c.total_trades,
-                backtest_results.c.run_at,
-            )
-            .where(backtest_results.c.strategy_id == strategy_id)
-            .order_by(backtest_results.c.run_at.desc())
-        ).fetchall()
-    return [
-        {
-            "run_id": r.run_id,
-            "symbol": r.symbol,
-            "sharpe": r.sharpe_ratio,
-            "return_pct": r.total_return_pct,
-            "max_drawdown_pct": r.max_drawdown_pct,
-            "total_trades": r.total_trades,
-            "run_at": r.run_at,
-        }
-        for r in rows
-    ]
-
-
-def _get_optimization_history(config: ForgeConfig, strategy_id: str) -> list[dict[str, Any]]:
-    db_path = config.forge_db
-    if not db_path.exists():
-        return []
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    with engine.connect() as conn:
-        rows = conn.execute(
-            select(
-                optimization_runs.c.best_metric_value,
-                optimization_runs.c.run_at,
-                optimization_runs.c.n_trials,
-            )
-            .where(optimization_runs.c.strategy_id == strategy_id)
-            .order_by(optimization_runs.c.run_at.desc())
-        ).fetchall()
-    history = []
-    for i, row in enumerate(reversed(rows), start=1):
-        history.append({
-            "trial": i,
-            "best_sharpe": row.best_metric_value,
-            "run_at": row.run_at,
-            "n_trials": row.n_trials,
-        })
-    return history
-
-
-@router.get("/strategies")
-async def list_strategies(request: Request) -> list[dict[str, Any]]:
-    config: ForgeConfig = request.app.state.forge_config
-    result: list[dict[str, Any]] = []
-    for record in _load_all_strategy_records(config):
-        sid = record.get("strategy_id")
-        if not isinstance(sid, str):
-            continue
-        entry: dict[str, Any] = {
-            "strategy_id": sid,
-            "name": record.get("name", sid),
-            "symbol": None,
-            "timeframe": record.get("timeframe"),
-            "tags": _normalize_string_list(record.get("tags")),
-            "target_symbols": _normalize_string_list(record.get("target_symbols")),
-            "latest_sharpe": None,
-            "latest_return_pct": None,
-            "latest_max_drawdown_pct": None,
-            "latest_profit_factor": None,
-            "latest_win_rate_pct": None,
-            "latest_total_trades": None,
-            "last_run_at": None,
-        }
-        latest = _get_latest_result(config, sid)
-        if latest:
-            entry["symbol"] = latest.get("symbol")
-            entry["latest_sharpe"] = latest.get("sharpe_ratio")
-            entry["latest_return_pct"] = latest.get("total_return_pct")
-            entry["latest_max_drawdown_pct"] = latest.get("max_drawdown_pct")
-            entry["latest_profit_factor"] = latest.get("profit_factor")
-            entry["latest_win_rate_pct"] = latest.get("win_rate_pct")
-            entry["latest_total_trades"] = latest.get("total_trades")
-            entry["last_run_at"] = latest.get("run_at")
-        result.append(entry)
-    return result
+    if latest is not None:
+        entry["symbol"] = latest.symbol
+        entry["latest_sharpe"] = latest.sharpe_ratio
+        entry["latest_return_pct"] = latest.total_return_pct
+        entry["latest_max_drawdown_pct"] = latest.max_drawdown_pct
+        entry["latest_profit_factor"] = latest.profit_factor
+        entry["latest_win_rate_pct"] = latest.win_rate_pct
+        entry["latest_total_trades"] = latest.total_trades
+        entry["last_run_at"] = latest.run_at
+    return entry
 
 
 def _shape_equity_curve(raw_json: str | None) -> tuple[list[str], list[float]]:
-    """equity_curve_json を解析して (dates, values) を返す。"""
+    """``equity_curve_json`` を解析して ``(dates, values)`` を返す。"""
     if not raw_json:
         return [], []
     try:
@@ -286,37 +139,104 @@ def _compute_daily_returns_pct(values: list[float]) -> list[float]:
     return out
 
 
+def _list_all_results_summary(
+    bt_repo: BacktestResultsRepository,
+    forge_db_exists: bool,
+    strategy_id: str,
+) -> list[dict[str, Any]]:
+    """``/api/strategies/{id}`` の results 配列を生成する（run_at 降順）。"""
+    if not forge_db_exists:
+        return []
+    rows = bt_repo.list_results(strategy_id=strategy_id)
+    return [
+        {
+            "run_id": r.run_id,
+            "symbol": r.symbol,
+            "sharpe": r.sharpe_ratio,
+            "return_pct": r.total_return_pct,
+            "max_drawdown_pct": r.max_drawdown_pct,
+            "total_trades": r.total_trades,
+            "run_at": r.run_at,
+        }
+        for r in rows
+    ]
+
+
+def _list_optimization_history(
+    opt_repo: OptimizationRepository,
+    forge_db_exists: bool,
+    strategy_id: str,
+) -> list[dict[str, Any]]:
+    """optimization_runs から strategy_id 別の試行履歴を返す（時系列）。
+
+    Repository は ``run_at`` 昇順で返すため、そのまま 1 始まりの
+    ``trial`` 連番を付与してレスポンス形式に整える。
+    """
+    if not forge_db_exists:
+        return []
+    summaries = opt_repo.list_history_summary(strategy_id)
+    return [
+        {
+            "trial": i,
+            "best_sharpe": s.best_metric_value,
+            "run_at": s.run_at,
+            "n_trials": s.n_trials,
+        }
+        for i, s in enumerate(summaries, start=1)
+    ]
+
+
+# --- エンドポイント ---------------------------------------------------------
+
+
+@router.get("/strategies")
+async def list_strategies(
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
+    bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
+) -> list[dict[str, Any]]:
+    forge_db_exists = config.forge_db.exists()
+    out: list[dict[str, Any]] = []
+    for strategy in strategies_repo.list_strategies():
+        latest = _latest_summary(bt_repo, forge_db_exists, strategy.strategy_id)
+        out.append(_strategy_to_summary(strategy, latest))
+    return out
+
+
 @router.get("/strategies/compare")
 async def compare_strategies(
-    request: Request,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
+    bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
     ids: str = Query(..., description="カンマ区切りの strategy_id"),
 ) -> list[dict[str, Any]]:
-    config: ForgeConfig = request.app.state.forge_config
     parsed = [s for s in (i.strip() for i in ids.split(",")) if s]
     if not parsed:
         raise HTTPException(status_code=400, detail="ids が空です")
+
+    forge_db_exists = config.forge_db.exists()
     out: list[dict[str, Any]] = []
     for idx, sid in enumerate(parsed):
-        latest = _get_latest_result(config, sid)
-        if not latest:
+        latest = _latest_summary(bt_repo, forge_db_exists, sid)
+        if latest is None:
             continue
-        record = _load_strategy_record(config, sid)
-        name = record.get("name", sid) if record else sid
-        dates, values = _shape_equity_curve(latest.get("equity_curve_json"))
+        strategy = strategies_repo.get_strategy(sid)
+        name = strategy.name if strategy is not None else sid
+        dates, values = _shape_equity_curve(latest.equity_curve_json)
         daily_returns = _compute_daily_returns_pct(values)
         out.append(
             {
                 "id": sid,
                 "name": name,
-                "symbol": latest.get("symbol", ""),
-                "total_return_pct": float(latest.get("total_return_pct") or 0.0),
-                "cagr_pct": float(latest.get("cagr_pct") or 0.0),
-                "sharpe_ratio": float(latest.get("sharpe_ratio") or 0.0),
-                "sortino_ratio": float(latest.get("sortino_ratio") or 0.0),
-                "max_drawdown_pct": float(latest.get("max_drawdown_pct") or 0.0),
-                "win_rate_pct": float(latest.get("win_rate_pct") or 0.0),
-                "profit_factor": float(latest.get("profit_factor") or 0.0),
-                "total_trades": int(latest.get("total_trades") or 0),
+                "symbol": latest.symbol or "",
+                "total_return_pct": float(latest.total_return_pct or 0.0),
+                "cagr_pct": float(latest.cagr_pct or 0.0),
+                "sharpe_ratio": float(latest.sharpe_ratio or 0.0),
+                "sortino_ratio": float(latest.sortino_ratio or 0.0),
+                "max_drawdown_pct": float(latest.max_drawdown_pct or 0.0),
+                "win_rate_pct": float(latest.win_rate_pct or 0.0),
+                "profit_factor": float(latest.profit_factor or 0.0),
+                "total_trades": int(latest.total_trades or 0),
                 "is_baseline": idx == 0,
                 "equity": {"dates": dates, "values": values},
                 "daily_returns": daily_returns,
@@ -331,23 +251,33 @@ async def compare_strategies(
 
 
 @router.get("/strategies/{strategy_id}")
-async def get_strategy(strategy_id: str, request: Request) -> dict[str, Any]:
-    config: ForgeConfig = request.app.state.forge_config
-    record = _load_strategy_record(config, strategy_id)
-    if record is None:
+async def get_strategy(
+    strategy_id: str,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
+    bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
+    opt_repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
+) -> dict[str, Any]:
+    strategy = strategies_repo.get_strategy(strategy_id)
+    if strategy is None:
         raise HTTPException(
             status_code=404, detail=f"strategy_id '{strategy_id}' が見つかりません"
         )
+
+    definition = _parsed_definition(strategy)
+    forge_db_exists = config.forge_db.exists()
     return {
-        "strategy_id": record.get("strategy_id", strategy_id),
-        "name": record.get("name", strategy_id),
-        "parameters": record.get("parameters", {}),
-        "indicators": record.get("indicators", []),
-        "variables": record.get("variables", []),
-        "entry_conditions": record.get("entry_conditions"),
-        "exit_conditions": record.get("exit_conditions"),
-        "risk_management": record.get("risk_management"),
-        "regime_config": record.get("regime_config"),
-        "results": _get_all_results(config, strategy_id),
-        "optimization_history": _get_optimization_history(config, strategy_id),
+        "strategy_id": strategy.strategy_id,
+        "name": strategy.name,
+        "parameters": definition.get("parameters", {}),
+        "indicators": definition.get("indicators", []),
+        "variables": definition.get("variables", []),
+        "entry_conditions": definition.get("entry_conditions"),
+        "exit_conditions": definition.get("exit_conditions"),
+        "risk_management": definition.get("risk_management"),
+        "regime_config": definition.get("regime_config"),
+        "results": _list_all_results_summary(bt_repo, forge_db_exists, strategy_id),
+        "optimization_history": _list_optimization_history(
+            opt_repo, forge_db_exists, strategy_id
+        ),
     }

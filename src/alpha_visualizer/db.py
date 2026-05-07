@@ -1,6 +1,9 @@
 """forge.db / strategies.db の SQLAlchemy テーブル定義（読み取り専用）"""
 
-from sqlalchemy import REAL, Column, Integer, MetaData, Table, Text
+from os import PathLike
+from pathlib import Path
+
+from sqlalchemy import REAL, Column, Engine, Integer, MetaData, Table, Text, create_engine
 
 metadata = MetaData()
 
@@ -59,3 +62,12 @@ optimization_runs = Table(
     Column("duration_seconds", REAL),
     Column("all_trials_json", Text),
 )
+
+
+def get_engine(db_path: Path | str | PathLike[str]) -> Engine:
+    """forge.db / strategies.db への SQLAlchemy Engine を生成する。
+
+    Engine はアプリケーション起動時に 1 度だけ生成し、`app.state.engine`
+    に格納して使い回すことを想定している。各リクエストで再生成しない。
+    """
+    return create_engine(f"sqlite:///{Path(db_path).resolve()}")

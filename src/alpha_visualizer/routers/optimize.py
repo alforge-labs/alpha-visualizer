@@ -1,20 +1,23 @@
 """最適化結果 API ルーター
 
 `/api/optimize/{strategy_id}` を提供する。
-optimization_runs テーブルの all_trials_json を直接クエリし、
+optimization_runs テーブルの all_trials_json を Repository 経由で取得し、
 Grid Search / Optuna 形式のトライアル一覧（params / metric / pass）を返す。
 """
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import create_engine, select
+from fastapi import APIRouter, Depends, HTTPException
 
-from alpha_visualizer.db import optimization_runs
+from alpha_visualizer.dependencies import (
+    get_forge_config_dep,
+    get_optimization_repo,
+)
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.optimization import OptimizationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -95,26 +98,16 @@ def _extract_trials(
 
 
 @router.get("/optimize/{strategy_id}")
-async def get_optimize(strategy_id: str, request: Request) -> dict[str, Any]:
-    config: ForgeConfig = request.app.state.forge_config
-    db_path = config.forge_db
-    if not db_path.exists():
+async def get_optimize(
+    strategy_id: str,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
+) -> dict[str, Any]:
+    if not config.forge_db.exists():
         raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
 
     try:
-        engine = create_engine(f"sqlite:///{db_path}", future=True)
-        with engine.connect() as conn:
-            row = conn.execute(
-                select(
-                    optimization_runs.c.run_at,
-                    optimization_runs.c.best_metric_name,
-                    optimization_runs.c.best_metric_value,
-                    optimization_runs.c.all_trials_json,
-                )
-                .where(optimization_runs.c.strategy_id == strategy_id)
-                .order_by(optimization_runs.c.run_at.desc())
-                .limit(1)
-            ).fetchone()
+        row = repo.get_latest_for_strategy(strategy_id)
     except Exception as e:
         logger.warning("最適化結果の取得に失敗: %s (%s)", strategy_id, e)
         raise HTTPException(
