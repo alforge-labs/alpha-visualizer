@@ -33,7 +33,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/alforge-labs/alpha-visualizer"
 Repository = "https://github.com/alforge-labs/alpha-visualizer"
+Documentation = "https://alforgelabs.com/ja/docs/alpha-visualizer/"
 Issues = "https://github.com/alforge-labs/alpha-visualizer/issues"
+Changelog = "https://github.com/alforge-labs/alpha-visualizer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 vis = "alpha_visualizer.cli:cli"

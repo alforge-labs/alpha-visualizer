@@ -42,7 +42,7 @@ uv run ruff check src/ tests/
 # サーバー起動（ローカル確認用）
 vis serve --forge-dir /path/to/alpha-strategies
 
-# フロントエンドビルド（frontend/ → src/alpha_frontend/static/）
+# フロントエンドビルド（frontend/ → src/alpha_visualizer/static/）
 cd frontend && npm install && npm run build
 
 # フロントエンド開発サーバー（バックエンドと同時起動）
@@ -55,15 +55,15 @@ cd frontend && npm run dev
 
 | モジュール | パス | 役割 |
 |----------|------|------|
-| CLI | `src/alpha_frontend/cli.py` | Click ベースのエントリーポイント（`vis serve`） |
-| アプリファクトリ | `src/alpha_frontend/app.py` | FastAPI アプリ生成・ルーター登録・SPA 配信 |
-| DB 定義 | `src/alpha_frontend/db.py` | SQLAlchemy Table 定義（`backtest_results`, `optimization_runs`） |
-| パス設定 | `src/alpha_frontend/forge_config.py` | `ForgeConfig` — forge_dir から各データパスを解決 |
-| Results ルーター | `src/alpha_frontend/routers/results.py` | `/api/results`, `/api/results/{run_id}` |
-| Strategies ルーター | `src/alpha_frontend/routers/strategies.py` | `/api/strategies`, `/api/strategies/compare`, `/api/strategies/{id}` |
-| Ideas ルーター | `src/alpha_frontend/routers/ideas.py` | `/api/ideas`（`ideas.json` を直接読み取り） |
-| WFO ルーター | `src/alpha_frontend/routers/wfo.py` | `/api/wfo/{strategy_id}` |
-| Static | `src/alpha_frontend/static/` | Vite ビルド成果物（`frontend/` で `npm run build` して生成） |
+| CLI | `src/alpha_visualizer/cli.py` | Click ベースのエントリーポイント（`vis serve`） |
+| アプリファクトリ | `src/alpha_visualizer/app.py` | FastAPI アプリ生成・ルーター登録・SPA 配信 |
+| DB 定義 | `src/alpha_visualizer/db.py` | SQLAlchemy Table 定義（`backtest_results`, `optimization_runs`） |
+| パス設定 | `src/alpha_visualizer/forge_config.py` | `ForgeConfig` — forge_dir から各データパスを解決 |
+| Results ルーター | `src/alpha_visualizer/routers/results.py` | `/api/results`, `/api/results/{run_id}` |
+| Strategies ルーター | `src/alpha_visualizer/routers/strategies.py` | `/api/strategies`, `/api/strategies/compare`, `/api/strategies/{id}` |
+| Ideas ルーター | `src/alpha_visualizer/routers/ideas.py` | `/api/ideas`（`ideas.json` を直接読み取り） |
+| WFO ルーター | `src/alpha_visualizer/routers/wfo.py` | `/api/wfo/{strategy_id}` |
+| Static | `src/alpha_visualizer/static/` | Vite ビルド成果物（`frontend/` で `npm run build` して生成） |
 | Frontend | `frontend/` | Vite + React + TS の SPA 本体 |
 
 ---
@@ -77,7 +77,7 @@ vis serve --forge-dir <dir>
     → forge_dir/data/strategies/*.json    ← JSON ファイルを直接読み取り
     → forge_dir/data/ideas/ideas.json     ← JSON ファイルを直接読み取り
   → FastAPI ルーター → JSON レスポンス
-  → React SPA (src/alpha_frontend/static/)
+  → React SPA (src/alpha_visualizer/static/)
 ```
 
 ---
@@ -113,16 +113,34 @@ vis serve --forge-dir <dir>
 
 - **TDD**: 新機能実装前にテストを書く（`tests/` に対応するテストファイルが必要）
 - **Python 3.12**: 型アノテーションを積極的に使う
-- **alpha-forge 非依存**: `src/alpha_frontend/` 内から `alpha_forge` をインポートしないこと。DB は SQLAlchemy で直接読み取る
+- **alpha-forge 非依存**: `src/alpha_visualizer/` 内から `alpha_forge` をインポートしないこと。DB は SQLAlchemy で直接読み取る
 - **パッケージ管理**: `pip` ではなく `uv` を使う（`uv add <package>` でパッケージ追加）
 - **GitHub Flow（必須）**: `main` ブランチには直接コミット・プッシュしないこと。必ずフィーチャーブランチ（`feat/xxx`, `fix/xxx` 等）を作成し、Pull Request 経由でマージすること
 - **ワークツリーの活用**: ごく単純な作業（1ファイルの誤字修正・読み取り専用調査など）を除き、コードを変更する作業はすべてワークツリーを使って隔離された環境で行うこと
+- **OSS ドキュメントの同期**: README・CONTRIBUTING・SECURITY は日英両言語（`*.md` / `*.en.md`）で揃えること。一方だけの更新は禁止
+- **alforge-labs ドキュメント同期**: 公開 API・CLI オプション・設定（`forge.yaml` 等）に変更を加えた場合、`alforge-labs/mkdocs_src/{ja,en}/alpha-visualizer/` 配下の対応ページも同一 PR またはリンク PR で更新し、`uv run mkdocs build` でビルド成果物を再生成すること
+
+---
+
+## スクリーンショット再撮影
+
+UI に視覚的な変更（レイアウト・色・新コンポーネント追加・i18n 文言の大幅変更）を加えた場合は、`docs/screenshots/{ja,en}/` を再生成する。
+
+```bash
+cd frontend
+npm run e2e:install   # 初回のみ
+npm run screenshots
+git add ../docs/screenshots/
+git commit -m "docs: スクリーンショットを再撮影"
+```
+
+撮影スクリプトは `frontend/e2e/screenshots/capture.spec.ts`、設定は `frontend/playwright.screenshots.config.ts`。フィクスチャは既存 E2E と共通（`frontend/e2e/fixtures/forge/`）。
 
 ---
 
 ## フロントエンド開発
 
-`frontend/` は Vite + React + TypeScript で実装された SPA。ビルド成果物は `src/alpha_frontend/static/` に配置する。
+`frontend/` は Vite + React + TypeScript で実装された SPA。ビルド成果物は `src/alpha_visualizer/static/` に配置する。
 
 ```bash
 cd frontend
@@ -133,7 +151,7 @@ npm install
 # 開発サーバー（http://localhost:5173）
 npm run dev
 
-# 本番ビルド → src/alpha_frontend/static/ に出力
+# 本番ビルド → src/alpha_visualizer/static/ に出力
 npm run build
 
 # Lint
