@@ -82,13 +82,17 @@ def _optional_float(value: Any) -> float | None:
 def _load_live_summary(
     repo: LiveDataRepository, strategy_id: str
 ) -> dict[str, Any] | None:
-    """live summary を辞書で取得し、``strategy_id`` キーを補完する。"""
+    """live summary を辞書で取得し、``strategy_id`` キーを補完する。
+
+    Repository が返す dict を直接 mutate せず、shallow copy 上で補完する。
+    """
     raw = repo.load_summary(strategy_id)
     if raw is None:
         return None
-    if raw.get("strategy_id") in (None, ""):
-        raw["strategy_id"] = strategy_id
-    return raw
+    summary = dict(raw)
+    if summary.get("strategy_id") in (None, ""):
+        summary["strategy_id"] = strategy_id
+    return summary
 
 
 def _load_live_trades(

@@ -10,9 +10,12 @@ import json
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
-from alpha_visualizer.dependencies import get_optimization_repo
+from alpha_visualizer.dependencies import (
+    get_forge_config_dep,
+    get_optimization_repo,
+)
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 
@@ -97,10 +100,9 @@ def _extract_trials(
 @router.get("/optimize/{strategy_id}")
 async def get_optimize(
     strategy_id: str,
-    request: Request,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
 ) -> dict[str, Any]:
-    config: ForgeConfig = request.app.state.forge_config
     if not config.forge_db.exists():
         raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
 

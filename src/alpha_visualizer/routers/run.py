@@ -11,10 +11,14 @@ import shutil
 import subprocess
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from alpha_visualizer.dependencies import get_backtest_results_repo
+from alpha_visualizer.dependencies import (
+    get_backtest_results_repo,
+    get_forge_config_dep,
+)
+from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
 
 router = APIRouter()
@@ -34,12 +38,10 @@ class RunBacktestResponse(BaseModel):
 @router.post("/run", response_model=RunBacktestResponse)
 def run_backtest(
     body: RunBacktestRequest,
-    request: Request,
+    forge_cfg: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
 ) -> RunBacktestResponse:
     """forge backtest run をサブプロセス実行し、最新の run_id を返す。"""
-    forge_cfg = request.app.state.forge_config
-
     forge_exe = shutil.which("forge")
     if forge_exe is None:
         raise HTTPException(

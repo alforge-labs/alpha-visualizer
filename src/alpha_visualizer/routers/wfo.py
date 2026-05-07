@@ -13,11 +13,16 @@ import logging
 from datetime import date, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
-from alpha_visualizer.dependencies import get_optimization_repo
+from alpha_visualizer.dependencies import (
+    get_forge_config_dep,
+    get_optimization_repo,
+    get_strategies_repo,
+)
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
+from alpha_visualizer.repositories.strategies import StrategiesRepository
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +172,13 @@ def _extract_composite_curve(
             equity_curve_json = repo.find_oos_equity_curve_json(
                 strategy_id, oos_start
             )
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "OOS equity curve 取得失敗 (%s, %s): %s",
+                strategy_id,
+                oos_start,
+                exc,
+            )
             equity_curve_json = None
 
         if equity_curve_json:
@@ -200,24 +211,21 @@ def _extract_composite_curve(
     return composite_equity, composite_dates
 
 
-def _resolve_strategy_name(config: ForgeConfig, strategy_id: str) -> str:
-    path = config.strategies_dir / f"{strategy_id}.json"
-    if not path.exists():
-        return strategy_id
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return str(data.get("name", strategy_id))
-    except (OSError, ValueError):
-        return strategy_id
+def _resolve_strategy_name(
+    strategies_repo: StrategiesRepository, strategy_id: str
+) -> str:
+    """戦略名を ``StrategiesRepository`` から解決する（DB / JSON 両モード対応）。"""
+    row = strategies_repo.get_strategy(strategy_id)
+    return row.name if row is not None else strategy_id
 
 
 @router.get("/wfo/{strategy_id}")
 async def get_wfo(
     strategy_id: str,
-    request: Request,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
 ) -> dict[str, Any]:
-    config: ForgeConfig = request.app.state.forge_config
     if not config.forge_db.exists():
         raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
 
@@ -263,7 +271,7 @@ async def get_wfo(
 
     return {
         "strategy_id": strategy_id,
-        "strategy_name": _resolve_strategy_name(config, strategy_id),
+        "strategy_name": _resolve_strategy_name(strategies_repo, strategy_id),
         "symbol": symbol,
         "windows": windows,
         "composite_equity": composite_equity,
