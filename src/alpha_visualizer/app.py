@@ -1,12 +1,15 @@
 """FastAPI アプリケーションファクトリ"""
 from __future__ import annotations
 
+import logging
 import pathlib
 
 from fastapi import FastAPI
+from fastapi.requests import Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from alpha_visualizer.db import get_engine
+from alpha_visualizer.errors import AlphaVisualizerError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers import ideas as ideas_router
 from alpha_visualizer.routers import live as live_router
@@ -15,6 +18,8 @@ from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
 from alpha_visualizer.routers import wfo as wfo_router
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(
@@ -55,6 +60,24 @@ def create_app(
         app.state.strategies_engine = get_engine(config.strategies_db)
     else:
         app.state.strategies_engine = None
+
+    @app.exception_handler(AlphaVisualizerError)
+    async def _alpha_error_handler(
+        request: Request, exc: AlphaVisualizerError
+    ) -> JSONResponse:
+        """ドメイン例外を JSON レスポンスに変換する。
+
+        Chain of Responsibility: 新しい例外型を追加してもこのハンドラは変更不要。
+        """
+        logger.warning(
+            "ドメイン例外: %s (status=%s, path=%s)",
+            type(exc).__name__,
+            exc.status_code,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=exc.status_code, content={"detail": str(exc)}
+        )
 
     app.include_router(results_router.router, prefix="/api")
     app.include_router(strategies_router.router, prefix="/api")
