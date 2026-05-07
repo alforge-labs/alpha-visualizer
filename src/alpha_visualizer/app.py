@@ -6,6 +6,7 @@ import pathlib
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
+from alpha_visualizer.db import get_engine
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers import ideas as ideas_router
 from alpha_visualizer.routers import live as live_router
@@ -41,6 +42,10 @@ def create_app(
         version="0.1.0",
     )
     app.state.forge_config = config
+
+    # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
+    # forge.db ファイル不在時もリクエスト到達時に Repository 側で扱う。
+    app.state.engine = get_engine(config.forge_db)
 
     app.include_router(results_router.router, prefix="/api")
     app.include_router(strategies_router.router, prefix="/api")

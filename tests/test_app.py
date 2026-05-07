@@ -100,3 +100,15 @@ def test_spa_fallback_serves_index_with_static_dir(
     # /api 配下は SPA fallback に取られない（health は 200、未知 API は 404）
     r3 = client.get("/api/strategies")
     assert r3.status_code == 200  # 200 OK の JSON 応答
+
+
+def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
+    """create_app で生成された FastAPI が app.state.engine を持つこと。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    (forge_dir / "data" / "results" / "forge.db").touch()
+
+    app = create_app(forge_dir=forge_dir)
+    engine = app.state.engine
+    assert engine is not None
+    assert engine.dialect.name == "sqlite"
