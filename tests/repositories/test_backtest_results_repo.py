@@ -191,3 +191,53 @@ def test_find_latest_run_id_returns_none(tmp_path: Path) -> None:
     repo = BacktestResultsRepository(engine)
 
     assert repo.find_latest_run_id(strategy_id="missing", symbol="X") is None
+
+
+def test_find_latest_by_strategy_ids_returns_map(tmp_path: Path) -> None:
+    """各 strategy_id の最新行が dict で返る。"""
+    db_path = _make_db(tmp_path)
+    repo = BacktestResultsRepository(get_engine(db_path))
+
+    result = repo.find_latest_by_strategy_ids(["sma_cross", "ema_cross"])
+
+    assert isinstance(result, dict)
+    # フィクスチャ:
+    #   sma_cross の最新は run_002（2026-04-02）
+    #   ema_cross の最新は run_003（2026-04-03）
+    assert "sma_cross" in result
+    assert "ema_cross" in result
+    assert isinstance(result["sma_cross"], BacktestResultRow)
+    assert result["sma_cross"].run_id == "run_002"
+    assert result["ema_cross"].run_id == "run_003"
+
+
+def test_find_latest_by_strategy_ids_skips_missing(tmp_path: Path) -> None:
+    """存在しない strategy_id はキーに含まれない。"""
+    db_path = _make_db(tmp_path)
+    repo = BacktestResultsRepository(get_engine(db_path))
+
+    result = repo.find_latest_by_strategy_ids(["sma_cross", "nonexistent"])
+
+    assert "sma_cross" in result
+    assert "nonexistent" not in result
+
+
+def test_find_latest_by_strategy_ids_empty_list(tmp_path: Path) -> None:
+    """空 list は空 dict を返す（クエリは実行されない）。"""
+    db_path = _make_db(tmp_path)
+    repo = BacktestResultsRepository(get_engine(db_path))
+
+    assert repo.find_latest_by_strategy_ids([]) == {}
+
+
+def test_find_latest_by_strategy_ids_returns_latest(tmp_path: Path) -> None:
+    """同じ strategy_id の複数行から run_at 降順で最新が選ばれる。"""
+    db_path = _make_db(tmp_path)
+    repo = BacktestResultsRepository(get_engine(db_path))
+
+    result = repo.find_latest_by_strategy_ids(["sma_cross"])
+
+    # フィクスチャでは sma_cross は run_001（2026-04-01）と run_002（2026-04-02）
+    # 最新は run_002
+    assert result["sma_cross"].run_id == "run_002"
+    assert result["sma_cross"].run_at == "2026-04-02T12:00:00"

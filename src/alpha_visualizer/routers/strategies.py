@@ -196,12 +196,18 @@ async def list_strategies(
     strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
     bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
 ) -> list[dict[str, Any]]:
+    strategies = list(strategies_repo.list_strategies())
     forge_db_exists = config.forge_db.exists()
-    out: list[dict[str, Any]] = []
-    for strategy in strategies_repo.list_strategies():
-        latest = _latest_summary(bt_repo, forge_db_exists, strategy.strategy_id)
-        out.append(_strategy_to_summary(strategy, latest))
-    return out
+    # N+1 を避けるため最新行を 1 クエリでまとめて取得し dict ルックアップする
+    latest_map: dict[str, BacktestResultRow] = (
+        bt_repo.find_latest_by_strategy_ids([s.strategy_id for s in strategies])
+        if forge_db_exists
+        else {}
+    )
+    return [
+        _strategy_to_summary(s, latest_map.get(s.strategy_id))
+        for s in strategies
+    ]
 
 
 @router.get("/strategies/compare")
@@ -216,12 +222,20 @@ async def compare_strategies(
         raise InvalidRequestError("ids が空です")
 
     forge_db_exists = config.forge_db.exists()
+    # 戦略定義と最新バックテスト結果をそれぞれ 1 クエリで取得し dict 化する
+    strategy_map: dict[str, StrategyRow] = {
+        s.strategy_id: s for s in strategies_repo.find_by_ids(parsed)
+    }
+    latest_map: dict[str, BacktestResultRow] = (
+        bt_repo.find_latest_by_strategy_ids(parsed) if forge_db_exists else {}
+    )
+
     out: list[dict[str, Any]] = []
     for idx, sid in enumerate(parsed):
-        latest = _latest_summary(bt_repo, forge_db_exists, sid)
+        latest = latest_map.get(sid)
         if latest is None:
             continue
-        strategy = strategies_repo.get_strategy(sid)
+        strategy = strategy_map.get(sid)
         name = strategy.name if strategy is not None else sid
         dates, values = _shape_equity_curve(latest.equity_curve_json)
         daily_returns = _compute_daily_returns_pct(values)
