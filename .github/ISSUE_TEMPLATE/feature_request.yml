@@ -1,0 +1,39 @@
+name: 💡 Feature Request (English)
+description: Suggest an idea or enhancement for alpha-visualizer.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an enhancement! Please describe your idea below.
+        Search [existing issues](https://github.com/alforge-labs/alpha-visualizer/issues?q=is%3Aissue+label%3Aenhancement) first to avoid duplicates.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this feature solve? What is the use case?
+      placeholder: When I'm comparing 5+ strategies, I can't easily ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work? UI sketches, API mockups, sample code all welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you've considered, if any.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, links to similar features in other tools, etc.

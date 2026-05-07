@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation / 公式ドキュメント
+    url: https://alforgelabs.com/ja/docs/alpha-visualizer/
+    about: Read the docs before opening an issue. / Issue を立てる前に公式ドキュメントを確認してください。
+  - name: 💬 Discussions
+    url: https://github.com/alforge-labs/alpha-visualizer/discussions
+    about: Ask questions or start a discussion. / 質問・議論はこちらから。
+  - name: 🛡️ Security vulnerability / セキュリティ脆弱性
+    url: https://github.com/alforge-labs/alpha-visualizer/security/advisories/new
+    about: Do NOT open a public issue. Use GitHub Security Advisories. / セキュリティ問題は public Issue ではなく Security Advisories で報告してください。

@@ -1,0 +1,99 @@
+name: 🐛 バグ報告（日本語）
+description: 再現可能なバグを報告して alpha-visualizer の改善にご協力ください。
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ報告をいただきありがとうございます。以下の項目にご記入ください。
+        提出前に [既存の Issue](https://github.com/alforge-labs/alpha-visualizer/issues) を検索し、重複を避けてください。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 何が起きましたか？
+      description: バグの内容を簡潔に説明してください。
+      placeholder: vis serve を実行すると...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      description: 最小限の再現手順をご記入ください。
+      placeholder: |
+        1. `vis serve --forge-dir /path/to/data` を実行
+        2. ブラウザで http://127.0.0.1:8000/browse を開く
+        3. 戦略 "X" をクリック
+        4. エラーが表示される
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 本来どうなるべきだと考えていますか？
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: alpha-visualizer のバージョン
+      description: "`vis --version` の出力、または pyproject.toml の値。"
+      placeholder: "0.1.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - その他
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python バージョン
+      description: "`python --version` の出力。"
+      placeholder: "3.12.x"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: ブラウザ（フロントエンドの問題の場合）
+      placeholder: "Chrome 132 / Firefox 134 / Safari 18"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・エラー出力
+      description: 関連するログ、スタックトレース、ブラウザコンソールエラーを貼り付けてください。
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 追加情報
+      description: 問題の理解に役立つ情報があればご記入ください。
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 提出前チェックリスト
+      options:
+        - label: 既存 Issue を検索し重複がないことを確認した
+          required: true
+        - label: サポート対象バージョンの alpha-visualizer を使用している
+          required: true

@@ -1,0 +1,99 @@
+name: 🐛 Bug Report (English)
+description: Report a reproducible bug to help us improve alpha-visualizer.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill out the sections below.
+        Before submitting, please [search existing issues](https://github.com/alforge-labs/alpha-visualizer/issues) to avoid duplicates.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: When I run `vis serve`, ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Run `vis serve --forge-dir /path/to/data`
+        2. Open browser at http://127.0.0.1:8000/browse
+        3. Click on strategy "X"
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: alpha-visualizer version
+      description: Output of `vis --version` or the value in pyproject.toml.
+      placeholder: "0.1.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: Output of `python --version`.
+      placeholder: "3.12.x"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (if frontend issue)
+      placeholder: "Chrome 132 / Firefox 134 / Safari 18"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Paste any relevant logs, stack traces, or browser console errors.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help us understand the problem.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-submit checklist
+      options:
+        - label: I have searched existing issues for duplicates
+          required: true
+        - label: I am running a supported version of alpha-visualizer
+          required: true
