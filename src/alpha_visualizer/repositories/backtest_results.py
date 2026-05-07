@@ -90,3 +90,16 @@ class BacktestResultsRepository:
         with self._engine.connect() as conn:
             row = conn.execute(stmt).first()
         return BacktestResultRow(**row._mapping) if row is not None else None
+
+    def find_latest_run_id(self, *, strategy_id: str, symbol: str) -> str | None:
+        """指定戦略・銘柄の最新 run_id を返す。`run.py` のサブプロセス実行後に使う。"""
+        stmt = (
+            select(backtest_results.c.run_id)
+            .where(backtest_results.c.strategy_id == strategy_id)
+            .where(backtest_results.c.symbol == symbol)
+            .order_by(backtest_results.c.run_at.desc())
+            .limit(1)
+        )
+        with self._engine.connect() as conn:
+            row = conn.execute(stmt).first()
+        return row.run_id if row else None

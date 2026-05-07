@@ -174,3 +174,20 @@ def test_backtest_result_row_is_immutable(tmp_path: Path) -> None:
     assert row is not None
     with pytest.raises((AttributeError, FrozenInstanceError)):
         row.run_id = "tampered"  # type: ignore[misc]
+
+
+def test_find_latest_run_id(tmp_path: Path) -> None:
+    """同一 strategy_id × symbol の最新 run_at を持つ run_id を返す"""
+    engine = get_engine(_make_db(tmp_path))
+    repo = BacktestResultsRepository(engine)
+
+    # フィクスチャでは sma_cross/MSFT は run_002 が最新（2026-04-02）
+    assert repo.find_latest_run_id(strategy_id="sma_cross", symbol="MSFT") == "run_002"
+
+
+def test_find_latest_run_id_returns_none(tmp_path: Path) -> None:
+    """該当する組み合わせがない場合は None を返す"""
+    engine = get_engine(_make_db(tmp_path))
+    repo = BacktestResultsRepository(engine)
+
+    assert repo.find_latest_run_id(strategy_id="missing", symbol="X") is None
