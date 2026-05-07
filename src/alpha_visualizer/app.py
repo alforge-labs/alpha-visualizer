@@ -69,7 +69,9 @@ def create_app(
 
         Chain of Responsibility: 新しい例外型を追加してもこのハンドラは変更不要。
         """
-        logger.warning(
+        # 5xx は運用監視で拾うため ERROR、4xx はクライアント側の問題として WARNING
+        log_fn = logger.error if exc.status_code >= 500 else logger.warning
+        log_fn(
             "ドメイン例外: %s (status=%s, path=%s)",
             type(exc).__name__,
             exc.status_code,

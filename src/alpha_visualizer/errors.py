@@ -2,7 +2,7 @@
 
 Router 層は ``HTTPException`` を直接 raise する代わりに、本モジュールの
 例外を raise する。``app.py`` で登録される ``exception_handler`` が
-``HTTPException`` に変換し、レスポンス JSON を生成する。
+``JSONResponse`` に変換し、``{"detail": "..."}`` を生成する。
 
 新しい例外型を追加するときは ``AlphaVisualizerError`` を継承して
 ``status_code`` を付ければよい（既存ハンドラは修正不要）。
