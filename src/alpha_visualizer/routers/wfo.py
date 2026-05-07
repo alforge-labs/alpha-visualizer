@@ -13,13 +13,14 @@ import logging
 from datetime import date, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from alpha_visualizer.dependencies import (
     get_forge_config_dep,
     get_optimization_repo,
     get_strategies_repo,
 )
+from alpha_visualizer.errors import AlphaVisualizerError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
@@ -227,7 +228,7 @@ async def get_wfo(
     strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
 ) -> dict[str, Any]:
     if not config.forge_db.exists():
-        raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
+        raise NotFoundError("バックテスト DB が見つかりません")
 
     try:
         runs = repo.list_runs_for_strategy(strategy_id)
@@ -248,9 +249,8 @@ async def get_wfo(
                 break
 
         if not windows:
-            raise HTTPException(
-                status_code=404,
-                detail=f"WFO 形式の最適化結果が見つかりません: {strategy_id}",
+            raise NotFoundError(
+                f"WFO 形式の最適化結果が見つかりません: {strategy_id}",
             )
 
         try:
@@ -261,12 +261,12 @@ async def get_wfo(
             logger.warning("composite curve 生成に失敗: %s (%s)", strategy_id, e)
             composite_equity, composite_dates = [], []
 
-    except HTTPException:
+    except AlphaVisualizerError:
         raise
     except Exception as e:
         logger.warning("WFO 取得に失敗: %s (%s)", strategy_id, e)
-        raise HTTPException(
-            status_code=404, detail=f"WFO 結果の取得に失敗しました: {strategy_id}"
+        raise NotFoundError(
+            f"WFO 結果の取得に失敗しました: {strategy_id}"
         ) from e
 
     return {

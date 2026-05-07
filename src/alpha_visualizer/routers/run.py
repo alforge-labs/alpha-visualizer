@@ -11,13 +11,14 @@ import shutil
 import subprocess
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
     get_forge_config_dep,
 )
+from alpha_visualizer.errors import DataCorruptError, ExternalProcessError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
 
@@ -44,9 +45,8 @@ def run_backtest(
     """forge backtest run をサブプロセス実行し、最新の run_id を返す。"""
     forge_exe = shutil.which("forge")
     if forge_exe is None:
-        raise HTTPException(
-            status_code=500,
-            detail="forge コマンドが見つかりません / forge command not found in PATH",
+        raise ExternalProcessError(
+            "forge コマンドが見つかりません / forge command not found in PATH",
         )
 
     env = os.environ.copy()
@@ -66,7 +66,7 @@ def run_backtest(
             proc.stderr.strip()
             or "バックテストの実行に失敗しました / Backtest execution failed"
         )
-        raise HTTPException(status_code=500, detail=detail)
+        raise ExternalProcessError(detail)
 
     # forge.db が未生成のときに Repository が OperationalError を投げないよう、
     # 先にファイル存在を確認してから問い合わせる。
@@ -78,9 +78,8 @@ def run_backtest(
             symbol=body.symbol,
         )
     if run_id is None:
-        raise HTTPException(
-            status_code=500,
-            detail="バックテスト結果が見つかりません / Backtest result not found in DB",
+        raise DataCorruptError(
+            "バックテスト結果が見つかりません / Backtest result not found in DB",
         )
 
     return RunBacktestResponse(run_id=run_id, status="ok")

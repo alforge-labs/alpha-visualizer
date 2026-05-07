@@ -11,12 +11,13 @@ import math
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
     get_forge_config_dep,
 )
+from alpha_visualizer.errors import InvalidRequestError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
@@ -458,8 +459,8 @@ async def list_results(
         try:
             since_dt = _parse_dt(since)
         except ValueError as e:
-            raise HTTPException(
-                status_code=400, detail=f"since の形式が不正です: {since}"
+            raise InvalidRequestError(
+                f"since の形式が不正です: {since}"
             ) from e
     if not config.forge_db.exists():
         return []
@@ -475,14 +476,10 @@ async def get_result(
     repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
 ) -> dict[str, Any]:
     if not config.forge_db.exists():
-        raise HTTPException(
-            status_code=404, detail=f"run_id '{run_id}' が見つかりません"
-        )
+        raise NotFoundError(f"run_id '{run_id}' が見つかりません")
     row = repo.get_result(run_id)
     if row is None:
-        raise HTTPException(
-            status_code=404, detail=f"run_id '{run_id}' が見つかりません"
-        )
+        raise NotFoundError(f"run_id '{run_id}' が見つかりません")
     return _shape_detail(_row_to_dict(row))
 
 

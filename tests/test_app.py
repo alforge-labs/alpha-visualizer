@@ -143,3 +143,33 @@ def test_create_app_strategies_engine_none_in_json_mode(tmp_path: pathlib.Path) 
 
     app = create_app(forge_dir=forge_dir)
     assert app.state.strategies_engine is None
+
+
+def test_alpha_error_handler_returns_json_with_status(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AlphaVisualizerError サブクラスを raise すると、ハンドラが
+    対応する status_code と {"detail": str(exc)} JSON に変換する。
+    """
+    import alpha_visualizer.app as app_module
+
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    (forge_dir / "data" / "results" / "forge.db").touch()
+
+    # SPA fallback (/{full_path:path}) を登録させないため、
+    # __file__ を一時ディレクトリにずらして static/ 不在状態にする。
+    monkeypatch.setattr(app_module, "__file__", str(tmp_path / "app.py"))
+
+    app = create_app(forge_dir=forge_dir)
+
+    @app.get("/_test_error")
+    async def _raise_error() -> None:
+        from alpha_visualizer.errors import NotFoundError
+
+        raise NotFoundError("test resource")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    res = client.get("/_test_error")
+    assert res.status_code == 404
+    assert res.json() == {"detail": "test resource"}

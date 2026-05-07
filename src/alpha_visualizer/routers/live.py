@@ -16,9 +16,10 @@ import logging
 import math
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from alpha_visualizer.dependencies import get_live_repo
+from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.repositories.live import LiveDataRepository
 
 logger = logging.getLogger(__name__)
@@ -261,9 +262,8 @@ async def get_live(
     """指定戦略の live summary + trades と、期間整合した backtest aligned/diff を返す。"""
     summary = _load_live_summary(repo, strategy_id)
     if summary is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"strategy_id '{strategy_id}' の live summary が見つかりません",
+        raise NotFoundError(
+            f"strategy_id '{strategy_id}' の live summary が見つかりません",
         )
 
     trades = _load_live_trades(repo, strategy_id)

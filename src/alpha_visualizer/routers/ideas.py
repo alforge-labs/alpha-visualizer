@@ -8,9 +8,10 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from alpha_visualizer.dependencies import get_ideas_reader
+from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.repositories.ideas import IdeasReader
 
 logger = logging.getLogger(__name__)
@@ -37,4 +38,4 @@ async def get_idea(
     for idea in reader.read():
         if idea.get("idea_id") == idea_id:
             return idea
-    raise HTTPException(status_code=404, detail=f"idea_id '{idea_id}' が見つかりません")
+    raise NotFoundError(f"idea_id '{idea_id}' が見つかりません")
