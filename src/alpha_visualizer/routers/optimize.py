@@ -10,12 +10,13 @@ import json
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from alpha_visualizer.dependencies import (
     get_forge_config_dep,
     get_optimization_repo,
 )
+from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 
@@ -104,22 +105,18 @@ async def get_optimize(
     repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
 ) -> dict[str, Any]:
     if not config.forge_db.exists():
-        raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
+        raise NotFoundError("バックテスト DB が見つかりません")
 
     try:
         row = repo.get_latest_for_strategy(strategy_id)
     except Exception as e:
         logger.warning("最適化結果の取得に失敗: %s (%s)", strategy_id, e)
-        raise HTTPException(
-            status_code=404,
-            detail=f"最適化結果の取得に失敗しました: {strategy_id}",
+        raise NotFoundError(
+            f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e
 
     if row is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"最適化結果が見つかりません: {strategy_id}",
-        )
+        raise NotFoundError(f"最適化結果が見つかりません: {strategy_id}")
 
     metric_name = str(row.best_metric_name or "sharpe_ratio")
     best_metric = float(row.best_metric_value or 0.0)

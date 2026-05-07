@@ -10,7 +10,7 @@ import logging
 import math
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
@@ -18,6 +18,7 @@ from alpha_visualizer.dependencies import (
     get_optimization_repo,
     get_strategies_repo,
 )
+from alpha_visualizer.errors import InvalidRequestError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
@@ -212,7 +213,7 @@ async def compare_strategies(
 ) -> list[dict[str, Any]]:
     parsed = [s for s in (i.strip() for i in ids.split(",")) if s]
     if not parsed:
-        raise HTTPException(status_code=400, detail="ids が空です")
+        raise InvalidRequestError("ids が空です")
 
     forge_db_exists = config.forge_db.exists()
     out: list[dict[str, Any]] = []
@@ -243,9 +244,8 @@ async def compare_strategies(
             }
         )
     if not out:
-        raise HTTPException(
-            status_code=404,
-            detail=f"指定した戦略のバックテスト結果が見つかりません: {parsed}",
+        raise NotFoundError(
+            f"指定した戦略のバックテスト結果が見つかりません: {parsed}",
         )
     return out
 
@@ -260,9 +260,7 @@ async def get_strategy(
 ) -> dict[str, Any]:
     strategy = strategies_repo.get_strategy(strategy_id)
     if strategy is None:
-        raise HTTPException(
-            status_code=404, detail=f"strategy_id '{strategy_id}' が見つかりません"
-        )
+        raise NotFoundError(f"strategy_id '{strategy_id}' が見つかりません")
 
     definition = _parsed_definition(strategy)
     forge_db_exists = config.forge_db.exists()
