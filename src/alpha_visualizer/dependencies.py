@@ -10,6 +10,7 @@ from sqlalchemy import Engine
 
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
+from alpha_visualizer.repositories.strategies import StrategiesRepository
 
 
 def get_forge_config_dep(request: Request) -> ForgeConfig:
@@ -29,3 +30,16 @@ def get_engine_dep(request: Request) -> Engine:
 def get_backtest_results_repo(request: Request) -> BacktestResultsRepository:
     """``BacktestResultsRepository`` を ``app.state.engine`` から構築して返す。"""
     return BacktestResultsRepository(request.app.state.engine)
+
+
+def get_strategies_repo(request: Request) -> StrategiesRepository:
+    """``StrategiesRepository`` を ``ForgeConfig`` から構築して返す。
+
+    DB モード（``strategies_db`` 指定）と JSON モード（``strategies_dir``）の
+    両方を Repository が内部で吸収する。
+    """
+    cfg: ForgeConfig = request.app.state.forge_config
+    return StrategiesRepository.from_paths(
+        strategies_dir=cfg.strategies_dir,
+        strategies_db=cfg.strategies_db,
+    )
