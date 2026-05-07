@@ -17,7 +17,7 @@
 
 ## 行動規範
 
-本プロジェクトに参加するすべての方は [Contributor Covenant v2.1 ベースの行動規範（英語）](CODE_OF_CONDUCT.md) を遵守してください。違反の報告先は SECURITY.md と同じく `security@alforgelabs.com` です。
+本プロジェクトに参加するすべての方は [Contributor Covenant v2.1 ベースの行動規範](CODE_OF_CONDUCT.md) を遵守してください。違反の報告先は SECURITY.md と同じく `security@alforgelabs.com` です。
 
 ## はじめに（開発環境のセットアップ）
 

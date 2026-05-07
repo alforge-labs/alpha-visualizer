@@ -17,7 +17,7 @@ Thanks for your interest in contributing to `alpha-visualizer`! Bug reports, fea
 
 ## Code of Conduct
 
-All participants are expected to abide by the [Contributor Covenant v2.1 Code of Conduct](CODE_OF_CONDUCT.md). Violations can be reported to `security@alforgelabs.com` (same address as SECURITY.md).
+All participants are expected to abide by the [Contributor Covenant v2.1 Code of Conduct](CODE_OF_CONDUCT.en.md). Violations can be reported to `security@alforgelabs.com` (same address as SECURITY.md).
 
 ## Development Setup
 
