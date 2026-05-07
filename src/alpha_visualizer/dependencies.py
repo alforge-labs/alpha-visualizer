@@ -10,6 +10,7 @@ from sqlalchemy import Engine
 
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
+from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
 
 
@@ -43,3 +44,8 @@ def get_strategies_repo(request: Request) -> StrategiesRepository:
         strategies_dir=cfg.strategies_dir,
         strategies_db=cfg.strategies_db,
     )
+
+
+def get_optimization_repo(request: Request) -> OptimizationRepository:
+    """``OptimizationRepository`` を ``app.state.engine`` から構築して返す。"""
+    return OptimizationRepository(request.app.state.engine)

@@ -1,7 +1,8 @@
 """ウォークフォーワード結果 API ルーター
 
 `/api/wfo/{strategy_id}` を提供する。
-optimization_runs テーブルの all_trials_json を直接クエリしてウィンドウ別 IS/OOS を返す。
+optimization_runs テーブルの all_trials_json を Repository 経由で取得し、
+ウィンドウ別 IS/OOS を返す。
 composite_equity / composite_dates は backtest_results の OOS スライスを優先し、
 欠損時は oos_return_pct から線形補間でフォールバックする。
 """
@@ -10,13 +11,13 @@ from __future__ import annotations
 import json
 import logging
 from datetime import date, timedelta
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import Connection, create_engine, select
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from alpha_visualizer.db import backtest_results, optimization_runs
+from alpha_visualizer.dependencies import get_optimization_repo
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.optimization import OptimizationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ def _interpolate_window_curve(
 def _extract_composite_curve(
     windows: list[dict[str, Any]],
     strategy_id: str,
-    conn: Connection,
+    repo: OptimizationRepository,
 ) -> tuple[list[float], list[str]]:
     """各 OOS ウィンドウのエクイティを連結した合成カーブを返す。
 
@@ -163,18 +164,14 @@ def _extract_composite_curve(
         seg_values: list[float] = []
 
         try:
-            row = conn.execute(
-                select(backtest_results.c.equity_curve_json)
-                .where(backtest_results.c.strategy_id == strategy_id)
-                .where(backtest_results.c.oos_start == oos_start)
-                .order_by(backtest_results.c.run_at.desc())
-                .limit(1)
-            ).fetchone()
+            equity_curve_json = repo.find_oos_equity_curve_json(
+                strategy_id, oos_start
+            )
         except Exception:
-            row = None
+            equity_curve_json = None
 
-        if row and row.equity_curve_json:
-            points = _parse_equity_curve(row.equity_curve_json)
+        if equity_curve_json:
+            points = _parse_equity_curve(equity_curve_json)
             sliced = _slice_oos_segment(points, oos_start, oos_end)
             if sliced:
                 raw_values = [v for _, v in sliced]
@@ -215,52 +212,46 @@ def _resolve_strategy_name(config: ForgeConfig, strategy_id: str) -> str:
 
 
 @router.get("/wfo/{strategy_id}")
-async def get_wfo(strategy_id: str, request: Request) -> dict[str, Any]:
+async def get_wfo(
+    strategy_id: str,
+    request: Request,
+    repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
+) -> dict[str, Any]:
     config: ForgeConfig = request.app.state.forge_config
-    db_path = config.forge_db
-    if not db_path.exists():
+    if not config.forge_db.exists():
         raise HTTPException(status_code=404, detail="バックテスト DB が見つかりません")
 
     try:
-        engine = create_engine(f"sqlite:///{db_path}", future=True)
-        with engine.connect() as conn:
-            rows = conn.execute(
-                select(
-                    optimization_runs.c.symbol,
-                    optimization_runs.c.all_trials_json,
-                )
-                .where(optimization_runs.c.strategy_id == strategy_id)
-                .order_by(optimization_runs.c.run_at.desc())
-            ).fetchall()
+        runs = repo.list_runs_for_strategy(strategy_id)
 
-            windows: list[dict[str, Any]] = []
-            symbol = ""
-            for row in rows:
-                if not symbol:
-                    symbol = str(row.symbol or "")
-                all_trials: list[dict[str, Any]] | None = None
-                if row.all_trials_json:
-                    try:
-                        all_trials = json.loads(row.all_trials_json)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-                windows = _extract_windows(all_trials)
-                if windows:
-                    break
+        windows: list[dict[str, Any]] = []
+        symbol = ""
+        for run in runs:
+            if not symbol:
+                symbol = str(run.symbol or "")
+            all_trials: list[dict[str, Any]] | None = None
+            if run.all_trials_json:
+                try:
+                    all_trials = json.loads(run.all_trials_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            windows = _extract_windows(all_trials)
+            if windows:
+                break
 
-            if not windows:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"WFO 形式の最適化結果が見つかりません: {strategy_id}",
-                )
+        if not windows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WFO 形式の最適化結果が見つかりません: {strategy_id}",
+            )
 
-            try:
-                composite_equity, composite_dates = _extract_composite_curve(
-                    windows, strategy_id, conn
-                )
-            except Exception as e:
-                logger.warning("composite curve 生成に失敗: %s (%s)", strategy_id, e)
-                composite_equity, composite_dates = [], []
+        try:
+            composite_equity, composite_dates = _extract_composite_curve(
+                windows, strategy_id, repo
+            )
+        except Exception as e:
+            logger.warning("composite curve 生成に失敗: %s (%s)", strategy_id, e)
+            composite_equity, composite_dates = [], []
 
     except HTTPException:
         raise
