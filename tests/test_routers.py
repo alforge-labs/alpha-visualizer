@@ -11,6 +11,17 @@ from fastapi.testclient import TestClient
 
 from alpha_visualizer.app import create_app
 from alpha_visualizer.forge_config import ForgeConfig
+from tests.factories import (
+    build_backtest_db,
+    build_optimize_db,
+    build_strategies_db,
+    insert_regime_run,
+    seed_backtest_with_trades,
+    seed_live_summary,
+    seed_live_trades,
+    seed_oos_equity_curves,
+    seed_wfo_windows,
+)
 
 
 @pytest.fixture()
@@ -333,10 +344,10 @@ class TestWfoRouter:
     def _setup_wfo_db(self, tmp_path: pathlib.Path, with_equity: bool = True) -> None:
         """WFO テスト用 DB と forge.yaml を作成する。"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_backtest_db(db_path)
-        _seed_wfo_windows(db_path)
+        build_backtest_db(db_path)
+        seed_wfo_windows(db_path)
         if with_equity:
-            _seed_oos_equity_curves(db_path)
+            seed_oos_equity_curves(db_path)
         (tmp_path / "forge.yaml").write_text(
             textwrap.dedent(
                 """
@@ -404,7 +415,7 @@ class TestWfoRouter:
     def test_wfo_composite_empty_when_no_oos_dates(self, tmp_path: pathlib.Path) -> None:
         """oos_start が空のウィンドウのみの場合、composite は空配列を返す。"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         (tmp_path / "forge.yaml").write_text(
             textwrap.dedent(
                 """
@@ -458,85 +469,12 @@ class TestWfoRouter:
 # --- forge.yaml 反映 + 実 DB ありのテスト ----------------------------------
 
 
-def _create_backtest_db(db_path: pathlib.Path) -> None:
-    """alpha-forge と互換のスキーマで最小の backtest_results.db を作る。"""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE backtest_results (
-                id INTEGER PRIMARY KEY,
-                run_id TEXT NOT NULL UNIQUE,
-                strategy_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                run_at TEXT NOT NULL,
-                total_return_pct REAL,
-                cagr_pct REAL,
-                sharpe_ratio REAL,
-                sortino_ratio REAL,
-                calmar_ratio REAL,
-                max_drawdown_pct REAL,
-                total_trades INTEGER,
-                win_rate_pct REAL,
-                profit_factor REAL,
-                avg_holding_days REAL,
-                metrics_json TEXT NOT NULL,
-                equity_curve_json TEXT,
-                trades_json TEXT,
-                oos_start TEXT,
-                buy_hold_curve_json TEXT
-            );
-            CREATE TABLE optimization_runs (
-                id INTEGER PRIMARY KEY,
-                run_id TEXT NOT NULL UNIQUE,
-                strategy_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                run_at TEXT NOT NULL,
-                n_trials INTEGER,
-                best_metric_name TEXT,
-                best_metric_value REAL,
-                best_params_json TEXT,
-                duration_seconds REAL,
-                all_trials_json TEXT
-            );
-            """
-        )
-        conn.execute(
-            """
-            INSERT INTO backtest_results (
-                run_id, strategy_id, symbol, run_at,
-                total_return_pct, sharpe_ratio, max_drawdown_pct, total_trades,
-                profit_factor, win_rate_pct,
-                metrics_json
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "run_aapl_001",
-                "ema_cross_aapl",
-                "AAPL",
-                "2026-04-01T12:00:00",
-                12.5,
-                1.42,
-                -8.3,
-                42,
-                1.86,
-                63.2,
-                "{}",
-            ),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
 @pytest.fixture()
 def client_with_db(tmp_path: pathlib.Path) -> TestClient:
     """backtest_results.db に1件の run が入った状態のクライアント"""
     db_path = tmp_path / "data" / "results" / "backtest_results.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    _create_backtest_db(db_path)
+    build_backtest_db(db_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO backtest_results"
@@ -567,155 +505,11 @@ def client_with_db(tmp_path: pathlib.Path) -> TestClient:
     return TestClient(app)
 
 
-def _seed_wfo_windows(db_path: pathlib.Path, strategy_id: str = "wfo_strategy") -> None:
-    """optimization_runs に WFO ウィンドウ形式の all_trials_json を挿入する。"""
-    conn = sqlite3.connect(db_path)
-    windows = [
-        {
-            "window_id": 1,
-            "label": "W1",
-            "is_start": "2021-01-04",
-            "is_end": "2021-06-30",
-            "oos_start": "2021-07-01",
-            "oos_end": "2021-12-31",
-            "is_sharpe": 1.2,
-            "oos_sharpe": 0.9,
-            "is_return_pct": 12.0,
-            "oos_return_pct": 8.0,
-            "pass": True,
-        },
-        {
-            "window_id": 2,
-            "label": "W2",
-            "is_start": "2022-01-03",
-            "is_end": "2022-06-30",
-            "oos_start": "2022-07-01",
-            "oos_end": "2022-12-30",
-            "is_sharpe": 1.1,
-            "oos_sharpe": 0.7,
-            "is_return_pct": 10.0,
-            "oos_return_pct": 5.0,
-            "pass": True,
-        },
-    ]
-    conn.execute(
-        """INSERT INTO optimization_runs
-           (run_id, strategy_id, symbol, run_at, n_trials,
-            best_metric_name, best_metric_value, best_params_json, all_trials_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            "opt_wfo_001",
-            strategy_id,
-            "AAPL",
-            "2026-01-01T00:00:00",
-            50,
-            "sharpe_ratio",
-            0.9,
-            "{}",
-            json.dumps(windows),
-        ),
-    )
-    conn.commit()
-    conn.close()
-
-
-def _seed_oos_equity_curves(db_path: pathlib.Path, strategy_id: str = "wfo_strategy") -> None:
-    """backtest_results に OOS 期間付きエクイティカーブを挿入する（各 WFO ウィンドウ対応）。"""
-    import datetime
-
-    def _make_curve(start_date: str, n_days: int, start_val: float, return_pct: float) -> str:
-        base = datetime.date.fromisoformat(start_date)
-        end_val = start_val * (1 + return_pct / 100)
-        curve = []
-        for i in range(n_days):
-            d = base + datetime.timedelta(days=i)
-            v = start_val + (end_val - start_val) * (i / max(n_days - 1, 1))
-            curve.append({"date": d.isoformat(), "value": round(v, 4)})
-        return json.dumps(curve)
-
-    conn = sqlite3.connect(db_path)
-    conn.execute(
-        """INSERT INTO backtest_results
-           (run_id, strategy_id, symbol, run_at, metrics_json, equity_curve_json, oos_start)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (
-            "bt_wfo_w1",
-            strategy_id,
-            "AAPL",
-            "2026-01-01T00:00:00",
-            "{}",
-            _make_curve("2021-07-01", 184, 100000.0, 8.0),
-            "2021-07-01",
-        ),
-    )
-    conn.execute(
-        """INSERT INTO backtest_results
-           (run_id, strategy_id, symbol, run_at, metrics_json, equity_curve_json, oos_start)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (
-            "bt_wfo_w2",
-            strategy_id,
-            "AAPL",
-            "2026-01-01T00:00:01",
-            "{}",
-            _make_curve("2022-07-01", 183, 100000.0, 5.0),
-            "2022-07-01",
-        ),
-    )
-    conn.commit()
-    conn.close()
-
-
-def _create_strategies_db(db_path: pathlib.Path, strategy_id: str, name: str) -> None:
-    """alpha-forge と互換のスキーマで最小の strategies.db を作る。"""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE strategies (
-                id INTEGER PRIMARY KEY,
-                strategy_id TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                version TEXT NOT NULL,
-                asset_type TEXT NOT NULL,
-                timeframe TEXT NOT NULL,
-                tags TEXT NOT NULL,
-                notes TEXT NOT NULL,
-                definition_json TEXT NOT NULL,
-                source_file TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-            """
-        )
-        definition = json.dumps(
-            {
-                "strategy_id": strategy_id,
-                "name": name,
-                "parameters": {"fast": 12, "slow": 26},
-            }
-        )
-        conn.execute(
-            """
-            INSERT INTO strategies (
-                strategy_id, name, version, asset_type, timeframe,
-                tags, notes, definition_json,
-                created_at, updated_at
-            ) VALUES (?, ?, '1.0.0', 'stock', '1d', '[]', '', ?, '2026-04-01', '2026-04-01')
-            """,
-            (strategy_id, name, definition),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
 @pytest.fixture()
 def client_with_forge_yaml(tmp_path: pathlib.Path) -> TestClient:
     """forge.yaml + 実 SQLite DB（backtest_results / strategies）を持つクライアント。"""
-    _create_backtest_db(tmp_path / "data" / "results" / "backtest_results.db")
-    _create_strategies_db(
+    build_backtest_db(tmp_path / "data" / "results" / "backtest_results.db")
+    build_strategies_db(
         tmp_path / "data" / "strategies" / "strategies.db",
         strategy_id="ema_cross_aapl",
         name="EMA クロス AAPL",
@@ -802,7 +596,7 @@ class TestForgeYamlIntegration:
     ) -> None:
         """compare API は equity_curve_json をパースして equity と daily_returns を返す（issue #55）"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         # equity_curve_json 入りの run を 2 件追加
         equity_a = json.dumps(
             [
@@ -853,7 +647,7 @@ class TestForgeYamlIntegration:
                     equity_b,
                 ),
             )
-        _create_strategies_db(
+        build_strategies_db(
             tmp_path / "data" / "strategies" / "strategies.db",
             strategy_id="strat_a",
             name="Strategy A",
@@ -1002,7 +796,7 @@ def client_with_benchmark_db(tmp_path: pathlib.Path) -> TestClient:
     """metrics_json に benchmark サブオブジェクトを含む run が入った状態のクライアント"""
     db_path = tmp_path / "data" / "results" / "backtest_results.db"
     db_path.parent.mkdir(parents=True)
-    _create_backtest_db(db_path)
+    build_backtest_db(db_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO backtest_results"
@@ -1096,7 +890,7 @@ def client_with_annual_returns_db(tmp_path: pathlib.Path) -> TestClient:
     """annual_returns と equity_curve/buy_hold_curve を含む run が入ったクライアント"""
     db_path = tmp_path / "data" / "results" / "backtest_results.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    _create_backtest_db(db_path)
+    build_backtest_db(db_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO backtest_results"
@@ -1251,45 +1045,18 @@ _REGIME_METRICS_JSON = json.dumps(
 )
 
 
-def _insert_regime_run(
-    db_path: pathlib.Path,
-    *,
-    run_id: str = "run-regime01",
-    metrics_json: str = _REGIME_METRICS_JSON,
-    equity_curve_json: str = _REGIME_EQUITY_CURVE_JSON,
-) -> None:
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            "INSERT INTO backtest_results"
-            " (run_id, strategy_id, symbol, run_at,"
-            " total_return_pct, sharpe_ratio, max_drawdown_pct, win_rate_pct,"
-            " profit_factor, total_trades,"
-            " metrics_json, equity_curve_json)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                run_id,
-                "regime_strategy",
-                "AAPL",
-                "2026-01-01T00:00:00",
-                2.5,
-                1.1,
-                -3.0,
-                55.0,
-                1.4,
-                5,
-                metrics_json,
-                equity_curve_json,
-            ),
-        )
-
-
 @pytest.fixture()
 def client_with_regime_db(tmp_path: pathlib.Path) -> TestClient:
     """regime_series / regime_breakdown を含む metrics_json の run を持つクライアント"""
     db_path = tmp_path / "data" / "results" / "backtest_results.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    _create_backtest_db(db_path)
-    _insert_regime_run(db_path)
+    build_backtest_db(db_path)
+    insert_regime_run(
+        db_path,
+        run_id="run-regime01",
+        metrics_json=_REGIME_METRICS_JSON,
+        equity_curve_json=_REGIME_EQUITY_CURVE_JSON,
+    )
     forge_yaml = tmp_path / "forge.yaml"
     forge_yaml.write_text(
         "report:\n  db_filename: backtest_results.db\n"
@@ -1347,7 +1114,7 @@ class TestRegimeSeries:
         """dates と states の長さ不一致 → regime_series が省略され warning が出る"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         bad_metrics = json.dumps(
             {
                 "regime_series": {
@@ -1357,7 +1124,12 @@ class TestRegimeSeries:
                 },
             }
         )
-        _insert_regime_run(db_path, metrics_json=bad_metrics)
+        insert_regime_run(
+            db_path,
+            run_id="run-regime01",
+            metrics_json=bad_metrics,
+            equity_curve_json=_REGIME_EQUITY_CURVE_JSON,
+        )
         (tmp_path / "forge.yaml").write_text(
             "report:\n  db_filename: backtest_results.db\n"
             "  output_path: ./data/results\n"
@@ -1376,7 +1148,7 @@ class TestRegimeSeries:
         """regime_series の長さが equity_curve の dates と一致しない → 省略"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         # equity は 2 点、regime は 4 点
         equity_short = json.dumps(
             [
@@ -1384,7 +1156,12 @@ class TestRegimeSeries:
                 {"date": _REGIME_DATES[1], "value": 99.0},
             ]
         )
-        _insert_regime_run(db_path, equity_curve_json=equity_short)
+        insert_regime_run(
+            db_path,
+            run_id="run-regime01",
+            metrics_json=_REGIME_METRICS_JSON,
+            equity_curve_json=equity_short,
+        )
         (tmp_path / "forge.yaml").write_text(
             "report:\n  db_filename: backtest_results.db\n"
             "  output_path: ./data/results\n"
@@ -1401,7 +1178,7 @@ class TestRegimeSeries:
         """states に非数値が混入 → regime_series が省略される"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         bad_metrics = json.dumps(
             {
                 "regime_series": {
@@ -1411,7 +1188,12 @@ class TestRegimeSeries:
                 },
             }
         )
-        _insert_regime_run(db_path, metrics_json=bad_metrics)
+        insert_regime_run(
+            db_path,
+            run_id="run-regime01",
+            metrics_json=bad_metrics,
+            equity_curve_json=_REGIME_EQUITY_CURVE_JSON,
+        )
         (tmp_path / "forge.yaml").write_text(
             "report:\n  db_filename: backtest_results.db\n"
             "  output_path: ./data/results\n"
@@ -1436,64 +1218,6 @@ class TestRegimeSeries:
 # ---------------------------------------------------------------------------
 # OptimizeRouter テスト
 # ---------------------------------------------------------------------------
-
-
-def _create_optimize_db(
-    db_path: pathlib.Path,
-    strategy_id: str,
-    trials_json: list[dict] | None,
-    best_metric_name: str = "sharpe_ratio",
-    best_metric_value: float = 1.5,
-) -> None:
-    """optimization_runs テーブルを持つ最小 DB を作成してトライアルデータを挿入する。"""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS backtest_results (
-                id INTEGER PRIMARY KEY,
-                run_id TEXT NOT NULL UNIQUE,
-                strategy_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                run_at TEXT NOT NULL,
-                metrics_json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS optimization_runs (
-                id INTEGER PRIMARY KEY,
-                run_id TEXT NOT NULL UNIQUE,
-                strategy_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                run_at TEXT NOT NULL,
-                n_trials INTEGER,
-                best_metric_name TEXT,
-                best_metric_value REAL,
-                best_params_json TEXT,
-                duration_seconds REAL,
-                all_trials_json TEXT
-            );
-            """
-        )
-        conn.execute(
-            """INSERT INTO optimization_runs
-               (run_id, strategy_id, symbol, run_at, n_trials,
-                best_metric_name, best_metric_value, best_params_json, all_trials_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                "opt_grid_001",
-                strategy_id,
-                "AAPL",
-                "2026-01-01T00:00:00",
-                len(trials_json) if trials_json else 0,
-                best_metric_name,
-                best_metric_value,
-                "{}",
-                json.dumps(trials_json) if trials_json is not None else None,
-            ),
-        )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 _GRID_TRIALS_3 = [
@@ -1533,7 +1257,7 @@ class TestOptimizeRouter:
         best_metric_value: float = 1.5,
     ) -> tuple[TestClient, pathlib.Path]:
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_optimize_db(
+        build_optimize_db(
             db_path,
             strategy_id=strategy_id,
             trials_json=trials_json if trials_json is not None else _GRID_TRIALS_3,
@@ -1559,7 +1283,7 @@ class TestOptimizeRouter:
     def test_optimize_not_found(self, tmp_path: pathlib.Path) -> None:
         """optimization_runs に該当 strategy_id がない場合は 404 を返す"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_optimize_db(db_path, strategy_id="other_strategy", trials_json=_GRID_TRIALS_3)
+        build_optimize_db(db_path, strategy_id="other_strategy", trials_json=_GRID_TRIALS_3)
         (tmp_path / "forge.yaml").write_text(
             "report:\n  output_path: ./data/results\n  db_filename: backtest_results.db\n"
         )
@@ -1595,7 +1319,7 @@ class TestOptimizeRouter:
     def test_optimize_no_trials_json(self, tmp_path: pathlib.Path) -> None:
         """all_trials_json が NULL の場合は trials が空配列で 200 を返す"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
-        _create_optimize_db(db_path, strategy_id="grid_strategy", trials_json=None)
+        build_optimize_db(db_path, strategy_id="grid_strategy", trials_json=None)
         (tmp_path / "forge.yaml").write_text(
             "report:\n  output_path: ./data/results\n  db_filename: backtest_results.db\n"
         )
@@ -1669,65 +1393,6 @@ class TestOptimizeRouter:
         assert "sma_fast" in data["trials"][0]["params"]
 
 
-def _seed_live_summary(
-    live_dir: pathlib.Path,
-    strategy_id: str,
-    payload: dict,
-) -> None:
-    """<live_dir>/summaries/<strategy_id>.live.summary.json を作成する。"""
-    summaries_dir = live_dir / "summaries"
-    summaries_dir.mkdir(parents=True, exist_ok=True)
-    (summaries_dir / f"{strategy_id}.live.summary.json").write_text(
-        json.dumps(payload), encoding="utf-8"
-    )
-
-
-def _seed_live_trades(
-    live_dir: pathlib.Path,
-    strategy_id: str,
-    trades: list[dict],
-) -> None:
-    """<live_dir>/trades/<strategy_id>.trades.json を作成する。"""
-    trades_dir = live_dir / "trades"
-    trades_dir.mkdir(parents=True, exist_ok=True)
-    (trades_dir / f"{strategy_id}.trades.json").write_text(
-        json.dumps(trades), encoding="utf-8"
-    )
-
-
-def _seed_backtest_with_trades(
-    db_path: pathlib.Path,
-    *,
-    run_id: str,
-    strategy_id: str,
-    run_at: str,
-    trades: list[dict],
-) -> None:
-    """forge.db に backtest_results を 1 件 insert（trades_json 込み）。"""
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            "INSERT INTO backtest_results"
-            " (run_id, strategy_id, symbol, run_at,"
-            " total_return_pct, sharpe_ratio, max_drawdown_pct, win_rate_pct,"
-            " profit_factor, total_trades, metrics_json, trades_json)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                run_id,
-                strategy_id,
-                "AAPL",
-                run_at,
-                10.0,
-                1.5,
-                -5.0,
-                60.0,
-                1.8,
-                len(trades),
-                "{}",
-                json.dumps(trades),
-            ),
-        )
-
-
 class TestLiveRouter:
     """ライブ実績 API のテスト（issue #57）"""
 
@@ -1739,7 +1404,7 @@ class TestLiveRouter:
 
     def test_list_live_with_summary_only(self, tmp_path: pathlib.Path) -> None:
         """summary のみ存在する戦略が一覧に出る"""
-        _seed_live_summary(
+        seed_live_summary(
             tmp_path / "data" / "live",
             "strat_a",
             {"strategy_id": "strat_a", "total_trades": 0, "symbols": []},
@@ -1755,8 +1420,8 @@ class TestLiveRouter:
     def test_list_live_includes_trades_flag(self, tmp_path: pathlib.Path) -> None:
         """trades ファイルがあれば has_trades=True"""
         live_dir = tmp_path / "data" / "live"
-        _seed_live_summary(live_dir, "strat_b", {"strategy_id": "strat_b"})
-        _seed_live_trades(live_dir, "strat_b", [])
+        seed_live_summary(live_dir, "strat_b", {"strategy_id": "strat_b"})
+        seed_live_trades(live_dir, "strat_b", [])
         client = TestClient(create_app(forge_dir=tmp_path))
         response = client.get("/api/live")
         assert response.status_code == 200
@@ -1774,7 +1439,7 @@ class TestLiveRouter:
         self, tmp_path: pathlib.Path
     ) -> None:
         """summary だけ存在するときは trades 空、period/backtest/diff は null。warnings を含む。"""
-        _seed_live_summary(
+        seed_live_summary(
             tmp_path / "data" / "live",
             "strat_c",
             {
@@ -1804,7 +1469,7 @@ class TestLiveRouter:
     ) -> None:
         """live trades と backtest trades の両方があるとき、period 整合 diff が計算される。"""
         live_dir = tmp_path / "data" / "live"
-        _seed_live_summary(
+        seed_live_summary(
             live_dir,
             "strat_d",
             {
@@ -1817,7 +1482,7 @@ class TestLiveRouter:
                 "symbols": ["AAPL"],
             },
         )
-        _seed_live_trades(
+        seed_live_trades(
             live_dir,
             "strat_d",
             [
@@ -1863,9 +1528,9 @@ class TestLiveRouter:
         # forge.db に backtest_results を作る。trades は live と同じ期間に
         # 重なるもの 2 件 + 期間外 1 件を入れる。
         db_path = tmp_path / "data" / "results" / "forge.db"
-        _create_backtest_db(db_path)
+        build_backtest_db(db_path)
         # 既存の挿入レコードはそのまま、新規の strat_d 用を追加
-        _seed_backtest_with_trades(
+        seed_backtest_with_trades(
             db_path,
             run_id="bt_run_d",
             strategy_id="strat_d",
@@ -1915,8 +1580,8 @@ class TestLiveRouter:
     def test_get_live_with_run_id_query(self, tmp_path: pathlib.Path) -> None:
         """run_id クエリで指定した backtest run が選ばれる"""
         live_dir = tmp_path / "data" / "live"
-        _seed_live_summary(live_dir, "strat_e", {"strategy_id": "strat_e"})
-        _seed_live_trades(
+        seed_live_summary(live_dir, "strat_e", {"strategy_id": "strat_e"})
+        seed_live_trades(
             live_dir,
             "strat_e",
             [
@@ -1936,15 +1601,15 @@ class TestLiveRouter:
         )
 
         db_path = tmp_path / "data" / "results" / "forge.db"
-        _create_backtest_db(db_path)
-        _seed_backtest_with_trades(
+        build_backtest_db(db_path)
+        seed_backtest_with_trades(
             db_path,
             run_id="older_run",
             strategy_id="strat_e",
             run_at="2026-03-01T00:00:00",
             trades=[{"exit_date": "2026-04-02", "return_pct": 0.5, "pnl": 50.0}],
         )
-        _seed_backtest_with_trades(
+        seed_backtest_with_trades(
             db_path,
             run_id="newer_run",
             strategy_id="strat_e",
@@ -1973,8 +1638,8 @@ class TestLiveRouter:
     def test_get_live_no_backtest_run(self, tmp_path: pathlib.Path) -> None:
         """対応する backtest run が無いときは backtest=null + warning"""
         live_dir = tmp_path / "data" / "live"
-        _seed_live_summary(live_dir, "strat_f", {"strategy_id": "strat_f"})
-        _seed_live_trades(
+        seed_live_summary(live_dir, "strat_f", {"strategy_id": "strat_f"})
+        seed_live_trades(
             live_dir,
             "strat_f",
             [
