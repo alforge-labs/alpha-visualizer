@@ -6,6 +6,7 @@ Thanks for your interest in contributing to `alpha-visualizer`! Bug reports, fea
 
 ## Table of Contents
 
+- [Code of Conduct](#code-of-conduct)
 - [Development Setup](#development-setup)
 - [Workflow](#workflow)
 - [Commit Message Convention](#commit-message-convention)
@@ -13,6 +14,10 @@ Thanks for your interest in contributing to `alpha-visualizer`! Bug reports, fea
 - [Pull Request Checklist](#pull-request-checklist)
 - [Release Process](#release-process)
 - [Questions & Support](#questions--support)
+
+## Code of Conduct
+
+All participants are expected to abide by the [Contributor Covenant v2.1 Code of Conduct](CODE_OF_CONDUCT.md). Violations can be reported to `security@alforgelabs.com` (same address as SECURITY.md).
 
 ## Development Setup
 

@@ -69,6 +69,7 @@ The browser opens **http://127.0.0.1:8000**. Press `Ctrl+C` to stop.
 - **Official docs**: <https://alforgelabs.com/en/docs/alpha-visualizer/>
 - **Contributing**: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 - **Security**: [SECURITY.en.md](SECURITY.en.md)
+- **Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) (Contributor Covenant v2.1)
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 - **Third-party licenses**: [THIRDPARTY_LICENSES.txt](THIRDPARTY_LICENSES.txt)
 

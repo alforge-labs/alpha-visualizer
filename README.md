@@ -69,6 +69,7 @@ vis serve --no-open
 - **公式ドキュメント**: <https://alforgelabs.com/ja/docs/alpha-visualizer/>
 - **開発に参加**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **セキュリティ報告**: [SECURITY.md](SECURITY.md)
+- **行動規範**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant v2.1・英語）
 - **変更履歴**: [CHANGELOG.md](CHANGELOG.md)
 - **サードパーティライセンス**: [THIRDPARTY_LICENSES.txt](THIRDPARTY_LICENSES.txt)
 
