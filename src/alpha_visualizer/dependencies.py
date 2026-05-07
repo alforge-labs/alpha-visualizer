@@ -9,6 +9,7 @@ from fastapi import Request
 from sqlalchemy import Engine
 
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
 
 
 def get_forge_config_dep(request: Request) -> ForgeConfig:
@@ -23,3 +24,8 @@ def get_engine_dep(request: Request) -> Engine:
     SQL クエリを発行する際の入口として共有する。
     """
     return request.app.state.engine
+
+
+def get_backtest_results_repo(request: Request) -> BacktestResultsRepository:
+    """``BacktestResultsRepository`` を ``app.state.engine`` から構築して返す。"""
+    return BacktestResultsRepository(request.app.state.engine)
