@@ -70,4 +70,4 @@ def get_engine(db_path: Path | str | PathLike[str]) -> Engine:
     Engine はアプリケーション起動時に 1 度だけ生成し、`app.state.engine`
     に格納して使い回すことを想定している。各リクエストで再生成しない。
     """
-    return create_engine(f"sqlite:///{Path(db_path)}", future=True)
+    return create_engine(f"sqlite:///{Path(db_path).resolve()}")

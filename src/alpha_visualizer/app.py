@@ -45,6 +45,8 @@ def create_app(
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
     # forge.db ファイル不在時もリクエスト到達時に Repository 側で扱う。
+    # 注: CLI 用途（ephemeral プロセス）のため明示的な engine.dispose() は行わない。
+    # 長命プロセスや uvicorn reload を伴う用途への転用時は lifespan で dispose() すること。
     app.state.engine = get_engine(config.forge_db)
 
     app.include_router(results_router.router, prefix="/api")
