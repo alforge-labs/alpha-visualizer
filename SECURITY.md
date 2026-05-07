@@ -19,11 +19,13 @@
 
 代わりに、以下のいずれかの方法でプライベートにご連絡ください。
 
-### 推奨: GitHub Security Advisories
+### 推奨: GitHub Private Vulnerability Reporting
 
-1. リポジトリの **Security** タブを開く
-2. **Report a vulnerability** をクリック
-3. フォームに以下を記載
+本リポジトリは GitHub の [Private Vulnerability Reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability) を有効化しています。報告者・メンテナー間でのみ閲覧可能なドラフト Security Advisory を作成でき、修正完了後にそのまま CVE 採番・公開アドバイザリ発行に進めます。
+
+1. <https://github.com/alforge-labs/alpha-visualizer/security/advisories/new> を開く
+   （または リポジトリ → **Security** タブ → **Report a vulnerability**）
+2. フォームに以下を記載
    - 影響を受けるバージョン
    - 再現手順
    - 想定される影響範囲（情報漏洩 / RCE / DoS など）
@@ -31,9 +33,7 @@
 
 ### 代替: メール
 
-[security@alforgelabs.com](mailto:security@alforgelabs.com) 宛にご連絡ください。
-
-可能であれば、PGP 暗号化を使用してください。公開鍵が必要な場合はメールで請求してください。
+GitHub アカウントを利用できない場合は [security@alforgelabs.com](mailto:security@alforgelabs.com) 宛にご連絡ください。受領確認後、必要に応じて Private Vulnerability Reporting に切り替えて議論を継続します。
 
 ## 対応プロセスとタイムライン
 

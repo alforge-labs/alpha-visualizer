@@ -19,11 +19,13 @@ If you discover a security vulnerability, **please do not open a public issue** 
 
 Instead, contact us privately via one of the following channels.
 
-### Preferred: GitHub Security Advisories
+### Preferred: GitHub Private Vulnerability Reporting
 
-1. Open the repository's **Security** tab
-2. Click **Report a vulnerability**
-3. Fill out the form with:
+This repository has [Private Vulnerability Reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability) enabled. You can create a draft Security Advisory visible only to you and the maintainers, and once a fix lands, the same advisory can be published with a CVE.
+
+1. Open <https://github.com/alforge-labs/alpha-visualizer/security/advisories/new>
+   (or go to the repository's **Security** tab → **Report a vulnerability**)
+2. Fill out the form with:
    - Affected version(s)
    - Reproduction steps
    - Expected impact (information disclosure / RCE / DoS / etc.)
@@ -31,9 +33,7 @@ Instead, contact us privately via one of the following channels.
 
 ### Alternative: Email
 
-Email [security@alforgelabs.com](mailto:security@alforgelabs.com).
-
-Use PGP encryption if possible — request the public key by email.
+If you cannot use GitHub, email [security@alforgelabs.com](mailto:security@alforgelabs.com). After acknowledgement we may move the discussion to a Private Vulnerability Reporting advisory if appropriate.
 
 ## Response Process & Timeline
 
