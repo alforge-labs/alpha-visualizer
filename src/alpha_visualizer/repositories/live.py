@@ -45,7 +45,8 @@ class LiveDataRepository:
         live_dir: pathlib.Path,
         backtest_repo: BacktestResultsRepository | None = None,
     ) -> None:
-        self._engine = engine
+        # ``engine`` は ``backtest_repo`` 構築のためだけに使う（直接保持しない）。
+        # backtest_results へのアクセスは ``self._backtest_repo`` 経由に統一する。
         self._live_dir = live_dir
         self._backtest_repo = backtest_repo or BacktestResultsRepository(engine)
 

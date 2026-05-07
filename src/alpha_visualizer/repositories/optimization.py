@@ -43,6 +43,18 @@ class OptimizationRunRow:
     all_trials_json: str | None
 
 
+@dataclass(frozen=True)
+class OptimizationHistorySummary:
+    """戦略の最適化履歴 1 件を表すサマリ DTO（時系列描画用）。
+
+    Router 側で ``trial`` 連番（1, 2, ...）を付与してレスポンスを組み立てる。
+    """
+
+    run_at: str | None
+    best_metric_value: float | None
+    n_trials: int | None
+
+
 class OptimizationRepository:
     """``optimization_runs`` テーブル + WFO 関連の読み取り専用アクセサ。
 
@@ -80,6 +92,27 @@ class OptimizationRepository:
         with self._engine.connect() as conn:
             rows = conn.execute(stmt).all()
         return [OptimizationRunRow(**r._mapping) for r in rows]
+
+    def list_history_summary(
+        self, strategy_id: str
+    ) -> list[OptimizationHistorySummary]:
+        """戦略の最適化履歴サマリを ``run_at`` 昇順（時系列）で返す。
+
+        Router 側で連番 ``trial`` を付けてグラフ描画用のレスポンスを組み立てる
+        想定。投影は ``(run_at, best_metric_value, n_trials)`` の 3 列のみ。
+        """
+        stmt = (
+            select(
+                optimization_runs.c.run_at,
+                optimization_runs.c.best_metric_value,
+                optimization_runs.c.n_trials,
+            )
+            .where(optimization_runs.c.strategy_id == strategy_id)
+            .order_by(optimization_runs.c.run_at.asc())
+        )
+        with self._engine.connect() as conn:
+            rows = conn.execute(stmt).all()
+        return [OptimizationHistorySummary(**row._mapping) for row in rows]
 
     def find_oos_equity_curve_json(
         self, strategy_id: str, oos_start: str

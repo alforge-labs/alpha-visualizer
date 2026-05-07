@@ -127,8 +127,8 @@ def test_list_results_filters_by_symbol(tmp_path: Path) -> None:
     assert rows[0].symbol == "AAPL"
 
 
-def test_list_results_returns_empty_when_table_missing(tmp_path: Path) -> None:
-    """テーブルが存在しない場合は例外が伝播する（Router 側で file 存在チェックを行う）。"""
+def test_list_results_raises_operational_error_when_table_missing(tmp_path: Path) -> None:
+    """テーブルが存在しない場合は OperationalError が伝播する（Router 側で file 存在チェックを行う）。"""
     db_path = tmp_path / "missing.db"
     # 空ファイルを作っておく（テーブル無し）
     db_path.touch()

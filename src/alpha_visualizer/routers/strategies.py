@@ -11,13 +11,11 @@ import math
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Engine, select
 
-from alpha_visualizer.db import optimization_runs
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
-    get_engine_dep,
     get_forge_config_dep,
+    get_optimization_repo,
     get_strategies_repo,
 )
 from alpha_visualizer.forge_config import ForgeConfig
@@ -25,6 +23,7 @@ from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
     BacktestResultsRepository,
 )
+from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import (
     StrategiesRepository,
     StrategyRow,
@@ -164,38 +163,27 @@ def _list_all_results_summary(
 
 
 def _list_optimization_history(
-    engine: Engine,
+    opt_repo: OptimizationRepository,
     forge_db_exists: bool,
     strategy_id: str,
 ) -> list[dict[str, Any]]:
-    """optimization_runs から strategy_id 別の試行履歴を返す。
+    """optimization_runs から strategy_id 別の試行履歴を返す（時系列）。
 
-    PR-3 で OptimizationRepository に切り出す予定だが、本 PR では
-    共有 Engine を使って ``create_engine`` の重複生成を排除するに留める。
+    Repository は ``run_at`` 昇順で返すため、そのまま 1 始まりの
+    ``trial`` 連番を付与してレスポンス形式に整える。
     """
     if not forge_db_exists:
         return []
-    with engine.connect() as conn:
-        rows = conn.execute(
-            select(
-                optimization_runs.c.best_metric_value,
-                optimization_runs.c.run_at,
-                optimization_runs.c.n_trials,
-            )
-            .where(optimization_runs.c.strategy_id == strategy_id)
-            .order_by(optimization_runs.c.run_at.desc())
-        ).fetchall()
-    history: list[dict[str, Any]] = []
-    for i, row in enumerate(reversed(rows), start=1):
-        history.append(
-            {
-                "trial": i,
-                "best_sharpe": row.best_metric_value,
-                "run_at": row.run_at,
-                "n_trials": row.n_trials,
-            }
-        )
-    return history
+    summaries = opt_repo.list_history_summary(strategy_id)
+    return [
+        {
+            "trial": i,
+            "best_sharpe": s.best_metric_value,
+            "run_at": s.run_at,
+            "n_trials": s.n_trials,
+        }
+        for i, s in enumerate(summaries, start=1)
+    ]
 
 
 # --- エンドポイント ---------------------------------------------------------
@@ -268,7 +256,7 @@ async def get_strategy(
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
     bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
-    engine: Annotated[Engine, Depends(get_engine_dep)],
+    opt_repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
 ) -> dict[str, Any]:
     strategy = strategies_repo.get_strategy(strategy_id)
     if strategy is None:
@@ -290,6 +278,6 @@ async def get_strategy(
         "regime_config": definition.get("regime_config"),
         "results": _list_all_results_summary(bt_repo, forge_db_exists, strategy_id),
         "optimization_history": _list_optimization_history(
-            engine, forge_db_exists, strategy_id
+            opt_repo, forge_db_exists, strategy_id
         ),
     }

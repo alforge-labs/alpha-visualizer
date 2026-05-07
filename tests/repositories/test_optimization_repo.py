@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from alpha_visualizer.db import get_engine
 from alpha_visualizer.repositories.optimization import (
+    OptimizationHistorySummary,
     OptimizationRepository,
     OptimizationRunRow,
 )
@@ -216,6 +217,32 @@ def test_find_oos_equity_curve_json_returns_none_when_missing(
     raw = repo.find_oos_equity_curve_json("wfo_strategy", "1999-01-01")
 
     assert raw is None
+
+
+def test_list_history_summary_returns_chronological(tmp_path: Path) -> None:
+    """run_at 昇順で 3 列投影（run_at / best_metric_value / n_trials）を返す"""
+    engine = get_engine(_make_db(tmp_path))
+    repo = OptimizationRepository(engine)
+
+    summaries = repo.list_history_summary("wfo_strategy")
+
+    assert len(summaries) == 2
+    assert all(isinstance(s, OptimizationHistorySummary) for s in summaries)
+    # run_at 昇順
+    assert [s.run_at for s in summaries] == [
+        "2026-01-01T00:00:00",
+        "2026-02-01T00:00:00",
+    ]
+    assert [s.best_metric_value for s in summaries] == pytest.approx([1.2, 1.8])
+    assert [s.n_trials for s in summaries] == [10, 20]
+
+
+def test_list_history_summary_returns_empty_when_missing(tmp_path: Path) -> None:
+    """該当 strategy_id がなければ空リストを返す"""
+    engine = get_engine(_make_db(tmp_path))
+    repo = OptimizationRepository(engine)
+
+    assert repo.list_history_summary("does_not_exist") == []
 
 
 def test_get_latest_for_strategy_raises_when_table_missing(tmp_path: Path) -> None:

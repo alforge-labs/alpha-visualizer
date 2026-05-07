@@ -36,15 +36,16 @@ def get_backtest_results_repo(request: Request) -> BacktestResultsRepository:
 
 
 def get_strategies_repo(request: Request) -> StrategiesRepository:
-    """``StrategiesRepository`` を ``ForgeConfig`` から構築して返す。
+    """``StrategiesRepository`` を ForgeConfig + 共有 Engine から構築。
 
     DB モード（``strategies_db`` 指定）と JSON モード（``strategies_dir``）の
-    両方を Repository が内部で吸収する。
+    両方を Repository が内部で吸収する。Engine は ``create_app`` で 1 度だけ
+    生成され ``app.state.strategies_engine`` にキャッシュされたものを利用する。
     """
     cfg: ForgeConfig = request.app.state.forge_config
-    return StrategiesRepository.from_paths(
+    return StrategiesRepository(
+        strategies_db_engine=request.app.state.strategies_engine,
         strategies_dir=cfg.strategies_dir,
-        strategies_db=cfg.strategies_db,
     )
 
 

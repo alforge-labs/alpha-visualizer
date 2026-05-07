@@ -49,6 +49,13 @@ def create_app(
     # 長命プロセスや uvicorn reload を伴う用途への転用時は lifespan で dispose() すること。
     app.state.engine = get_engine(config.forge_db)
 
+    # strategies.db (DB モード) も 1 回だけ Engine を生成し state にキャッシュ。
+    # JSON モード（strategies_db=None）では None。
+    if config.strategies_db is not None and config.strategies_db.exists():
+        app.state.strategies_engine = get_engine(config.strategies_db)
+    else:
+        app.state.strategies_engine = None
+
     app.include_router(results_router.router, prefix="/api")
     app.include_router(strategies_router.router, prefix="/api")
     app.include_router(ideas_router.router, prefix="/api")

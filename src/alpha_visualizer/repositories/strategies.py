@@ -129,7 +129,8 @@ class StrategiesRepository:
     # --- 内部実装 -------------------------------------------------------------
 
     def _load_from_db(self) -> list[StrategyRow]:
-        assert self._db_engine is not None  # 呼び出し側で保証
+        if self._db_engine is None:
+            raise RuntimeError("_load_from_db を呼ぶには DB Engine が必要です")
         stmt = select(
             strategies_table.c.strategy_id,
             strategies_table.c.name,
