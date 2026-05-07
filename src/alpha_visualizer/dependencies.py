@@ -10,6 +10,7 @@ from sqlalchemy import Engine
 
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
+from alpha_visualizer.repositories.live import LiveDataRepository
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
 
@@ -49,3 +50,16 @@ def get_strategies_repo(request: Request) -> StrategiesRepository:
 def get_optimization_repo(request: Request) -> OptimizationRepository:
     """``OptimizationRepository`` を ``app.state.engine`` から構築して返す。"""
     return OptimizationRepository(request.app.state.engine)
+
+
+def get_live_repo(request: Request) -> LiveDataRepository:
+    """``LiveDataRepository`` を ``ForgeConfig.live_dir`` から構築して返す。
+
+    JSON ファイル群と ``backtest_results`` テーブルの両方にアクセスするため、
+    ``app.state.engine`` も合わせて注入する。
+    """
+    cfg: ForgeConfig = request.app.state.forge_config
+    return LiveDataRepository(
+        request.app.state.engine,
+        live_dir=cfg.live_dir,
+    )

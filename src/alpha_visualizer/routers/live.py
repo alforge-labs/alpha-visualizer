@@ -1,8 +1,9 @@
 """ライブ実績 API ルーター
 
 `/api/live` (一覧) と `/api/live/{strategy_id}` (詳細) を提供する。
-forge_dir/data/live/ 配下の JSON ファイルを直接読み取り、
-バックテスト trades と期間整合した diff を返す。
+forge_dir/data/live/ 配下の JSON ファイルへのアクセスは
+``LiveDataRepository`` に集約し、本モジュールは HTTP 変換と
+期間整合 diff の純粋ロジックのみを担当する。
 
 ファイル構造:
 - ``<live_dir>/summaries/<strategy_id>.live.summary.json``
@@ -13,14 +14,12 @@ from __future__ import annotations
 import json
 import logging
 import math
-import pathlib
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from sqlalchemy import create_engine
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from alpha_visualizer.db import backtest_results
-from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.dependencies import get_live_repo
+from alpha_visualizer.repositories.live import LiveDataRepository
 
 logger = logging.getLogger(__name__)
 
@@ -37,39 +36,6 @@ _DIFF_METRICS = (
     "max_drawdown_pct",
     "net_pnl",
 )
-
-
-def _summary_path(config: ForgeConfig, strategy_id: str) -> pathlib.Path:
-    return config.live_dir / "summaries" / f"{strategy_id}.live.summary.json"
-
-
-def _trades_path(config: ForgeConfig, strategy_id: str) -> pathlib.Path:
-    return config.live_dir / "trades" / f"{strategy_id}.trades.json"
-
-
-def _read_json(path: pathlib.Path) -> Any:
-    """JSON を読み、存在しないか不正なら ``None`` を返す。"""
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
-        logger.warning("%s の読み込みに失敗: %s", path, e)
-        return None
-
-
-def _list_summary_strategy_ids(config: ForgeConfig) -> list[str]:
-    """summaries ディレクトリから戦略 ID の集合を抽出する。"""
-    summaries_dir = config.live_dir / "summaries"
-    if not summaries_dir.exists():
-        return []
-    suffix = ".live.summary.json"
-    ids: set[str] = set()
-    for path in summaries_dir.glob(f"*{suffix}"):
-        name = path.name
-        if name.endswith(suffix):
-            ids.add(name[: -len(suffix)])
-    return sorted(ids)
 
 
 def _normalize_trade(raw: dict[str, Any]) -> dict[str, Any] | None:
@@ -114,10 +80,11 @@ def _optional_float(value: Any) -> float | None:
 
 
 def _load_live_summary(
-    config: ForgeConfig, strategy_id: str
+    repo: LiveDataRepository, strategy_id: str
 ) -> dict[str, Any] | None:
-    raw = _read_json(_summary_path(config, strategy_id))
-    if not isinstance(raw, dict):
+    """live summary を辞書で取得し、``strategy_id`` キーを補完する。"""
+    raw = repo.load_summary(strategy_id)
+    if raw is None:
         return None
     if raw.get("strategy_id") in (None, ""):
         raw["strategy_id"] = strategy_id
@@ -125,22 +92,11 @@ def _load_live_summary(
 
 
 def _load_live_trades(
-    config: ForgeConfig, strategy_id: str
+    repo: LiveDataRepository, strategy_id: str
 ) -> list[dict[str, Any]]:
-    raw = _read_json(_trades_path(config, strategy_id))
-    if raw is None:
-        return []
-    items: list[Any]
-    if isinstance(raw, list):
-        items = raw
-    elif isinstance(raw, dict):
-        items = list(raw.get("trades") or [])
-    else:
-        return []
+    """live trades を正規化済みのリストで返す。"""
     out: list[dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
+    for item in repo.load_raw_trades(strategy_id):
         normalized = _normalize_trade(item)
         if normalized is not None:
             out.append(normalized)
@@ -238,28 +194,21 @@ def _compute_diff(
     return diff
 
 
-def _fetch_backtest_record(
-    config: ForgeConfig,
+def _backtest_record_for_diff(
+    repo: LiveDataRepository,
     strategy_id: str,
     run_id: str | None,
 ) -> dict[str, Any] | None:
-    """forge.db から backtest_results を取得し、必要に応じて trades_json をパースする。"""
-    db_path = config.forge_db
-    if not db_path.exists():
+    """``backtest_results`` から該当行を取り、必要に応じて trades_json をパースする。
+
+    DB ファイル不在やテーブル無し等のエラーは ``None`` を返し、Router 側で
+    warning を組み立てて 200 応答する（既存挙動の踏襲）。
+    """
+    try:
+        row = repo.fetch_backtest_for_diff(strategy_id, run_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("backtest_results 取得失敗 (%s): %s", strategy_id, exc)
         return None
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    with engine.connect() as conn:
-        if run_id:
-            row = conn.execute(
-                backtest_results.select().where(backtest_results.c.run_id == run_id)
-            ).first()
-        else:
-            row = conn.execute(
-                backtest_results.select()
-                .where(backtest_results.c.strategy_id == strategy_id)
-                .order_by(backtest_results.c.run_at.desc())
-                .limit(1)
-            ).first()
     if row is None:
         return None
 
@@ -280,19 +229,20 @@ def _fetch_backtest_record(
 
 
 @router.get("/live")
-async def list_live(request: Request) -> list[dict[str, Any]]:
+async def list_live(
+    repo: Annotated[LiveDataRepository, Depends(get_live_repo)],
+) -> list[dict[str, Any]]:
     """live summary が存在する戦略 ID 一覧を返す。
 
     フロントの「Live」タブ表示判定に使う。
     """
-    config: ForgeConfig = request.app.state.forge_config
     items: list[dict[str, Any]] = []
-    for sid in _list_summary_strategy_ids(config):
+    for sid in repo.list_summary_strategy_ids():
         items.append(
             {
                 "strategy_id": sid,
-                "has_summary": _summary_path(config, sid).exists(),
-                "has_trades": _trades_path(config, sid).exists(),
+                "has_summary": repo.has_summary(sid),
+                "has_trades": repo.has_trades(sid),
             }
         )
     return items
@@ -301,20 +251,18 @@ async def list_live(request: Request) -> list[dict[str, Any]]:
 @router.get("/live/{strategy_id}")
 async def get_live(
     strategy_id: str,
-    request: Request,
+    repo: Annotated[LiveDataRepository, Depends(get_live_repo)],
     run_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     """指定戦略の live summary + trades と、期間整合した backtest aligned/diff を返す。"""
-    config: ForgeConfig = request.app.state.forge_config
-
-    summary = _load_live_summary(config, strategy_id)
+    summary = _load_live_summary(repo, strategy_id)
     if summary is None:
         raise HTTPException(
             status_code=404,
             detail=f"strategy_id '{strategy_id}' の live summary が見つかりません",
         )
 
-    trades = _load_live_trades(config, strategy_id)
+    trades = _load_live_trades(repo, strategy_id)
     period = _trade_period(trades)
     warnings: list[str] = []
 
@@ -325,7 +273,7 @@ async def get_live(
             "live trades が無いため backtest との期間整合 diff は計算できません"
         )
     else:
-        record = _fetch_backtest_record(config, strategy_id, run_id)
+        record = _backtest_record_for_diff(repo, strategy_id, run_id)
         if record is None:
             warnings.append("対応する backtest run が見つかりません")
         else:
