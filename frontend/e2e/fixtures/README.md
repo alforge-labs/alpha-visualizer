@@ -19,7 +19,9 @@ frontend/e2e/fixtures/forge/
 ## DB の中身
 
 - `backtest_results`: 3 行（戦略ごとに 1 run）。各行 60 営業日の equity_curve / buy_hold_curve、トレード 8 件、metrics_json は full set
-- `optimization_runs`: 1 行（rsi_reversal、20 trials）
+- `optimization_runs`: 2 行
+  - `rsi_reversal`: 20 trials（Optimize タブ用、Grid Search 形式）
+  - `sma_cross`: 2 windows（WFO タブ用、Walk-Forward 形式 — `window_id` / `is_sharpe` / `oos_sharpe` 等を含む）
 - `strategies` テーブル: なし（forge.yaml で `use_db: false`、JSON 経路）
 
 ## 再生成
