@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from alpha_visualizer.services.wfo import (
+from alpha_visualizer.services.walk_forward import (
     extract_composite_curve,
     extract_windows,
     interpolate_window_curve,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WFOWindow } from '../../api/types'
-import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../wfo'
+import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../walkForward'
 
 const W = (overrides: Partial<WFOWindow> = {}): WFOWindow => ({
   id: 1,
