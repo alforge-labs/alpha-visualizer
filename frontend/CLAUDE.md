@@ -24,3 +24,24 @@
 | `DetailPage` | `BacktestScreen` / `ISOOSScreen` / `WFOScreen` / `OptimizeScreen` / `StrategyScreen` |
 | `ComparePage` | `CompareScreen` |
 | `IdeasPage` | （単独、screen 未分離。将来的には `IdeasScreen` として分離可能） |
+
+## charts/visx/ と components/charts/ の責務分離
+
+[ADR-0002](../docs/adr/0002-charts-visx-vs-components.md) で確定。
+
+### `frontend/src/charts/visx/<Name>V.tsx` (Presentational)
+
+- visx primitives のみ
+- props で受けた整形済みデータを描画
+- 計算・fetch なし、純粋 UI state（viewport 等）のみ許容
+
+### `frontend/src/components/charts/<Name>.tsx` (Container)
+
+- ドメインデータ（`BacktestDetail` 等）を受ける
+- 計算は `lib/` の pure function に委譲
+- 整形済みデータを `*V` に渡す
+
+### `frontend/src/lib/<calculation>.ts`
+
+- Monte Carlo / 統計 / 数値計算の pure function
+- 単体テスト容易、container から呼ぶ
