@@ -210,7 +210,9 @@ export interface IndicatorConfig {
 export interface VariableConfig {
   id: string
   expression: string
-  [key: string]: unknown
+  // forge.yaml で任意指定可能なメタ情報（後方互換のため optional）
+  name?: string
+  description?: string
 }
 
 export interface ConditionNode {
@@ -224,7 +226,6 @@ export interface ConditionNode {
 export interface EntryExitConditions {
   long?: ConditionNode
   short?: ConditionNode
-  [key: string]: ConditionNode | undefined
 }
 
 export interface RiskManagement {
@@ -233,7 +234,6 @@ export interface RiskManagement {
   trailing_stop?: boolean
   position_size_pct?: number | null
   max_positions?: number | null
-  [key: string]: unknown
 }
 
 export interface StrategyDetail {
@@ -289,8 +289,6 @@ export interface LiveSummary {
   total_commission?: number
   max_drawdown_pct?: number
   symbols?: string[]
-  // 仕様未確定のフィールドも許容
-  [key: string]: unknown
 }
 
 export interface LiveTrade {
