@@ -100,19 +100,31 @@ def create_app(
         index_html = static_dir / "index.html"
         static_root = static_dir.resolve()
 
+        # 起動時に static_dir 配下の実ファイルを列挙し、許可リスト (dict) を作る。
+        # こうすることでリクエストハンドラ側はユーザー入力を直接パス構築に使わず、
+        # 既知の (相対パス -> 絶対パス) マップを引くだけになる。
+        # CWE-22 (Path Traversal) に対するもっとも明確な防御で、
+        # CodeQL の py/path-injection に対しても sanitizer なしで安全。
+        allowed_files: dict[str, pathlib.Path] = {}
+        for child in static_root.rglob("*"):
+            if not child.is_file():
+                continue
+            try:
+                rel = child.relative_to(static_root).as_posix()
+            except ValueError:
+                # rglob 上はあり得ないが、シンボリックリンクで外に出るケースを除外
+                continue
+            allowed_files[rel] = child
+
         @app.get("/{full_path:path}")
         async def spa_fallback(full_path: str) -> FileResponse:
-            """SPA ルート対応: /api 配下以外で実ファイルがあればそれを返し、
-            無ければ index.html を返して history mode の直アクセス・リロードに対応する。
+            """SPA ルート対応: 起動時にスキャンした許可リストにあるファイルだけを
+            配信し、それ以外（未知のルート・トラバーサル試行・ディレクトリ）は
+            すべて index.html へフォールバックする。
             """
-            requested = (static_dir / full_path).resolve()
-            # ディレクトリトラバーサル対策
-            try:
-                requested.relative_to(static_root)
-            except ValueError:
-                return FileResponse(index_html)
-            if requested.is_file():
-                return FileResponse(requested)
+            target = allowed_files.get(full_path)
+            if target is not None:
+                return FileResponse(target)
             return FileResponse(index_html)
 
     return app

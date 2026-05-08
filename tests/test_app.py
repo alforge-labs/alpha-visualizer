@@ -102,6 +102,40 @@ def test_spa_fallback_serves_index_with_static_dir(
     assert r3.status_code == 200  # 200 OK の JSON 応答
 
 
+def test_spa_fallback_rejects_directory_traversal(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ディレクトリトラバーサル試行は static_dir 外の実ファイルを露出させず
+    必ず index.html へフォールバックすること。"""
+    import alpha_visualizer.app as app_module
+
+    fake_static = tmp_path / "static"
+    fake_static.mkdir()
+    index_content = "<html>FAKE_SPA_INDEX</html>"
+    (fake_static / "index.html").write_text(index_content, encoding="utf-8")
+
+    # static_dir の外側に「漏らされたら困る」ファイルを配置
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP_SECRET", encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "__file__", str(tmp_path / "app.py"))
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+
+    # 親参照: ../secret.txt は index.html にフォールバック
+    r1 = client.get("/..%2Fsecret.txt")
+    assert r1.status_code == 200
+    assert "TOP_SECRET" not in r1.text
+    assert "FAKE_SPA_INDEX" in r1.text
+
+    # ネストした親参照も拒否
+    r2 = client.get("/sub/..%2F..%2Fsecret.txt")
+    assert r2.status_code == 200
+    assert "TOP_SECRET" not in r2.text
+    assert "FAKE_SPA_INDEX" in r2.text
+
+
 def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
     """create_app で生成された FastAPI が app.state.engine を持つこと。"""
     forge_dir = tmp_path / "forge"

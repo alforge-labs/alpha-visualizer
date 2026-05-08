@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Query
 
 from alpha_visualizer.dependencies import get_live_repo
 from alpha_visualizer.errors import NotFoundError
+from alpha_visualizer.log_sanitize import sanitize_for_log
 from alpha_visualizer.repositories.live import LiveDataRepository
 from alpha_visualizer.schemas.live import LiveDetail, LiveListItem
 from alpha_visualizer.services import live as live_service
@@ -71,7 +72,12 @@ def _backtest_record_for_diff(
     try:
         row = repo.fetch_backtest_for_diff(strategy_id, run_id)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("backtest_results 取得失敗 (%r): %s", strategy_id, exc)
+        # CWE-117 対策: ユーザー入力 strategy_id は CR/LF を除去してからログに出す
+        logger.warning(
+            "backtest_results 取得失敗 (%s): %s",
+            sanitize_for_log(strategy_id),
+            exc,
+        )
         return None
     if row is None:
         return None

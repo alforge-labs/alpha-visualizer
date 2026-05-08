@@ -19,6 +19,7 @@ from alpha_visualizer.dependencies import (
 )
 from alpha_visualizer.errors import DataCorruptError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.log_sanitize import sanitize_for_log
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.schemas.optimize import OptimizeResult
 
@@ -112,7 +113,12 @@ async def get_optimize(
     try:
         row = repo.get_latest_for_strategy(strategy_id)
     except Exception as e:
-        logger.warning("最適化結果の取得に失敗: %r (%s)", strategy_id, e)
+        # CWE-117 対策: ユーザー入力 strategy_id は CR/LF を除去してからログに出す
+        logger.warning(
+            "最適化結果の取得に失敗: %s (%s)",
+            sanitize_for_log(strategy_id),
+            e,
+        )
         raise DataCorruptError(
             f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e
@@ -131,8 +137,9 @@ async def get_optimize(
     if row.all_trials_json:
         try:
             all_trials = json.loads(row.all_trials_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as exc:
+            # 破損 JSON や旧フォーマット混入時は trials なしで継続する
+            logger.debug("all_trials_json のパースに失敗: %s", exc)
 
     trials = _extract_trials(all_trials, metric_name)
 
