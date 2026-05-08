@@ -1,0 +1,2091 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "alpha-visualizer",
+    "description": "AlphaForge バックテスト結果の Web 可視化ツール",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/results": {
+      "get": {
+        "summary": "List Results",
+        "operationId": "list_results_api_results_get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Strategy Id"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BacktestSummary"
+                  },
+                  "title": "Response List Results Api Results Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/results/{run_id}": {
+      "get": {
+        "summary": "Get Result",
+        "operationId": "get_result_api_results__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies": {
+      "get": {
+        "summary": "List Strategies",
+        "operationId": "list_strategies_api_strategies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StrategySummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Strategies Api Strategies Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies/compare": {
+      "get": {
+        "summary": "Compare Strategies",
+        "operationId": "compare_strategies_api_strategies_compare_get",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "カンマ区切りの strategy_id",
+              "title": "Ids"
+            },
+            "description": "カンマ区切りの strategy_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StrategyComparison"
+                  },
+                  "title": "Response Compare Strategies Api Strategies Compare Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies/{strategy_id}": {
+      "get": {
+        "summary": "Get Strategy",
+        "operationId": "get_strategy_api_strategies__strategy_id__get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ideas": {
+      "get": {
+        "summary": "List Ideas",
+        "operationId": "list_ideas_api_ideas_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Idea"
+                  },
+                  "title": "Response List Ideas Api Ideas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ideas/{idea_id}": {
+      "get": {
+        "summary": "Get Idea",
+        "operationId": "get_idea_api_ideas__idea_id__get",
+        "parameters": [
+          {
+            "name": "idea_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idea Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Idea"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wfo/{strategy_id}": {
+      "get": {
+        "summary": "Get Wfo",
+        "operationId": "get_wfo_api_wfo__strategy_id__get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WFOResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/optimize/{strategy_id}": {
+      "get": {
+        "summary": "Get Optimize",
+        "operationId": "get_optimize_api_optimize__strategy_id__get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptimizeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/run": {
+      "post": {
+        "summary": "Run Backtest",
+        "description": "forge backtest run をサブプロセス実行し、最新の run_id を返す。",
+        "operationId": "run_backtest_api_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunBacktestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunBacktestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live": {
+      "get": {
+        "summary": "List Live",
+        "description": "live summary が存在する戦略 ID 一覧を返す。\n\nフロントの「Live」タブ表示判定に使う。",
+        "operationId": "list_live_api_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LiveListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Live Api Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/{strategy_id}": {
+      "get": {
+        "summary": "Get Live",
+        "description": "指定戦略の live summary + trades と、期間整合した backtest aligned/diff を返す。",
+        "operationId": "get_live_api_live__strategy_id__get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{full_path}": {
+      "get": {
+        "summary": "Spa Fallback",
+        "description": "SPA ルート対応: /api 配下以外で実ファイルがあればそれを返し、\n無ければ index.html を返して history mode の直アクセス・リロードに対応する。",
+        "operationId": "spa_fallback__full_path__get",
+        "parameters": [
+          {
+            "name": "full_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Full Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BacktestDetail": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "strategy_name": {
+            "type": "string",
+            "title": "Strategy Name"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "default": ""
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe",
+            "default": "1d"
+          },
+          "run_at": {
+            "type": "string",
+            "title": "Run At",
+            "default": ""
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period",
+            "default": {
+              "start": "",
+              "end": ""
+            }
+          },
+          "equity": {
+            "$ref": "#/components/schemas/alpha_visualizer__schemas__results__EquityCurve",
+            "default": {
+              "dates": [],
+              "values": []
+            }
+          },
+          "drawdown": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Drawdown",
+            "default": []
+          },
+          "daily_returns": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Daily Returns",
+            "default": []
+          },
+          "buy_hold_equity": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Buy Hold Equity",
+            "default": []
+          },
+          "is_cutoff": {
+            "$ref": "#/components/schemas/IsCutoff",
+            "default": {
+              "index": -1
+            }
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics",
+            "default": {}
+          },
+          "is_metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Metrics"
+          },
+          "oos_metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Metrics"
+          },
+          "monthly_returns": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Monthly Returns",
+            "default": {}
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/Trade"
+            },
+            "type": "array",
+            "title": "Trades",
+            "default": []
+          },
+          "benchmark_annual_returns": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Benchmark Annual Returns",
+            "default": {}
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run_id",
+          "strategy_id",
+          "strategy_name"
+        ],
+        "title": "BacktestDetail",
+        "description": "``GET /api/results/{run_id}`` 詳細レスポンス。\n\nフィールドは ``services.backtest.build_detail`` の出力構造に対応する。\n``metrics`` / ``is_metrics`` / ``oos_metrics`` / ``monthly_returns``\nなどの巨大ネストは ``Any`` で受け、``extra=\"allow\"`` で将来追加にも追従。\n\n``regime_series`` / ``regime_breakdown`` は条件付きで含まれる\nオプショナルなキーで、``extra=\"allow\"`` 経由でパススルーする\n（None で固定キーにすると未指定のはずのレスポンスに ``\"regime_*\": null``\nが出てしまうため、明示フィールドにはしない）。"
+      },
+      "BacktestSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "strategy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Id"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          },
+          "sharpe_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Ratio"
+          },
+          "total_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Return Pct"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct"
+          },
+          "total_trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Trades"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "BacktestSummary",
+        "description": "``GET /api/results`` リストの 1 件。"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Idea": {
+        "properties": {
+          "idea_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idea Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "linked_strategies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Strategies"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Idea",
+        "description": "ideas.json の 1 アイデア。\n\nフィールドは ideas.json のキーをそのまま反映。未知フィールドは\n透過するため ``extra=\"allow\"`` を設定（運用での互換性維持）。"
+      },
+      "IsCutoff": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "default": -1
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "IsCutoff",
+        "description": "``BacktestDetail.is_cutoff``: IS / OOS の境界位置。"
+      },
+      "LiveAligned": {
+        "properties": {
+          "total_trades": {
+            "type": "integer",
+            "title": "Total Trades"
+          },
+          "win_rate_pct": {
+            "type": "number",
+            "title": "Win Rate Pct"
+          },
+          "profit_factor": {
+            "type": "number",
+            "title": "Profit Factor"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "net_pnl": {
+            "type": "number",
+            "title": "Net Pnl"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total_trades",
+          "win_rate_pct",
+          "profit_factor",
+          "max_drawdown_pct",
+          "net_pnl"
+        ],
+        "title": "LiveAligned",
+        "description": "``LiveDetail.backtest.aligned``: 期間整合済みのバックテスト集計値。"
+      },
+      "LiveBacktest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "period": {
+            "$ref": "#/components/schemas/LivePeriod"
+          },
+          "aligned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiveAligned"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run_id",
+          "period"
+        ],
+        "title": "LiveBacktest",
+        "description": "``LiveDetail.backtest``: 対応 backtest の run_id + period + aligned 集計。"
+      },
+      "LiveDetail": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "live": {
+            "$ref": "#/components/schemas/LiveSection"
+          },
+          "backtest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiveBacktest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiveDiff"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "live"
+        ],
+        "title": "LiveDetail",
+        "description": "``GET /api/live/{strategy_id}`` 詳細レスポンス。\n\nlive summary + 正規化済み trades と、それに整合する backtest aligned/diff、\n計算できなかった理由を伝える warnings 配列を返す。"
+      },
+      "LiveDiff": {
+        "properties": {
+          "total_trades": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Trades"
+          },
+          "win_rate_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate Pct"
+          },
+          "profit_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Factor"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct"
+          },
+          "net_pnl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Pnl"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "LiveDiff",
+        "description": "``LiveDetail.diff``: live − aligned のメトリクス差分。"
+      },
+      "LiveListItem": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "has_summary": {
+            "type": "boolean",
+            "title": "Has Summary"
+          },
+          "has_trades": {
+            "type": "boolean",
+            "title": "Has Trades"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "has_summary",
+          "has_trades"
+        ],
+        "title": "LiveListItem",
+        "description": "``GET /api/live`` リストの 1 件。"
+      },
+      "LivePeriod": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "LivePeriod",
+        "description": "``LiveDetail.live.period`` / ``LiveDetail.backtest.period``。"
+      },
+      "LiveSection": {
+        "properties": {
+          "summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Summary"
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/LiveTrade"
+            },
+            "type": "array",
+            "title": "Trades",
+            "default": []
+          },
+          "period": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LivePeriod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "LiveSection",
+        "description": "``LiveDetail.live`` セクション (summary / trades / period)。"
+      },
+      "LiveTrade": {
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "title": "Trade Id",
+            "default": ""
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "default": ""
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "entry_at": {
+            "type": "string",
+            "title": "Entry At"
+          },
+          "exit_at": {
+            "type": "string",
+            "title": "Exit At"
+          },
+          "qty": {
+            "type": "number",
+            "title": "Qty",
+            "default": 0.0
+          },
+          "entry_price": {
+            "type": "number",
+            "title": "Entry Price",
+            "default": 0.0
+          },
+          "exit_price": {
+            "type": "number",
+            "title": "Exit Price",
+            "default": 0.0
+          },
+          "net_pnl": {
+            "type": "number",
+            "title": "Net Pnl",
+            "default": 0.0
+          },
+          "return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Pct"
+          },
+          "exit_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Reason"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "side",
+          "entry_at",
+          "exit_at"
+        ],
+        "title": "LiveTrade",
+        "description": "live trades JSON を正規化した 1 件。"
+      },
+      "OptimizationHistoryEntry": {
+        "properties": {
+          "trial": {
+            "type": "integer",
+            "title": "Trial"
+          },
+          "best_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Sharpe"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          },
+          "n_trials": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Trials"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trial"
+        ],
+        "title": "OptimizationHistoryEntry",
+        "description": "``StrategyDetail.optimization_history`` の 1 件。"
+      },
+      "OptimizeResult": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "run_at": {
+            "type": "string",
+            "title": "Run At",
+            "default": ""
+          },
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name",
+            "default": "sharpe_ratio"
+          },
+          "best_metric": {
+            "type": "number",
+            "title": "Best Metric",
+            "default": 0.0
+          },
+          "trials": {
+            "items": {
+              "$ref": "#/components/schemas/OptimizeTrial"
+            },
+            "type": "array",
+            "title": "Trials",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id"
+        ],
+        "title": "OptimizeResult",
+        "description": "``GET /api/optimize/{strategy_id}`` レスポンス。"
+      },
+      "OptimizeTrial": {
+        "properties": {
+          "params": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "metric": {
+            "type": "number",
+            "title": "Metric",
+            "default": 0.0
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Metrics",
+            "default": {}
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "OptimizeTrial",
+        "description": "1 試行のパラメータと評価値。\n\n``routers/optimize.py::_parse_trial`` が組み立てる dict の構造：\n``{\"params\": {...}, \"metric\": float, \"pass\": bool, \"metrics\": {...}}``。\n\n``pass`` キーは Python 予約語のため明示フィールドとして宣言できない。\nレスポンス互換性のため ``extra=\"allow\"`` で透過的に保持する。"
+      },
+      "Period": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start",
+            "default": ""
+          },
+          "end": {
+            "type": "string",
+            "title": "End",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Period",
+        "description": "``BacktestDetail.period``: equity 期間の YYYY-MM 表記。"
+      },
+      "RunBacktestRequest": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "symbol",
+          "timeframe"
+        ],
+        "title": "RunBacktestRequest"
+      },
+      "RunBacktestResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "RunBacktestResponse"
+      },
+      "StrategyComparison": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "default": ""
+          },
+          "total_return_pct": {
+            "type": "number",
+            "title": "Total Return Pct",
+            "default": 0.0
+          },
+          "cagr_pct": {
+            "type": "number",
+            "title": "Cagr Pct",
+            "default": 0.0
+          },
+          "sharpe_ratio": {
+            "type": "number",
+            "title": "Sharpe Ratio",
+            "default": 0.0
+          },
+          "sortino_ratio": {
+            "type": "number",
+            "title": "Sortino Ratio",
+            "default": 0.0
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct",
+            "default": 0.0
+          },
+          "win_rate_pct": {
+            "type": "number",
+            "title": "Win Rate Pct",
+            "default": 0.0
+          },
+          "profit_factor": {
+            "type": "number",
+            "title": "Profit Factor",
+            "default": 0.0
+          },
+          "total_trades": {
+            "type": "integer",
+            "title": "Total Trades",
+            "default": 0
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline",
+            "default": false
+          },
+          "equity": {
+            "$ref": "#/components/schemas/alpha_visualizer__schemas__strategies__EquityCurve",
+            "default": {
+              "dates": [],
+              "values": []
+            }
+          },
+          "daily_returns": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Daily Returns",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StrategyComparison",
+        "description": "``GET /api/strategies/compare`` の 1 件。equity / 比較指標を含む。"
+      },
+      "StrategyDetail": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "default": {}
+          },
+          "indicators": {
+            "items": {},
+            "type": "array",
+            "title": "Indicators",
+            "default": []
+          },
+          "variables": {
+            "items": {},
+            "type": "array",
+            "title": "Variables",
+            "default": []
+          },
+          "entry_conditions": {
+            "title": "Entry Conditions"
+          },
+          "exit_conditions": {
+            "title": "Exit Conditions"
+          },
+          "risk_management": {
+            "title": "Risk Management"
+          },
+          "regime_config": {
+            "title": "Regime Config"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyResultEntry"
+            },
+            "type": "array",
+            "title": "Results",
+            "default": []
+          },
+          "optimization_history": {
+            "items": {
+              "$ref": "#/components/schemas/OptimizationHistoryEntry"
+            },
+            "type": "array",
+            "title": "Optimization History",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "name"
+        ],
+        "title": "StrategyDetail",
+        "description": "``GET /api/strategies/{strategy_id}`` 詳細レスポンス。\n\n戦略定義（parameters / indicators / variables / *_conditions /\nrisk_management / regime_config）と、バックテスト履歴 / 最適化履歴を返す。"
+      },
+      "StrategyResultEntry": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe"
+          },
+          "return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Pct"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct"
+          },
+          "total_trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Trades"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "StrategyResultEntry",
+        "description": "``StrategyDetail.results`` の 1 件（バックテスト履歴サマリ）。"
+      },
+      "StrategySummary": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "timeframe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
+          "target_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Symbols",
+            "default": []
+          },
+          "latest_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Sharpe"
+          },
+          "latest_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Return Pct"
+          },
+          "latest_max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Max Drawdown Pct"
+          },
+          "latest_profit_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Profit Factor"
+          },
+          "latest_win_rate_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Win Rate Pct"
+          },
+          "latest_total_trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Total Trades"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "name"
+        ],
+        "title": "StrategySummary",
+        "description": "``GET /api/strategies`` リストの 1 件。"
+      },
+      "Trade": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Id"
+          },
+          "direction": {
+            "type": "string",
+            "title": "Direction"
+          },
+          "entry_date": {
+            "type": "string",
+            "title": "Entry Date",
+            "default": ""
+          },
+          "exit_date": {
+            "type": "string",
+            "title": "Exit Date",
+            "default": ""
+          },
+          "entry_price": {
+            "type": "number",
+            "title": "Entry Price",
+            "default": 0.0
+          },
+          "return_pct": {
+            "type": "number",
+            "title": "Return Pct",
+            "default": 0.0
+          },
+          "pnl": {
+            "type": "number",
+            "title": "Pnl",
+            "default": 0.0
+          },
+          "holding_days": {
+            "type": "integer",
+            "title": "Holding Days",
+            "default": 0
+          },
+          "mae_pct": {
+            "type": "number",
+            "title": "Mae Pct",
+            "default": 0.0
+          },
+          "mfe_pct": {
+            "type": "number",
+            "title": "Mfe Pct",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "direction"
+        ],
+        "title": "Trade",
+        "description": "``BacktestDetail.trades`` の 1 件。"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WFOResponse": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "strategy_name": {
+            "type": "string",
+            "title": "Strategy Name",
+            "default": ""
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "default": ""
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/WFOWindow"
+            },
+            "type": "array",
+            "title": "Windows",
+            "default": []
+          },
+          "composite_equity": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Composite Equity",
+            "default": []
+          },
+          "composite_dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Composite Dates",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "strategy_id"
+        ],
+        "title": "WFOResponse",
+        "description": "``GET /api/wfo/{strategy_id}`` レスポンス。"
+      },
+      "WFOWindow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "is_start": {
+            "type": "string",
+            "title": "Is Start",
+            "default": ""
+          },
+          "is_end": {
+            "type": "string",
+            "title": "Is End",
+            "default": ""
+          },
+          "oos_start": {
+            "type": "string",
+            "title": "Oos Start",
+            "default": ""
+          },
+          "oos_end": {
+            "type": "string",
+            "title": "Oos End",
+            "default": ""
+          },
+          "is_sharpe": {
+            "type": "number",
+            "title": "Is Sharpe",
+            "default": 0.0
+          },
+          "oos_sharpe": {
+            "type": "number",
+            "title": "Oos Sharpe",
+            "default": 0.0
+          },
+          "is_return": {
+            "type": "number",
+            "title": "Is Return",
+            "default": 0.0
+          },
+          "oos_return": {
+            "type": "number",
+            "title": "Oos Return",
+            "default": 0.0
+          },
+          "oos_is_ratio": {
+            "type": "number",
+            "title": "Oos Is Ratio",
+            "default": 0.0
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "WFOWindow",
+        "description": "1 ウィンドウの IS / OOS 評価値。\n\n``pass`` キーは Python 予約語のため明示フィールドとして宣言できない。\nレスポンス互換性のため ``extra=\"allow\"`` で透過的に保持する。"
+      },
+      "alpha_visualizer__schemas__results__EquityCurve": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates",
+            "default": []
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EquityCurve",
+        "description": "``BacktestDetail.equity``: dates / values の配列ペア。"
+      },
+      "alpha_visualizer__schemas__strategies__EquityCurve": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates",
+            "default": []
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EquityCurve",
+        "description": "``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"
+      }
+    }
+  }
+}
