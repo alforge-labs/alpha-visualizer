@@ -9,6 +9,7 @@ import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { useChartTheme } from '../../design/useChartTheme'
+import { computeHistogram } from '../../lib/distribution'
 
 interface Props {
   dailyReturns: number[]
@@ -60,16 +61,11 @@ function VaRChartInner({
     if (returns.length === 0) return []
     const minX = Math.min(...returns, -0.5)
     const maxX = Math.min(Math.max(...returns, 0), 0)
-    const binW = (maxX - minX) / BINS || 0.01
-    const counts = new Array(BINS).fill(0) as number[]
-    for (const v of returns) {
-      const idx = Math.min(Math.floor((v - minX) / binW), BINS - 1)
-      if (idx >= 0) counts[idx] = (counts[idx] ?? 0) + 1
-    }
-    return counts.map((count, i) => {
-      const center = minX + (i + 0.5) * binW
-      return { x: center, count, width: binW, isTail: center < -var95 }
-    })
+    return computeHistogram(returns, {
+      binCount: BINS,
+      domainMin: minX,
+      domainMax: maxX,
+    }).map(b => ({ ...b, isTail: b.x < -var95 }))
   }, [returns, var95])
 
   const xDomain = useMemo<[number, number]>(() => {
