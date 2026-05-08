@@ -11,7 +11,7 @@ from alpha_visualizer.schemas.ideas import Idea
 from alpha_visualizer.schemas.optimize import OptimizeResult, OptimizeTrial
 from alpha_visualizer.schemas.results import BacktestSummary
 from alpha_visualizer.schemas.strategies import (
-    EquityCurve,
+    ComparisonEquityCurve,
     StrategyComparison,
     StrategySummary,
 )
@@ -107,7 +107,7 @@ def test_strategy_comparison_with_equity() -> None:
 
 
 def test_equity_curve_defaults_to_empty() -> None:
-    eq = EquityCurve.model_validate({})
+    eq = ComparisonEquityCurve.model_validate({})
     assert eq.dates == []
     assert eq.values == []
 

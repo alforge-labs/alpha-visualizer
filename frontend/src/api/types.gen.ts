@@ -309,7 +309,7 @@ export interface components {
              *       "values": []
              *     }
              */
-            equity: components["schemas"]["alpha_visualizer__schemas__results__EquityCurve"];
+            equity: components["schemas"]["BacktestEquityCurve"];
             /**
              * Drawdown
              * @default []
@@ -369,6 +369,24 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * BacktestEquityCurve
+         * @description ``BacktestDetail.equity``: dates / values の配列ペア。
+         */
+        BacktestEquityCurve: {
+            /**
+             * Dates
+             * @default []
+             */
+            dates: string[];
+            /**
+             * Values
+             * @default []
+             */
+            values: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * BacktestSummary
          * @description ``GET /api/results`` リストの 1 件。
          */
@@ -389,6 +407,24 @@ export interface components {
             max_drawdown_pct?: number | null;
             /** Total Trades */
             total_trades?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ComparisonEquityCurve
+         * @description ``StrategyComparison.equity`` の構造（dates / values の配列ペア）。
+         */
+        ComparisonEquityCurve: {
+            /**
+             * Dates
+             * @default []
+             */
+            dates: string[];
+            /**
+             * Values
+             * @default []
+             */
+            values: number[];
         } & {
             [key: string]: unknown;
         };
@@ -778,7 +814,7 @@ export interface components {
              *       "values": []
              *     }
              */
-            equity: components["schemas"]["alpha_visualizer__schemas__strategies__EquityCurve"];
+            equity: components["schemas"]["ComparisonEquityCurve"];
             /**
              * Daily Returns
              * @default []
@@ -1066,42 +1102,6 @@ export interface components {
             params: {
                 [key: string]: number;
             };
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * EquityCurve
-         * @description ``BacktestDetail.equity``: dates / values の配列ペア。
-         */
-        alpha_visualizer__schemas__results__EquityCurve: {
-            /**
-             * Dates
-             * @default []
-             */
-            dates: string[];
-            /**
-             * Values
-             * @default []
-             */
-            values: number[];
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * EquityCurve
-         * @description ``StrategyComparison.equity`` の構造（dates / values の配列ペア）。
-         */
-        alpha_visualizer__schemas__strategies__EquityCurve: {
-            /**
-             * Dates
-             * @default []
-             */
-            dates: string[];
-            /**
-             * Values
-             * @default []
-             */
-            values: number[];
         } & {
             [key: string]: unknown;
         };

@@ -34,7 +34,7 @@ class Period(BaseModel):
     end: str = ""
 
 
-class EquityCurve(BaseModel):
+class BacktestEquityCurve(BaseModel):
     """``BacktestDetail.equity``: dates / values の配列ペア。"""
 
     model_config = ConfigDict(extra="allow")
@@ -91,7 +91,7 @@ class BacktestDetail(BaseModel):
     timeframe: str = "1d"
     run_at: str = ""
     period: Period = Period()
-    equity: EquityCurve = EquityCurve()
+    equity: BacktestEquityCurve = BacktestEquityCurve()
     drawdown: list[float] = []
     daily_returns: list[float] = []
     buy_hold_equity: list[float] = []

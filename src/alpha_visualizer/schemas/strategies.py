@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 
-class EquityCurve(BaseModel):
+class ComparisonEquityCurve(BaseModel):
     """``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"""
 
     model_config = ConfigDict(extra="allow")
@@ -56,7 +56,7 @@ class StrategyComparison(BaseModel):
     profit_factor: float = 0.0
     total_trades: int = 0
     is_baseline: bool = False
-    equity: EquityCurve = EquityCurve()
+    equity: ComparisonEquityCurve = ComparisonEquityCurve()
     daily_returns: list[float] = []
 
 
