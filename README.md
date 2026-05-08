@@ -54,6 +54,15 @@ vis serve --no-open
 
 ブラウザで **http://127.0.0.1:8000** が開きます。`Ctrl+C` で停止します。
 
+### 環境変数
+
+| 変数名 | 役割 |
+|---|---|
+| `FORGE_CONFIG` | `forge.yaml` への絶対パス。**`--forge-dir` 引数より優先される**（探索順序: 引数 `config_path` → `FORGE_CONFIG` → `<forge_dir>/forge.yaml`） |
+| `VITE_API_PROXY` | フロント開発サーバーの API proxy 先（既定 `http://127.0.0.1:8000`） |
+
+開発時に予期せぬ `forge.yaml` が参照されている場合は `unset FORGE_CONFIG` で解除してください。手元で `vis serve --forge-dir /path/to/A` を打ったのに別ディレクトリの DB が読まれているときは、ほぼこの環境変数が原因です。
+
 ## スクリーンショット
 
 | Detail | Compare |

@@ -54,6 +54,15 @@ vis serve --no-open
 
 The browser opens **http://127.0.0.1:8000**. Press `Ctrl+C` to stop.
 
+### Environment Variables
+
+| Variable | Role |
+|---|---|
+| `FORGE_CONFIG` | Absolute path to `forge.yaml`. **Takes precedence over `--forge-dir`** (search order: explicit `config_path` arg → `FORGE_CONFIG` → `<forge_dir>/forge.yaml`) |
+| `VITE_API_PROXY` | API proxy target for the frontend dev server (default `http://127.0.0.1:8000`) |
+
+If `vis serve --forge-dir /path/to/A` seems to be reading a different DB than expected, this environment variable is almost always the cause. Run `unset FORGE_CONFIG` to clear it.
+
 ## Screenshots
 
 | Detail | Compare |
