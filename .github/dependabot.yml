@@ -28,6 +28,12 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
       visx:
         patterns:
           - "@visx/*"
