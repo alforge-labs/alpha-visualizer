@@ -24,7 +24,6 @@ export type WFOWindow = S['WFOWindow']
 export type LivePeriod = S['LivePeriod']
 export type LiveListItem = S['LiveListItem']
 export type LiveDiff = S['LiveDiff']
-export type OptimizeTrial = S['OptimizeTrial']
 export type StrategyComparison = S['StrategyComparison']
 export type OptimizationHistoryEntry = S['OptimizationHistoryEntry']
 
@@ -184,6 +183,18 @@ export interface StrategyRun {
   sharpe_ratio: number | null
   total_return_pct: number | null
   max_drawdown_pct: number | null
+}
+
+/**
+ * OptimizeTrial: backend は ``pass`` キーが Python 予約語のため
+ * Pydantic 明示フィールドにできず、生成型に含まれない（``extra="allow"`` 経由で透過）。
+ * フロント側は ``pass: boolean`` を明示する手書き型を維持する。
+ */
+export interface OptimizeTrial {
+  params: Record<string, number>
+  metric: number
+  pass: boolean
+  metrics: Record<string, number>
 }
 
 export interface OptimizeResult {
