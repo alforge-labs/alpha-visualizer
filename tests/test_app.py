@@ -148,6 +148,27 @@ def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
     assert engine.dialect.name == "sqlite"
 
 
+def test_create_app_does_not_create_empty_forge_db(tmp_path: pathlib.Path) -> None:
+    """forge.db 不在で create_app しても 0 byte の forge.db が作られないこと (issue #173)。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    forge_db = forge_dir / "data" / "results" / "forge.db"
+    assert not forge_db.exists()
+
+    create_app(forge_dir=forge_dir)
+
+    assert not forge_db.exists(), "create_app が空の forge.db を touch してはならない"
+
+
+def test_create_app_engine_is_none_when_db_absent(tmp_path: pathlib.Path) -> None:
+    """forge.db 不在時は app.state.engine が None になること (issue #173)。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+
+    app = create_app(forge_dir=forge_dir)
+    assert app.state.engine is None
+
+
 def test_create_app_strategies_engine_when_db_present(tmp_path: pathlib.Path) -> None:
     """forge.yaml で strategies.use_db=true のときは strategies_engine がキャッシュされる。"""
     forge_dir = tmp_path / "forge"

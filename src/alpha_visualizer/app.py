@@ -49,10 +49,21 @@ def create_app(
     app.state.forge_config = config
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
-    # forge.db ファイル不在時もリクエスト到達時に Repository 側で扱う。
+    # forge.db が存在する場合のみ Engine を作る。これは
+    # ``create_engine("sqlite:///...")`` が不在ファイルを自動 touch して
+    # 0 byte の forge.db が散らかるのを防ぐため (issue #173)。
+    # 不在時は ``engine = None`` にし、各 router の
+    # ``config.forge_db.exists()`` ガードで 404 を返す経路に揃える。
     # 注: CLI 用途（ephemeral プロセス）のため明示的な engine.dispose() は行わない。
     # 長命プロセスや uvicorn reload を伴う用途への転用時は lifespan で dispose() すること。
-    app.state.engine = get_engine(config.forge_db)
+    if config.forge_db.exists():
+        app.state.engine = get_engine(config.forge_db)
+    else:
+        logger.warning(
+            "forge.db が見つかりません: %s（空 DB として扱い、関連 API は 404 を返します）",
+            config.forge_db,
+        )
+        app.state.engine = None
 
     # strategies.db (DB モード) も 1 回だけ Engine を生成し state にキャッシュ。
     # JSON モード（strategies_db=None）では None。
