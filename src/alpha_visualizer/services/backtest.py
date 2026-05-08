@@ -317,29 +317,31 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
     if row.metrics_json:
         try:
             metrics = json.loads(row.metrics_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as exc:
+            # 破損 JSON や旧フォーマット混入時は空 dict のまま続行する
+            # （UI 側で不在として扱える）。診断のため debug 出力のみ残す。
+            logger.debug("metrics_json のパースに失敗: %s", exc)
 
     equity_curve: list[Any] = []
     if row.equity_curve_json:
         try:
             equity_curve = json.loads(row.equity_curve_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.debug("equity_curve_json のパースに失敗: %s", exc)
 
     buy_hold_curve: list[Any] = []
     if row.buy_hold_curve_json:
         try:
             buy_hold_curve = json.loads(row.buy_hold_curve_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.debug("buy_hold_curve_json のパースに失敗: %s", exc)
 
     trades: list[Any] = []
     if row.trades_json:
         try:
             trades = json.loads(row.trades_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.debug("trades_json のパースに失敗: %s", exc)
 
     # DB のトップレベルカラムを metrics にマージ（元 forge との互換性のため）
     for col in ("sharpe_ratio", "total_return_pct", "cagr_pct", "sortino_ratio",

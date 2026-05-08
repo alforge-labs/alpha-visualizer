@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os.path
 import pathlib
 
 from fastapi import FastAPI
@@ -99,20 +100,38 @@ def create_app(
     if static_dir.exists():
         index_html = static_dir / "index.html"
         static_root = static_dir.resolve()
+        static_root_str = str(static_root)
 
         @app.get("/{full_path:path}")
         async def spa_fallback(full_path: str) -> FileResponse:
             """SPA ルート対応: /api 配下以外で実ファイルがあればそれを返し、
             無ければ index.html を返して history mode の直アクセス・リロードに対応する。
             """
-            requested = (static_dir / full_path).resolve()
-            # ディレクトリトラバーサル対策
-            try:
-                requested.relative_to(static_root)
-            except ValueError:
+            # 1. 早期に明確に不正なパスを弾く（絶対パス・空・親参照を含むパス）。
+            #    CodeQL の path-injection 静的解析が認識しやすいよう、
+            #    untrusted な full_path を直接 Path に渡す前にここで篩い落とす。
+            if (
+                not full_path
+                or full_path.startswith("/")
+                or ".." in pathlib.PurePosixPath(full_path).parts
+            ):
                 return FileResponse(index_html)
-            if requested.is_file():
-                return FileResponse(requested)
+
+            # 2. パス解決後、commonpath で static_root 配下であることを再検証する。
+            #    シンボリックリンク経由のトラバーサルにも対応する二重防御。
+            candidate = (static_dir / full_path).resolve()
+            try:
+                common = os.path.commonpath([str(candidate), static_root_str])
+            except ValueError:
+                # 異なるドライブ（Windows）など共通パスが取れないケース
+                return FileResponse(index_html)
+            if common != static_root_str:
+                return FileResponse(index_html)
+
+            # 3. ここまで来た candidate は static_root 配下と保証されている。
+            #    既存ファイルならそのまま、無ければ SPA fallback として index.html。
+            if candidate.is_file():
+                return FileResponse(candidate)
             return FileResponse(index_html)
 
     return app
