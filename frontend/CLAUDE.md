@@ -23,7 +23,7 @@
 | `BrowsePage` | `BrowseScreen` |
 | `DetailPage` | `BacktestScreen` / `ISOOSScreen` / `WFOScreen` / `OptimizeScreen` / `StrategyScreen` |
 | `ComparePage` | `CompareScreen` |
-| `IdeasPage` | （単独、screen 未分離。将来的には `IdeasScreen` として分離可能） |
+| `IdeasPage` | `IdeasScreen` |
 
 ## charts/visx/ と components/charts/ の責務分離
 
