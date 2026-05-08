@@ -5,6 +5,7 @@ import { makeL } from '../../i18n/strings'
 import type { StrategyComparison } from '../../api/types'
 import { Card, Chip } from '../../design/primitives'
 import { buildCompareCsv, downloadCsv } from '../../lib/csv'
+import { fmtNumber } from '../../lib/format'
 
 type CompareKey =
   | 'total_return_pct'
@@ -57,11 +58,6 @@ const TD_DELTA: CSSProperties = {
   textAlign: 'right',
   padding: '4px 14px 12px',
   borderBottom: '1px solid var(--border)',
-}
-
-function fmt(v: number | null | undefined, suffix: string): string {
-  if (v == null) return '—'
-  return `${v.toFixed(Math.abs(v) > 99 ? 0 : 2)}${suffix}`
 }
 
 function valueColor(v: number | null, hb: boolean | null): string {
@@ -194,7 +190,7 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
                               color: valueColor(v as number | null, c.hb),
                             }}
                           >
-                            {fmt(v as number | null, c.suffix)}
+                            {fmtNumber(v as number | null, { suffix: c.suffix })}
                           </span>
                         </td>
                       )

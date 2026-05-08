@@ -8,6 +8,7 @@ import { makeL } from '../../i18n/strings'
 import { Chip } from '../../design/primitives'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
+import { fmtNumber, fmtDate } from '../../lib/format'
 
 interface Props {
   items: StrategyListItem[]
@@ -25,16 +26,6 @@ interface Props {
 
 const HOVER_DELAY_MS = 220
 const COL_COUNT = 9
-
-function fmt(v: number | null | undefined, suffix = '', decimals = 2): string {
-  if (v == null) return '—'
-  return `${v.toFixed(decimals)}${suffix}`
-}
-
-function fmtDate(s: string | null | undefined): string {
-  if (!s) return '—'
-  return s.slice(0, 10)
-}
 
 function sharpeTone(v: number | null | undefined): string {
   if (v == null) return 'var(--text3)'
@@ -238,7 +229,7 @@ function StrategyRow({
           fontSize: '1rem',
         }}
       >
-        {fmt(s.latest_sharpe, '', 2)}
+        {fmtNumber(s.latest_sharpe, { decimals: 2 })}
       </td>
       <td
         style={{
@@ -251,16 +242,16 @@ function StrategyRow({
                 : 'var(--danger)',
         }}
       >
-        {fmt(s.latest_return_pct, '%', 1)}
+        {fmtNumber(s.latest_return_pct, { suffix: '%', decimals: 1 })}
       </td>
       <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
-        {fmt(s.latest_max_drawdown_pct, '%', 1)}
+        {fmtNumber(s.latest_max_drawdown_pct, { suffix: '%', decimals: 1 })}
       </td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmt(s.latest_profit_factor, '', 2)}
+        {fmtNumber(s.latest_profit_factor, { decimals: 2 })}
       </td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmt(s.latest_win_rate_pct, '%', 1)}
+        {fmtNumber(s.latest_win_rate_pct, { suffix: '%', decimals: 1 })}
       </td>
       <td
         className="u-col-hide-md-down"
@@ -357,7 +348,7 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
         }}
         title={L('グループ内の最高 Sharpe', 'Best Sharpe in group')}
       >
-        {fmt(agg.bestSharpe, '', 2)}
+        {fmtNumber(agg.bestSharpe, { decimals: 2 })}
       </td>
       <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
       <td
@@ -368,7 +359,7 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
         }}
         title={L('グループ内の最悪 DD', 'Worst drawdown in group')}
       >
-        {fmt(agg.worstDrawdownPct, '%', 1)}
+        {fmtNumber(agg.worstDrawdownPct, { suffix: '%', decimals: 1 })}
       </td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
