@@ -56,6 +56,47 @@ jobs:
       - name: Build (tsc -b && vite build)
         run: npm run build
 
+  openapi-types:
+    name: OpenAPI types drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Regenerate OpenAPI schema and TS types
+        working-directory: frontend
+        run: npm run gen
+
+      - name: Verify generated files are committed
+        run: |
+          if ! git diff --exit-code frontend/openapi.json frontend/src/api/types.gen.ts; then
+            echo "::error::OpenAPI schema or generated TS types are out of date."
+            echo "Run 'cd frontend && npm run gen' locally and commit the changes."
+            exit 1
+          fi
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20

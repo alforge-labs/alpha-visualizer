@@ -156,9 +156,25 @@ npm run build
 
 # Lint
 npm run lint
+
+# OpenAPI スキーマ + TS 型を再生成（バックエンド schemas/ 変更時に必須）
+npm run gen
 ```
 
 バックエンド API のプロキシ設定は `frontend/vite.config.ts` で定義。
+
+### OpenAPI 型自動生成
+
+バックエンドの Pydantic schema が Single Source of Truth。フロント側の TS 型は
+`openapi-typescript` で `frontend/openapi.json` から自動生成する（[ADR-0003](docs/adr/0003-openapi-typescript-codegen.md)）。
+
+| コマンド | 役割 |
+|---------|------|
+| `npm run gen:openapi` | Python 経由で `frontend/openapi.json` を再生成 |
+| `npm run gen:types` | `openapi.json` から `src/api/types.gen.ts` を再生成 |
+| `npm run gen` | 上記 2 つを順番に実行 |
+
+**`src/alpha_visualizer/schemas/*.py` を変更したら必ず `cd frontend && npm run gen` を実行**して生成ファイルもコミットする。CI の `openapi-types` ジョブが drift を検出する。
 
 ---
 
