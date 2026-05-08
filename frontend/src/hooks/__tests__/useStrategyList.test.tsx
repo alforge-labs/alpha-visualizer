@@ -14,9 +14,9 @@ vi.mock('../../api/client', () => ({
 import { api } from '../../api/client'
 
 const SAMPLE: StrategyListItem[] = [
-  { strategy_id: 'a', name: 'Alpha', symbol: 'BTC', timeframe: '1h', latest_sharpe: 2.0, latest_max_drawdown_pct: -10 },
-  { strategy_id: 'b', name: 'Bravo', symbol: 'ETH', timeframe: '4h', latest_sharpe: 1.2, latest_max_drawdown_pct: -20 },
-  { strategy_id: 'c', name: 'Charlie', symbol: 'BTC', timeframe: '1d', latest_sharpe: 0.5, latest_max_drawdown_pct: -30 },
+  { strategy_id: 'a', name: 'Alpha', symbol: 'BTC', timeframe: '1h', latest_sharpe: 2.0, latest_max_drawdown_pct: -10, tags: [], target_symbols: [] },
+  { strategy_id: 'b', name: 'Bravo', symbol: 'ETH', timeframe: '4h', latest_sharpe: 1.2, latest_max_drawdown_pct: -20, tags: [], target_symbols: [] },
+  { strategy_id: 'c', name: 'Charlie', symbol: 'BTC', timeframe: '1d', latest_sharpe: 0.5, latest_max_drawdown_pct: -30, tags: [], target_symbols: [] },
 ]
 
 interface Harness {
