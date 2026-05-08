@@ -9,7 +9,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { WFOWindow } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
-import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../../lib/wfo'
+import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../../lib/walkForward'
 
 interface WFOTimelineProps {
   windows: WFOWindow[]

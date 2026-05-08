@@ -21,7 +21,7 @@ from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
 from alpha_visualizer.schemas.wfo import WFOResponse
-from alpha_visualizer.services import wfo as wfo_service
+from alpha_visualizer.services import walk_forward as wfo_service
 
 logger = logging.getLogger(__name__)
 
