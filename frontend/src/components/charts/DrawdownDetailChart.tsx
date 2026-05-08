@@ -7,55 +7,9 @@ import { useDashboard } from '../../contexts/DashboardContext'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { useChartTheme } from '../../design/useChartTheme'
+import { detectTopDrawdowns } from '../../lib/drawdown'
 
-interface DrawdownPeriod {
-  startIdx: number
-  peakIdx: number
-  endIdx: number
-  depth: number
-  durationDays: number
-  recoveryDays: number | null
-  startDate: string
-  endDate: string
-}
-
-function detectTopDrawdowns(dd: number[], dates: string[], top = 5): DrawdownPeriod[] {
-  const periods: DrawdownPeriod[] = []
-  let inDD = false
-  let start = 0
-  let minIdx = 0
-  let minVal = 0
-
-  for (let i = 0; i < dd.length; i++) {
-    const v = dd[i] ?? 0
-    if (!inDD && v < -0.01) {
-      inDD = true
-      start = i
-      minIdx = i
-      minVal = v
-    } else if (inDD) {
-      if (v < minVal) {
-        minIdx = i
-        minVal = v
-      }
-      if (v >= -0.01 || i === dd.length - 1) {
-        const recovery = v >= -0.01 ? i - minIdx : null
-        periods.push({
-          startIdx: start,
-          peakIdx: minIdx,
-          endIdx: i,
-          depth: minVal,
-          durationDays: i - start,
-          recoveryDays: recovery,
-          startDate: dates[start] ?? '',
-          endDate: dates[i] ?? '',
-        })
-        inDD = false
-      }
-    }
-  }
-  return periods.sort((a, b) => a.depth - b.depth).slice(0, top)
-}
+// ドローダウン期間検出は lib/drawdown.ts の純関数 detectTopDrawdowns に集約（ADR-0002）。
 
 interface Props {
   drawdown: number[]

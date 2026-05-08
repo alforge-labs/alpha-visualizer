@@ -9,6 +9,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { WFOWindow } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
+import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../../lib/wfo'
 
 interface WFOTimelineProps {
   windows: WFOWindow[]
@@ -23,14 +24,9 @@ export function WFOTimeline({ windows, lang }: WFOTimelineProps): React.ReactEle
   const L = makeL(lang)
   const theme = useChartTheme()
 
-  const passN = windows.filter(w => w.pass).length
-  const total = Math.max(windows.length, 1)
-  const ratioSum = windows.reduce((s, w) => s + w.oos_is_ratio, 0)
-  const isSum = windows.reduce((s, w) => s + w.is_sharpe, 0)
-  const oosSum = windows.reduce((s, w) => s + w.oos_sharpe, 0)
-  const avgRatio = (ratioSum / total).toFixed(2)
-  const avgIS = (isSum / total).toFixed(2)
-  const avgOOS = (oosSum / total).toFixed(2)
+  // 集計値は lib/wfo.ts の純関数 summarizeWfoWindows に集約（ADR-0002）。
+  const summary = summarizeWfoWindows(windows)
+  const { passCount: passN, total, avgRatio, avgIS, avgOOS } = summary
 
   const passRateColor = passN / total >= 0.7 ? theme.success : theme.warn
   const ratioNum = parseFloat(avgRatio)
@@ -92,14 +88,7 @@ interface TimelineSectionProps {
   lang: Lang
 }
 
-function parseMonth(s: string): Date {
-  return new Date(`${s}-01`)
-}
-function parseMonthEnd(s: string): Date {
-  const d = new Date(`${s}-01`)
-  d.setMonth(d.getMonth() + 1)
-  return d
-}
+// parseMonth / parseMonthEnd は lib/wfo.ts に移送。
 
 function TimelineSection({ width, windows, lang }: TimelineSectionProps): React.ReactElement {
   const theme = useChartTheme()
