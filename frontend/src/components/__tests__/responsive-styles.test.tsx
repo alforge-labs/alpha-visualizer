@@ -69,7 +69,7 @@ describe('Responsive styles (issue #54)', () => {
 
   it('StrategyTable wraps with u-scroll-x for horizontal scroll', () => {
     const items: StrategyListItem[] = [
-      { strategy_id: 's1', name: 'S1', symbol: 'AAPL', timeframe: '1d' },
+      { strategy_id: 's1', name: 'S1', symbol: 'AAPL', timeframe: '1d', tags: [], target_symbols: [] },
     ]
     const { getByTestId } = render(
       <MemoryRouter>
@@ -104,6 +104,8 @@ describe('Responsive styles (issue #54)', () => {
         latest_profit_factor: 1.4,
         latest_win_rate_pct: 55,
         last_run_at: '2026-01-01',
+        tags: [],
+        target_symbols: [],
       },
     ]
     const { container } = render(
@@ -134,6 +136,8 @@ describe('Responsive styles (issue #54)', () => {
       name: 'S1',
       symbol: 'AAPL',
       timeframe: '1d',
+      tags: [],
+      target_symbols: [],
     }
     const { getByTestId } = render(
       <MemoryRouter>

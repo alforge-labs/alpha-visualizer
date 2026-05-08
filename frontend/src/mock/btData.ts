@@ -171,9 +171,9 @@ const wfoDates = genDates('2021-01-04', wfoComposite.length)
 
 /* ── Strategies (Compare) ─────────────────────────────────────────────────── */
 const STRATEGIES: StrategyComparison[] = [
-  { id: 'ema_cross', name: 'EMA Cross', symbol: 'AAPL', total_return_pct: totalRet, cagr_pct: 9.2, sharpe_ratio: 1.18, sortino_ratio: 1.67, max_drawdown_pct: -21.4, win_rate_pct: 54.2, profit_factor: 1.67, total_trades: 183, is_baseline: true },
-  { id: 'rsi_rev', name: 'RSI Reversion', symbol: 'AAPL', total_return_pct: 31.2, cagr_pct: 6.1, sharpe_ratio: 0.89, sortino_ratio: 1.14, max_drawdown_pct: -28.1, win_rate_pct: 61.3, profit_factor: 1.45, total_trades: 247, is_baseline: false },
-  { id: 'momentum', name: 'Momentum BKT', symbol: 'AAPL', total_return_pct: 82.1, cagr_pct: 15.3, sharpe_ratio: 1.52, sortino_ratio: 2.21, max_drawdown_pct: -32.7, win_rate_pct: 48.2, profit_factor: 1.92, total_trades: 89, is_baseline: false },
+  { id: 'ema_cross', name: 'EMA Cross', symbol: 'AAPL', total_return_pct: totalRet, cagr_pct: 9.2, sharpe_ratio: 1.18, sortino_ratio: 1.67, max_drawdown_pct: -21.4, win_rate_pct: 54.2, profit_factor: 1.67, total_trades: 183, is_baseline: true, equity: { dates: [], values: [] }, daily_returns: [] },
+  { id: 'rsi_rev', name: 'RSI Reversion', symbol: 'AAPL', total_return_pct: 31.2, cagr_pct: 6.1, sharpe_ratio: 0.89, sortino_ratio: 1.14, max_drawdown_pct: -28.1, win_rate_pct: 61.3, profit_factor: 1.45, total_trades: 247, is_baseline: false, equity: { dates: [], values: [] }, daily_returns: [] },
+  { id: 'momentum', name: 'Momentum BKT', symbol: 'AAPL', total_return_pct: 82.1, cagr_pct: 15.3, sharpe_ratio: 1.52, sortino_ratio: 2.21, max_drawdown_pct: -32.7, win_rate_pct: 48.2, profit_factor: 1.92, total_trades: 89, is_baseline: false, equity: { dates: [], values: [] }, daily_returns: [] },
 ]
 
 /* ── Trades ───────────────────────────────────────────────────────────────── */

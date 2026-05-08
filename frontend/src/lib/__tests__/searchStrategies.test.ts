@@ -48,6 +48,8 @@ describe('searchStrategies', () => {
     const big: StrategyListItem[] = Array.from({ length: 50 }, (_, i) => ({
       strategy_id: `s_${i}`,
       name: `Strategy ${i}`,
+      tags: [],
+      target_symbols: [],
     }))
     expect(searchStrategies(big, 'strategy', 5)).toHaveLength(5)
   })

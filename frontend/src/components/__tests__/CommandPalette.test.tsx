@@ -13,9 +13,9 @@ vi.mock('../../api/client', () => ({
 import { api } from '../../api/client'
 
 const ITEMS: StrategyListItem[] = [
-  { strategy_id: 'ema_cross', name: 'EMA クロス AAPL', symbol: 'AAPL', tags: ['trend'] },
-  { strategy_id: 'rsi_dip', name: 'RSI ディップ', symbol: 'TQQQ', tags: ['mean_reversion', 'rsi'] },
-  { strategy_id: 'hmm_v1', name: 'HMM レジーム', symbol: 'SPY', target_symbols: ['SPY'] },
+  { strategy_id: 'ema_cross', name: 'EMA クロス AAPL', symbol: 'AAPL', tags: ['trend'], target_symbols: [] },
+  { strategy_id: 'rsi_dip', name: 'RSI ディップ', symbol: 'TQQQ', tags: ['mean_reversion', 'rsi'], target_symbols: [] },
+  { strategy_id: 'hmm_v1', name: 'HMM レジーム', symbol: 'SPY', target_symbols: ['SPY'], tags: [] },
 ]
 
 function createMemoryStorage(): Storage {

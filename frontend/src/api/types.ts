@@ -1,3 +1,53 @@
+/**
+ * フロントエンド向け API 型定義。
+ *
+ * 段階的に `types.gen.ts`（OpenAPI 自動生成）に移行中（[ADR-0003](../../../docs/adr/0003-openapi-typescript-codegen.md)）。
+ *
+ * 本ファイルは:
+ * 1. 単純な構造体は `types.gen.ts` の生成型を **alias** として再 export
+ * 2. backend の Pydantic でモデル化されていない型・派生型・union 型は **手書き継続**
+ *
+ * 大きな型（BacktestDetail / StrategyDetail / LiveDetailResponse 等）は
+ * 生成型に Pydantic ``extra=\"allow\"`` 由来の ``& { [key: string]: unknown }`` が
+ * 付与されており、``Omit`` で扱おうとするとフィールド型が ``unknown`` 化するため
+ * 手書き継続とする（CI の OpenAPI drift check で間接的に同期を担保）。
+ */
+import type { components } from './types.gen'
+
+type S = components['schemas']
+
+// ===== 1. 生成型 alias（単純な構造体・名前一致） =====
+
+export type Period = S['Period']
+export type IsCutoff = S['IsCutoff']
+export type WFOWindow = S['WFOWindow']
+export type LivePeriod = S['LivePeriod']
+export type LiveListItem = S['LiveListItem']
+export type LiveDiff = S['LiveDiff']
+export type OptimizeTrial = S['OptimizeTrial']
+export type StrategyComparison = S['StrategyComparison']
+export type OptimizationHistoryEntry = S['OptimizationHistoryEntry']
+
+// ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
+
+/** backend では ``WFOResponse`` だが、フロントは履歴的に ``WFOResult`` で参照する。 */
+export type WFOResult = S['WFOResponse']
+
+/** backend では ``StrategySummary`` だが、フロントは ``StrategyListItem`` で参照する。 */
+export type StrategyListItem = S['StrategySummary']
+
+/** backend では ``LiveSection`` から派生した ``LiveBacktest`` だが、フロントは ``LiveBacktestSection`` で参照する。 */
+export type LiveBacktestSection = S['LiveBacktest']
+
+/** backend では ``LiveAligned`` だが、フロントは ``LiveBacktestAligned`` で参照する。 */
+export type LiveBacktestAligned = S['LiveAligned']
+
+// ===== 3. 手書き継続（独自フィールド・厳密化・union 型・backend 未モデル化） =====
+
+/**
+ * BacktestMetrics: backend は ``metrics: dict[str, Any]`` で型付けしておらず、
+ * フロントが消費するために独自定義。詳細指標は alpha-forge 側で動的に増減する。
+ */
 export interface BacktestMetrics {
   total_return_pct: number
   cagr_pct: number
@@ -46,6 +96,10 @@ export interface BacktestMetrics {
   }
 }
 
+/**
+ * Trade: 生成型 (`Trade`) は ``id: int | str`` / ``direction: str`` だが、
+ * フロントは ``id: number`` / ``direction: 'long' | 'short'`` に narrow して扱う。
+ */
 export interface Trade {
   id: number
   direction: 'long' | 'short'
@@ -94,6 +148,13 @@ export interface RegimeBreakdown {
   aggregates: Record<string, RegimeAggregateStats>
 }
 
+/**
+ * BacktestDetail: 生成型は ``metrics: dict[str, Any]``（Pydantic ``extra="allow"``）だが
+ * フロントは ``BacktestMetrics`` で詳細型を持つ。``equity`` にもフロント独自の
+ * ``benchmark?: number[]`` がある。生成型の Pydantic ``extra="allow"`` 由来の
+ * ``& { [key: string]: unknown }`` が ``Omit`` 経由でフィールド型を unknown 化させる
+ * ため、手書きを継続する。
+ */
 export interface BacktestDetail {
   run_id: string
   strategy_id: string
@@ -117,79 +178,12 @@ export interface BacktestDetail {
   regime_breakdown?: RegimeBreakdown
 }
 
-export interface WFOWindow {
-  id: number
-  label: string
-  is_start: string
-  is_end: string
-  oos_start: string
-  oos_end: string
-  is_sharpe: number
-  oos_sharpe: number
-  is_return: number
-  oos_return: number
-  oos_is_ratio: number
-  params: Record<string, number>
-  pass: boolean
-}
-
-export interface WFOResult {
-  strategy_id: string
-  strategy_name: string
-  symbol: string
-  windows: WFOWindow[]
-  composite_equity: number[]
-  composite_dates: string[]
-}
-
-export interface StrategyComparison {
-  id: string
-  name: string
-  symbol: string
-  total_return_pct: number
-  cagr_pct: number
-  sharpe_ratio: number
-  sortino_ratio: number
-  max_drawdown_pct: number
-  win_rate_pct: number
-  profit_factor: number
-  total_trades: number
-  is_baseline: boolean
-  equity?: { dates: string[]; values: number[] }
-  daily_returns?: number[]
-}
-
-export interface StrategyListItem {
-  strategy_id: string
-  name: string
-  // 以下は backend が必ず返すとは限らない（バックテスト履歴がない場合や、
-  // API 拡張が未追従のときは undefined になる）。表示側は null/undefined 両対応する。
-  symbol?: string | null
-  timeframe?: string | null
-  tags?: string[] | null
-  target_symbols?: string[] | null
-  latest_sharpe?: number | null
-  latest_return_pct?: number | null
-  latest_max_drawdown_pct?: number | null
-  latest_profit_factor?: number | null
-  latest_win_rate_pct?: number | null
-  latest_total_trades?: number | null
-  last_run_at?: string | null
-}
-
 export interface StrategyRun {
   run_id: string
   run_at: string
   sharpe_ratio: number | null
   total_return_pct: number | null
   max_drawdown_pct: number | null
-}
-
-export interface OptimizeTrial {
-  params: Record<string, number>
-  metric: number
-  pass: boolean
-  metrics: Record<string, number>
 }
 
 export interface OptimizeResult {
@@ -252,6 +246,10 @@ export interface RiskManagement {
   max_positions?: number | null
 }
 
+/**
+ * StrategyDetail: backend では ``entry_conditions`` 等が ``Any`` 型のため
+ * 生成型では ``unknown`` 相当。フロントは ``ConditionNode`` で型付けして扱う。
+ */
 export interface StrategyDetail {
   strategy_id: string
   name: string
@@ -263,7 +261,12 @@ export interface StrategyDetail {
   risk_management: RiskManagement | null
   regime_config: Record<string, unknown> | null
   results: StrategyRun[]
-  optimization_history: Array<{ trial: number; best_sharpe: number; run_at: string; n_trials: number }>
+  optimization_history: Array<{
+    trial: number
+    best_sharpe: number
+    run_at: string
+    n_trials: number
+  }>
 }
 
 export interface LinkedRun {
@@ -272,6 +275,11 @@ export interface LinkedRun {
   notes?: string
 }
 
+/**
+ * IdeaItem: 生成型 ``Idea`` には ``description`` / ``linked_runs`` /
+ * ``result_summary`` / ``notes_history`` が含まれていない（backend Pydantic で
+ * Optional フィールド差分）。フロントは ideas.json 由来のフルセットを扱う。
+ */
 export interface IdeaItem {
   idea_id: string
   title?: string
@@ -289,6 +297,7 @@ export interface IdeaItem {
 
 // ===== Live (issue #57) =====
 
+/** LiveSummary: backend 側は ``LiveSection.summary: dict[str, unknown]`` のため手書き。 */
 export interface LiveSummary {
   strategy_id: string
   strategy_version?: string | null
@@ -307,6 +316,7 @@ export interface LiveSummary {
   symbols?: string[]
 }
 
+/** LiveTrade: ``side: 'long' | 'short'`` に narrow（生成型は string）。 */
 export interface LiveTrade {
   trade_id: string
   symbol: string
@@ -321,33 +331,6 @@ export interface LiveTrade {
   exit_reason?: string | null
 }
 
-export interface LivePeriod {
-  start: string
-  end: string
-}
-
-export interface LiveBacktestAligned {
-  total_trades: number
-  win_rate_pct: number
-  profit_factor: number
-  max_drawdown_pct: number
-  net_pnl: number | null
-}
-
-export interface LiveBacktestSection {
-  run_id: string
-  period: LivePeriod
-  aligned: LiveBacktestAligned | null
-}
-
-export interface LiveDiff {
-  total_trades: number | null
-  win_rate_pct: number | null
-  profit_factor: number | null
-  max_drawdown_pct: number | null
-  net_pnl: number | null
-}
-
 export interface LiveDetailResponse {
   strategy_id: string
   live: {
@@ -358,10 +341,4 @@ export interface LiveDetailResponse {
   backtest: LiveBacktestSection | null
   diff: LiveDiff | null
   warnings: string[]
-}
-
-export interface LiveListItem {
-  strategy_id: string
-  has_summary: boolean
-  has_trades: boolean
 }

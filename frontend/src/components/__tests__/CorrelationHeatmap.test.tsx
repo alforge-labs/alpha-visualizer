@@ -17,6 +17,7 @@ function strategy(
     profit_factor: 0,
     total_trades: 0,
     is_baseline: false,
+    equity: { dates: [], values: [] },
     daily_returns: [0.01, -0.02, 0.03, 0.0, -0.01],
     ...partial,
   }
