@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { ConditionNode, EntryExitConditions, IndicatorConfig, RiskManagement, StrategyDetail, VariableConfig } from '../api/types'
+import type { ConditionNode, EntryExitConditions, IndicatorConfig, LeafConditionNode, RiskManagement, StrategyDetail, VariableConfig } from '../api/types'
+import { isLogicalConditionNode } from '../api/types'
 import { Card, Chip, SectionHeader, SectionLabel } from '../design/primitives'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
@@ -193,10 +194,9 @@ function ConditionSection({ title, conditions, lang }: { title: string; conditio
 }
 
 function ConditionTree({ node, depth }: { node: ConditionNode; depth: number }) {
-  const isLogical = node.type === 'AND' || node.type === 'OR'
   const indentPx = depth * 16
 
-  if (isLogical && node.conditions) {
+  if (isLogicalConditionNode(node)) {
     return (
       <div style={{ paddingLeft: indentPx }}>
         <LogicLabel type={node.type} />
@@ -216,7 +216,7 @@ function ConditionTree({ node, depth }: { node: ConditionNode; depth: number }) 
   )
 }
 
-function LogicLabel({ type }: { type: string }) {
+function LogicLabel({ type }: { type: 'AND' | 'OR' }) {
   const isAnd = type === 'AND'
   return (
     <span style={{
@@ -233,11 +233,11 @@ function LogicLabel({ type }: { type: string }) {
   )
 }
 
-function LeafCondition({ node }: { node: ConditionNode }) {
+function LeafCondition({ node }: { node: LeafConditionNode }) {
   const parts: string[] = []
   if (node.left !== undefined) parts.push(String(node.left))
-  if (node.type && node.type !== 'AND' && node.type !== 'OR') parts.push(node.type)
-  if (node.right !== undefined) parts.push(String(node.right))
+  if (node.type) parts.push(node.type)
+  if (node.right !== undefined && node.right !== null) parts.push(String(node.right))
   const text = parts.length > 0 ? parts.join(' ') : JSON.stringify(node)
   return (
     <span style={{
