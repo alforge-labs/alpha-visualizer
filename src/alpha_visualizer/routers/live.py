@@ -71,7 +71,7 @@ def _backtest_record_for_diff(
     try:
         row = repo.fetch_backtest_for_diff(strategy_id, run_id)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("backtest_results 取得失敗 (%s): %s", strategy_id, exc)
+        logger.warning("backtest_results 取得失敗 (%r): %s", strategy_id, exc)
         return None
     if row is None:
         return None

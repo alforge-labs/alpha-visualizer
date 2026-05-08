@@ -111,7 +111,7 @@ async def get_optimize(
     try:
         row = repo.get_latest_for_strategy(strategy_id)
     except Exception as e:
-        logger.warning("最適化結果の取得に失敗: %s (%s)", strategy_id, e)
+        logger.warning("最適化結果の取得に失敗: %r (%s)", strategy_id, e)
         raise DataCorruptError(
             f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e

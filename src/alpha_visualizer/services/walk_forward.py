@@ -90,7 +90,12 @@ def parse_equity_curve(raw_json: str | None) -> list[tuple[str, float]]:
             continue
         d = p.get("date")
         v = p.get("value")
-        if isinstance(d, str) and d and isinstance(v, (int, float)) and v == v:
+        # v == v は NaN チェック（NaN != NaN を利用）。CodeQL の
+        # py/comparison-of-identical-expressions は NaN 検出パターンと認識されないため
+        # 偽陽性。math.isnan を使うほうが明示的だが、bool が int サブクラスで
+        # isnan に渡せない問題があるため v == v のままにする。
+        # lgtm[py/comparison-of-identical-expressions]
+        if isinstance(d, str) and d and isinstance(v, (int, float)) and v == v:  # noqa: PLR0124
             result.append((d, float(v)))
     return result
 
