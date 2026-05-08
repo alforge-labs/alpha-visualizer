@@ -19,6 +19,11 @@ export interface CorrelationHeatmapVProps {
   /** 軸ラベル下に表示する銘柄（labels と同じ長さ。省略可） */
   symbols?: (string | null | undefined)[]
   height?: number
+  /**
+   * symbols が一致しないセルのツールチップに付ける注意書き。
+   * Container 側で i18n 済みの文字列を渡す（既定: 英語の汎用表現）。
+   */
+  symbolMismatchLabel?: string
 }
 
 interface Hover {
@@ -66,6 +71,7 @@ function Inner({
   matrix,
   meta,
   symbols,
+  symbolMismatchLabel,
   width,
   height,
 }: CorrelationHeatmapVProps & { width: number }) {
@@ -219,6 +225,7 @@ function Inner({
           left={gridLeft + hov.col * cell + cell + 12}
           top={gridTop + hov.row * cell}
           theme={theme}
+          symbolMismatchLabel={symbolMismatchLabel}
         />
       )}
     </div>
@@ -226,6 +233,7 @@ function Inner({
 }
 
 interface CellTooltipProps {
+  symbolMismatchLabel?: string
   row: number
   col: number
   labels: string[]
@@ -236,7 +244,7 @@ interface CellTooltipProps {
   theme: ReturnType<typeof useChartTheme>
 }
 
-function CellTooltip({ row, col, labels, matrix, meta, left, top, theme }: CellTooltipProps) {
+function CellTooltip({ row, col, labels, matrix, meta, left, top, theme, symbolMismatchLabel }: CellTooltipProps) {
   const r = matrix[row]?.[col] ?? null
   const cellMeta = meta?.[row]?.[col]
   const rowLabel = labels[row] ?? ''
@@ -271,7 +279,8 @@ function CellTooltip({ row, col, labels, matrix, meta, left, top, theme }: CellT
         {cellMeta && (
           <span style={{ color: theme.text2, fontSize: 11 }}>
             overlap = {cellMeta.overlap}d
-            {!cellMeta.symbolsMatch && ' · 銘柄が異なる'}
+            {!cellMeta.symbolsMatch &&
+              (symbolMismatchLabel ?? ' · symbol mismatch')}
           </span>
         )}
       </div>
