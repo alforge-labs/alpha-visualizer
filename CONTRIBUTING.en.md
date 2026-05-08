@@ -124,6 +124,50 @@ git commit -m "docs: スクリーンショットを再撮影"
 
 Add tests for new features and bug fixes. Run `uv run pytest --cov` for backend coverage and `npm run test:ci -- --coverage` for frontend.
 
+### i18n (Multilingual Support)
+
+All UI strings must provide both Japanese and English. `frontend/src/i18n/strings.ts` exposes two APIs:
+
+#### 1. Inline both translations (legacy)
+
+```typescript
+import { makeL } from '../i18n/strings'
+
+function MyComponent({ lang }: { lang: Lang }) {
+  const L = makeL(lang)
+  return <h1>{L('戦略一覧', 'Strategies')}</h1>
+}
+```
+
+Easy to read both languages at the call site — good for unique or rarely-used strings.
+
+#### 2. Centralize in STRINGS map (recommended for shared strings)
+
+For strings used in multiple places or where translation drift is a concern, register them in the `STRINGS` map and reference via `makeT`:
+
+```typescript
+// frontend/src/i18n/strings.ts
+export const STRINGS = {
+  'detail.noWfo': {
+    ja: 'この戦略にはウォークフォワード（WFO）データがありません',
+    en: 'No walk-forward (WFO) data for this strategy',
+  },
+  // ...
+} as const
+
+// Usage
+import { makeT } from '../i18n/strings'
+
+function MyComponent({ lang }: { lang: Lang }) {
+  const T = makeT(lang)
+  return <Note>{T('detail.noWfo')}</Note>
+}
+```
+
+Key naming convention: `<scope>.<term>` (lowerCamel). Examples: `common.loading` / `detail.noWfo` / `compare.title`.
+
+When a third language (e.g., Chinese, Korean) is added in the future, you only need to add `zh` / `ko` fields to the `STRINGS` map. We recommend gradually migrating shared strings to the map ([Issue #151](https://github.com/alforge-labs/alpha-visualizer/issues/151) tracks the phased migration).
+
 ## Pull Request Checklist
 
 Before submitting:
