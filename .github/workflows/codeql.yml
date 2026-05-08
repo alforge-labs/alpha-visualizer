@@ -37,7 +37,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          queries: security-and-quality
+          # クエリスイート / 除外パスは .github/codeql/codeql-config.yml で集中管理
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
