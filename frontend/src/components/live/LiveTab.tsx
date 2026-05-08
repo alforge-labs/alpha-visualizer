@@ -4,13 +4,8 @@ import { makeL } from '../../i18n/strings'
 import { api } from '../../api/client'
 import type { LiveDetailResponse, LiveTrade } from '../../api/types'
 import { SectionLabel } from '../../design/primitives'
-import {
-  diffTone,
-  formatDiff,
-  formatInteger,
-  formatNumber,
-  toneColor,
-} from './format'
+import { diffTone, toneColor } from './format'
+import { fmtDiff, fmtInteger, fmtNumber } from '../../lib/format'
 
 interface Props {
   strategyId: string
@@ -84,42 +79,42 @@ export function LiveTab({ strategyId, runId, lang }: Props) {
         >
           <SummaryCard
             label={L('総取引数', 'Total Trades')}
-            value={formatInteger(summary.total_trades ?? null)}
-            diff={formatDiff(diff?.total_trades ?? null)}
+            value={fmtInteger(summary.total_trades ?? null)}
+            diff={fmtDiff(diff?.total_trades ?? null)}
             diffTone={diffTone(diff?.total_trades)}
-            backtest={formatInteger(aligned?.total_trades ?? null)}
+            backtest={fmtInteger(aligned?.total_trades ?? null)}
             lang={lang}
           />
           <SummaryCard
             label={L('勝率', 'Win Rate')}
-            value={formatNumber(summary.win_rate_pct ?? null, '%')}
-            diff={formatDiff(diff?.win_rate_pct ?? null, '%')}
+            value={fmtNumber(summary.win_rate_pct ?? null, { suffix: '%' })}
+            diff={fmtDiff(diff?.win_rate_pct ?? null, '%')}
             diffTone={diffTone(diff?.win_rate_pct)}
-            backtest={formatNumber(aligned?.win_rate_pct ?? null, '%')}
+            backtest={fmtNumber(aligned?.win_rate_pct ?? null, { suffix: '%' })}
             lang={lang}
           />
           <SummaryCard
             label={L('プロフィットファクター', 'Profit Factor')}
-            value={formatNumber(summary.profit_factor ?? null)}
-            diff={formatDiff(diff?.profit_factor ?? null)}
+            value={fmtNumber(summary.profit_factor ?? null)}
+            diff={fmtDiff(diff?.profit_factor ?? null)}
             diffTone={diffTone(diff?.profit_factor)}
-            backtest={formatNumber(aligned?.profit_factor ?? null)}
+            backtest={fmtNumber(aligned?.profit_factor ?? null)}
             lang={lang}
           />
           <SummaryCard
             label={L('最大DD', 'Max DD')}
-            value={formatNumber(summary.max_drawdown_pct ?? null, '%')}
-            diff={formatDiff(diff?.max_drawdown_pct ?? null, '%')}
+            value={fmtNumber(summary.max_drawdown_pct ?? null, { suffix: '%' })}
+            diff={fmtDiff(diff?.max_drawdown_pct ?? null, '%')}
             diffTone={diffTone(diff?.max_drawdown_pct)}
-            backtest={formatNumber(aligned?.max_drawdown_pct ?? null, '%')}
+            backtest={fmtNumber(aligned?.max_drawdown_pct ?? null, { suffix: '%' })}
             lang={lang}
           />
           <SummaryCard
             label={L('純PnL', 'Net PnL')}
-            value={formatNumber(summary.net_pnl ?? null)}
-            diff={formatDiff(diff?.net_pnl ?? null)}
+            value={fmtNumber(summary.net_pnl ?? null)}
+            diff={fmtDiff(diff?.net_pnl ?? null)}
             diffTone={diffTone(diff?.net_pnl)}
-            backtest={formatNumber(aligned?.net_pnl ?? null)}
+            backtest={fmtNumber(aligned?.net_pnl ?? null)}
             lang={lang}
           />
         </div>
@@ -313,13 +308,13 @@ function LiveTradesTable({ trades, lang }: LiveTradesTableProps) {
                 <td style={cellS}>{t.entry_at}</td>
                 <td style={cellS}>{t.exit_at}</td>
                 <td style={{ ...cellS, textAlign: 'right' }}>
-                  {formatNumber(t.qty)}
+                  {fmtNumber(t.qty)}
                 </td>
                 <td style={{ ...cellS, textAlign: 'right', color: pnlColor }}>
-                  {formatNumber(t.net_pnl)}
+                  {fmtNumber(t.net_pnl)}
                 </td>
                 <td style={{ ...cellS, textAlign: 'right' }}>
-                  {t.return_pct == null ? '—' : formatNumber(t.return_pct, '%')}
+                  {t.return_pct == null ? '—' : fmtNumber(t.return_pct, { suffix: '%' })}
                 </td>
                 <td style={cellS}>{t.exit_reason ?? '—'}</td>
               </tr>

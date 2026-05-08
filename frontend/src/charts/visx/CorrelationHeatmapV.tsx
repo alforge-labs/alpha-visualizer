@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ParentSize } from '@visx/responsive'
 import { Group } from '@visx/group'
 import { useChartTheme } from '../../design/useChartTheme'
+import { fmtNumber } from '../../lib/format'
 
 export interface CorrelationCellMeta {
   /** 共通サンプル数（最小長） */
@@ -33,12 +34,6 @@ const LABEL_FONT_PX = 12
 const COL_LABEL_DEG = 35
 /** ラベルを SVG 内で切り詰める最大文字数（はみ出し回避用） */
 const LABEL_MAX_CHARS = 22
-
-function formatR(r: number | null): string {
-  if (r === null) return '—'
-  const sign = r >= 0 ? '+' : ''
-  return `${sign}${r.toFixed(2)}`
-}
 
 function truncate(label: string, max: number): string {
   if (label.length <= max) return label
@@ -205,7 +200,7 @@ function Inner({
                     fontSize={12}
                     fontWeight={500}
                   >
-                    {formatR(r)}
+                    {fmtNumber(r, { decimals: 2, sign: true })}
                   </text>
                 </g>
               )
@@ -271,7 +266,7 @@ function CellTooltip({ row, col, labels, matrix, meta, left, top, theme }: CellT
           {rowLabel} × {colLabel}
         </span>
         <span style={{ color: theme.text, fontSize: 14, fontWeight: 600 }}>
-          ρ = {formatR(r)}
+          ρ = {fmtNumber(r, { decimals: 2, sign: true })}
         </span>
         {cellMeta && (
           <span style={{ color: theme.text2, fontSize: 11 }}>

@@ -1,6 +1,7 @@
 import type { SymbolStat } from '../../hooks/useSymbolStats'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
+import { fmtNumber, fmtDate } from '../../lib/format'
 
 interface Props {
   stat: SymbolStat
@@ -20,16 +21,6 @@ function sharpeTone(v: number | null): string {
 function returnTone(v: number | null): string {
   if (v == null) return 'var(--text3)'
   return v >= 0 ? 'var(--success)' : 'var(--danger)'
-}
-
-function fmtNumber(v: number | null, suffix = '', decimals = 2): string {
-  if (v == null) return '—'
-  return `${v.toFixed(decimals)}${suffix}`
-}
-
-function fmtDate(s: string | null): string {
-  if (!s) return '—'
-  return s.slice(0, 10)
 }
 
 export function SymbolCard({ stat, selected, disabled, onClick, lang }: Props) {
@@ -135,7 +126,7 @@ export function SymbolCard({ stat, selected, disabled, onClick, lang }: Props) {
               letterSpacing: 'var(--tracking-mono)',
             }}
           >
-            {fmtNumber(stat.bestSharpe, '', 2)}
+            {fmtNumber(stat.bestSharpe, { decimals: 2 })}
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
@@ -159,7 +150,7 @@ export function SymbolCard({ stat, selected, disabled, onClick, lang }: Props) {
               letterSpacing: 'var(--tracking-mono)',
             }}
           >
-            {fmtNumber(stat.avgReturnPct, '%', 1)}
+            {fmtNumber(stat.avgReturnPct, { suffix: '%', decimals: 1 })}
           </span>
         </div>
       </div>

@@ -2,6 +2,7 @@ import type { RegimeBreakdown, RegimeSeries } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { useChartTheme } from '../../design/useChartTheme'
+import { fmtNumber } from '../../lib/format'
 
 interface RegimeBreakdownCardsProps {
   breakdown: RegimeBreakdown
@@ -25,13 +26,6 @@ function colorForState(state: number, n: number, palette: readonly string[]): st
   if (state >= 0 && state < palette.length && c) return c
   const safeN = Math.max(n, 1)
   return `hsl(${(state * 360) / safeN}, 55%, 55%)`
-}
-
-function formatNumber(value: number, suffix = ''): string {
-  if (!Number.isFinite(value)) return '—'
-  const abs = Math.abs(value)
-  const fixed = abs >= 100 ? value.toFixed(1) : abs >= 10 ? value.toFixed(2) : value.toFixed(3)
-  return `${fixed}${suffix}`
 }
 
 interface AggregateRowProps {
@@ -173,12 +167,12 @@ export function RegimeBreakdownCards({ breakdown, series, lang }: RegimeBreakdow
               </div>
               <AggregateRow
                 label={L('シャープ平均', 'Sharpe avg')}
-                value={formatNumber(agg.sharpe_avg)}
+                value={fmtNumber(agg.sharpe_avg)}
                 tone={sharpeTone}
               />
               <AggregateRow
                 label={L('勝率平均', 'Win Rate avg')}
-                value={formatNumber(agg.win_rate_avg, '%')}
+                value={fmtNumber(agg.win_rate_avg, { suffix: '%' })}
                 tone={winRateTone}
               />
               <AggregateRow
@@ -187,7 +181,7 @@ export function RegimeBreakdownCards({ breakdown, series, lang }: RegimeBreakdow
               />
               <AggregateRow
                 label={L('最大DD平均', 'Max DD avg')}
-                value={formatNumber(agg.max_drawdown_avg, '%')}
+                value={fmtNumber(agg.max_drawdown_avg, { suffix: '%' })}
                 tone={agg.max_drawdown_avg <= -10 ? 'bad' : 'neutral'}
               />
             </div>

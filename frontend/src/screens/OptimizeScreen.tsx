@@ -4,16 +4,12 @@ import { makeL } from '../i18n/strings'
 import type { OptimizeResult, OptimizeTrial } from '../api/types'
 import { SectionHeader, SectionLabel } from '../design/primitives'
 import { OptimizeScatter } from '../components/charts/OptimizeScatter'
+import { fmtNumber } from '../lib/format'
 
 interface Props {
   data: OptimizeResult
   compact: boolean
   lang: Lang
-}
-
-function fmtNum(v: number | undefined, digits = 2): string {
-  if (v === undefined) return '—'
-  return v.toFixed(digits)
 }
 
 function topTrials(trials: OptimizeTrial[], n: number): OptimizeTrial[] {
@@ -152,7 +148,7 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
                           color: trial.metric > 0 ? 'var(--success)' : 'var(--danger)',
                         }}
                       >
-                        {fmtNum(trial.metric, 3)}
+                        {fmtNumber(trial.metric, { decimals: 3 })}
                       </td>
                       {trial.metrics.total_return_pct !== undefined && (
                         <td
@@ -162,12 +158,12 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
                           }}
                         >
                           {trial.metrics.total_return_pct >= 0 ? '+' : ''}
-                          {fmtNum(trial.metrics.total_return_pct)}
+                          {fmtNumber(trial.metrics.total_return_pct, { decimals: 2 })}
                         </td>
                       )}
                       {trial.metrics.max_drawdown_pct !== undefined && (
                         <td style={{ ...tdStyle, color: 'var(--danger)' }}>
-                          {fmtNum(trial.metrics.max_drawdown_pct)}
+                          {fmtNumber(trial.metrics.max_drawdown_pct, { decimals: 2 })}
                         </td>
                       )}
                       <td style={tdStyle}>

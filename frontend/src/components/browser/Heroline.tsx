@@ -3,6 +3,7 @@ import type { StrategyListItem } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Stat } from '../../design/primitives/Stat'
+import { fmtSharpe } from '../../lib/format'
 
 interface Props {
   items: StrategyListItem[]
@@ -42,10 +43,6 @@ function computeMetrics(items: StrategyListItem[]): HeroMetrics {
     topSharpe,
     recentRunsCount: recent,
   }
-}
-
-function fmtSharpe(v: number | null): string {
-  return v == null ? '—' : v.toFixed(2)
 }
 
 function sharpeTone(v: number | null): 'positive' | 'warning' | 'negative' | 'neutral' {
