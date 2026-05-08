@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import sqlite3
 import textwrap
 
 import pytest
@@ -157,6 +158,23 @@ class TestOptimizeRouter:
         assert len(data["trials"]) == 4
         first_params = data["trials"][0]["params"]
         assert set(first_params.keys()) == {"fast", "slow", "stop"}
+
+    def test_optimize_returns_500_when_table_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """forge.db は存在するが optimization_runs テーブルが欠落している場合は
+        DB 障害として 500 を返す（404 ではない）。"""
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        # 空の DB ファイルを作成（テーブル無し）→ OperationalError を発生させる
+        sqlite3.connect(db_path).close()
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  output_path: ./data/results\n  db_filename: backtest_results.db\n"
+        )
+        app = create_app(forge_dir=tmp_path)
+        client = TestClient(app)
+        response = client.get("/api/optimize/some_strategy")
+        assert response.status_code == 500
 
     def test_optimize_skips_wfo_trials(self, tmp_path: pathlib.Path) -> None:
         """WFO 形式のトライアル（window_id / is_sharpe を含む）はスキップされる"""
