@@ -3,6 +3,10 @@ import { ApiError, api } from '../api/client'
 import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyDetail, StrategyRun, WFOResult } from '../api/types'
 import { MOCK_BACKTEST, MOCK_OPTIMIZE, MOCK_STRATEGIES, MOCK_WFO } from '../mock/btData'
 
+// Vite が PROD ビルドで `false` に静的置換 → DCE で IS_DEV ガード内が削除され、
+// `mock/btData` への参照がなくなり tree-shaking で PROD bundle から除外される。
+const IS_DEV = import.meta.env.DEV
+
 export type LoadState<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T; isMock: boolean }
@@ -29,18 +33,25 @@ export function useBacktest({ runId }: UseBacktestParams): LoadState<BacktestDet
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        const state: FetchedState<BacktestDetail> =
-          err instanceof ApiError && err.status === 404
-            ? { status: 'ready', data: MOCK_BACKTEST, isMock: true }
-            : { status: 'error', error: err instanceof Error ? err.message : String(err) }
-        setResult({ forId: runId, state })
+        if (IS_DEV && err instanceof ApiError && err.status === 404) {
+          setResult({ forId: runId, state: { status: 'ready', data: MOCK_BACKTEST, isMock: true } })
+          return
+        }
+        setResult({
+          forId: runId,
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
+        })
       })
     return () => {
       cancelled = true
     }
   }, [runId])
 
-  if (!runId) return { status: 'ready', data: MOCK_BACKTEST, isMock: true }
+  if (!runId) {
+    return IS_DEV
+      ? { status: 'ready', data: MOCK_BACKTEST, isMock: true }
+      : { status: 'loading' }
+  }
   if (result?.forId === runId) return result.state
   return { status: 'loading' }
 }
@@ -58,18 +69,25 @@ export function useWFO(strategyId: string | null): LoadState<WFOResult> {
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        const state: FetchedState<WFOResult> =
-          err instanceof ApiError && err.status === 404
-            ? { status: 'ready', data: MOCK_WFO, isMock: true }
-            : { status: 'error', error: err instanceof Error ? err.message : String(err) }
-        setResult({ forId: strategyId, state })
+        if (IS_DEV && err instanceof ApiError && err.status === 404) {
+          setResult({ forId: strategyId, state: { status: 'ready', data: MOCK_WFO, isMock: true } })
+          return
+        }
+        setResult({
+          forId: strategyId,
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
+        })
       })
     return () => {
       cancelled = true
     }
   }, [strategyId])
 
-  if (!strategyId) return { status: 'ready', data: MOCK_WFO, isMock: true }
+  if (!strategyId) {
+    return IS_DEV
+      ? { status: 'ready', data: MOCK_WFO, isMock: true }
+      : { status: 'loading' }
+  }
   if (result?.forId === strategyId) return result.state
   return { status: 'loading' }
 }
@@ -90,18 +108,25 @@ export function useCompare(ids: string[] | null): LoadState<StrategyComparison[]
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        const state: FetchedState<StrategyComparison[]> =
-          err instanceof ApiError && err.status === 404
-            ? { status: 'ready', data: MOCK_STRATEGIES, isMock: true }
-            : { status: 'error', error: err instanceof Error ? err.message : String(err) }
-        setResult({ forKey: idsKey, state })
+        if (IS_DEV && err instanceof ApiError && err.status === 404) {
+          setResult({ forKey: idsKey, state: { status: 'ready', data: MOCK_STRATEGIES, isMock: true } })
+          return
+        }
+        setResult({
+          forKey: idsKey,
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
+        })
       })
     return () => {
       cancelled = true
     }
   }, [idsKey])
 
-  if (!ids || ids.length === 0) return { status: 'ready', data: MOCK_STRATEGIES, isMock: true }
+  if (!ids || ids.length === 0) {
+    return IS_DEV
+      ? { status: 'ready', data: MOCK_STRATEGIES, isMock: true }
+      : { status: 'loading' }
+  }
   if (result?.forKey === idsKey) return result.state
   return { status: 'loading' }
 }
@@ -119,18 +144,25 @@ export function useOptimize(strategyId: string | null): LoadState<OptimizeResult
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        const state: FetchedState<OptimizeResult> =
-          err instanceof ApiError && err.status === 404
-            ? { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
-            : { status: 'error', error: err instanceof Error ? err.message : String(err) }
-        setResult({ forId: strategyId, state })
+        if (IS_DEV && err instanceof ApiError && err.status === 404) {
+          setResult({ forId: strategyId, state: { status: 'ready', data: MOCK_OPTIMIZE, isMock: true } })
+          return
+        }
+        setResult({
+          forId: strategyId,
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
+        })
       })
     return () => {
       cancelled = true
     }
   }, [strategyId])
 
-  if (!strategyId) return { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
+  if (!strategyId) {
+    return IS_DEV
+      ? { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
+      : { status: 'loading' }
+  }
   if (result?.forId === strategyId) return result.state
   return { status: 'loading' }
 }
