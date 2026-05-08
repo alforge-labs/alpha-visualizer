@@ -16,7 +16,7 @@ from alpha_visualizer.dependencies import (
     get_forge_config_dep,
     get_optimization_repo,
 )
-from alpha_visualizer.errors import NotFoundError
+from alpha_visualizer.errors import DataCorruptError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.schemas.optimize import OptimizeResult
@@ -112,7 +112,7 @@ async def get_optimize(
         row = repo.get_latest_for_strategy(strategy_id)
     except Exception as e:
         logger.warning("最適化結果の取得に失敗: %s (%s)", strategy_id, e)
-        raise NotFoundError(
+        raise DataCorruptError(
             f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e
 

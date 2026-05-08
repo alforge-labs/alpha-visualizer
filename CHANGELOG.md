@@ -12,6 +12,11 @@ alpha-visualizer の全バージョン変更履歴です。
 - レジーム / HMM ステートを EquityChart の背景帯として可視化、Risk タブにレジーム別サマリーカードを追加 (Closes #56)
 
 
+### バグ修正
+
+- `/api/optimize/{strategy_id}` で DB 障害（`optimization_runs` テーブル欠落・SQLAlchemy `OperationalError` 等）が発生したときのレスポンスを 404 から 500 に変更。「リソース未存在 (404)」と「DB 障害 (500)」の意味論を分離 (Closes #106)
+
+
 ### ドキュメント
 
 - 関連リンクを Alforge Labs 公式サイトに変更 (#41)
