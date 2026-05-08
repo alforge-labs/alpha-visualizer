@@ -26,6 +26,24 @@ export default defineConfig({
     outDir: '../src/alpha_visualizer/static',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // 大きい / 安定した依存を別 chunk にして長期キャッシュを効かせる。
+        // 各 Page が visx を共通利用するため、visx を切り出すと page chunk
+        // が小さくなり追加 fetch も dedupe される。
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('@visx/') || id.includes('d3-')) return 'visx'
+            if (id.includes('react-router-dom') || id.includes('@remix-run/'))
+              return 'react-router'
+            if (id.includes('/react/') || id.includes('/react-dom/'))
+              return 'react'
+            if (id.includes('@fontsource')) return 'fonts'
+            return 'vendor'
+          }
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',
