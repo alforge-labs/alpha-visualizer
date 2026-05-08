@@ -159,6 +159,13 @@ export function DetailPage() {
             {tab === 'backtest' &&
               (backtest.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : backtest.status === 'no_data' ? (
+                <Note>
+                  {L(
+                    'バックテスト結果が見つかりません',
+                    'No backtest result found',
+                  )}
+                </Note>
               ) : backtest.status === 'error' ? (
                 <Note tone="danger">{backtest.error}</Note>
               ) : (
@@ -175,6 +182,13 @@ export function DetailPage() {
             {tab === 'wfo' &&
               (wfo.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : wfo.status === 'no_data' ? (
+                <Note>
+                  {L(
+                    'この戦略にはウォークフォワード（WFO）データがありません',
+                    'No walk-forward (WFO) data for this strategy',
+                  )}
+                </Note>
               ) : wfo.status === 'error' ? (
                 <Note tone="danger">{wfo.error}</Note>
               ) : (
@@ -183,6 +197,13 @@ export function DetailPage() {
             {tab === 'optimize' &&
               (optimize.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : optimize.status === 'no_data' ? (
+                <Note>
+                  {L(
+                    'この戦略には最適化（Optimize）データがありません',
+                    'No optimization data for this strategy',
+                  )}
+                </Note>
               ) : optimize.status === 'error' ? (
                 <Note tone="danger">{optimize.error}</Note>
               ) : (
@@ -196,6 +217,13 @@ export function DetailPage() {
                   onSelectRun={handleSelectRun}
                   lang={lang}
                 />
+              ) : runsState.status === 'no_data' ? (
+                <Note>
+                  {L(
+                    '実行履歴がありません',
+                    'No run history',
+                  )}
+                </Note>
               ) : runsState.status === 'error' ? (
                 <Note tone="danger">{runsState.error}</Note>
               ) : (
@@ -204,6 +232,13 @@ export function DetailPage() {
             {tab === 'strategy' &&
               (strategyDetail.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
+              ) : strategyDetail.status === 'no_data' ? (
+                <Note>
+                  {L(
+                    '戦略定義が見つかりません',
+                    'No strategy definition found',
+                  )}
+                </Note>
               ) : strategyDetail.status === 'error' ? (
                 <Note tone="danger">{strategyDetail.error}</Note>
               ) : (

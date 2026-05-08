@@ -50,14 +50,16 @@ describe('useFetchByKey', () => {
     })
   })
 
-  it('returns error on 404 without mockFallback', async () => {
+  it('returns no_data on 404 without mockFallback', async () => {
+    // 404 はリソース不在を意味し、生のエラー文字列を表示するのではなく
+    // UI 側で「データなし」として扱える 'no_data' 状態にする。
     const fetcher = vi.fn(async () => {
       throw new ApiError('not found', 404, '/api/test')
     })
     const { result } = renderHook(() => useFetchByKey<string>('key1', fetcher))
 
     await waitFor(() => {
-      expect(result.current.status).toBe('error')
+      expect(result.current.status).toBe('no_data')
     })
   })
 
