@@ -32,6 +32,24 @@ jobs:
       - name: Test (pytest)
         run: uv run pytest tests/ -q
 
+      # Issue #149 以降、wheel に同梱する静的アセット
+      # (src/alpha_visualizer/static/) はリポジトリ管理対象外。
+      # PyPI 配布用に wheel build 直前で frontend を再生成する。
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (PROD bundle)
+        working-directory: frontend
+        run: npm run build
+
       - name: Build
         run: uv build
 
