@@ -39,9 +39,10 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
     if (!s.symbol || !s.timeframe) return
     if (s.last_run_at !== null) {
       const ok = window.confirm(
-        lang === 'ja'
-          ? '再実行すると最新結果が上書きされます。続けますか？'
-          : 'Re-running will overwrite the latest result. Continue?',
+        L(
+          '再実行すると最新結果が上書きされます。続けますか？',
+          'Re-running will overwrite the latest result. Continue?',
+        ),
       )
       if (!ok) return
     }

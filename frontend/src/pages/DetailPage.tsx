@@ -57,9 +57,10 @@ export function DetailPage() {
   const handleRun = async () => {
     if (!symbol || !timeframe || !strategyId) return
     const ok = window.confirm(
-      lang === 'ja'
-        ? '再実行すると最新結果が上書きされます。続けますか？'
-        : 'Re-running will overwrite the latest result. Continue?'
+      L(
+        '再実行すると最新結果が上書きされます。続けますか？',
+        'Re-running will overwrite the latest result. Continue?',
+      ),
     )
     if (!ok) return
     const success = await runBt(strategyId, symbol, timeframe)

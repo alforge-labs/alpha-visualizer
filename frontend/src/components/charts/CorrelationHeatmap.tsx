@@ -107,7 +107,13 @@ export function CorrelationHeatmap({
         </p>
       )}
 
-      <CorrelationHeatmapV labels={labels} matrix={matrix} meta={meta} symbols={symbols} />
+      <CorrelationHeatmapV
+        labels={labels}
+        matrix={matrix}
+        meta={meta}
+        symbols={symbols}
+        symbolMismatchLabel={L(' · 銘柄が異なる', ' · symbol mismatch')}
+      />
     </Card>
   )
 }

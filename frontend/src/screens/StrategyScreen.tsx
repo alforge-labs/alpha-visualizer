@@ -39,7 +39,16 @@ export function StrategyScreen({ data, lang }: StrategyScreenProps) {
   )
 }
 
-function CollapseToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function CollapseToggle({
+  open,
+  onToggle,
+  lang,
+}: {
+  open: boolean
+  onToggle: () => void
+  lang: Lang
+}) {
+  const L = makeL(lang)
   return (
     <button
       onClick={onToggle}
@@ -54,7 +63,7 @@ function CollapseToggle({ open, onToggle }: { open: boolean; onToggle: () => voi
         padding: '2px 8px',
       }}
     >
-      {open ? '▲ 折りたたむ' : '▼ 展開'}
+      {open ? L('▲ 折りたたむ', '▲ Collapse') : L('▼ 展開', '▼ Expand')}
     </button>
   )
 }
@@ -69,7 +78,7 @@ function ParametersCard({ parameters, lang }: { parameters: Record<string, unkno
       <SectionHeader
         title={L('パラメータ', 'Parameters')}
         small
-        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} />}
+        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} lang={lang} />}
       />
       {open && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
@@ -113,7 +122,7 @@ function IndicatorsCard({ indicators, lang }: { indicators: IndicatorConfig[]; l
         title={L('指標', 'Indicators')}
         caption={L(`${indicators.length} 件`, `${indicators.length} total`)}
         small
-        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} />}
+        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} lang={lang} />}
       />
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -161,7 +170,7 @@ function ConditionsCard({ entry, exit, lang }: { entry: EntryExitConditions | nu
       <SectionHeader
         title={L('エントリー / エグジット条件', 'Entry / Exit Conditions')}
         small
-        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} />}
+        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} lang={lang} />}
       />
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
@@ -293,7 +302,7 @@ function VariablesCard({ variables, lang }: { variables: VariableConfig[]; lang:
         title={L('変数', 'Variables')}
         caption={L(`${variables.length} 件`, `${variables.length} total`)}
         small
-        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} />}
+        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} lang={lang} />}
       />
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -317,7 +326,7 @@ function RegimeCard({ config, lang }: { config: Record<string, unknown>; lang: L
       <SectionHeader
         title={L('レジーム設定', 'Regime Config')}
         small
-        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} />}
+        right={<CollapseToggle open={open} onToggle={() => setOpen(v => !v)} lang={lang} />}
       />
       {open && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
