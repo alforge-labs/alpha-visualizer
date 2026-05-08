@@ -17,13 +17,9 @@ test.describe('Detail スモーク', () => {
     await page.getByRole('tab', { name: 'IS / OOS' }).click()
     await expect(page.getByTestId('isoos-screen')).toBeVisible()
 
-    // WFO タブ
-    //   fixture には sma_cross の WFO データが無いため PROD bundle では
-    //   mock fallback されず error note が表示される（DEV では mock が出る）。
-    //   ここではタブが選択状態に切り替わることのみを検証する。
-    const wfoTab = page.getByRole('tab', { name: 'WFO' })
-    await wfoTab.click()
-    await expect(wfoTab).toHaveAttribute('aria-selected', 'true')
+    // WFO タブ（fixture に sma_cross の WFO 形式 optimization_runs を seed 済み）
+    await page.getByRole('tab', { name: 'WFO' }).click()
+    await expect(page.getByTestId('wfo-screen')).toBeVisible()
 
     // 実行履歴タブ
     await page.getByRole('tab', { name: /実行履歴|Run History/ }).click()

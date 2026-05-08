@@ -225,6 +225,50 @@ def _opt_trials(seed: int, n: int) -> list[dict[str, object]]:
     return out
 
 
+def _wfo_trials(seed: int) -> list[dict[str, object]]:
+    """ウォークフォワード形式のトライアル列（WFOScreen 描画用）。
+
+    WFO ルーターが期待するキー（``window_id`` / ``is_sharpe`` / ``oos_sharpe``
+    / ``is_start`` / ``is_end`` / ``oos_start`` / ``oos_end`` / ``params``）を
+    含む 2 ウィンドウ分のシーケンスを決定論的に生成する。
+    """
+    rng = random.Random(seed)  # noqa: S311
+    dates = _business_dates(PERIOD_START, PERIOD_DAYS)
+    # 60 営業日を 2 ウィンドウに分割（前半=Window1、後半=Window2）。
+    # 各ウィンドウ内で IS:OOS = 2:1 の比率で切る（IS=20 営業日, OOS=10 営業日）。
+    half = len(dates) // 2  # 30
+    is_len = (half * 2) // 3  # 20
+    windows: list[dict[str, object]] = []
+    for w in range(2):
+        offset = w * half
+        is_start = dates[offset]
+        is_end = dates[offset + is_len - 1]
+        oos_start = dates[offset + is_len]
+        oos_end = dates[offset + half - 1]
+        is_sharpe = round(rng.uniform(0.8, 1.6), 4)
+        oos_sharpe = round(rng.uniform(0.3, 1.2), 4)
+        windows.append(
+            {
+                "window_id": w + 1,
+                "label": f"W{w + 1}",
+                "is_start": is_start.isoformat(),
+                "is_end": is_end.isoformat(),
+                "oos_start": oos_start.isoformat(),
+                "oos_end": oos_end.isoformat(),
+                "is_sharpe": is_sharpe,
+                "oos_sharpe": oos_sharpe,
+                "is_return_pct": round(rng.uniform(2.0, 8.0), 4),
+                "oos_return_pct": round(rng.uniform(-2.0, 5.0), 4),
+                "params": {
+                    "fast_period": rng.randint(5, 20),
+                    "slow_period": rng.randint(20, 60),
+                },
+                "pass": oos_sharpe > 0.5,
+            }
+        )
+    return windows
+
+
 def _ensure_dirs() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     STRATEGIES_DIR.mkdir(parents=True, exist_ok=True)
@@ -337,6 +381,29 @@ def _build_optimization_row(strategy_id: str, run_at: str) -> dict[str, object]:
     }
 
 
+def _build_wfo_optimization_row(strategy_id: str, run_at: str) -> dict[str, object]:
+    """sma_cross 用 WFO 形式の optimization_runs 行を生成する。
+
+    ``all_trials_json`` には WFO ルーターが期待するウィンドウ列（``window_id``
+    / ``is_sharpe`` / ``oos_sharpe`` / ``is_start`` / ``oos_start`` 等）が入る。
+    Detail 画面の WFO タブでこの行が拾われ ``WFOScreen`` が描画される。
+    """
+    windows = _wfo_trials(seed=11)
+    best = max(windows, key=lambda w: float(w["oos_sharpe"]))
+    return {
+        "run_id": f"wfo_{strategy_id}_001",
+        "strategy_id": strategy_id,
+        "symbol": "SPY",
+        "run_at": run_at,
+        "n_trials": len(windows),
+        "best_metric_name": "oos_sharpe",
+        "best_metric_value": float(best["oos_sharpe"]),
+        "best_params_json": json.dumps(best["params"], ensure_ascii=False, sort_keys=True),
+        "duration_seconds": 8.21,
+        "all_trials_json": json.dumps(windows, ensure_ascii=False),
+    }
+
+
 def _write_db() -> None:
     if DB_PATH.exists():
         DB_PATH.unlink()
@@ -347,7 +414,10 @@ def _write_db() -> None:
         _build_backtest_row("rsi_reversal", seed=2, drift=0.0006, volatility=0.014, run_at="2024-04-02T10:00:00"),
         _build_backtest_row("momo_breakout", seed=3, drift=0.0010, volatility=0.018, run_at="2024-04-03T10:00:00"),
     ]
-    opt_rows = [_build_optimization_row("rsi_reversal", "2024-04-02T11:00:00")]
+    opt_rows = [
+        _build_optimization_row("rsi_reversal", "2024-04-02T11:00:00"),
+        _build_wfo_optimization_row("sma_cross", "2024-04-01T11:00:00"),
+    ]
     with engine.begin() as conn:
         conn.execute(insert(backtest_results), rows)
         conn.execute(insert(optimization_runs), opt_rows)
