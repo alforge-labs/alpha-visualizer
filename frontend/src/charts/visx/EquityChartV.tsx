@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { ParentSize } from '@visx/responsive'
 import { Group } from '@visx/group'
 import { LinePath, AreaClosed, Bar, Line } from '@visx/shape'
@@ -11,9 +11,9 @@ import { useTooltip, TooltipWithBounds, defaultStyles } from '@visx/tooltip'
 import { localPoint } from '@visx/event'
 import { bisector } from 'd3-array'
 
-import { DashboardContext } from '../../contexts/DashboardContext'
-import { RANGES, RANGE_N } from '../../contexts/dashboardConstants'
+import { RANGES } from '../../contexts/dashboardConstants'
 import { useChartTheme } from '../../design/useChartTheme'
+import { useEquityViewport, type EquityViewportPoint } from '../../hooks/useEquityViewport'
 import { buildRegimeBands, type RegimeBand } from './regimeBands'
 
 interface RegimeSeriesInput {
@@ -34,12 +34,7 @@ interface EquityChartVProps {
   showRegime?: boolean
 }
 
-interface Point {
-  date: Date
-  value: number
-  benchmark: number | null
-  origIdx: number
-}
+type Point = EquityViewportPoint
 
 function regimeColor(state: number, n: number, palette: readonly string[]): string {
   const c = palette[state]
@@ -77,11 +72,6 @@ function EquityChartInner({
   regimeSeries,
   showRegime = false,
 }: EquityChartVProps & { width: number }) {
-  type Range = (typeof RANGES)[number]
-  const ctx = useContext(DashboardContext)
-  const [localRange, setLocalRange] = useState<Range>('ALL')
-  const range: Range = (ctx?.selectedRange ?? localRange) as Range
-  const setRange = ctx?.setSelectedRange ?? setLocalRange
   const theme = useChartTheme()
 
   const margin = compact ? COMPACT_MARGIN : MARGIN
@@ -89,19 +79,7 @@ function EquityChartInner({
   const innerW = Math.max(0, width - margin.left - margin.right)
   const innerH = Math.max(0, height - margin.top - margin.bottom)
 
-  const points: Point[] = useMemo(() => {
-    const n = equity.length
-    const bars = Math.min(RANGE_N[range], n)
-    const start = Math.max(0, n - bars)
-    return equity.slice(start).map((v, i) => ({
-      date: new Date(dates[start + i] ?? ''),
-      value: v,
-      benchmark: benchmark ? benchmark[start + i] ?? null : null,
-      origIdx: start + i,
-    }))
-  }, [equity, dates, benchmark, range])
-
-  const startIdx = points[0]?.origIdx ?? 0
+  const { range, setRange, points, startIdx } = useEquityViewport({ equity, dates, benchmark })
 
   const xScale = useMemo(
     () =>

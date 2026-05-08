@@ -11,6 +11,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
+import { runMonteCarlo } from '../../lib/monteCarlo'
 
 interface MonteCarloChartProps {
   trades: Trade[]
@@ -46,47 +47,18 @@ function MonteCarloInner({
 
   const { pCurves, stats } = useMemo(() => {
     const rets = trades.map(t => t.return_pct / 100)
-    const trades_n = rets.length
-    let seed = 0x12345678
-    const rand = (): number => {
-      // eslint-disable-next-line react-hooks/immutability
-      seed = (Math.imul(seed, 1664525) + 1013904223) | 0
-      return (seed >>> 0) % Math.max(1, trades_n)
-    }
-
-    const sims: number[][] = []
-    for (let s = 0; s < N_SIM; s++) {
-      let eq = 100
-      const curve: number[] = [100]
-      for (let i = 0; i < trades_n; i++) {
-        eq = Math.max(eq * (1 + (rets[rand()] ?? 0)), 0.01)
-        curve.push(eq)
-      }
-      sims.push(curve)
-    }
-
-    const step = Math.max(1, Math.floor(trades_n / 120))
-    const xs: number[] = []
-    for (let i = 0; i <= trades_n; i += step) xs.push(i)
-    if (xs[xs.length - 1] !== trades_n) xs.push(trades_n)
-
-    const PCT = [5, 25, 50, 75, 95] as const
-    const out: Record<number, Pt[]> = { 5: [], 25: [], 50: [], 75: [], 95: [] }
-
-    xs.forEach((xi) => {
-      const vals = sims.map(s => s[xi] ?? 0).sort((a, b) => a - b)
-      PCT.forEach((p) => {
-        const v = vals[Math.floor((p / 100) * (N_SIM - 1))] ?? 0
-        out[p]!.push({ xi, v })
-      })
+    const { xs, bands, finalStats } = runMonteCarlo({
+      trades: rets,
+      nSimulations: N_SIM,
+      initialEquity: 100,
     })
 
-    const finals = sims.map(s => s[trades_n] ?? 100).sort((a, b) => a - b)
-    const finalStats = {
-      p5: finals[Math.floor(0.05 * (N_SIM - 1))] ?? 100,
-      p50: finals[Math.floor(0.5 * (N_SIM - 1))] ?? 100,
-      p95: finals[Math.floor(0.95 * (N_SIM - 1))] ?? 100,
-      lossProb: (finals.filter(f => f < 100).length / N_SIM) * 100,
+    const out: Record<5 | 25 | 50 | 75 | 95, Pt[]> = {
+      5: xs.map((xi, i) => ({ xi, v: bands.p5[i] ?? 0 })),
+      25: xs.map((xi, i) => ({ xi, v: bands.p25[i] ?? 0 })),
+      50: xs.map((xi, i) => ({ xi, v: bands.p50[i] ?? 0 })),
+      75: xs.map((xi, i) => ({ xi, v: bands.p75[i] ?? 0 })),
+      95: xs.map((xi, i) => ({ xi, v: bands.p95[i] ?? 0 })),
     }
 
     return { pCurves: out, stats: finalStats }
