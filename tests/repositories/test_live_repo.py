@@ -6,9 +6,10 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
-from alpha_visualizer.db import get_engine
+from alpha_visualizer.db import backtest_results, get_engine, metadata
 from alpha_visualizer.repositories.backtest_results import BacktestResultRow
 from alpha_visualizer.repositories.live import LiveDataRepository
 
@@ -30,34 +31,17 @@ def _seed_trades(live_dir: Path, strategy_id: str, trades: list | dict) -> Path:
 
 
 def _make_db_with_backtest(tmp_path: Path) -> Path:
-    """forge.db 互換スキーマで `backtest_results` を作って 2 行投入する。"""
+    """forge.db 互換スキーマで `backtest_results` を作って 2 行投入する。
+
+    スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として生成。
+    """
     db_path = tmp_path / "forge.db"
+    schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        metadata.create_all(schema_engine, tables=[backtest_results])
+    finally:
+        schema_engine.dispose()
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE backtest_results (
-                run_id TEXT PRIMARY KEY,
-                strategy_id TEXT,
-                symbol TEXT,
-                run_at TEXT,
-                total_return_pct REAL,
-                cagr_pct REAL,
-                sharpe_ratio REAL,
-                sortino_ratio REAL,
-                calmar_ratio REAL,
-                max_drawdown_pct REAL,
-                total_trades INTEGER,
-                win_rate_pct REAL,
-                profit_factor REAL,
-                avg_holding_days REAL,
-                metrics_json TEXT,
-                equity_curve_json TEXT,
-                buy_hold_curve_json TEXT,
-                trades_json TEXT,
-                oos_start TEXT
-            )
-            """
-        )
         rows = [
             (
                 "old_run",

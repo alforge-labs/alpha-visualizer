@@ -8,8 +8,10 @@ import sqlite3
 import textwrap
 
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 
 from alpha_visualizer.app import create_app
+from alpha_visualizer.db import metadata, strategies
 from alpha_visualizer.forge_config import ForgeConfig
 
 
@@ -78,29 +80,19 @@ class TestStrategiesRouter:
     def test_list_strategies_from_db_parses_tags_text_column(
         self, tmp_path: pathlib.Path
     ) -> None:
-        """strategies.db の tags TEXT 列（JSON 文字列）を配列として復元する"""
+        """strategies.db の tags TEXT 列（JSON 文字列）を配列として復元する。
+
+        スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として生成。
+        """
         db_path = tmp_path / "data" / "strategies" / "strategies.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
+        schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
+        try:
+            metadata.create_all(schema_engine, tables=[strategies])
+        finally:
+            schema_engine.dispose()
         conn = sqlite3.connect(db_path)
         try:
-            conn.executescript(
-                """
-                CREATE TABLE strategies (
-                    id INTEGER PRIMARY KEY,
-                    strategy_id TEXT NOT NULL UNIQUE,
-                    name TEXT NOT NULL,
-                    version TEXT NOT NULL,
-                    asset_type TEXT NOT NULL,
-                    timeframe TEXT NOT NULL,
-                    tags TEXT NOT NULL,
-                    notes TEXT NOT NULL,
-                    definition_json TEXT NOT NULL,
-                    source_file TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                """
-            )
             definition = json.dumps(
                 {
                     "strategy_id": "db_tagged",
