@@ -32,5 +32,5 @@ class OptimizeResult(BaseModel):
     strategy_id: str
     run_at: str = ""
     metric_name: str = "sharpe_ratio"
-    best_metric: float = 0.0
+    best_metric: float | None = None
     trials: list[OptimizeTrial] = []

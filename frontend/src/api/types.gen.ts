@@ -653,11 +653,8 @@ export interface components {
              * @default sharpe_ratio
              */
             metric_name: string;
-            /**
-             * Best Metric
-             * @default 0
-             */
-            best_metric: number;
+            /** Best Metric */
+            best_metric?: number | null;
             /**
              * Trials
              * @default []

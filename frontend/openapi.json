@@ -1365,9 +1365,15 @@
             "default": "sharpe_ratio"
           },
           "best_metric": {
-            "type": "number",
-            "title": "Best Metric",
-            "default": 0.0
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Metric"
           },
           "trials": {
             "items": {

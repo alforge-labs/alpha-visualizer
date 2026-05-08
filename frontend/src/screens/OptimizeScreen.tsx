@@ -24,6 +24,10 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
   const top10 = topTrials(data.trials, 10)
   const allParamKeys = paramNames
   const metricLabel = data.metric_name.replace(/_/g, ' ')
+  const bestMetricLabel =
+    data.best_metric !== null && Number.isFinite(data.best_metric)
+      ? fmtNumber(data.best_metric, { decimals: 3 })
+      : '—'
 
   return (
     <div data-testid="optimize-screen" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -33,7 +37,7 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
           L('試行数', 'Trials') +
           `: ${data.trials.length} · ` +
           L('最良', 'Best') +
-          ` ${metricLabel}: ${data.best_metric.toFixed(3)}`
+          ` ${metricLabel}: ${bestMetricLabel}`
         }
       />
 
