@@ -1,0 +1,21 @@
+name: alpha-visualizer CodeQL config
+
+# 既定の `security-and-quality` に加えて `security-extended` も有効化する。
+# `security-extended` は精度の高い高重要度クエリのみだが、デフォルトより
+# 範囲が広い（SQL injection / SSRF / path traversal 等の疑わしい
+# データフローもアラート対象になる）。
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+# 解析対象から除外するパス。
+# - vendor 化された静的ビルド成果物 / フロントエンドの自動生成型
+# - テストフィクスチャ（CodeQL のセキュリティ警告は production code に絞る）
+paths-ignore:
+  - "src/alpha_visualizer/static/**"
+  - "frontend/src/api/types.gen.ts"
+  - "frontend/openapi.json"
+  - "frontend/e2e/fixtures/**"
+  - "tests/fixtures/**"
+  - "**/__pycache__/**"
+  - "**/node_modules/**"
