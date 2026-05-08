@@ -185,6 +185,22 @@ export function ComparePage(): React.ReactElement {
             {L('読み込み中…', 'Loading…')}
           </div>
         )}
+        {compare.status === 'no_data' && (
+          <div
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-md)',
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-mono)',
+              padding: '12px 16px',
+            }}
+          >
+            {L(
+              '指定した戦略に対応するバックテスト結果が見つかりません',
+              'No backtest results found for the selected strategies',
+            )}
+          </div>
+        )}
         {compare.status === 'error' && (
           <div
             style={{

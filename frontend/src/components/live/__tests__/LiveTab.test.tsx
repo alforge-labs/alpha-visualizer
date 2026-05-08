@@ -7,9 +7,21 @@ vi.mock('../../../api/client', () => ({
   api: {
     getLive: vi.fn(),
   },
+  // 実装の `import { ApiError } from '../../api/client'` を解決するため
+  // 最低限のクラスをここで再エクスポートする。
+  ApiError: class ApiError extends Error {
+    status: number
+    url: string
+    constructor(message: string, status: number, url: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.url = url
+    }
+  },
 }))
 
-import { api } from '../../../api/client'
+import { api, ApiError } from '../../../api/client'
 
 const BASE_RESPONSE: LiveDetailResponse = {
   strategy_id: 'strat_a',
@@ -134,5 +146,16 @@ describe('<LiveTab />', () => {
       expect(screen.getByText(/取得に失敗/)).toBeInTheDocument()
     })
     expect(screen.getByText(/Network down/)).toBeInTheDocument()
+  })
+
+  it('shows no-data note when API returns 404', async () => {
+    vi.mocked(api.getLive).mockRejectedValue(new ApiError('not found', 404, '/api/live/strat_a'))
+    render(<LiveTab strategyId="strat_a" runId="bt_run_1" lang="ja" />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/ライブ実績データがありません/)).toBeInTheDocument()
+    })
+    // 生のエラーメッセージ "API 404" が表示されないこと
+    expect(screen.queryByText(/取得に失敗/)).toBeNull()
   })
 })

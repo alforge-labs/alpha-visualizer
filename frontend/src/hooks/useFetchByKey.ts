@@ -8,10 +8,12 @@ const IS_DEV = import.meta.env.DEV
 export type LoadState<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T; isMock: boolean }
+  | { status: 'no_data' }
   | { status: 'error'; error: string }
 
 type FetchedState<T> =
   | { status: 'ready'; data: T; isMock: boolean }
+  | { status: 'no_data' }
   | { status: 'error'; error: string }
 
 interface UseFetchByKeyOptions<T> {
@@ -54,6 +56,12 @@ export function useFetchByKey<T>(
         if (cancelled) return
         if (IS_DEV && mockFallback != null && err instanceof ApiError && err.status === 404) {
           setResult({ forKey: key, state: { status: 'ready', data: mockFallback, isMock: true } })
+          return
+        }
+        // 404 はリソース不在を意味するため UI 側で「データなし」として扱える
+        // 専用状態にする（生のエラーメッセージを表示しない）。
+        if (err instanceof ApiError && err.status === 404) {
+          setResult({ forKey: key, state: { status: 'no_data' } })
           return
         }
         setResult({

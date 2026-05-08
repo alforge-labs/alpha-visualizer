@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { api } from '../../api/client'
+import { ApiError, api } from '../../api/client'
 import type { LiveDetailResponse, LiveTrade } from '../../api/types'
 import { SectionLabel } from '../../design/primitives'
 import { diffTone, toneColor } from './format'
@@ -18,6 +18,7 @@ export function LiveTab({ strategyId, runId, lang }: Props) {
   type State =
     | { status: 'loading' }
     | { status: 'ready'; data: LiveDetailResponse }
+    | { status: 'no_data' }
     | { status: 'error'; message: string }
   const [state, setState] = useState<State>({ status: 'loading' })
 
@@ -30,6 +31,11 @@ export function LiveTab({ strategyId, runId, lang }: Props) {
       })
       .catch((e: unknown) => {
         if (cancelled) return
+        // 404 はライブ実績未記録を意味するため UI では「データなし」表示にする。
+        if (e instanceof ApiError && e.status === 404) {
+          setState({ status: 'no_data' })
+          return
+        }
         const message = e instanceof Error ? e.message : 'Unknown error'
         setState({ status: 'error', message })
       })
@@ -42,6 +48,16 @@ export function LiveTab({ strategyId, runId, lang }: Props) {
     return (
       <div style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
         {L('読み込み中…', 'Loading…')}
+      </div>
+    )
+  }
+  if (state.status === 'no_data') {
+    return (
+      <div style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+        {L(
+          'この戦略にはライブ実績データがありません',
+          'No live data for this strategy',
+        )}
       </div>
     )
   }
