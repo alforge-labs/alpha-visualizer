@@ -53,3 +53,25 @@ def test_get_engine_dep_returns_app_state_engine(tmp_path: Path) -> None:
     res = client.get("/probe-engine")
     assert res.status_code == 200
     assert res.json() == {"name": "sqlite"}
+
+
+def test_get_engine_dep_returns_none_when_engine_absent(tmp_path: Path) -> None:
+    """forge.db 不在で create_app した状態を模擬し、get_engine_dep が None を返すこと (issue #173)。"""
+    forge_dir = tmp_path / "forge"
+    (forge_dir / "data" / "results").mkdir(parents=True)
+    cfg = ForgeConfig.from_forge_dir(forge_dir)
+
+    app = FastAPI()
+    app.state.forge_config = cfg
+    app.state.engine = None  # create_app が forge.db 不在で None を入れた状態
+
+    @app.get("/probe-engine-absent")
+    def probe(
+        engine: Annotated[Engine | None, Depends(get_engine_dep)],
+    ) -> dict[str, bool]:
+        return {"is_none": engine is None}
+
+    client = TestClient(app)
+    res = client.get("/probe-engine-absent")
+    assert res.status_code == 200
+    assert res.json() == {"is_none": True}
