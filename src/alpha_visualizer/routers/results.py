@@ -17,7 +17,7 @@ from alpha_visualizer.dependencies import (
 from alpha_visualizer.errors import InvalidRequestError, NotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
-from alpha_visualizer.schemas.results import BacktestSummary
+from alpha_visualizer.schemas.results import BacktestDetail, BacktestSummary
 from alpha_visualizer.services import backtest as bt_service
 
 router = APIRouter()
@@ -47,7 +47,7 @@ async def list_results(
     return [bt_service.summarize_row(r) for r in rows]
 
 
-@router.get("/results/{run_id}")
+@router.get("/results/{run_id}", response_model=BacktestDetail)
 async def get_result(
     run_id: str,
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],

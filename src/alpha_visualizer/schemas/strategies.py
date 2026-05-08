@@ -1,9 +1,11 @@
 """戦略 API レスポンス用 Pydantic モデル。
 
-フィールド名は ``routers/strategies.py::_strategy_to_summary`` および
-``compare_strategies`` が実際に返す dict のキーに合わせている。
+フィールド名は ``routers/strategies.py`` の各エンドポイントが実際に返す
+dict のキーに合わせている。すべて ``extra="allow"`` で前方互換性を確保。
 """
 from __future__ import annotations
+
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -56,3 +58,50 @@ class StrategyComparison(BaseModel):
     is_baseline: bool = False
     equity: EquityCurve = EquityCurve()
     daily_returns: list[float] = []
+
+
+class StrategyResultEntry(BaseModel):
+    """``StrategyDetail.results`` の 1 件（バックテスト履歴サマリ）。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    run_id: str
+    symbol: str | None = None
+    sharpe: float | None = None
+    return_pct: float | None = None
+    max_drawdown_pct: float | None = None
+    total_trades: int | None = None
+    run_at: str | None = None
+
+
+class OptimizationHistoryEntry(BaseModel):
+    """``StrategyDetail.optimization_history`` の 1 件。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    trial: int
+    best_sharpe: float | None = None
+    run_at: str | None = None
+    n_trials: int | None = None
+
+
+class StrategyDetail(BaseModel):
+    """``GET /api/strategies/{strategy_id}`` 詳細レスポンス。
+
+    戦略定義（parameters / indicators / variables / *_conditions /
+    risk_management / regime_config）と、バックテスト履歴 / 最適化履歴を返す。
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    strategy_id: str
+    name: str
+    parameters: dict[str, Any] = {}
+    indicators: list[Any] = []
+    variables: list[Any] = []
+    entry_conditions: Any = None
+    exit_conditions: Any = None
+    risk_management: Any = None
+    regime_config: Any = None
+    results: list[StrategyResultEntry] = []
+    optimization_history: list[OptimizationHistoryEntry] = []

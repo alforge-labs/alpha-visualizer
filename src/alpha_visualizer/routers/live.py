@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, Query
 from alpha_visualizer.dependencies import get_live_repo
 from alpha_visualizer.errors import NotFoundError
 from alpha_visualizer.repositories.live import LiveDataRepository
+from alpha_visualizer.schemas.live import LiveDetail, LiveListItem
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +234,7 @@ def _backtest_record_for_diff(
     }
 
 
-@router.get("/live")
+@router.get("/live", response_model=list[LiveListItem])
 async def list_live(
     repo: Annotated[LiveDataRepository, Depends(get_live_repo)],
 ) -> list[dict[str, Any]]:
@@ -253,7 +254,7 @@ async def list_live(
     return items
 
 
-@router.get("/live/{strategy_id}")
+@router.get("/live/{strategy_id}", response_model=LiveDetail)
 async def get_live(
     strategy_id: str,
     repo: Annotated[LiveDataRepository, Depends(get_live_repo)],
