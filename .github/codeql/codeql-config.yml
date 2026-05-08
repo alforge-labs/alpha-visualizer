@@ -17,5 +17,8 @@ paths-ignore:
   - "frontend/openapi.json"
   - "frontend/e2e/fixtures/**"
   - "tests/fixtures/**"
+  # tests/test_app.py は import 重複 / unused local 等の note アラートが多いが、
+  # テストの可読性優先で許容する（Issue #148 で triage 済み）。
+  - "tests/test_app.py"
   - "**/__pycache__/**"
   - "**/node_modules/**"

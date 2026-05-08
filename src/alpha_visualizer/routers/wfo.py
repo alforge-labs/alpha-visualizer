@@ -77,13 +77,13 @@ async def get_wfo(
                 ),
             )
         except Exception as e:  # noqa: BLE001
-            logger.warning("composite curve 生成に失敗: %s (%s)", strategy_id, e)
+            logger.warning("composite curve 生成に失敗: %r (%s)", strategy_id, e)
             composite_equity, composite_dates = [], []
 
     except AlphaVisualizerError:
         raise
     except Exception as e:
-        logger.warning("WFO 取得に失敗: %s (%s)", strategy_id, e)
+        logger.warning("WFO 取得に失敗: %r (%s)", strategy_id, e)
         raise NotFoundError(
             f"WFO 結果の取得に失敗しました: {strategy_id}"
         ) from e
