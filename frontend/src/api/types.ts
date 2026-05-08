@@ -209,8 +209,17 @@ export interface VariableConfig {
   description?: string
 }
 
-// 条件ノードは論理結合 (AND/OR) と比較・関数呼び出し等のリーフに大別される
-// 構造的に異なるため discriminated union で表現する。
+// 条件ノードは論理結合 (AND/OR) と比較・関数呼び出し等のリーフに大別される。
+// 詳細な設計判断は ADR-0004 (docs/adr/0004-condition-node-discriminated-union.md) を参照。
+//
+// 重要な契約:
+//   - backend (alpha-forge) の戦略バリデータが「リーフノードの type に
+//     'AND' / 'OR' は含まれない」ことを保証する。
+//   - フロント側のコードは必ず ``isLogicalConditionNode`` 型ガード経由で
+//     narrowing すること（直接 ``node.type === 'AND'`` で分岐しない）。
+//   - TS の構造的型システムでは ``LeafConditionNode.type: string`` が
+//     ``'AND' | 'OR'`` も受理してしまうが、これは backend 契約 + 型ガードの
+//     2 層で実害なく扱う設計判断（ADR-0004 の案 A/B/C と比較した結論）。
 export type LogicalOperator = 'AND' | 'OR'
 
 export interface LogicalConditionNode {
@@ -221,6 +230,7 @@ export interface LogicalConditionNode {
 export interface LeafConditionNode {
   // operator 名 ('CROSS_OVER', '>', 'sma_cross' 等) や関数名が入る。
   // backend (alpha-forge) の strategy schema 側で動的に決まるため string に保つ。
+  // backend 契約により 'AND' / 'OR' は含まれない（ADR-0004 参照）。
   type: string
   left?: string
   right?: string | number | boolean | null
@@ -228,7 +238,13 @@ export interface LeafConditionNode {
 
 export type ConditionNode = LogicalConditionNode | LeafConditionNode
 
-/** ConditionNode が論理結合（AND/OR）か判定する narrowing 用 type guard。 */
+/**
+ * ConditionNode が論理結合（AND/OR）か判定する narrowing 用 type guard。
+ *
+ * **必ずこのガード経由で narrow すること**。直接 ``node.type === 'AND'`` で
+ * 分岐すると、TS の構造的型では LeafConditionNode 側の string も理論上
+ * マッチしてしまうため（ADR-0004 参照）。
+ */
 export function isLogicalConditionNode(node: ConditionNode): node is LogicalConditionNode {
   return node.type === 'AND' || node.type === 'OR'
 }
