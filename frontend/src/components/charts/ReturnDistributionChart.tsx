@@ -8,6 +8,12 @@ import { GridRows } from '@visx/grid'
 import { curveBasis } from '@visx/curve'
 import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import { useChartTheme } from '../../design/useChartTheme'
+import {
+  computeHistogram,
+  mean,
+  normalPdf,
+  sampleStd,
+} from '../../lib/distribution'
 
 export interface ReturnDataset {
   label: string
@@ -23,32 +29,12 @@ interface Props {
   compact?: boolean
 }
 
-interface Bucket {
-  x: number
-  count: number
-  width: number
-}
+// バケット型は lib/distribution.ts の HistogramBucket を直接推論する。
 
 const MARGIN = { top: 24, right: 24, bottom: 36, left: 56 }
 const BIN_COUNT = 40
 
-function computeHistogram(returns: number[]): Bucket[] {
-  if (returns.length === 0) return []
-  const min = Math.min(...returns)
-  const max = Math.max(...returns)
-  const width = (max - min) / BIN_COUNT || 0.01
-  const counts = new Array(BIN_COUNT).fill(0) as number[]
-  for (const r of returns) {
-    const idx = Math.min(Math.floor((r - min) / width), BIN_COUNT - 1)
-    if (idx >= 0) counts[idx] = (counts[idx] ?? 0) + 1
-  }
-  return counts.map((count, i) => ({ x: min + (i + 0.5) * width, count, width }))
-}
-
-function normalPdf(x: number, mean: number, std: number): number {
-  if (std === 0) return 0
-  return Math.exp(-0.5 * ((x - mean) / std) ** 2) / (std * Math.sqrt(2 * Math.PI))
-}
+// 計算ロジックは lib/distribution.ts の純関数に委譲（ADR-0002）。
 
 export function ReturnDistributionChart(props: Props): React.ReactElement {
   return (
@@ -81,7 +67,7 @@ function ReturnDistributionInner({
     return primary.returns.slice(Math.max(0, n - bars))
   }, [primary, selectedRange])
 
-  const buckets = useMemo(() => computeHistogram(returns), [returns])
+  const buckets = useMemo(() => computeHistogram(returns, { binCount: BIN_COUNT }), [returns])
 
   const xDomain = useMemo<[number, number]>(() => {
     if (buckets.length === 0) return [-3, 3]
@@ -103,12 +89,7 @@ function ReturnDistributionInner({
 
   const stats = useMemo(() => {
     if (returns.length === 0) return { mean: 0, std: 1 }
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length
-    const variance =
-      returns.length > 1
-        ? returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1)
-        : 1
-    return { mean, std: Math.sqrt(variance) || 1 }
+    return { mean: mean(returns), std: sampleStd(returns) || 1 }
   }, [returns])
 
   const normalCurve = useMemo(() => {

@@ -12,6 +12,7 @@ import { bisector } from 'd3-array'
 
 import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import { useChartTheme } from '../../design/useChartTheme'
+import { computeRollingSharpe } from '../../lib/rolling'
 
 interface Props {
   dailyReturns: number[]
@@ -29,17 +30,7 @@ interface Point {
 
 const bisectDate = bisector<Point, Date>(d => d.date).left
 
-function computeRollingSharpe(returns: number[], window: number): (number | null)[] {
-  const result: (number | null)[] = new Array(returns.length).fill(null)
-  for (let i = window - 1; i < returns.length; i++) {
-    const slice = returns.slice(i - window + 1, i + 1)
-    const mean = slice.reduce((a, b) => a + b, 0) / window
-    const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / (window - 1)
-    const std = Math.sqrt(variance)
-    result[i] = std === 0 ? 0 : (mean / std) * Math.sqrt(252)
-  }
-  return result
-}
+// rolling Sharpe 計算は lib/rolling.ts の純関数 computeRollingSharpe に集約（ADR-0002）。
 
 export function RollingMetricsChart(props: Props): React.ReactElement {
   return (

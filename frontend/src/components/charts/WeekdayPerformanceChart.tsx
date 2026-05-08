@@ -7,6 +7,7 @@ import { useDashboard, RANGE_N } from '../../contexts/DashboardContext'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { useChartTheme } from '../../design/useChartTheme'
+import { computeWeekdayStats } from '../../lib/weekday'
 
 interface Props {
   dailyReturns: number[]
@@ -15,48 +16,12 @@ interface Props {
   compact?: boolean
 }
 
-interface WeekdayStat {
-  day: string
-  avg: number
-  count: number
-  winRate: number
-}
+// 集計ロジックは lib/weekday.ts の純関数 computeWeekdayStats に集約（ADR-0002）。
 
 const WEEKDAY_LABELS_JA = ['月', '火', '水', '木', '金']
 const WEEKDAY_LABELS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 const MARGIN = { top: 16, right: 16, bottom: 32, left: 56 }
-
-function computeWeekdayStats(
-  returns: number[],
-  dates: string[],
-  labels: string[],
-): WeekdayStat[] {
-  const stats = labels.map(() => ({ total: 0, count: 0, wins: 0 }))
-  for (let i = 0; i < returns.length; i++) {
-    const dateStr = dates[i + 1]
-    if (!dateStr) continue
-    const d = new Date(dateStr)
-    if (Number.isNaN(d.getTime())) continue
-    const idx = d.getDay() - 1
-    if (idx >= 0 && idx <= 4) {
-      const stat = stats[idx]!
-      const r = returns[i] ?? 0
-      stat.total += r
-      stat.count += 1
-      if (r > 0) stat.wins += 1
-    }
-  }
-  return labels.map((day, i) => {
-    const stat = stats[i]!
-    return {
-      day,
-      avg: stat.count > 0 ? stat.total / stat.count : 0,
-      count: stat.count,
-      winRate: stat.count > 0 ? (stat.wins / stat.count) * 100 : 0,
-    }
-  })
-}
 
 export function WeekdayPerformanceChart(props: Props): React.ReactElement {
   return (
