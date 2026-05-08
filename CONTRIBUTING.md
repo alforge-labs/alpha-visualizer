@@ -156,6 +156,50 @@ git commit -m "docs: スクリーンショットを再撮影"
 
 新機能・バグ修正には対応するテストを追加してください。バックエンドは `uv run pytest --cov`、フロントエンドは `npm run test:ci -- --coverage` で確認できます。
 
+### i18n（多言語対応）
+
+UI 文字列はすべて日本語と英語の両方を提供する必要があります。`frontend/src/i18n/strings.ts` で 2 つの API を提供しています:
+
+#### 1. その場で両言語を書く（既存形式）
+
+```typescript
+import { makeL } from '../i18n/strings'
+
+function MyComponent({ lang }: { lang: Lang }) {
+  const L = makeL(lang)
+  return <h1>{L('戦略一覧', 'Strategies')}</h1>
+}
+```
+
+その場で日英を見られるため、初出の文字列・1 箇所しか使わない文字列に向いています。
+
+#### 2. STRINGS map に集約（新形式・推奨）
+
+複数箇所で使う文字列、訳のブレを防ぎたい文字列は `STRINGS` map に登録して `makeT` 経由で参照してください:
+
+```typescript
+// frontend/src/i18n/strings.ts に追加
+export const STRINGS = {
+  'detail.noWfo': {
+    ja: 'この戦略にはウォークフォワード（WFO）データがありません',
+    en: 'No walk-forward (WFO) data for this strategy',
+  },
+  // ...
+} as const
+
+// 利用側
+import { makeT } from '../i18n/strings'
+
+function MyComponent({ lang }: { lang: Lang }) {
+  const T = makeT(lang)
+  return <Note>{T('detail.noWfo')}</Note>
+}
+```
+
+key の命名規約: `<scope>.<term>`（lowerCamel）。例: `common.loading` / `detail.noWfo` / `compare.title`。
+
+将来的に第三言語（中文・韓文等）を追加する際は `STRINGS` map に `zh` / `ko` フィールドを追加するだけで済むよう、徐々に集約することを推奨します（[Issue #151](https://github.com/alforge-labs/alpha-visualizer/issues/151) で段階移行中）。
+
 ## Pull Request チェックリスト
 
 PR を提出する前に以下を確認してください。
