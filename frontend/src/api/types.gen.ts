@@ -269,10 +269,10 @@ export interface components {
          *     ``metrics`` / ``is_metrics`` / ``oos_metrics`` / ``monthly_returns``
          *     などの巨大ネストは ``Any`` で受け、``extra="allow"`` で将来追加にも追従。
          *
-         *     ``regime_series`` / ``regime_breakdown`` は条件付きで含まれる
-         *     オプショナルなキーで、``extra="allow"`` 経由でパススルーする
-         *     （None で固定キーにすると未指定のはずのレスポンスに ``"regime_*": null``
-         *     が出てしまうため、明示フィールドにはしない）。
+         *     ``regime_series`` / ``regime_breakdown`` は条件付きで含まれるフィールド。
+         *     services 層が結果 dict に含めなかった場合は ``None`` のままにし、
+         *     ``_serialize_with_optional_regime`` で JSON レスポンスから完全に除外する
+         *     （``"regime_*": null`` がレスポンスに混入することを防ぐ）。
          */
         BacktestDetail: {
             /** Run Id */
@@ -365,6 +365,11 @@ export interface components {
             benchmark_annual_returns: {
                 [key: string]: number;
             };
+            regime_series?: components["schemas"]["RegimeSeries"] | null;
+            /** Regime Breakdown */
+            regime_breakdown?: {
+                [key: string]: unknown;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -730,6 +735,27 @@ export interface components {
              * @default
              */
             end: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RegimeSeries
+         * @description HMM レジームステート時系列。``services.shape_regime_series`` で正規化済み。
+         *
+         *     すべてのフィールドは ``services`` 側で検証済み（dates と states の長さ一致、
+         *     states は int リスト等）なので、Pydantic 側では shape のみを担保する。
+         */
+        RegimeSeries: {
+            /** Dates */
+            dates: string[];
+            /** States */
+            states: number[];
+            /** N States */
+            n_states: number;
+            /** Label Names */
+            label_names?: {
+                [key: string]: string;
+            } | null;
         } & {
             [key: string]: unknown;
         };
