@@ -1,0 +1,80 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 並行実行を禁止して同 PR 連投時の冗長な計測を抑制
+concurrency:
+  group: lighthouse-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write  # PR コメント投稿用
+
+jobs:
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (PROD bundle)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start vis serve
+        run: |
+          uv run vis serve \
+            --forge-dir frontend/e2e/fixtures/forge \
+            --port 8123 &
+          # 起動待機（最大 30 秒）
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8123/health > /dev/null 2>&1; then
+              echo "vis serve is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::vis serve did not start within 30s"
+          exit 1
+
+      - name: Run Lighthouse CI
+        run: |
+          npx --yes @lhci/cli@0.14.0 autorun --config=./lighthouserc.json
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN || '' }}
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14
