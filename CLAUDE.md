@@ -43,11 +43,20 @@ uv run ruff check src/ tests/
 vis serve --forge-dir /path/to/alpha-strategies
 
 # フロントエンドビルド（frontend/ → src/alpha_visualizer/static/）
+# 重要: src/alpha_visualizer/static/ はリポジトリ管理対象外（Issue #149）。
+# vis serve / uv build を実行する前に必ず実行する必要がある。
 cd frontend && npm install && npm run build
 
 # フロントエンド開発サーバー（バックエンドと同時起動）
 cd frontend && npm run dev
 ```
+
+> **静的アセットのビルド運用**: PR #163 以降、Vite ビルド成果物
+> (`src/alpha_visualizer/static/`) はリポジトリには commit せず、
+> `cd frontend && npm run build` で都度生成する運用にしている。
+> リリースワークフロー (`.github/workflows/release.yml`) は wheel build 直前に
+> 自動で実行する。開発中に `vis serve` で SPA を見たい場合は事前に
+> ローカルで `npm run build` を打つこと。
 
 ---
 
