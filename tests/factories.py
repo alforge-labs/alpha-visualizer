@@ -1,10 +1,15 @@
 """テストフィクスチャ用 factory 関数群。
 
 Test Data Builder / Object Mother パターンで seed 操作を集約。
-主要 3 テーブル (backtest_results / optimization_runs / strategies) の
-スキーマは ``alpha_visualizer.db.metadata`` から派生（Single Source of Truth）。
-補助テーブル (wfo_windows / oos_equity_curves / live_*) は db.py 未登録の
-ため raw SQL でセットアップする（次回以降の PR で db.py に登録予定）。
+スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth とし、
+``_create_schema`` 経由で生成する（テスト側に raw CREATE TABLE は持たない）。
+
+なお、議論で「補助テーブル」と呼んでいた WFO ウィンドウ・OOS エクイティ
+カーブ・ライブ実績は実際には独立テーブルではなく以下に保存される:
+
+- WFO ウィンドウ → ``optimization_runs.all_trials_json`` (JSON 列)
+- OOS エクイティカーブ → ``backtest_results.equity_curve_json`` + ``oos_start``
+- ライブ実績 (summaries / trades) → ``<live_dir>/{summaries,trades}/*.json``
 
 INSERT 操作は簡潔さを優先して ``sqlite3`` の raw SQL のままにしている。
 """

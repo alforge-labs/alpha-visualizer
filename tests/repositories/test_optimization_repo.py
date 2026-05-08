@@ -6,9 +6,15 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
-from alpha_visualizer.db import get_engine
+from alpha_visualizer.db import (
+    backtest_results,
+    get_engine,
+    metadata,
+    optimization_runs,
+)
 from alpha_visualizer.repositories.optimization import (
     OptimizationHistorySummary,
     OptimizationRepository,
@@ -17,46 +23,20 @@ from alpha_visualizer.repositories.optimization import (
 
 
 def _make_db(tmp_path: Path) -> Path:
-    """forge.db 互換スキーマで `optimization_runs` / `backtest_results` を作る。"""
+    """forge.db 互換スキーマで `optimization_runs` / `backtest_results` を作る。
+
+    スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として
+    生成し、テスト側で重複した CREATE TABLE 文を持たない。
+    """
     db_path = tmp_path / "forge.db"
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE optimization_runs (
-                run_id TEXT PRIMARY KEY,
-                strategy_id TEXT,
-                symbol TEXT,
-                run_at TEXT,
-                n_trials INTEGER,
-                best_metric_name TEXT,
-                best_metric_value REAL,
-                best_params_json TEXT,
-                duration_seconds REAL,
-                all_trials_json TEXT
-            );
-            CREATE TABLE backtest_results (
-                run_id TEXT PRIMARY KEY,
-                strategy_id TEXT,
-                symbol TEXT,
-                run_at TEXT,
-                total_return_pct REAL,
-                cagr_pct REAL,
-                sharpe_ratio REAL,
-                sortino_ratio REAL,
-                calmar_ratio REAL,
-                max_drawdown_pct REAL,
-                total_trades INTEGER,
-                win_rate_pct REAL,
-                profit_factor REAL,
-                avg_holding_days REAL,
-                metrics_json TEXT,
-                equity_curve_json TEXT,
-                buy_hold_curve_json TEXT,
-                trades_json TEXT,
-                oos_start TEXT
-            );
-            """
+    schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        metadata.create_all(
+            schema_engine, tables=[optimization_runs, backtest_results]
         )
+    finally:
+        schema_engine.dispose()
+    with sqlite3.connect(db_path) as conn:
         opt_rows = [
             (
                 "opt_001",

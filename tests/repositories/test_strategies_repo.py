@@ -7,7 +7,9 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
 
+from alpha_visualizer.db import metadata, strategies
 from alpha_visualizer.repositories.strategies import (
     StrategiesRepository,
     StrategyRow,
@@ -52,27 +54,17 @@ def _make_json_dir(tmp_path: Path) -> Path:
 
 
 def _make_strategies_db(tmp_path: Path) -> Path:
-    """DB モード用に strategies.db を作成し 2 行投入する。"""
+    """DB モード用に strategies.db を作成し 2 行投入する。
+
+    スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として生成。
+    """
     db_path = tmp_path / "strategies.db"
+    schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        metadata.create_all(schema_engine, tables=[strategies])
+    finally:
+        schema_engine.dispose()
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE strategies (
-                id INTEGER PRIMARY KEY,
-                strategy_id TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                version TEXT,
-                asset_type TEXT,
-                timeframe TEXT,
-                tags TEXT,
-                notes TEXT,
-                definition_json TEXT NOT NULL,
-                source_file TEXT,
-                created_at TEXT,
-                updated_at TEXT
-            )
-            """
-        )
         rows = [
             (
                 "db_alpha",
