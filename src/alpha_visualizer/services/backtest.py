@@ -156,6 +156,18 @@ def shape_trades(
 
 
 def compute_drawdown(values: list[float]) -> list[float]:
+    """equity 列から各時点の drawdown 系列 (%) を計算する。
+
+    Precondition:
+        ``values`` の各要素は **正の値**（現実のエクイティ）であることを想定する。
+        負値時は分母 (peak) が負になり、drawdown の意味論（peak 比の下方乖離）が
+        破綻する。例: ``[-0.5, -1.0]`` → ``[0, 100.0]`` (PR #134 の property-based
+        テストで検出した既知の制約)。
+
+    Returns:
+        各時点の drawdown を **% で表した非正値** のリスト。長さは入力と同じ。
+        空配列入力の場合は空配列を返す。
+    """
     if not values:
         return []
     out: list[float] = []
