@@ -45,3 +45,18 @@
 
 - Monte Carlo / 統計 / 数値計算の pure function
 - 単体テスト容易、container から呼ぶ
+
+## Storybook
+
+Presentational コンポーネント（`*Screen.tsx` / `*V.tsx` / design primitives）を
+ストーリーとして視覚確認するために Storybook 9.x を導入。
+
+```bash
+npm run storybook       # 開発サーバー（http://localhost:6006）
+npm run build-storybook # 静的ビルド → frontend/storybook-static/（gitignore 済み）
+```
+
+ストーリーの命名規約: `<Component>.stories.tsx` を同じディレクトリに置く。
+設定は `.storybook/main.ts` と `.storybook/preview.ts`。preview.ts で
+`design/tokens.css` と fontsource を注入し、本アプリと同じ見た目で確認できる。
+
