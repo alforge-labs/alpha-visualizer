@@ -201,7 +201,7 @@ export interface OptimizeResult {
   strategy_id: string
   run_at: string
   metric_name: string
-  best_metric: number
+  best_metric: number | null
   trials: OptimizeTrial[]
 }
 

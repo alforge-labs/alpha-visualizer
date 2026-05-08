@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -120,7 +121,11 @@ async def get_optimize(
         raise NotFoundError(f"最適化結果が見つかりません: {strategy_id}")
 
     metric_name = str(row.best_metric_name or "sharpe_ratio")
-    best_metric = float(row.best_metric_value or 0.0)
+    best_metric: float | None = (
+        row.best_metric_value
+        if row.best_metric_value is not None and math.isfinite(row.best_metric_value)
+        else None
+    )
 
     all_trials: list[dict[str, Any]] | None = None
     if row.all_trials_json:
