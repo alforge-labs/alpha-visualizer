@@ -1,212 +1,69 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api } from '../api/client'
-import type { BacktestDetail, OptimizeResult, StrategyComparison, StrategyDetail, StrategyRun, WFOResult } from '../api/types'
+import { useCallback, useState } from 'react'
+import { api } from '../api/client'
+import type {
+  BacktestDetail,
+  OptimizeResult,
+  StrategyComparison,
+  StrategyDetail,
+  StrategyRun,
+  WFOResult,
+} from '../api/types'
 import { MOCK_BACKTEST, MOCK_OPTIMIZE, MOCK_STRATEGIES, MOCK_WFO } from '../mock/btData'
+import { type LoadState, useFetchByKey } from './useFetchByKey'
 
 // Vite が PROD ビルドで `false` に静的置換 → DCE で IS_DEV ガード内が削除され、
 // `mock/btData` への参照がなくなり tree-shaking で PROD bundle から除外される。
 const IS_DEV = import.meta.env.DEV
 
-export type LoadState<T> =
-  | { status: 'loading' }
-  | { status: 'ready'; data: T; isMock: boolean }
-  | { status: 'error'; error: string }
+// PROD では null になり、Vite が tree-shake で MOCK_* を bundle から除外する
+const MOCK_BACKTEST_FALLBACK: BacktestDetail | null = IS_DEV ? MOCK_BACKTEST : null
+const MOCK_WFO_FALLBACK: WFOResult | null = IS_DEV ? MOCK_WFO : null
+const MOCK_OPTIMIZE_FALLBACK: OptimizeResult | null = IS_DEV ? MOCK_OPTIMIZE : null
+const MOCK_STRATEGIES_FALLBACK: StrategyComparison[] | null = IS_DEV ? MOCK_STRATEGIES : null
 
-type FetchedState<T> =
-  | { status: 'ready'; data: T; isMock: boolean }
-  | { status: 'error'; error: string }
+export type { LoadState }
 
 interface UseBacktestParams {
   runId: string | null
 }
 
 export function useBacktest({ runId }: UseBacktestParams): LoadState<BacktestDetail> {
-  const [result, setResult] = useState<{ forId: string; state: FetchedState<BacktestDetail> } | null>(null)
-
-  useEffect(() => {
-    if (!runId) return
-    let cancelled = false
-    api
-      .getBacktest(runId)
-      .then((data) => {
-        if (!cancelled) setResult({ forId: runId, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (IS_DEV && err instanceof ApiError && err.status === 404) {
-          setResult({ forId: runId, state: { status: 'ready', data: MOCK_BACKTEST, isMock: true } })
-          return
-        }
-        setResult({
-          forId: runId,
-          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
-        })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [runId])
-
-  if (!runId) {
-    return IS_DEV
-      ? { status: 'ready', data: MOCK_BACKTEST, isMock: true }
-      : { status: 'loading' }
-  }
-  if (result?.forId === runId) return result.state
-  return { status: 'loading' }
+  return useFetchByKey<BacktestDetail>(runId, api.getBacktest, {
+    mockFallback: MOCK_BACKTEST_FALLBACK,
+  })
 }
 
 export function useWFO(strategyId: string | null): LoadState<WFOResult> {
-  const [result, setResult] = useState<{ forId: string; state: FetchedState<WFOResult> } | null>(null)
-
-  useEffect(() => {
-    if (!strategyId) return
-    let cancelled = false
-    api
-      .getWFO(strategyId)
-      .then((data) => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (IS_DEV && err instanceof ApiError && err.status === 404) {
-          setResult({ forId: strategyId, state: { status: 'ready', data: MOCK_WFO, isMock: true } })
-          return
-        }
-        setResult({
-          forId: strategyId,
-          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
-        })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [strategyId])
-
-  if (!strategyId) {
-    return IS_DEV
-      ? { status: 'ready', data: MOCK_WFO, isMock: true }
-      : { status: 'loading' }
-  }
-  if (result?.forId === strategyId) return result.state
-  return { status: 'loading' }
+  return useFetchByKey<WFOResult>(strategyId, api.getWFO, {
+    mockFallback: MOCK_WFO_FALLBACK,
+  })
 }
 
 export function useCompare(ids: string[] | null): LoadState<StrategyComparison[]> {
-  const [result, setResult] = useState<{ forKey: string; state: FetchedState<StrategyComparison[]> } | null>(null)
-
-  const idsKey = ids ? ids.join(',') : ''
-
-  useEffect(() => {
-    const currentIds = idsKey ? idsKey.split(',') : []
-    if (currentIds.length === 0) return
-    let cancelled = false
-    api
-      .compareStrategies(currentIds)
-      .then((data) => {
-        if (!cancelled) setResult({ forKey: idsKey, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (IS_DEV && err instanceof ApiError && err.status === 404) {
-          setResult({ forKey: idsKey, state: { status: 'ready', data: MOCK_STRATEGIES, isMock: true } })
-          return
-        }
-        setResult({
-          forKey: idsKey,
-          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
-        })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [idsKey])
-
-  if (!ids || ids.length === 0) {
-    return IS_DEV
-      ? { status: 'ready', data: MOCK_STRATEGIES, isMock: true }
-      : { status: 'loading' }
-  }
-  if (result?.forKey === idsKey) return result.state
-  return { status: 'loading' }
+  const idsKey = ids && ids.length > 0 ? ids.join(',') : null
+  return useFetchByKey<StrategyComparison[]>(
+    idsKey,
+    (key) => api.compareStrategies(key.split(',')),
+    { mockFallback: MOCK_STRATEGIES_FALLBACK },
+  )
 }
 
 export function useOptimize(strategyId: string | null): LoadState<OptimizeResult> {
-  const [result, setResult] = useState<{ forId: string; state: FetchedState<OptimizeResult> } | null>(null)
-
-  useEffect(() => {
-    if (!strategyId) return
-    let cancelled = false
-    api
-      .getOptimize(strategyId)
-      .then((data) => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (IS_DEV && err instanceof ApiError && err.status === 404) {
-          setResult({ forId: strategyId, state: { status: 'ready', data: MOCK_OPTIMIZE, isMock: true } })
-          return
-        }
-        setResult({
-          forId: strategyId,
-          state: { status: 'error', error: err instanceof Error ? err.message : String(err) },
-        })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [strategyId])
-
-  if (!strategyId) {
-    return IS_DEV
-      ? { status: 'ready', data: MOCK_OPTIMIZE, isMock: true }
-      : { status: 'loading' }
-  }
-  if (result?.forId === strategyId) return result.state
-  return { status: 'loading' }
+  return useFetchByKey<OptimizeResult>(strategyId, api.getOptimize, {
+    mockFallback: MOCK_OPTIMIZE_FALLBACK,
+  })
 }
 
 export function useStrategyRuns(strategyId: string | null): LoadState<StrategyRun[]> {
-  const [result, setResult] = useState<{ forId: string; state: FetchedState<StrategyRun[]> } | null>(null)
-
-  useEffect(() => {
-    if (!strategyId) return
-    let cancelled = false
-    api.getStrategyRuns(strategyId)
-      .then(data => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch(err => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'error', error: err instanceof Error ? err.message : String(err) } })
-      })
-    return () => { cancelled = true }
-  }, [strategyId])
-
+  const state = useFetchByKey<StrategyRun[]>(strategyId, api.getStrategyRuns)
   if (!strategyId) return { status: 'ready', data: [], isMock: false }
-  if (result?.forId === strategyId) return result.state
-  return { status: 'loading' }
+  return state
 }
 
 export function useStrategyDetail(strategyId: string | null): LoadState<StrategyDetail> {
-  const [result, setResult] = useState<{ forId: string; state: FetchedState<StrategyDetail> } | null>(null)
-
-  useEffect(() => {
-    if (!strategyId) return
-    let cancelled = false
-    api.getStrategyDetail(strategyId)
-      .then(data => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'ready', data, isMock: false } })
-      })
-      .catch(err => {
-        if (!cancelled) setResult({ forId: strategyId, state: { status: 'error', error: err instanceof Error ? err.message : String(err) } })
-      })
-    return () => { cancelled = true }
-  }, [strategyId])
-
+  const state = useFetchByKey<StrategyDetail>(strategyId, api.getStrategyDetail)
   if (!strategyId) return { status: 'error', error: 'strategy_id が指定されていません' }
-  if (result?.forId === strategyId) return result.state
-  return { status: 'loading' }
+  return state
 }
 
 export function useRunBacktest() {
