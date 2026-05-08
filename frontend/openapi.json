@@ -596,7 +596,7 @@
             }
           },
           "equity": {
-            "$ref": "#/components/schemas/alpha_visualizer__schemas__results__EquityCurve",
+            "$ref": "#/components/schemas/BacktestEquityCurve",
             "default": {
               "dates": [],
               "values": []
@@ -707,6 +707,30 @@
         "title": "BacktestDetail",
         "description": "``GET /api/results/{run_id}`` 詳細レスポンス。\n\nフィールドは ``services.backtest.build_detail`` の出力構造に対応する。\n``metrics`` / ``is_metrics`` / ``oos_metrics`` / ``monthly_returns``\nなどの巨大ネストは ``Any`` で受け、``extra=\"allow\"`` で将来追加にも追従。\n\n``regime_series`` / ``regime_breakdown`` は条件付きで含まれる\nオプショナルなキーで、``extra=\"allow\"`` 経由でパススルーする\n（None で固定キーにすると未指定のはずのレスポンスに ``\"regime_*\": null``\nが出てしまうため、明示フィールドにはしない）。"
       },
+      "BacktestEquityCurve": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates",
+            "default": []
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "BacktestEquityCurve",
+        "description": "``BacktestDetail.equity``: dates / values の配列ペア。"
+      },
       "BacktestSummary": {
         "properties": {
           "run_id": {
@@ -798,6 +822,30 @@
         ],
         "title": "BacktestSummary",
         "description": "``GET /api/results`` リストの 1 件。"
+      },
+      "ComparisonEquityCurve": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates",
+            "default": []
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ComparisonEquityCurve",
+        "description": "``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1503,7 +1551,7 @@
             "default": false
           },
           "equity": {
-            "$ref": "#/components/schemas/alpha_visualizer__schemas__strategies__EquityCurve",
+            "$ref": "#/components/schemas/ComparisonEquityCurve",
             "default": {
               "dates": [],
               "values": []
@@ -2037,54 +2085,6 @@
         ],
         "title": "WFOWindow",
         "description": "1 ウィンドウの IS / OOS 評価値。\n\n``pass`` キーは Python 予約語のため明示フィールドとして宣言できない。\nレスポンス互換性のため ``extra=\"allow\"`` で透過的に保持する。"
-      },
-      "alpha_visualizer__schemas__results__EquityCurve": {
-        "properties": {
-          "dates": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Dates",
-            "default": []
-          },
-          "values": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Values",
-            "default": []
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "title": "EquityCurve",
-        "description": "``BacktestDetail.equity``: dates / values の配列ペア。"
-      },
-      "alpha_visualizer__schemas__strategies__EquityCurve": {
-        "properties": {
-          "dates": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Dates",
-            "default": []
-          },
-          "values": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Values",
-            "default": []
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "title": "EquityCurve",
-        "description": "``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"
       }
     }
   }
