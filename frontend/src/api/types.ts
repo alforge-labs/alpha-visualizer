@@ -215,12 +215,28 @@ export interface VariableConfig {
   description?: string
 }
 
-export interface ConditionNode {
+// 条件ノードは論理結合 (AND/OR) と比較・関数呼び出し等のリーフに大別される
+// 構造的に異なるため discriminated union で表現する。
+export type LogicalOperator = 'AND' | 'OR'
+
+export interface LogicalConditionNode {
+  type: LogicalOperator
+  conditions: ConditionNode[]
+}
+
+export interface LeafConditionNode {
+  // operator 名 ('CROSS_OVER', '>', 'sma_cross' 等) や関数名が入る。
+  // backend (alpha-forge) の strategy schema 側で動的に決まるため string に保つ。
   type: string
-  conditions?: ConditionNode[]
   left?: string
-  right?: unknown
-  [key: string]: unknown
+  right?: string | number | boolean | null
+}
+
+export type ConditionNode = LogicalConditionNode | LeafConditionNode
+
+/** ConditionNode が論理結合（AND/OR）か判定する narrowing 用 type guard。 */
+export function isLogicalConditionNode(node: ConditionNode): node is LogicalConditionNode {
+  return node.type === 'AND' || node.type === 'OR'
 }
 
 export interface EntryExitConditions {
