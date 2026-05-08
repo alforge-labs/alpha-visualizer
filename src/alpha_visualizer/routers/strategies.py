@@ -29,7 +29,11 @@ from alpha_visualizer.repositories.strategies import (
     StrategiesRepository,
     StrategyRow,
 )
-from alpha_visualizer.schemas.strategies import StrategyComparison, StrategySummary
+from alpha_visualizer.schemas.strategies import (
+    StrategyComparison,
+    StrategyDetail,
+    StrategySummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +269,7 @@ async def compare_strategies(
     return out
 
 
-@router.get("/strategies/{strategy_id}")
+@router.get("/strategies/{strategy_id}", response_model=StrategyDetail)
 async def get_strategy(
     strategy_id: str,
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
