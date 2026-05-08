@@ -36,7 +36,7 @@ jobs:
       # (src/alpha_visualizer/static/) はリポジトリ管理対象外。
       # PyPI 配布用に wheel build 直前で frontend を再生成する。
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
