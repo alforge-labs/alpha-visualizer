@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { type SetURLSearchParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
+import { updateParam } from '../lib/searchParams'
 
 export type SortKey = 'name' | 'latest_sharpe' | 'latest_return_pct' | 'latest_max_drawdown_pct' | 'latest_profit_factor' | 'latest_win_rate_pct' | 'last_run_at'
 export type SortDir = 'asc' | 'desc'
@@ -167,26 +168,18 @@ function buildGroups(items: StrategyListItem[], groupBy: GroupBy): StrategyGroup
   })
 }
 
-export function useStrategyList(): StrategyListState {
-  const [searchParams, setSearchParams] = useSearchParams()
+// ----- Internal hooks -----
+
+function useStrategyData(): {
+  all: StrategyListItem[]
+  loading: boolean
+  error: string | null
+  symbols: string[]
+  timeframes: string[]
+} {
   const [all, setAll] = useState<StrategyListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const sortKey = toSortKey(searchParams.get('sort'))
-  const sortDir = toSortDir(searchParams.get('dir'))
-  const groupBy = toGroupBy(searchParams.get('group'))
-  const q = searchParams.get('q') ?? ''
-  const symbolParam = searchParams.get('symbol') ?? ''
-  const tfParam = searchParams.get('tf') ?? ''
-  const compareParam = searchParams.get('compare')
-  const selectedId = toSelectedId(searchParams.get('selected'))
-
-  const symbolFilter = useMemo(() => symbolParam.split(',').filter(Boolean), [symbolParam])
-  const tfFilter = useMemo(() => tfParam.split(',').filter(Boolean), [tfParam])
-  const compareIds = useMemo(() => parseCompareList(compareParam), [compareParam])
-  const sharpeMin = parseFloat(searchParams.get('sharpe_min') ?? '')
-  const ddMax = parseFloat(searchParams.get('dd_max') ?? '')
 
   useEffect(() => {
     let cancelled = false
@@ -204,11 +197,29 @@ export function useStrategyList(): StrategyListState {
     return () => { cancelled = true }
   }, [])
 
-  const symbols = useMemo(() => [...new Set(all.map(s => s.symbol).filter(Boolean) as string[])].sort(), [all])
-  const timeframes = useMemo(() => [...new Set(all.map(s => s.timeframe).filter(Boolean) as string[])].sort(), [all])
+  const symbols = useMemo(
+    () => [...new Set(all.map(s => s.symbol).filter(Boolean) as string[])].sort(),
+    [all],
+  )
+  const timeframes = useMemo(
+    () => [...new Set(all.map(s => s.timeframe).filter(Boolean) as string[])].sort(),
+    [all],
+  )
 
-  const filtered = useMemo(() => {
-    let items = all.filter(s => {
+  return { all, loading, error, symbols, timeframes }
+}
+
+
+function useFiltering(
+  all: StrategyListItem[],
+  q: string,
+  symbolFilter: string[],
+  tfFilter: string[],
+  sharpeMin: number,
+  ddMax: number,
+): StrategyListItem[] {
+  return useMemo(() => {
+    return all.filter(s => {
       if (q && !s.name.toLowerCase().includes(q.toLowerCase()) && !(s.symbol ?? '').toLowerCase().includes(q.toLowerCase())) return false
       if (symbolFilter.length > 0 && !symbolFilter.includes(s.symbol ?? '')) return false
       if (tfFilter.length > 0 && !tfFilter.includes(s.timeframe ?? '')) return false
@@ -216,8 +227,17 @@ export function useStrategyList(): StrategyListState {
       if (!isNaN(ddMax) && Math.abs(numVal(s.latest_max_drawdown_pct)) > ddMax) return false
       return true
     })
+  }, [all, q, symbolFilter, tfFilter, sharpeMin, ddMax])
+}
 
-    items = [...items].sort((a, b) => {
+
+function useSortedItems(
+  items: StrategyListItem[],
+  sortKey: SortKey,
+  sortDir: SortDir,
+): StrategyListItem[] {
+  return useMemo(() => {
+    return [...items].sort((a, b) => {
       let va: number | string
       let vb: number | string
       if (sortKey === 'name') { va = a.name; vb = b.name }
@@ -227,12 +247,105 @@ export function useStrategyList(): StrategyListState {
       if (va > vb) return sortDir === 'asc' ? 1 : -1
       return 0
     })
-    return items
-  }, [all, q, symbolParam, tfParam, sharpeMin, ddMax, sortKey, sortDir])
+  }, [items, sortKey, sortDir])
+}
 
-  const groups = useMemo(() => buildGroups(filtered, groupBy), [filtered, groupBy])
 
-  const setSort = (key: SortKey) => {
+function useGrouping(
+  items: StrategyListItem[],
+  groupBy: GroupBy,
+): StrategyGroup[] {
+  return useMemo(() => buildGroups(items, groupBy), [items, groupBy])
+}
+
+
+function useSelectedId(
+  searchParams: URLSearchParams,
+  setSearchParams: SetURLSearchParams,
+): { selectedId: string | null; setSelectedId: (id: string | null) => void } {
+  const selectedId = toSelectedId(searchParams.get('selected'))
+  const setSelectedId = (id: string | null): void => {
+    setSearchParams(prev => updateParam(prev, 'selected', id), { replace: true })
+  }
+  return { selectedId, setSelectedId }
+}
+
+
+function useCompareSelection(
+  searchParams: URLSearchParams,
+  setSearchParams: SetURLSearchParams,
+): {
+  compareIds: string[]
+  toggleCompareId: (id: string) => void
+  removeCompareId: (id: string) => void
+  clearCompareIds: () => void
+} {
+  const compareIds = useMemo(
+    () => parseCompareList(searchParams.get('compare')),
+    [searchParams],
+  )
+
+  const writeCompare = (ids: string[]): string | null =>
+    ids.length === 0 ? null : ids.join(',')
+
+  const toggleCompareId = (id: string): void => {
+    if (!id) return
+    setSearchParams(prev => {
+      const current = parseCompareList(prev.get('compare'))
+      let nextIds: string[]
+      if (current.includes(id)) {
+        nextIds = current.filter(v => v !== id)
+      } else if (current.length < COMPARE_MAX) {
+        nextIds = [...current, id]
+      } else {
+        nextIds = current
+      }
+      return updateParam(prev, 'compare', writeCompare(nextIds))
+    }, { replace: true })
+  }
+
+  const removeCompareId = (id: string): void => {
+    setSearchParams(prev => {
+      const current = parseCompareList(prev.get('compare'))
+      const nextIds = current.filter(v => v !== id)
+      return updateParam(prev, 'compare', writeCompare(nextIds))
+    }, { replace: true })
+  }
+
+  const clearCompareIds = (): void => {
+    setSearchParams(prev => updateParam(prev, 'compare', null), { replace: true })
+  }
+
+  return { compareIds, toggleCompareId, removeCompareId, clearCompareIds }
+}
+
+
+// ----- Composite (public) -----
+
+export function useStrategyList(): StrategyListState {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { all, loading, error, symbols, timeframes } = useStrategyData()
+
+  const sortKey = toSortKey(searchParams.get('sort'))
+  const sortDir = toSortDir(searchParams.get('dir'))
+  const groupBy = toGroupBy(searchParams.get('group'))
+  const q = searchParams.get('q') ?? ''
+  const symbolFilter = useMemo(
+    () => (searchParams.get('symbol') ?? '').split(',').filter(Boolean),
+    [searchParams],
+  )
+  const tfFilter = useMemo(
+    () => (searchParams.get('tf') ?? '').split(',').filter(Boolean),
+    [searchParams],
+  )
+  const sharpeMin = parseFloat(searchParams.get('sharpe_min') ?? '')
+  const ddMax = parseFloat(searchParams.get('dd_max') ?? '')
+
+  const filteredOnly = useFiltering(all, q, symbolFilter, tfFilter, sharpeMin, ddMax)
+  const filtered = useSortedItems(filteredOnly, sortKey, sortDir)
+  const groups = useGrouping(filtered, groupBy)
+
+  const setSort = (key: SortKey): void => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (next.get('sort') === key) {
@@ -245,59 +358,15 @@ export function useStrategyList(): StrategyListState {
     }, { replace: true })
   }
 
-  const setGroupBy = (g: GroupBy) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      if (g === 'none') next.delete('group')
-      else next.set('group', g)
-      return next
-    }, { replace: true })
+  const setGroupBy = (g: GroupBy): void => {
+    setSearchParams(
+      prev => updateParam(prev, 'group', g === 'none' ? null : g),
+      { replace: true },
+    )
   }
 
-  const setSelectedId = (id: string | null) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      if (id == null || id === '') next.delete('selected')
-      else next.set('selected', id)
-      return next
-    }, { replace: true })
-  }
-
-  const writeCompare = (ids: string[], next: URLSearchParams) => {
-    if (ids.length === 0) next.delete('compare')
-    else next.set('compare', ids.join(','))
-  }
-
-  const toggleCompareId = (id: string) => {
-    if (!id) return
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      const current = parseCompareList(next.get('compare'))
-      if (current.includes(id)) {
-        writeCompare(current.filter(v => v !== id), next)
-      } else if (current.length < COMPARE_MAX) {
-        writeCompare([...current, id], next)
-      }
-      return next
-    }, { replace: true })
-  }
-
-  const removeCompareId = (id: string) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      const current = parseCompareList(next.get('compare'))
-      writeCompare(current.filter(v => v !== id), next)
-      return next
-    }, { replace: true })
-  }
-
-  const clearCompareIds = () => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      next.delete('compare')
-      return next
-    }, { replace: true })
-  }
+  const { selectedId, setSelectedId } = useSelectedId(searchParams, setSearchParams)
+  const compare = useCompareSelection(searchParams, setSearchParams)
 
   return {
     all, filtered, groups, loading, error,
@@ -305,6 +374,6 @@ export function useStrategyList(): StrategyListState {
     groupBy, setGroupBy,
     symbols, timeframes,
     selectedId, setSelectedId,
-    compareIds, toggleCompareId, removeCompareId, clearCompareIds,
+    ...compare,
   }
 }
