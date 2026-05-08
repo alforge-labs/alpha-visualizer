@@ -695,6 +695,28 @@
             "type": "object",
             "title": "Benchmark Annual Returns",
             "default": {}
+          },
+          "regime_series": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegimeSeries"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "regime_breakdown": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regime Breakdown"
           }
         },
         "additionalProperties": true,
@@ -705,7 +727,7 @@
           "strategy_name"
         ],
         "title": "BacktestDetail",
-        "description": "``GET /api/results/{run_id}`` 詳細レスポンス。\n\nフィールドは ``services.backtest.build_detail`` の出力構造に対応する。\n``metrics`` / ``is_metrics`` / ``oos_metrics`` / ``monthly_returns``\nなどの巨大ネストは ``Any`` で受け、``extra=\"allow\"`` で将来追加にも追従。\n\n``regime_series`` / ``regime_breakdown`` は条件付きで含まれる\nオプショナルなキーで、``extra=\"allow\"`` 経由でパススルーする\n（None で固定キーにすると未指定のはずのレスポンスに ``\"regime_*\": null``\nが出てしまうため、明示フィールドにはしない）。"
+        "description": "``GET /api/results/{run_id}`` 詳細レスポンス。\n\nフィールドは ``services.backtest.build_detail`` の出力構造に対応する。\n``metrics`` / ``is_metrics`` / ``oos_metrics`` / ``monthly_returns``\nなどの巨大ネストは ``Any`` で受け、``extra=\"allow\"`` で将来追加にも追従。\n\n``regime_series`` / ``regime_breakdown`` は条件付きで含まれるフィールド。\nservices 層が結果 dict に含めなかった場合は ``None`` のままにし、\n``_serialize_with_optional_regime`` で JSON レスポンスから完全に除外する\n（``\"regime_*\": null`` がレスポンスに混入することを防ぐ）。"
       },
       "BacktestEquityCurve": {
         "properties": {
@@ -1448,6 +1470,51 @@
         "type": "object",
         "title": "Period",
         "description": "``BacktestDetail.period``: equity 期間の YYYY-MM 表記。"
+      },
+      "RegimeSeries": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates"
+          },
+          "states": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "States"
+          },
+          "n_states": {
+            "type": "integer",
+            "title": "N States"
+          },
+          "label_names": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Names"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "dates",
+          "states",
+          "n_states"
+        ],
+        "title": "RegimeSeries",
+        "description": "HMM レジームステート時系列。``services.shape_regime_series`` で正規化済み。\n\nすべてのフィールドは ``services`` 側で検証済み（dates と states の長さ一致、\nstates は int リスト等）なので、Pydantic 側では shape のみを担保する。"
       },
       "RunBacktestRequest": {
         "properties": {
