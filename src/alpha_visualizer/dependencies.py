@@ -27,7 +27,7 @@ def get_engine_dep(request: Request) -> Engine | None:
     Engine は ``create_app`` で 1 度だけ生成されており、Repository が
     SQL クエリを発行する際の入口として共有する。
 
-    forge.db が存在しない場合は ``None``（issue #173）。各 router は
+    backtest_results.db が存在しない場合は ``None``（issue #173）。各 router は
     クエリ発行前に ``config.forge_db.exists()`` で 404 ガードする前提。
     """
     return request.app.state.engine

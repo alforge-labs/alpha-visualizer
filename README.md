@@ -9,7 +9,7 @@
 
 > **AlphaForge バックテスト結果を Web ブラウザで可視化するスタンドアロンツール**
 
-`alpha-visualizer` は、[AlphaForge](https://alforgelabs.com/) のバックテストエンジンが出力する `forge.db`（SQLite）と戦略 JSON を直接読み取り、ブラウザベースのダッシュボードとして可視化します。`vis serve` 一発で FastAPI + React SPA が起動し、戦略の閲覧・比較・最適化結果の確認・ライブ実績との突き合わせまでを行えます。
+`alpha-visualizer` は、[AlphaForge](https://alforgelabs.com/) のバックテストエンジンが出力する `backtest_results.db`（SQLite）と戦略 JSON を直接読み取り、ブラウザベースのダッシュボードとして可視化します。`vis serve` 一発で FastAPI + React SPA が起動し、戦略の閲覧・比較・最適化結果の確認・ライブ実績との突き合わせまでを行えます。
 
 ![Browse 画面](docs/screenshots/ja/browse.png)
 
@@ -39,7 +39,7 @@ pip install alpha-visualizer
 ### 起動
 
 ```bash
-# AlphaForge の作業ディレクトリで（forge.db / strategies/ がある場所）
+# AlphaForge の作業ディレクトリで（backtest_results.db / strategies/ がある場所）
 vis serve
 
 # パスを明示する場合

@@ -30,7 +30,7 @@ async def list_results(
     strategy_id: str | None = Query(default=None),
     since: str | None = Query(default=None),
 ) -> list[dict[str, Any]]:
-    # ``since`` のバリデーションは ``forge.db`` 不在時でも 400 を返すため
+    # ``since`` のバリデーションは ``backtest_results.db`` 不在時でも 400 を返すため
     # 必ず DB アクセスより先に行う（既存挙動の保持）。
     since_dt: datetime | None = None
     if since:

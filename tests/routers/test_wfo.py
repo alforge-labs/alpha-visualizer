@@ -19,7 +19,7 @@ from tests.factories import (
 
 class TestWfoRouter:
     def test_wfo_no_db(self, client: TestClient) -> None:
-        """forge.db が存在しない場合は 404 を返す"""
+        """backtest_results.db が存在しない場合は 404 を返す"""
         response = client.get("/api/wfo/some_strategy")
         assert response.status_code == 404
 

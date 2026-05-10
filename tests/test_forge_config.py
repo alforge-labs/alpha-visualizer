@@ -23,7 +23,7 @@ class TestForgeConfigFallback:
         config = ForgeConfig.from_forge_dir(tmp_path)
 
         assert config.forge_dir == tmp_path
-        assert config.forge_db == tmp_path / "data" / "results" / "forge.db"
+        assert config.forge_db == tmp_path / "data" / "results" / "backtest_results.db"
         assert config.strategies_dir == tmp_path / "data" / "strategies"
         assert config.strategies_db is None
         assert config.ideas_json == tmp_path / "data" / "ideas" / "ideas.json"
@@ -34,7 +34,7 @@ class TestForgeConfigFallback:
         (tmp_path / "forge.yaml").write_text("", encoding="utf-8")
         config = ForgeConfig.from_forge_dir(tmp_path)
 
-        assert config.forge_db == tmp_path / "data" / "results" / "forge.db"
+        assert config.forge_db == tmp_path / "data" / "results" / "backtest_results.db"
         assert config.strategies_db is None
 
 
@@ -196,4 +196,4 @@ class TestForgeConfigSearchOrder:
         """FORGE_CONFIG が存在しないパスを指している場合はデフォルトに落とす"""
         monkeypatch.setenv("FORGE_CONFIG", str(tmp_path / "nonexistent.yaml"))
         config = ForgeConfig.from_forge_dir(tmp_path)
-        assert config.forge_db.name == "forge.db"
+        assert config.forge_db.name == "backtest_results.db"

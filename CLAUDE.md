@@ -10,13 +10,13 @@ AI (Claude Code) がこのプロジェクトを素早く理解し、効率よく
 
 ## プロジェクト概要
 
-**alpha-visualizer** は、AlphaForge のバックテスト結果を Web ブラウザで可視化するスタンドアロンパッケージです。`vis serve` コマンドで FastAPI + uvicorn サーバーを起動し、`forge.db`（SQLite）を直接読み取ることで alpha-forge への依存なしに動作します。
+**alpha-visualizer** は、AlphaForge のバックテスト結果を Web ブラウザで可視化するスタンドアロンパッケージです。`vis serve` コマンドで FastAPI + uvicorn サーバーを起動し、`backtest_results.db`（SQLite）を直接読み取ることで alpha-forge への依存なしに動作します。
 
 ### 構成
 
 - **Python バックエンド**: FastAPI + uvicorn（`vis serve` コマンド）
 - **フロントエンド**: Vite + React + TypeScript（`frontend/` ディレクトリ）
-- **データソース**: `forge.db`（SQLite）を SQLAlchemy で直接読み取り（alpha-forge への依存なし）
+- **データソース**: `backtest_results.db`（SQLite）を SQLAlchemy で直接読み取り（alpha-forge への依存なし）
 
 ### 利用方法
 
@@ -82,7 +82,7 @@ cd frontend && npm run dev
 ```
 vis serve --forge-dir <dir>
   → ForgeConfig (forge_dir)
-    → forge_dir/data/results/forge.db     ← SQLAlchemy で直接読み取り
+    → forge_dir/data/results/backtest_results.db     ← SQLAlchemy で直接読み取り
     → forge_dir/data/strategies/*.json    ← JSON ファイルを直接読み取り
     → forge_dir/data/ideas/ideas.json     ← JSON ファイルを直接読み取り
   → FastAPI ルーター → JSON レスポンス
@@ -97,7 +97,7 @@ vis serve --forge-dir <dir>
 
 | プロパティ | パス |
 |-----------|------|
-| `forge_db` | `<forge_dir>/data/results/forge.db` |
+| `forge_db` | `<forge_dir>/data/results/backtest_results.db` |
 | `strategies_dir` | `<forge_dir>/data/strategies/` |
 | `ideas_json` | `<forge_dir>/data/ideas/ideas.json` |
 
@@ -107,7 +107,7 @@ vis serve --forge-dir <dir>
 
 | エンドポイント | 内容 |
 |--------------|------|
-| `GET /api/results` | バックテスト結果一覧（`forge.db` の `backtest_results` テーブル） |
+| `GET /api/results` | バックテスト結果一覧（`backtest_results.db` の `backtest_results` テーブル） |
 | `GET /api/results/{run_id}` | 特定結果の詳細 |
 | `GET /api/strategies` | 戦略 JSON 一覧 |
 | `GET /api/strategies/compare` | 複数戦略の比較 |

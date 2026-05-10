@@ -1,6 +1,6 @@
 """最適化結果 Repository。
 
-`forge.db` の ``optimization_runs`` テーブルに対する読み取り操作を集約する。
+`backtest_results.db` の ``optimization_runs`` テーブルに対する読み取り操作を集約する。
 WFO ルーターからの利用に必要な ``backtest_results`` の OOS エクイティカーブ
 取得もまとめて提供する（router 層から SQL を完全に追い出すため）。
 """

@@ -15,7 +15,7 @@ from tests.factories import build_backtest_db, insert_regime_run
 
 class TestResultsRouter:
     def test_list_results_empty_db(self, client: TestClient) -> None:
-        """forge.db が存在しない場合は空リストを返す"""
+        """backtest_results.db が存在しない場合は空リストを返す"""
         response = client.get("/api/results")
         assert response.status_code == 200
         assert response.json() == []
@@ -32,7 +32,7 @@ class TestResultsRouter:
         assert response.status_code == 400
 
     def test_get_result_not_found(self, client: TestClient) -> None:
-        """forge.db が存在しない場合は 404 を返す"""
+        """backtest_results.db が存在しない場合は 404 を返す"""
         response = client.get("/api/results/nonexistent_run")
         assert response.status_code == 404
 

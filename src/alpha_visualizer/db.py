@@ -1,4 +1,4 @@
-"""forge.db / strategies.db の SQLAlchemy テーブル定義（読み取り専用）"""
+"""backtest_results.db / strategies.db の SQLAlchemy テーブル定義（読み取り専用）"""
 
 from os import PathLike
 from pathlib import Path
@@ -65,7 +65,7 @@ optimization_runs = Table(
 
 
 def get_engine(db_path: Path | str | PathLike[str]) -> Engine:
-    """forge.db / strategies.db への SQLAlchemy Engine を生成する。
+    """backtest_results.db / strategies.db への SQLAlchemy Engine を生成する。
 
     Engine はアプリケーション起動時に 1 度だけ生成し、`app.state.engine`
     に格納して使い回すことを想定している。各リクエストで再生成しない。

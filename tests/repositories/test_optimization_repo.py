@@ -23,12 +23,12 @@ from alpha_visualizer.repositories.optimization import (
 
 
 def _make_db(tmp_path: Path) -> Path:
-    """forge.db 互換スキーマで `optimization_runs` / `backtest_results` を作る。
+    """backtest_results.db 互換スキーマで `optimization_runs` / `backtest_results` を作る。
 
     スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として
     生成し、テスト側で重複した CREATE TABLE 文を持たない。
     """
-    db_path = tmp_path / "forge.db"
+    db_path = tmp_path / "backtest_results.db"
     schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
         metadata.create_all(

@@ -1,6 +1,6 @@
 """バックテスト結果 Repository。
 
-`forge.db` の `backtest_results` テーブルに対する読み取り操作を集約する。
+`backtest_results.db` の `backtest_results` テーブルに対する読み取り操作を集約する。
 Router 層は本クラスを ``Depends`` で受け取り、HTTP 変換のみを担当する。
 """
 from __future__ import annotations
