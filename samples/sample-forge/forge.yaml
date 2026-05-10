@@ -1,0 +1,11 @@
+# alpha-visualizer 同梱サンプル用 forge.yaml
+# 再生成: `uv run python samples/build_samples.py`
+# 起動: `uv run vis serve --forge-dir samples/sample-forge --no-open`
+report:
+  output_path: ./data/results
+  db_filename: backtest_results.db
+strategies:
+  path: ./data/strategies
+  use_db: false
+ideas:
+  ideas_path: ./data/ideas
