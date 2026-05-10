@@ -7,7 +7,7 @@
     frontend/e2e/fixtures/forge/
       ├── forge.yaml
       └── data/
-          ├── results/forge.db
+          ├── results/backtest_results.db
           ├── strategies/{sma_cross,rsi_reversal,momo_breakout}.json
           └── ideas/ideas.json
 
@@ -36,7 +36,7 @@ from alpha_visualizer.db import (  # noqa: E402
 )
 
 OUTPUT_DIR = ROOT / "frontend" / "e2e" / "fixtures" / "forge"
-DB_PATH = OUTPUT_DIR / "data" / "results" / "forge.db"
+DB_PATH = OUTPUT_DIR / "data" / "results" / "backtest_results.db"
 STRATEGIES_DIR = OUTPUT_DIR / "data" / "strategies"
 IDEAS_PATH = OUTPUT_DIR / "data" / "ideas" / "ideas.json"
 YAML_PATH = OUTPUT_DIR / "forge.yaml"
@@ -280,7 +280,7 @@ def _write_yaml() -> None:
         "# E2E フィクスチャ用の最小 forge.yaml（再生成は build_e2e_fixture.py から）\n"
         "report:\n"
         "  output_path: ./data/results\n"
-        "  db_filename: forge.db\n"
+        "  db_filename: backtest_results.db\n"
         "strategies:\n"
         "  path: ./data/strategies\n"
         "  use_db: false\n"
@@ -430,12 +430,12 @@ def main() -> None:
     _write_ideas()
     _write_db()
     size = DB_PATH.stat().st_size
-    print(f"[ok] forge.db generated: {DB_PATH} ({size} bytes)")
+    print(f"[ok] backtest_results.db generated: {DB_PATH} ({size} bytes)")
     print(f"[ok] strategies dir: {STRATEGIES_DIR}")
     print(f"[ok] ideas: {IDEAS_PATH}")
     print(f"[ok] yaml: {YAML_PATH}")
     if size > 1_000_000:
-        raise SystemExit(f"forge.db exceeds 1MB ({size} bytes); shrink the fixture")
+        raise SystemExit(f"backtest_results.db exceeds 1MB ({size} bytes); shrink the fixture")
 
 
 if __name__ == "__main__":  # pragma: no cover

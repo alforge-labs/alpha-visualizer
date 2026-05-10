@@ -31,11 +31,11 @@ def _seed_trades(live_dir: Path, strategy_id: str, trades: list | dict) -> Path:
 
 
 def _make_db_with_backtest(tmp_path: Path) -> Path:
-    """forge.db 互換スキーマで `backtest_results` を作って 2 行投入する。
+    """backtest_results.db 互換スキーマで `backtest_results` を作って 2 行投入する。
 
     スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として生成。
     """
-    db_path = tmp_path / "forge.db"
+    db_path = tmp_path / "backtest_results.db"
     schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
         metadata.create_all(schema_engine, tables=[backtest_results])

@@ -68,7 +68,7 @@ def run_backtest(
         )
         raise ExternalProcessError(detail)
 
-    # forge.db が未生成のときに Repository が OperationalError を投げないよう、
+    # backtest_results.db が未生成のときに Repository が OperationalError を投げないよう、
     # 先にファイル存在を確認してから問い合わせる。
     if not forge_cfg.forge_db.exists():
         run_id = None

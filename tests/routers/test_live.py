@@ -147,9 +147,9 @@ class TestLiveRouter:
             ],
         )
 
-        # forge.db に backtest_results を作る。trades は live と同じ期間に
+        # backtest_results.db に backtest_results を作る。trades は live と同じ期間に
         # 重なるもの 2 件 + 期間外 1 件を入れる。
-        db_path = tmp_path / "data" / "results" / "forge.db"
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
         build_backtest_db(db_path)
         # 既存の挿入レコードはそのまま、新規の strat_d 用を追加
         seed_backtest_with_trades(
@@ -222,7 +222,7 @@ class TestLiveRouter:
             ],
         )
 
-        db_path = tmp_path / "data" / "results" / "forge.db"
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
         build_backtest_db(db_path)
         seed_backtest_with_trades(
             db_path,
@@ -279,7 +279,7 @@ class TestLiveRouter:
                 }
             ],
         )
-        # forge.db は作らない
+        # backtest_results.db は作らない
         client = TestClient(create_app(forge_dir=tmp_path))
         response = client.get("/api/live/strat_f")
         assert response.status_code == 200

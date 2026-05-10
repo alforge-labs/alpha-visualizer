@@ -9,7 +9,7 @@
 
 > **A standalone web visualization tool for AlphaForge backtest results**
 
-`alpha-visualizer` reads `forge.db` (SQLite) and strategy JSON files produced by the [AlphaForge](https://alforgelabs.com/) backtest engine and serves a browser-based dashboard. A single `vis serve` command launches a FastAPI + React SPA that lets you browse strategies, compare metrics, inspect optimization results, and reconcile live trading against backtests.
+`alpha-visualizer` reads `backtest_results.db` (SQLite) and strategy JSON files produced by the [AlphaForge](https://alforgelabs.com/) backtest engine and serves a browser-based dashboard. A single `vis serve` command launches a FastAPI + React SPA that lets you browse strategies, compare metrics, inspect optimization results, and reconcile live trading against backtests.
 
 ![Browse view](docs/screenshots/en/browse.png)
 
@@ -39,7 +39,7 @@ pip install alpha-visualizer
 ### Run
 
 ```bash
-# From your AlphaForge working directory (where forge.db / strategies/ live)
+# From your AlphaForge working directory (where backtest_results.db / strategies/ live)
 vis serve
 
 # Or specify the directory explicitly

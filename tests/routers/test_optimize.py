@@ -68,7 +68,7 @@ class TestOptimizeRouter:
         return TestClient(app), db_path
 
     def test_optimize_no_db(self, client: TestClient) -> None:
-        """forge.db が存在しない場合は 404 を返す"""
+        """backtest_results.db が存在しない場合は 404 を返す"""
         response = client.get("/api/optimize/some_strategy")
         assert response.status_code == 404
 
@@ -162,7 +162,7 @@ class TestOptimizeRouter:
     def test_optimize_returns_500_when_table_missing(
         self, tmp_path: pathlib.Path
     ) -> None:
-        """forge.db は存在するが optimization_runs テーブルが欠落している場合は
+        """backtest_results.db は存在するが optimization_runs テーブルが欠落している場合は
         DB 障害として 500 を返す（404 ではない）。"""
         db_path = tmp_path / "data" / "results" / "backtest_results.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)

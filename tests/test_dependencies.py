@@ -16,7 +16,7 @@ from alpha_visualizer.forge_config import ForgeConfig
 def _build_app(tmp_path: Path) -> FastAPI:
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "results" / "backtest_results.db").touch()
     cfg = ForgeConfig.from_forge_dir(forge_dir)
 
     app = FastAPI()
@@ -56,14 +56,14 @@ def test_get_engine_dep_returns_app_state_engine(tmp_path: Path) -> None:
 
 
 def test_get_engine_dep_returns_none_when_engine_absent(tmp_path: Path) -> None:
-    """forge.db 不在で create_app した状態を模擬し、get_engine_dep が None を返すこと (issue #173)。"""
+    """backtest_results.db 不在で create_app した状態を模擬し、get_engine_dep が None を返すこと (issue #173)。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
     cfg = ForgeConfig.from_forge_dir(forge_dir)
 
     app = FastAPI()
     app.state.forge_config = cfg
-    app.state.engine = None  # create_app が forge.db 不在で None を入れた状態
+    app.state.engine = None  # create_app が backtest_results.db 不在で None を入れた状態
 
     @app.get("/probe-engine-absent")
     def probe(

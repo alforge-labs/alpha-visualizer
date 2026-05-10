@@ -140,7 +140,7 @@ def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
     """create_app で生成された FastAPI が app.state.engine を持つこと。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "results" / "backtest_results.db").touch()
 
     app = create_app(forge_dir=forge_dir)
     engine = app.state.engine
@@ -149,19 +149,19 @@ def test_create_app_stores_engine_in_state(tmp_path: pathlib.Path) -> None:
 
 
 def test_create_app_does_not_create_empty_forge_db(tmp_path: pathlib.Path) -> None:
-    """forge.db 不在で create_app しても 0 byte の forge.db が作られないこと (issue #173)。"""
+    """backtest_results.db 不在で create_app しても 0 byte の backtest_results.db が作られないこと (issue #173)。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    forge_db = forge_dir / "data" / "results" / "forge.db"
+    forge_db = forge_dir / "data" / "results" / "backtest_results.db"
     assert not forge_db.exists()
 
     create_app(forge_dir=forge_dir)
 
-    assert not forge_db.exists(), "create_app が空の forge.db を touch してはならない"
+    assert not forge_db.exists(), "create_app が空の backtest_results.db を touch してはならない"
 
 
 def test_create_app_engine_is_none_when_db_absent(tmp_path: pathlib.Path) -> None:
-    """forge.db 不在時は app.state.engine が None になること (issue #173)。"""
+    """backtest_results.db 不在時は app.state.engine が None になること (issue #173)。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
 
@@ -173,7 +173,7 @@ def test_create_app_strategies_engine_when_db_present(tmp_path: pathlib.Path) ->
     """forge.yaml で strategies.use_db=true のときは strategies_engine がキャッシュされる。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "results" / "backtest_results.db").touch()
     strategies_dir = forge_dir / "data" / "strategies"
     strategies_dir.mkdir(parents=True)
     (strategies_dir / "strategies.db").touch()
@@ -192,7 +192,7 @@ def test_create_app_strategies_engine_none_in_json_mode(tmp_path: pathlib.Path) 
     """strategies.db が無い（JSON モード）場合は strategies_engine が None。"""
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "results" / "backtest_results.db").touch()
     (forge_dir / "data" / "strategies").mkdir(parents=True)
     # forge.yaml なし → strategies_db は None
 
@@ -210,7 +210,7 @@ def test_alpha_error_handler_returns_json_with_status(
 
     forge_dir = tmp_path / "forge"
     (forge_dir / "data" / "results").mkdir(parents=True)
-    (forge_dir / "data" / "results" / "forge.db").touch()
+    (forge_dir / "data" / "results" / "backtest_results.db").touch()
 
     # SPA fallback (/{full_path:path}) を登録させないため、
     # __file__ を一時ディレクトリにずらして static/ 不在状態にする。

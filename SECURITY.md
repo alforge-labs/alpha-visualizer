@@ -66,7 +66,7 @@ GitHub アカウントを利用できない場合は [security@alforgelabs.com](
 以下の範囲はセキュリティ報告の対象です。
 
 - `vis serve` の HTTP / API エンドポイント
-- `forge.db` 読み取り処理（SQL injection など）
+- `backtest_results.db` 読み取り処理（SQL injection など）
 - 戦略 JSON / `ideas.json` パーサー
 - フロントエンド SPA（XSS など）
 - ビルド・リリースパイプライン（GitHub Actions ワークフロー）
@@ -81,6 +81,6 @@ GitHub アカウントを利用できない場合は [security@alforgelabs.com](
 
 - **`vis serve` はデフォルトで `127.0.0.1` のみで listen します**。`--host 0.0.0.0` を指定する場合は、外部ネットワークからのアクセス制御を必ず設定してください
 - **認証機能はありません**。`vis serve` は信頼できるネットワーク内（ローカル開発・社内ネットワーク）での使用を想定しています
-- **`forge.db` は SQLAlchemy 経由でパラメータ化クエリを使用** しており、API 層での SQL injection は想定されていません
+- **`backtest_results.db` は SQLAlchemy 経由でパラメータ化クエリを使用** しており、API 層での SQL injection は想定されていません
 
 ご協力ありがとうございます！🛡️

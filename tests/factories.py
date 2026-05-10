@@ -315,7 +315,7 @@ def seed_backtest_with_trades(
     run_at: str,
     trades: list[dict],
 ) -> None:
-    """forge.db に backtest_results を 1 件 insert（trades_json 込み）。"""
+    """backtest_results.db に backtest_results を 1 件 insert（trades_json 込み）。"""
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO backtest_results"

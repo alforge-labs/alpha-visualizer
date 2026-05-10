@@ -51,7 +51,7 @@ def _latest_summary(
     """指定 strategy_id の最新バックテスト結果を返す。
 
     ``list_results`` は ``run_at`` 降順で返るため先頭が最新。
-    forge.db ファイルが存在しない場合は ``None``。
+    backtest_results.db ファイルが存在しない場合は ``None``。
     """
     if not forge_db_exists:
         return None

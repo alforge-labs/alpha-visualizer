@@ -66,7 +66,7 @@ Please refrain from public disclosure before a fix is released.
 In scope:
 
 - `vis serve` HTTP / API endpoints
-- `forge.db` read paths (SQL injection, etc.)
+- `backtest_results.db` read paths (SQL injection, etc.)
 - Strategy JSON / `ideas.json` parsers
 - The frontend SPA (XSS, etc.)
 - Build / release pipelines (GitHub Actions workflows)
@@ -81,6 +81,6 @@ Out of scope:
 
 - **`vis serve` listens on `127.0.0.1` by default.** When using `--host 0.0.0.0`, configure external access controls yourself.
 - **No authentication is built in.** `vis serve` is designed for trusted networks (local development, internal networks).
-- **`forge.db` access uses parameterized SQLAlchemy queries**, so SQL injection at the API layer is not expected.
+- **`backtest_results.db` access uses parameterized SQLAlchemy queries**, so SQL injection at the API layer is not expected.
 
 Thanks for helping keep the project secure! 🛡️

@@ -65,7 +65,7 @@ class ForgeConfig:
         report_output = _resolve_path(
             base, report.get("output_path"), default=forge_dir / "data" / "results"
         )
-        forge_db_filename = report.get("db_filename") or "forge.db"
+        forge_db_filename = report.get("db_filename") or "backtest_results.db"
         forge_db = report_output / forge_db_filename
 
         strategies_path = _resolve_path(

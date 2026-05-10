@@ -17,11 +17,11 @@ from alpha_visualizer.repositories.backtest_results import (
 
 
 def _make_db(tmp_path: Path) -> Path:
-    """forge.db 互換スキーマで `backtest_results` テーブルを作り、3 行投入する。
+    """backtest_results.db 互換スキーマで `backtest_results` テーブルを作り、3 行投入する。
 
     スキーマは ``alpha_visualizer.db.metadata`` を Single Source of Truth として生成。
     """
-    db_path = tmp_path / "forge.db"
+    db_path = tmp_path / "backtest_results.db"
     schema_engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
         metadata.create_all(schema_engine, tables=[backtest_results])

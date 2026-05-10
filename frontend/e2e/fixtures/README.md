@@ -8,7 +8,7 @@ Playwright スモークテスト（`frontend/e2e/specs/`）が利用する最小
 frontend/e2e/fixtures/forge/
 ├── forge.yaml                       # 最小 forge 設定（use_db: false）
 └── data/
-    ├── results/forge.db             # SQLAlchemy で生成された SQLite (~45KB)
+    ├── results/backtest_results.db             # SQLAlchemy で生成された SQLite (~45KB)
     ├── strategies/
     │   ├── sma_cross.json           # 戦略定義 1
     │   ├── rsi_reversal.json        # 戦略定義 2（optimization_runs を持つ）

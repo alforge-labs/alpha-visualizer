@@ -10,7 +10,7 @@
 - ``extract_composite_curve(windows, fetch_oos_curve_json)`` → OOS 合成カーブを構築
 
 Patterns: Pure Function / Dependency Injection（``extract_composite_curve``
-は forge.db への問い合わせ Callable を引数で受ける）/ Composition over Inheritance。
+は backtest_results.db への問い合わせ Callable を引数で受ける）/ Composition over Inheritance。
 services 層は HTTP の関心事を持たない。
 """
 from __future__ import annotations
