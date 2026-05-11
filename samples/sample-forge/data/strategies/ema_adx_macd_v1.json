@@ -1,0 +1,62 @@
+{
+  "strategy_id": "ema_adx_macd_v1",
+  "name": "EMA + ADX + MACD Composite",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "trend",
+    "composite",
+    "filter",
+    "textbook"
+  ],
+  "target_symbols": [
+    "EQUITY_SYNTH",
+    "INDEX_SYNTH"
+  ],
+  "description": "EMA で長期トレンド方向を、ADX でトレンド強度を、MACD でモメンタムを確認した上でロングを取る複合シグナル。フォルスシグナルを減らすことを狙う構成。",
+  "parameters": {
+    "ema_period": 50,
+    "adx_length": 14,
+    "adx_threshold": 20.0,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9
+  },
+  "indicators": [
+    {
+      "name": "ema",
+      "type": "EMA",
+      "params": {
+        "period": 50
+      }
+    },
+    {
+      "name": "adx",
+      "type": "ADX",
+      "params": {
+        "period": 14
+      }
+    },
+    {
+      "name": "macd",
+      "type": "MACD",
+      "params": {
+        "fast": 12,
+        "slow": 26,
+        "signal": 9
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "close > ema and adx > adx_threshold and macd.line > macd.signal"
+  },
+  "exit_conditions": {
+    "long": "close < ema or macd.line < macd.signal"
+  },
+  "risk_management": {
+    "stop_loss_pct": 5.0,
+    "take_profit_pct": 15.0
+  }
+}

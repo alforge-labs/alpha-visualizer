@@ -21,6 +21,7 @@
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
+    "e2e:samples": "playwright test --config=playwright.samples.config.ts",
     "screenshots": "playwright test --config=playwright.screenshots.config.ts"
   },
   "dependencies": {

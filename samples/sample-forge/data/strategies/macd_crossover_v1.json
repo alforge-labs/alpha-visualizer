@@ -1,0 +1,45 @@
+{
+  "strategy_id": "macd_crossover_v1",
+  "name": "MACD Signal Cross",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "trend",
+    "momentum",
+    "textbook"
+  ],
+  "target_symbols": [
+    "EQUITY_SYNTH",
+    "INDEX_SYNTH",
+    "CRYPTO_SYNTH"
+  ],
+  "description": "MACD ライン (EMA12 - EMA26) がシグナル (EMA9) を上抜けたら買い、下抜けたら手仕舞い。中期トレンドの転換点を捉える定番戦略。",
+  "parameters": {
+    "fast": 12,
+    "slow": 26,
+    "signal": 9
+  },
+  "indicators": [
+    {
+      "name": "macd",
+      "type": "MACD",
+      "params": {
+        "fast": 12,
+        "slow": 26,
+        "signal": 9
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "macd.line > macd.signal"
+  },
+  "exit_conditions": {
+    "long": "macd.line < macd.signal"
+  },
+  "risk_management": {
+    "stop_loss_pct": 5.0,
+    "take_profit_pct": 15.0
+  }
+}

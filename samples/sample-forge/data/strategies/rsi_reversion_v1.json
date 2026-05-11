@@ -1,0 +1,42 @@
+{
+  "strategy_id": "rsi_reversion_v1",
+  "name": "RSI Mean Reversion",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "mean-reversion",
+    "oscillator",
+    "textbook"
+  ],
+  "target_symbols": [
+    "INDEX_SYNTH",
+    "FX_SYNTH"
+  ],
+  "description": "RSI が下方しきい値を下回ったら買い、上方しきい値を超えたら手仕舞い。レンジ・低ボラ環境で効果が出やすい逆張り戦略。",
+  "parameters": {
+    "rsi_length": 14,
+    "oversold": 30,
+    "overbought": 70
+  },
+  "indicators": [
+    {
+      "name": "rsi",
+      "type": "RSI",
+      "params": {
+        "period": 14
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "rsi < oversold"
+  },
+  "exit_conditions": {
+    "long": "rsi > overbought"
+  },
+  "risk_management": {
+    "stop_loss_pct": 4.0,
+    "take_profit_pct": 8.0
+  }
+}

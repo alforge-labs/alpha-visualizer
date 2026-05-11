@@ -1,0 +1,52 @@
+{
+  "strategy_id": "range_reversion_v1",
+  "name": "Range Reversion (BB Lower + ADX)",
+  "version": "1.0.0",
+  "asset_type": "fx",
+  "timeframe": "1d",
+  "tags": [
+    "mean-reversion",
+    "range",
+    "filter",
+    "textbook"
+  ],
+  "target_symbols": [
+    "FX_SYNTH",
+    "INDEX_SYNTH"
+  ],
+  "description": "ADX がレンジ判定の閾値以下のとき、終値が下バンドを割ったら買い、ミッドバンドへ戻ったら手仕舞い。レンジ相場専用の逆張り。",
+  "parameters": {
+    "bb_length": 20,
+    "bb_std": 2.0,
+    "adx_length": 14,
+    "adx_threshold": 22.0
+  },
+  "indicators": [
+    {
+      "name": "bbands",
+      "type": "BBANDS",
+      "params": {
+        "length": 20,
+        "std": 2.0
+      }
+    },
+    {
+      "name": "adx",
+      "type": "ADX",
+      "params": {
+        "period": 14
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "adx < adx_threshold and close < bbands.lower"
+  },
+  "exit_conditions": {
+    "long": "close > bbands.middle"
+  },
+  "risk_management": {
+    "stop_loss_pct": 3.0,
+    "take_profit_pct": 6.0
+  }
+}

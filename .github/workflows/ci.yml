@@ -126,6 +126,35 @@ jobs:
             exit 1
           fi
 
+  samples-drift:
+    name: OSS sample-forge drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Regenerate OSS sample dataset
+        run: uv run python samples/build_samples.py
+
+      - name: Verify sample-forge is committed (determinism)
+        run: |
+          if ! git diff --exit-code samples/sample-forge/; then
+            echo "::error::samples/sample-forge/ is out of date."
+            echo "Run 'uv run python samples/build_samples.py' locally and commit the changes."
+            exit 1
+          fi
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20

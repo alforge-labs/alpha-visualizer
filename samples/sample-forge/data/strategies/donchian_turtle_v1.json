@@ -1,0 +1,48 @@
+{
+  "strategy_id": "donchian_turtle_v1",
+  "name": "Donchian Channel Turtle",
+  "version": "1.0.0",
+  "asset_type": "commodity",
+  "timeframe": "1d",
+  "tags": [
+    "breakout",
+    "trend",
+    "textbook"
+  ],
+  "target_symbols": [
+    "COMMODITY_SYNTH",
+    "CRYPTO_SYNTH"
+  ],
+  "description": "20 日 Donchian 上限を上抜けたら買い、10 日 Donchian 下限を割ったら手仕舞い。古典的なタートルズ流のブレイクアウト戦略。",
+  "parameters": {
+    "entry_length": 20,
+    "exit_length": 10
+  },
+  "indicators": [
+    {
+      "name": "donchian_entry",
+      "type": "DONCHIAN",
+      "params": {
+        "length": 20
+      }
+    },
+    {
+      "name": "donchian_exit",
+      "type": "DONCHIAN",
+      "params": {
+        "length": 10
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "close > donchian_entry.upper"
+  },
+  "exit_conditions": {
+    "long": "close < donchian_exit.lower"
+  },
+  "risk_management": {
+    "stop_loss_pct": 8.0,
+    "take_profit_pct": 25.0
+  }
+}

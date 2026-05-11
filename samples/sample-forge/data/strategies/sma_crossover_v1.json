@@ -1,0 +1,49 @@
+{
+  "strategy_id": "sma_crossover_v1",
+  "name": "SMA Crossover",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "trend",
+    "crossover",
+    "textbook"
+  ],
+  "target_symbols": [
+    "EQUITY_SYNTH",
+    "INDEX_SYNTH",
+    "CRYPTO_SYNTH"
+  ],
+  "description": "短期 SMA が長期 SMA を上抜けたら買い、下抜けたら手仕舞いするオーソドックスなトレンドフォロー戦略。トレンドの強い銘柄で効果を発揮しやすい。",
+  "parameters": {
+    "fast_period": 20,
+    "slow_period": 60
+  },
+  "indicators": [
+    {
+      "name": "sma_fast",
+      "type": "SMA",
+      "params": {
+        "period": 20
+      }
+    },
+    {
+      "name": "sma_slow",
+      "type": "SMA",
+      "params": {
+        "period": 60
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "sma_fast > sma_slow"
+  },
+  "exit_conditions": {
+    "long": "sma_fast < sma_slow"
+  },
+  "risk_management": {
+    "stop_loss_pct": 6.0,
+    "take_profit_pct": 18.0
+  }
+}
