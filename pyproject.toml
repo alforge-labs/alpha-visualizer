@@ -1,6 +1,6 @@
 [project]
 name = "alpha-visualizer"
-version = "0.1.1"
+version = "0.2.0"
 description = "Web visualization tool for AlphaForge backtest results"
 readme = "README.md"
 license = "MIT"
@@ -75,7 +75,7 @@ dev = [
 ]
 
 [tool.bumpversion]
-current_version = "0.1.1"
+current_version = "0.2.0"
 commit = true
 message = "chore: バージョン {new_version} にバンプ"
 tag = true
