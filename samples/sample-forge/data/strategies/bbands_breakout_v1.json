@@ -1,0 +1,42 @@
+{
+  "strategy_id": "bbands_breakout_v1",
+  "name": "Bollinger Bands Breakout",
+  "version": "1.0.0",
+  "asset_type": "commodity",
+  "timeframe": "1d",
+  "tags": [
+    "breakout",
+    "volatility",
+    "textbook"
+  ],
+  "target_symbols": [
+    "COMMODITY_SYNTH",
+    "CRYPTO_SYNTH"
+  ],
+  "description": "終値がボリンジャー上バンドを上抜けたら買い、ミッドバンドを割ったら手仕舞い。ボラティリティ拡張局面でのトレンドフォロー版。",
+  "parameters": {
+    "bb_length": 20,
+    "bb_std": 2.0
+  },
+  "indicators": [
+    {
+      "name": "bbands",
+      "type": "BBANDS",
+      "params": {
+        "length": 20,
+        "std": 2.0
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "close > bbands.upper"
+  },
+  "exit_conditions": {
+    "long": "close < bbands.middle"
+  },
+  "risk_management": {
+    "stop_loss_pct": 7.0,
+    "take_profit_pct": 20.0
+  }
+}

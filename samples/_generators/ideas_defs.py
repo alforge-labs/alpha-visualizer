@@ -1,0 +1,89 @@
+"""サンプル `ideas.json` の定義。
+
+教科書的・公開知識のみで構成された 5 件のアイデアメモ。``linked_strategies`` を
+通じて同梱戦略 / 同梱バックテストランへ動線を張り、Ideas タブから Detail タブへ
+の遷移が確認できるようにしてある。
+"""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+_IDEAS: list[dict[str, Any]] = [
+    {
+        "idea_id": "idea_sample_001",
+        "title": "SMA Crossover に ADX フィルタを足してチョップを減らす",
+        "status": "tested",
+        "tags": ["trend", "filter", "sma", "adx"],
+        "notes": (
+            "EQUITY_SYNTH に対する SMA crossover の偽シグナルをトレンド強度 (ADX) で"
+            "ふるい落とせるか検証する。ema_adx_macd_v1 が既に類似の構造を持つので"
+            "比較対象として有用。"
+        ),
+        "linked_strategies": ["sma_crossover_v1", "ema_adx_macd_v1"],
+        "created_at": "2024-12-20T10:00:00",
+        "updated_at": "2025-01-08T16:30:00",
+    },
+    {
+        "idea_id": "idea_sample_002",
+        "title": "Bollinger Squeeze breakout — bandwidth threshold を探す",
+        "status": "in_progress",
+        "tags": ["volatility", "breakout", "bbands"],
+        "notes": (
+            "COMMODITY_SYNTH の sideways → spike フェーズで Bollinger Bandwidth が"
+            "極小化するタイミングを起点にしたブレイクアウトを検証中。bb_std を"
+            "1.5〜3.0 で振る Grid 結果も参考にする。"
+        ),
+        "linked_strategies": ["bbands_breakout_v1"],
+        "created_at": "2025-01-05T09:15:00",
+        "updated_at": "2025-01-09T11:45:00",
+    },
+    {
+        "idea_id": "idea_sample_003",
+        "title": "CRYPTO の Supertrend を WFO で robustness 検証する",
+        "status": "tested",
+        "tags": ["wfo", "robustness", "crypto", "supertrend"],
+        "notes": (
+            "Supertrend + ADX を CRYPTO_SYNTH に当てた場合、IS と OOS の乖離が"
+            "どの程度発生するかを 6 ウィンドウで確認。pass=4/6 で「条件付きで使える」"
+            "という結論。詳細は wfo_supertrend_adx_v1_CRYPTO_SYNTH_001 を参照。"
+        ),
+        "linked_strategies": ["supertrend_adx_v1"],
+        "created_at": "2024-11-15T13:00:00",
+        "updated_at": "2025-01-08T15:00:00",
+    },
+    {
+        "idea_id": "idea_sample_004",
+        "title": "RSI(2) Connors-style エントリーを試す",
+        "status": "backlog",
+        "tags": ["mean-reversion", "rsi", "connors"],
+        "notes": (
+            "現状の rsi_reversion_v1 は RSI(14) ベースだが、Connors 流の RSI(2) で"
+            "極端値（< 5 / > 95）を捉える方が日内反転に有効かもしれない。"
+            "FX_SYNTH と INDEX_SYNTH で先行検証したい。"
+        ),
+        "linked_strategies": ["rsi_reversion_v1"],
+        "created_at": "2025-01-02T20:30:00",
+        "updated_at": "2025-01-02T20:30:00",
+    },
+    {
+        "idea_id": "idea_sample_005",
+        "title": "Donchian + ATR position sizing をトレンドレジームで使う",
+        "status": "backlog",
+        "tags": ["turtle", "position-sizing", "donchian", "atr"],
+        "notes": (
+            "donchian_turtle_v1 のシグナルに ATR ベースのポジションサイジング層を"
+            "追加し、ボラ拡張局面でも一定のリスク単位を維持できるか検討する。"
+            "COMMODITY_SYNTH の spike 局面が良いテストベッドになる。"
+        ),
+        "linked_strategies": ["donchian_turtle_v1"],
+        "created_at": "2025-01-07T11:00:00",
+        "updated_at": "2025-01-07T11:00:00",
+    },
+]
+
+
+def build_all() -> list[dict[str, Any]]:
+    """同梱サンプルアイデア 5 件を返す（呼び出しごとに deep copy）。"""
+    return deepcopy(_IDEAS)

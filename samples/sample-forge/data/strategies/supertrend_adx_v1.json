@@ -1,0 +1,51 @@
+{
+  "strategy_id": "supertrend_adx_v1",
+  "name": "Supertrend with ADX Filter",
+  "version": "1.0.0",
+  "asset_type": "equity",
+  "timeframe": "1d",
+  "tags": [
+    "trend",
+    "filter",
+    "textbook"
+  ],
+  "target_symbols": [
+    "EQUITY_SYNTH",
+    "CRYPTO_SYNTH"
+  ],
+  "description": "Supertrend が上昇方向に転換し、かつ ADX がトレンド閾値を超えているときに買い、Supertrend が下落方向に転換したら手仕舞い。トレンドフォローを ADX で強化。",
+  "parameters": {
+    "st_length": 10,
+    "st_multiplier": 3.0,
+    "adx_length": 14,
+    "adx_threshold": 20.0
+  },
+  "indicators": [
+    {
+      "name": "supertrend",
+      "type": "SUPERTREND",
+      "params": {
+        "length": 10,
+        "multiplier": 3.0
+      }
+    },
+    {
+      "name": "adx",
+      "type": "ADX",
+      "params": {
+        "period": 14
+      }
+    }
+  ],
+  "variables": [],
+  "entry_conditions": {
+    "long": "supertrend.direction == 1 and adx > adx_threshold"
+  },
+  "exit_conditions": {
+    "long": "supertrend.direction == -1"
+  },
+  "risk_management": {
+    "stop_loss_pct": 6.0,
+    "take_profit_pct": 20.0
+  }
+}

@@ -19,6 +19,8 @@ coverage.xml
 *.db-shm
 # E2E fixture DB は例外（< 100KB の決定論的フィクスチャ。tests/fixtures/build_e2e_fixture.py で再生成可能）
 !frontend/e2e/fixtures/**/*.db
+# OSS 同梱サンプル DB は例外（< 8MB、samples/build_samples.py で再生成可能）
+!samples/sample-forge/**/*.db
 
 # Frontend
 frontend/node_modules/
