@@ -19,7 +19,7 @@ The npm packages used to deliver the WOFF2 files are:
 
 Each `@fontsource/*` package re-distributes the upstream OFL fonts unmodified
 under the same OFL 1.1 license; their LICENSE files are present in
-`visualizer/node_modules/@fontsource/<name>/LICENSE` after `npm install` and are
+`visualizer/node_modules/@fontsource/<name>/LICENSE` after `pnpm install` and are
 included in the Vite build's source map references.
 
 ## Loaded weights and subsets

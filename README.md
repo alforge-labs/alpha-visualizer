@@ -98,10 +98,10 @@ uv run pytest tests/ -v
 uv run ruff check src/ tests/
 
 # フロントエンド開発サーバー（ホットリロード）
-cd frontend && npm install && npm run dev
+cd frontend && pnpm install && pnpm run dev
 
 # フロントエンドビルド（src/alpha_visualizer/static/ に出力）
-cd frontend && npm run build
+cd frontend && pnpm run build
 ```
 
 詳細は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。

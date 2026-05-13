@@ -37,11 +37,11 @@ Closes #
 
 - [ ] バックエンドテスト: `uv run pytest tests/ -v`
 - [ ] バックエンド Lint: `uv run ruff check src/ tests/`
-- [ ] フロントエンドテスト: `cd frontend && npm run test:ci`
-- [ ] フロントエンド Lint: `cd frontend && npm run lint`
-- [ ] フロントエンドビルド: `cd frontend && npm run build`
-- [ ] E2E（UI 変更時）: `cd frontend && npm run e2e`
-- [ ] スクリーンショット再撮影（UI 変更時）: `cd frontend && npm run screenshots`
+- [ ] フロントエンドテスト: `cd frontend && pnpm run test:ci`
+- [ ] フロントエンド Lint: `cd frontend && pnpm run lint`
+- [ ] フロントエンドビルド: `cd frontend && pnpm run build`
+- [ ] E2E（UI 変更時）: `cd frontend && pnpm run e2e`
+- [ ] スクリーンショット再撮影（UI 変更時）: `cd frontend && pnpm run screenshots`
 
 ## スクリーンショット / Screenshots
 

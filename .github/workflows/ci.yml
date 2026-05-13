@@ -37,24 +37,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint (eslint)
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Test (vitest)
-        run: npm run test:ci
+        run: pnpm run test:ci
 
       - name: Build (tsc -b && vite build)
-        run: npm run build
+        run: pnpm run build
 
   openapi-types:
     name: OpenAPI types drift check
@@ -74,26 +79,31 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install npm dependencies
+      - name: Install pnpm dependencies
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Regenerate OpenAPI schema and TS types
         working-directory: frontend
-        run: npm run gen
+        run: pnpm run gen
 
       - name: Verify generated files are committed
         run: |
           if ! git diff --exit-code frontend/openapi.json frontend/src/api/types.gen.ts; then
             echo "::error::OpenAPI schema or generated TS types are out of date."
-            echo "Run 'cd frontend && npm run gen' locally and commit the changes."
+            echo "Run 'cd frontend && pnpm run gen' locally and commit the changes."
             exit 1
           fi
 
@@ -172,43 +182,48 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install npm dependencies
+      - name: Install pnpm dependencies
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers (cold)
         working-directory: frontend
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps (cache hit)
         working-directory: frontend
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: pnpm exec playwright install-deps chromium
 
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: pnpm run build
 
       - name: Run Playwright tests
         working-directory: frontend
         env:
           CI: 'true'
-        run: npm run e2e
+        run: pnpm run e2e
 
       - name: Upload Playwright report
         if: always()

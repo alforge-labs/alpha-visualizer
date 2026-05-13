@@ -25,7 +25,7 @@ All participants are expected to abide by the [Contributor Covenant v2.1 Code of
 
 - **Python 3.12+**
 - **[uv](https://docs.astral.sh/uv/)** — Python package manager (required, do not use `pip` directly)
-- **Node.js 20+ with npm** — for frontend development
+- **Node.js 22+ with pnpm** — for frontend development (enable via `corepack enable && corepack prepare pnpm@latest --activate` or `brew install pnpm`)
 - **Git**
 
 ### Setup
@@ -39,12 +39,12 @@ cd alpha-visualizer
 uv sync
 
 # 3. Install frontend dependencies
-cd frontend && npm install && cd ..
+cd frontend && pnpm install && cd ..
 
 # 4. Verify (tests & lint)
 uv run pytest tests/ -v
 uv run ruff check src/ tests/
-cd frontend && npm run lint && npm run test:ci
+cd frontend && pnpm run lint && pnpm run test:ci
 ```
 
 ## Workflow
@@ -101,11 +101,11 @@ uv run ruff check --fix src/ tests/   # auto-fix where possible
 ```bash
 cd frontend
 
-npm run lint            # ESLint
-npm run build           # tsc -b + vite build (type check)
-npm run test:ci         # Vitest
-npm run e2e:install     # first time only
-npm run e2e             # Playwright
+pnpm run lint           # ESLint
+pnpm run build          # tsc -b + vite build (type check)
+pnpm run test:ci        # Vitest
+pnpm run e2e:install    # first time only
+pnpm run e2e            # Playwright
 ```
 
 ### Re-capturing Screenshots (when UI changes)
@@ -114,15 +114,15 @@ When you change the UI visually, regenerate `docs/screenshots/{ja,en}/`:
 
 ```bash
 cd frontend
-npm run e2e:install   # first time only
-npm run screenshots
+pnpm run e2e:install   # first time only
+pnpm run screenshots
 git add ../docs/screenshots/
 git commit -m "docs: スクリーンショットを再撮影"
 ```
 
 ### Coverage Goal: 80%
 
-Add tests for new features and bug fixes. Run `uv run pytest --cov` for backend coverage and `npm run test:ci -- --coverage` for frontend.
+Add tests for new features and bug fixes. Run `uv run pytest --cov` for backend coverage and `pnpm run test:ci -- --coverage` for frontend.
 
 ### i18n (Multilingual Support)
 

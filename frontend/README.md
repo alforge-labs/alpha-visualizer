@@ -13,8 +13,8 @@ Vite + React + TypeScript 製のバックテスト結果ビューワー。`alpha
 ## 開発
 
 ```bash
-# 1) 依存をインストール (visx 依存のため legacy peer-deps が .npmrc で有効)
-npm install
+# 1) 依存をインストール (visx の transitive peer 解決のため strict-peer-dependencies=false を .npmrc で設定)
+pnpm install
 
 # 2) FastAPI バックエンドを起動 (別ターミナル、リポジトリルートから)
 cd ..
@@ -22,16 +22,16 @@ uv run vis serve --forge-dir /path/to/alpha-strategies --port 8000
 
 # 3) Vite dev server (HMR、`/api` は 8000 にプロキシ)
 cd frontend
-npm run dev
+pnpm run dev
 # → http://localhost:5173
 ```
 
-別の API ホストを使いたい場合は `VITE_API_PROXY=http://other:9000 npm run dev`。
+別の API ホストを使いたい場合は `VITE_API_PROXY=http://other:9000 pnpm run dev`。
 
 ## ビルド
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 `build.outDir = ../src/alpha_visualizer/static/` に成果物を出力するため、ビルドだけで FastAPI 経由の SPA 配信が更新される。
