@@ -52,8 +52,8 @@ Presentational コンポーネント（`*Screen.tsx` / `*V.tsx` / design primiti
 ストーリーとして視覚確認するために Storybook 9.x を導入。
 
 ```bash
-npm run storybook       # 開発サーバー（http://localhost:6006）
-npm run build-storybook # 静的ビルド → frontend/storybook-static/（gitignore 済み）
+pnpm run storybook       # 開発サーバー（http://localhost:6006）
+pnpm run build-storybook # 静的ビルド → frontend/storybook-static/（gitignore 済み）
 ```
 
 ストーリーの命名規約: `<Component>.stories.tsx` を同じディレクトリに置く。

@@ -173,4 +173,4 @@ Step 1・Step 2 で問題がなければ以下を実行する。
 - Python の仮想環境（`.venv`）が存在し `uv sync` 済みであることを前提とする。
 - `pip-licenses` と `prettytable` はこのコマンド専用の監査ツールであり、`pyproject.toml` の
   依存には含めない（`uv pip install` で都度インストールする）。
-- フロントエンドの `node_modules/` が存在しない場合は `npm install` を先に実行すること。
+- フロントエンドの `node_modules/` が存在しない場合は `pnpm install` を先に実行すること。

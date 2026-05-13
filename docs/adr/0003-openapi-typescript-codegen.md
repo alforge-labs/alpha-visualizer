@@ -31,20 +31,20 @@ frontend/src/api/* (consumer)
 
 | コマンド | 役割 |
 |---|---|
-| `npm run gen:openapi` | Python 経由で `frontend/openapi.json` を再生成 |
-| `npm run gen:types` | `openapi.json` から `types.gen.ts` を再生成 |
-| `npm run gen` | 上記 2 つを順番に実行 |
-| `npm run gen:check` | 再生成して git diff、変更があれば fail（CI で利用） |
+| `pnpm run gen:openapi` | Python 経由で `frontend/openapi.json` を再生成 |
+| `pnpm run gen:types` | `openapi.json` から `types.gen.ts` を再生成 |
+| `pnpm run gen` | 上記 2 つを順番に実行 |
+| `pnpm run gen:check` | 再生成して git diff、変更があれば fail（CI で利用） |
 
 ### CI
 
 CI に `openapi-types` ジョブを追加:
-1. uv + npm のセットアップ
-2. `npm run gen` を実行
+1. uv + pnpm のセットアップ
+2. `pnpm run gen` を実行
 3. `git diff --exit-code frontend/openapi.json frontend/src/api/types.gen.ts` で commit 漏れを検出
 4. Pydantic スキーマが変わっているのに生成ファイルが更新されていなければ CI が落ちる
 
-開発者は **バックエンドの schema を変更したら必ず `cd frontend && npm run gen` を実行**し、生成物もコミットに含める運用とする。
+開発者は **バックエンドの schema を変更したら必ず `cd frontend && pnpm run gen` を実行**し、生成物もコミットに含める運用とする。
 
 ## 段階的移行方針
 
@@ -79,6 +79,6 @@ CI に `openapi-types` ジョブを追加:
 - 開発者が API レスポンスの型を OpenAPI で参照できる
 
 ### コスト
-- CI に 1 ジョブ増（uv + npm セットアップが必要、~2 分）
-- 開発者は schema 変更時に `npm run gen` を実行する必要あり
+- CI に 1 ジョブ増（uv + pnpm セットアップが必要、~2 分）
+- 開発者は schema 変更時に `pnpm run gen` を実行する必要あり
 - 生成ファイル 2 個（`openapi.json` ~2,000 行 / `types.gen.ts` ~1,500 行）が repo に入る

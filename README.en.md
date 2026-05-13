@@ -98,10 +98,10 @@ uv run pytest tests/ -v
 uv run ruff check src/ tests/
 
 # Frontend dev server (hot reload)
-cd frontend && npm install && npm run dev
+cd frontend && pnpm install && pnpm run dev
 
 # Frontend production build (outputs to src/alpha_visualizer/static/)
-cd frontend && npm run build
+cd frontend && pnpm install && pnpm run build
 ```
 
 See [CONTRIBUTING.en.md](CONTRIBUTING.en.md) for details.

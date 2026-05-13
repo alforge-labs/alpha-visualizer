@@ -35,20 +35,25 @@ jobs:
       # Issue #149 以降、wheel に同梱する静的アセット
       # (src/alpha_visualizer/static/) はリポジトリ管理対象外。
       # PyPI 配布用に wheel build 直前で frontend を再生成する。
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install npm dependencies
+      - name: Install pnpm dependencies
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend (PROD bundle)
         working-directory: frontend
-        run: npm run build
+        run: pnpm run build
 
       - name: Build
         run: uv build
