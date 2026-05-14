@@ -7,7 +7,9 @@ Vite + React + TypeScript 製のバックテスト結果ビューワー。`alpha
 - **3 ページ**: Browse（戦略一覧）/ Detail（4 タブ：Backtest / IS-OOS / WFO / Run History）/ Compare（戦略比較）
 - **2 バリエーション**: **Atelier**（Light, クリーム × テラコッタ。anthropic.com 風のエディトリアル）/ **Lab**（Dark, 深いプラム × 温かい琥珀。研究機関の計器パネル風）
 - **JA / EN i18n**（DetailToolbar のトグル・URL パラメータ・localStorage で永続化）
-- **visx ベースの主要チャート**: Equity / Drawdown / MonthlyHeatmap は visx で実装し、テーマ切替に追従
+- **チャート 2 段構え（ハイブリッド方針）**:
+  - **金融時系列**（Equity / Drawdown / WFO window 等）は [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts) (Apache 2.0) を採用予定。multi-pane 時間軸同期・クロスヘア・スムーズスクロール・対数スケールを標準装備。PoC として `BacktestScreen` の Equity + Drawdown を実装（feature flag `?tv=1` / `VITE_USE_LIGHTWEIGHT_CHARTS=1` で切替、安定確認後にデフォルト化予定）。詳細は issue #180。
+  - **分析プロット**（MonthlyHeatmap / CorrelationHeatmap / ReturnDistribution / AnnualReturnsBar 等）は引き続き [visx](https://airbnb.io/visx/) ベース。SVG 描画と a11y、ヒートマップやスキャッターの自由度を優先。
 - **リアルデータ + モックフォールバック**: API オフラインでもモック (`src/mock/btData.ts`) で全画面を描画
 
 ## 開発
@@ -76,7 +78,8 @@ visualizer/src/
 │   ├── tokens.css            # CSS 変数（Atelier / Lab）
 │   ├── useChartTheme.ts      # tokens.css を JS から読むフック
 │   └── primitives/           # 共通 UI プリミティブ
-├── charts/visx/              # visx 製チャート（Equity / Drawdown / MonthlyHeatmap）
+├── charts/visx/              # visx 製チャート（MonthlyHeatmap / 分析プロット）。Equity/Drawdown 旧実装も flag 撤去まで残置
+├── charts/tv/                # TradingView lightweight-charts 製チャート（issue #180）。EquityDrawdownPaneTV と純粋ヘルパー
 ├── components/
 │   ├── DetailToolbar.tsx / StrategyHero.tsx / MetricsSummaryBarV2.tsx
 │   ├── browser/              # Browse 画面用テーブル・パネル

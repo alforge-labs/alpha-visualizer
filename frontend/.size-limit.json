@@ -1,0 +1,20 @@
+[
+  {
+    "name": "tv chunk (lightweight-charts)",
+    "path": "../src/alpha_visualizer/static/assets/tv-*.js",
+    "limit": "60 KB",
+    "gzip": true
+  },
+  {
+    "name": "visx chunk",
+    "path": "../src/alpha_visualizer/static/assets/visx-*.js",
+    "limit": "200 KB",
+    "gzip": true
+  },
+  {
+    "name": "react chunk",
+    "path": "../src/alpha_visualizer/static/assets/react-*.js",
+    "limit": "60 KB",
+    "gzip": true
+  }
+]
