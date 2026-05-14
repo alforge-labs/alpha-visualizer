@@ -21,6 +21,7 @@ import {
 } from '../constants/featureFlags'
 import { MonthlyHeatmapV } from '../charts/visx/MonthlyHeatmapV'
 import { RollingMetricsChart } from '../components/charts/RollingMetricsChart'
+import { RollingMetricsChartTV } from '../charts/tv/RollingMetricsChartTV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
 import { MAEMFEScatter } from '../components/charts/MAEMFEScatter'
@@ -332,7 +333,19 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           </div>
           <div>
             <SectionLabel>{L('ローリング Sharpe', 'Rolling Sharpe')}</SectionLabel>
-            <RollingMetricsChart dailyReturns={data.daily_returns} dates={data.equity.dates} compact={compact} />
+            {useTv ? (
+              <RollingMetricsChartTV
+                dailyReturns={data.daily_returns}
+                dates={data.equity.dates}
+                compact={compact}
+              />
+            ) : (
+              <RollingMetricsChart
+                dailyReturns={data.daily_returns}
+                dates={data.equity.dates}
+                compact={compact}
+              />
+            )}
           </div>
           <div>
             <SectionLabel>{L('リターン分布', 'Return Distribution')}</SectionLabel>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { StrategyComparison } from '../api/types'
@@ -6,10 +6,12 @@ import { Card, Chip, Divider, SectionHeader, Stat } from '../design/primitives'
 import { CompareTable } from '../components/metrics/CompareTable'
 import { CompareEquityV } from '../charts/visx/CompareEquityV'
 import type { CompareSeries } from '../charts/visx/CompareEquityV'
+import { CompareEquityTV } from '../charts/tv/CompareEquityTV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
+import { resolveLightweightChartsFlag } from '../constants/featureFlags'
 
 interface Props {
   data: StrategyComparison[]
@@ -41,6 +43,7 @@ function sharpeTone(v: number | null | undefined): 'positive' | 'warning' | 'neg
 export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement | null {
   const L = makeL(lang)
   const theme = useChartTheme()
+  const [useTv] = useState<boolean>(() => resolveLightweightChartsFlag())
 
   const series: CompareSeries[] = useMemo(() => {
     return data
@@ -173,7 +176,11 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
           </div>
 
           {series.length > 0 ? (
-            <CompareEquityV series={series} height={320} />
+            useTv ? (
+              <CompareEquityTV series={series} height={320} />
+            ) : (
+              <CompareEquityV series={series} height={320} />
+            )
           ) : (
             <p
               style={{
