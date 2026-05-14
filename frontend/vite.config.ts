@@ -26,21 +26,36 @@ export default defineConfig({
     outDir: '../src/alpha_visualizer/static',
     emptyOutDir: true,
     sourcemap: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // 大きい / 安定した依存を別 chunk にして長期キャッシュを効かせる。
         // 各 Page が visx を共通利用するため、visx を切り出すと page chunk
         // が小さくなり追加 fetch も dedupe される。
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('@visx/') || id.includes('d3-')) return 'visx'
-            if (id.includes('react-router-dom') || id.includes('@remix-run/'))
-              return 'react-router'
-            if (id.includes('/react/') || id.includes('/react-dom/'))
-              return 'react'
-            if (id.includes('@fontsource')) return 'fonts'
-            return 'vendor'
-          }
+        // issue #180: lightweight-charts / fancy-canvas は `tv` chunk に分離して
+        // size-limit のサイズ gate を効かせる。
+        advancedChunks: {
+          groups: [
+            {
+              name: 'tv',
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:lightweight-charts|fancy-canvas)/,
+            },
+            {
+              name: 'visx',
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:@visx[+/]|d3-)/,
+            },
+            {
+              name: 'react-router',
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:react-router-dom|@remix-run)/,
+            },
+            {
+              name: 'react',
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:react|react-dom|scheduler)@/,
+            },
+            {
+              name: 'fonts',
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?@fontsource/,
+            },
+          ],
         },
       },
     },

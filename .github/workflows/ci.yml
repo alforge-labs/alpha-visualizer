@@ -61,6 +61,9 @@ jobs:
       - name: Build (tsc -b && vite build)
         run: pnpm run build
 
+      - name: Bundle size check (size-limit)
+        run: pnpm run size
+
   openapi-types:
     name: OpenAPI types drift check
     runs-on: ubuntu-latest

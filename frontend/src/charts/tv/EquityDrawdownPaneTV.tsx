@@ -1,0 +1,267 @@
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
+import {
+  AreaSeries,
+  HistogramSeries,
+  LineSeries,
+  createChart,
+  createSeriesMarkers,
+  type IChartApi,
+  type ISeriesApi,
+  type ISeriesMarkersPluginApi,
+  type Time,
+} from 'lightweight-charts'
+
+import { RANGES } from '../../contexts/dashboardConstants'
+import { useChartTheme } from '../../design/useChartTheme'
+import { useEquityViewport } from '../../hooks/useEquityViewport'
+import {
+  benchmarkLineOptions,
+  chartThemeToOptions,
+  drawdownHistogramOptions,
+  equityAreaOptions,
+} from './theme'
+import { fromViewportPoints, makeCutoffMarkers, toHistogramData } from './data'
+
+interface RegimeSeriesInput {
+  states: number[]
+  n_states: number
+  label_names?: Record<string, string>
+}
+
+export interface EquityDrawdownPaneTVProps {
+  equity: number[]
+  dates: string[]
+  drawdown: number[]
+  isCutoffIdx: number
+  benchmark?: number[]
+  showBenchmark?: boolean
+  compact?: boolean
+  /**
+   * PoC では未対応。flag 撤去 PR で対応予定（将来 issue）。受け取って silent に無視する。
+   */
+  regimeSeries?: RegimeSeriesInput
+  showRegime?: boolean
+  ref?: React.Ref<EquityDrawdownPaneTVHandle>
+}
+
+export interface EquityDrawdownPaneTVHandle {
+  /** lightweight-charts の Canvas を PNG として保存する。 */
+  exportPng: (filename: string) => void
+}
+
+export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
+  const {
+    equity,
+    dates,
+    drawdown,
+    isCutoffIdx,
+    benchmark,
+    showBenchmark = false,
+    compact = false,
+    ref,
+  } = props
+
+  const theme = useChartTheme()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const equitySeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
+  const benchmarkSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const drawdownSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
+
+  const { range, setRange, points } = useEquityViewport({ equity, dates, benchmark })
+
+  const isPositive = useMemo(() => {
+    if (points.length < 2) return true
+    const first = points[0]?.value ?? 0
+    const last = points[points.length - 1]?.value ?? 0
+    return last >= first
+  }, [points])
+
+  const { equityData, benchmarkData, drawdownData, markers } = useMemo(() => {
+    const conv = fromViewportPoints(points)
+    const ddSlicedDates = points.map((p) => p.date.toISOString().slice(0, 10))
+    const ddSlicedValues = points.map((p) => drawdown[p.origIdx] ?? 0)
+    const drawdownDataLocal = toHistogramData(ddSlicedDates, ddSlicedValues)
+    const times = conv.equity.map((d) => d.time)
+    const markersLocal = makeCutoffMarkers(conv.origIndices, isCutoffIdx, times, theme.text2)
+    return {
+      equityData: conv.equity,
+      benchmarkData: conv.benchmark,
+      drawdownData: drawdownDataLocal,
+      markers: markersLocal,
+    }
+  }, [points, drawdown, isCutoffIdx, theme.text2])
+
+  // チャートのライフサイクル管理。マウント時に一度だけ create / remove。
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const chart = createChart(container, {
+      autoSize: true,
+      ...chartThemeToOptions(theme),
+    })
+    chartRef.current = chart
+
+    const equitySeries = chart.addSeries(
+      AreaSeries,
+      equityAreaOptions(theme, isPositive),
+      0,
+    )
+    equitySeriesRef.current = equitySeries
+
+    const drawdownSeries = chart.addSeries(
+      HistogramSeries,
+      drawdownHistogramOptions(theme),
+      1,
+    )
+    drawdownSeriesRef.current = drawdownSeries
+
+    markersPluginRef.current = createSeriesMarkers(equitySeries, [])
+
+    return () => {
+      markersPluginRef.current = null
+      equitySeriesRef.current = null
+      benchmarkSeriesRef.current = null
+      drawdownSeriesRef.current = null
+      chart.remove()
+      chartRef.current = null
+    }
+    // create-once: theme / isPositive の更新は別 effect で applyOptions する。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // テーマ変更で chart / series の見た目だけ更新（再マウントしない）。
+  useEffect(() => {
+    const chart = chartRef.current
+    const equitySeries = equitySeriesRef.current
+    const drawdownSeries = drawdownSeriesRef.current
+    if (!chart || !equitySeries || !drawdownSeries) return
+    chart.applyOptions(chartThemeToOptions(theme))
+    equitySeries.applyOptions(equityAreaOptions(theme, isPositive))
+    drawdownSeries.applyOptions(drawdownHistogramOptions(theme))
+    if (benchmarkSeriesRef.current) {
+      benchmarkSeriesRef.current.applyOptions(benchmarkLineOptions(theme))
+    }
+  }, [theme, isPositive])
+
+  // showBenchmark の切替: 必要な時に series を生やし、不要時は破棄する。
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const wantBenchmark = showBenchmark && benchmarkData.length > 0
+    if (wantBenchmark && !benchmarkSeriesRef.current) {
+      benchmarkSeriesRef.current = chart.addSeries(LineSeries, benchmarkLineOptions(theme), 0)
+    } else if (!wantBenchmark && benchmarkSeriesRef.current) {
+      chart.removeSeries(benchmarkSeriesRef.current)
+      benchmarkSeriesRef.current = null
+    }
+  }, [showBenchmark, benchmarkData.length, theme])
+
+  // データ反映
+  useEffect(() => {
+    equitySeriesRef.current?.setData(equityData)
+    drawdownSeriesRef.current?.setData(drawdownData)
+    if (showBenchmark && benchmarkSeriesRef.current) {
+      benchmarkSeriesRef.current.setData(benchmarkData)
+    }
+    markersPluginRef.current?.setMarkers(markers)
+
+    // viewport を equity の全範囲（slice 済み）に合わせる
+    const first = equityData[0]?.time
+    const last = equityData[equityData.length - 1]?.time
+    if (first != null && last != null) {
+      chartRef.current?.timeScale().setVisibleRange({ from: first, to: last })
+    }
+  }, [equityData, benchmarkData, drawdownData, markers, showBenchmark])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      exportPng: (filename: string) => {
+        const chart = chartRef.current
+        if (!chart) return
+        const canvas = chart.takeScreenshot()
+        canvas.toBlob((blob) => {
+          if (!blob) return
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename
+          a.click()
+          URL.revokeObjectURL(url)
+        }, 'image/png')
+      },
+    }),
+    [],
+  )
+
+  const height = compact ? 320 : 440
+
+  return (
+    <div
+      data-testid="equity-drawdown-pane-tv"
+      style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'relative' }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          paddingLeft: 64,
+          flexWrap: 'wrap',
+        }}
+      >
+        {RANGES.map((r) => {
+          const active = r === range
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRange(r)}
+              style={{
+                height: 24,
+                padding: '0 10px',
+                background: active ? 'var(--accent-bg)' : 'transparent',
+                border: active ? '1px solid var(--accent-glow)' : '1px solid transparent',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                fontWeight: 600,
+                letterSpacing: 'var(--tracking-mono)',
+                color: active ? 'var(--accent)' : 'var(--text3)',
+                transition: 'all var(--motion-fast)',
+              }}
+            >
+              {r}
+            </button>
+          )
+        })}
+        {showBenchmark && (
+          <div
+            style={{
+              marginLeft: 12,
+              display: 'flex',
+              gap: 12,
+              alignItems: 'center',
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+            }}
+          >
+            <span style={{ color: theme.accent }}>━━ Strategy</span>
+            <span>╌╌ Buy &amp; Hold</span>
+          </div>
+        )}
+      </div>
+
+      <div
+        ref={containerRef}
+        role="img"
+        aria-label={`Equity and drawdown chart, ${equityData.length} points`}
+        style={{ width: '100%', height }}
+      />
+    </div>
+  )
+}
