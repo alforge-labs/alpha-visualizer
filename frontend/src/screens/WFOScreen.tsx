@@ -4,7 +4,9 @@ import { makeL } from '../i18n/strings'
 import type { WFOResult } from '../api/types'
 import { SectionHeader, SectionLabel, Tab, TabBar } from '../design/primitives'
 import { EquityChartV } from '../charts/visx/EquityChartV'
+import { WFOEquityTV } from '../charts/tv/WFOEquityTV'
 import { WFOTimeline } from '../components/charts/WFOTimeline'
+import { resolveLightweightChartsFlag } from '../constants/featureFlags'
 
 interface Props {
   data: WFOResult
@@ -16,6 +18,7 @@ type Tab = 'timeline' | 'equity'
 
 export function WFOScreen({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('timeline')
+  const [useTv] = useState<boolean>(() => resolveLightweightChartsFlag())
   const L = makeL(lang)
   const tabs: ReadonlyArray<readonly [Tab, string]> = [
     ['timeline', L('タイムライン', 'Timeline')],
@@ -46,12 +49,21 @@ export function WFOScreen({ data, compact, lang }: Props) {
               'OOS Composite Equity (stitched OOS windows)'
             )}
           </SectionLabel>
-          <EquityChartV
-            equity={data.composite_equity}
-            dates={data.composite_dates}
-            isCutoffIdx={-1}
-            compact={compact}
-          />
+          {useTv ? (
+            <WFOEquityTV
+              composite_equity={data.composite_equity}
+              composite_dates={data.composite_dates}
+              windows={data.windows}
+              compact={compact}
+            />
+          ) : (
+            <EquityChartV
+              equity={data.composite_equity}
+              dates={data.composite_dates}
+              isCutoffIdx={-1}
+              compact={compact}
+            />
+          )}
           <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             {data.windows.map((w) => (
               <div
