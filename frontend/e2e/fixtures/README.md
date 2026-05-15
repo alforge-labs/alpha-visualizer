@@ -38,4 +38,4 @@ git diff --stat frontend/e2e/fixtures/
 ## 受け入れ基準
 
 - DB サイズ < 1MB（実測 ~45KB）
-- `vis serve --forge-dir frontend/e2e/fixtures/forge --port 8123` で起動して /browse, /detail/sma_cross, /compare?ids=sma_cross,rsi_reversal が表示される
+- `alpha-vis serve --forge-dir frontend/e2e/fixtures/forge --port 8123` で起動して /browse, /detail/sma_cross, /compare?ids=sma_cross,rsi_reversal が表示される

@@ -1,6 +1,6 @@
 # alpha-visualizer — Backtest Viewer (frontend)
 
-Vite + React + TypeScript 製のバックテスト結果ビューワー。`alpha-visualizer` パッケージの FastAPI バックエンド (`src/alpha_visualizer/`) に SPA としてマウントされ、`vis serve` 一発で API + UI が起動する。
+Vite + React + TypeScript 製のバックテスト結果ビューワー。`alpha-visualizer` パッケージの FastAPI バックエンド (`src/alpha_visualizer/`) に SPA としてマウントされ、`alpha-vis serve` 一発で API + UI が起動する。
 
 ## 特徴
 
@@ -20,7 +20,7 @@ pnpm install
 
 # 2) FastAPI バックエンドを起動 (別ターミナル、リポジトリルートから)
 cd ..
-uv run vis serve --forge-dir /path/to/alpha-strategies --port 8000
+uv run alpha-vis serve --forge-dir /path/to/alpha-strategies --port 8000
 
 # 3) Vite dev server (HMR、`/api` は 8000 にプロキシ)
 cd frontend

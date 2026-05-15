@@ -8,10 +8,10 @@
 
 ```bash
 # パッケージインストール後（PyPI または editable install）
-uv run vis serve --use-bundled-samples --no-open
+uv run alpha-vis serve --use-bundled-samples --no-open
 
 # またはパスを明示
-uv run vis serve --forge-dir samples/sample-forge --no-open
+uv run alpha-vis serve --forge-dir samples/sample-forge --no-open
 ```
 
 ブラウザで `http://127.0.0.1:8000` を開くと、以下が確認できます：
@@ -84,7 +84,7 @@ samples/
 │   ├── compatibility_matrix.py        # 戦略 × 銘柄 相性表
 │   ├── ideas_defs.py                  # 5 件のサンプルアイデア
 │   └── writers.py                     # SQLite/JSON/YAML 書き出し
-└── sample-forge/                      # vis serve --forge-dir のターゲット
+└── sample-forge/                      # alpha-vis serve --forge-dir のターゲット
     ├── forge.yaml
     └── data/
         ├── results/backtest_results.db

@@ -3,6 +3,15 @@
 alpha-visualizer の全バージョン変更履歴です。
 
 
+## [Unreleased]
+
+### ⚠️  Breaking Changes
+
+- **CLI コマンドを `vis` → `alpha-vis` にリネーム**。macOS には標準コマンド `/usr/bin/vis`（BSD 系テキスト可視化ユーティリティ）があり、`$PATH` の優先順序によってはこちらが先に解決され、`vis serve: No such file or directory` で初学者が完全に詰まる問題を解消するため。
+  - 既存ユーザーは `vis ...` を `alpha-vis ...` に置き換えてください。
+  - `pyproject.toml` の `[project.scripts]` から `vis` エントリを削除し、`alpha-vis = "alpha_visualizer.cli:cli"` を追加しました。
+
+
 ## [0.2.0] - 2026-05-11
 
 

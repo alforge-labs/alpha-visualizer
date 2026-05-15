@@ -8,10 +8,10 @@
 
 ```bash
 # After installing the package (from PyPI or as editable install)
-uv run vis serve --use-bundled-samples --no-open
+uv run alpha-vis serve --use-bundled-samples --no-open
 
 # Or specify the path explicitly
-uv run vis serve --forge-dir samples/sample-forge --no-open
+uv run alpha-vis serve --forge-dir samples/sample-forge --no-open
 ```
 
 Open `http://127.0.0.1:8000` to explore:
@@ -84,7 +84,7 @@ samples/
 │   ├── compatibility_matrix.py        # strategy × symbol compatibility table
 │   ├── ideas_defs.py                  # 5 sample ideas
 │   └── writers.py                     # SQLite / JSON / YAML writers
-└── sample-forge/                      # target for `vis serve --forge-dir`
+└── sample-forge/                      # target for `alpha-vis serve --forge-dir`
     ├── forge.yaml
     └── data/
         ├── results/backtest_results.db
