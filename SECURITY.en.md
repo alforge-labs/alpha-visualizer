@@ -65,7 +65,7 @@ Please refrain from public disclosure before a fix is released.
 
 In scope:
 
-- `vis serve` HTTP / API endpoints
+- `alpha-vis serve` HTTP / API endpoints
 - `backtest_results.db` read paths (SQL injection, etc.)
 - Strategy JSON / `ideas.json` parsers
 - The frontend SPA (XSS, etc.)
@@ -79,8 +79,8 @@ Out of scope:
 
 ## Known Security Considerations
 
-- **`vis serve` listens on `127.0.0.1` by default.** When using `--host 0.0.0.0`, configure external access controls yourself.
-- **No authentication is built in.** `vis serve` is designed for trusted networks (local development, internal networks).
+- **`alpha-vis serve` listens on `127.0.0.1` by default.** When using `--host 0.0.0.0`, configure external access controls yourself.
+- **No authentication is built in.** `alpha-vis serve` is designed for trusted networks (local development, internal networks).
 - **`backtest_results.db` access uses parameterized SQLAlchemy queries**, so SQL injection at the API layer is not expected.
 
 Thanks for helping keep the project secure! 🛡️

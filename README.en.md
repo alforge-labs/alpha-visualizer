@@ -9,7 +9,9 @@
 
 > **A standalone web visualization tool for AlphaForge backtest results**
 
-`alpha-visualizer` reads `backtest_results.db` (SQLite) and strategy JSON files produced by the [AlphaForge](https://alforgelabs.com/) backtest engine and serves a browser-based dashboard. A single `vis serve` command launches a FastAPI + React SPA that lets you browse strategies, compare metrics, inspect optimization results, and reconcile live trading against backtests.
+`alpha-visualizer` reads `backtest_results.db` (SQLite) and strategy JSON files produced by the [AlphaForge](https://alforgelabs.com/) backtest engine and serves a browser-based dashboard. A single `alpha-vis serve` command launches a FastAPI + React SPA that lets you browse strategies, compare metrics, inspect optimization results, and reconcile live trading against backtests.
+
+> **Breaking change in 0.3.0**: The CLI command was renamed from `vis` to `alpha-vis`. Plain `vis` collided with macOS BSD `vis(1)` (text visibility utility), so beginners hit `vis: serve: No such file or directory` when trying the legacy `vis serve` command. See [CHANGELOG](CHANGELOG.md).
 
 ![Browse view](docs/screenshots/en/browse.png)
 
@@ -40,16 +42,16 @@ pip install alpha-visualizer
 
 ```bash
 # From your AlphaForge working directory (where backtest_results.db / strategies/ live)
-vis serve
+alpha-vis serve
 
 # Or specify the directory explicitly
-vis serve --forge-dir /path/to/alpha-strategies
+alpha-vis serve --forge-dir /path/to/alpha-strategies
 
 # Custom port / host
-vis serve --port 9000 --host 0.0.0.0
+alpha-vis serve --port 9000 --host 0.0.0.0
 
 # Don't open the browser automatically
-vis serve --no-open
+alpha-vis serve --no-open
 ```
 
 The browser opens **http://127.0.0.1:8000**. Press `Ctrl+C` to stop.
@@ -61,7 +63,7 @@ The browser opens **http://127.0.0.1:8000**. Press `Ctrl+C` to stop.
 | `FORGE_CONFIG` | Absolute path to `forge.yaml`. **Takes precedence over `--forge-dir`** (search order: explicit `config_path` arg → `FORGE_CONFIG` → `<forge_dir>/forge.yaml`) |
 | `VITE_API_PROXY` | API proxy target for the frontend dev server (default `http://127.0.0.1:8000`) |
 
-If `vis serve --forge-dir /path/to/A` seems to be reading a different DB than expected, this environment variable is almost always the cause. Run `unset FORGE_CONFIG` to clear it.
+If `alpha-vis serve --forge-dir /path/to/A` seems to be reading a different DB than expected, this environment variable is almost always the cause. Run `unset FORGE_CONFIG` to clear it.
 
 ## Screenshots
 

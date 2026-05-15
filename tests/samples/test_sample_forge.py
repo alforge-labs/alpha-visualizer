@@ -1,6 +1,6 @@
 """samples/sample-forge を FastAPI TestClient で叩く統合テスト。
 
-`vis serve --use-bundled-samples` で起動した場合に、フロントが要求する各
+`alpha-vis serve --use-bundled-samples` で起動した場合に、フロントが要求する各
 API エンドポイントが想定通りの件数・形状を返すかを確認する。
 """
 

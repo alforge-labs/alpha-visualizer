@@ -6,7 +6,7 @@
 完了後、``samples/sample-forge/`` は alpha-visualizer のサンプル forge_dir として
 そのまま使える状態になる::
 
-    uv run vis serve --forge-dir samples/sample-forge --no-open
+    uv run alpha-vis serve --forge-dir samples/sample-forge --no-open
 
 設計方針:
     - 完全合成データ（実銘柄を含まない）で法的に再配布フリー。
@@ -84,7 +84,7 @@ def main() -> int:
             print(f"  {key:>20s}: {value}")
     print()
     print("[ok] sample-forge/ ready. Launch with:")
-    print("    uv run vis serve --forge-dir samples/sample-forge --no-open")
+    print("    uv run alpha-vis serve --forge-dir samples/sample-forge --no-open")
     return 0
 
 

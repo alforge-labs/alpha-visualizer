@@ -9,7 +9,9 @@
 
 > **AlphaForge バックテスト結果を Web ブラウザで可視化するスタンドアロンツール**
 
-`alpha-visualizer` は、[AlphaForge](https://alforgelabs.com/) のバックテストエンジンが出力する `backtest_results.db`（SQLite）と戦略 JSON を直接読み取り、ブラウザベースのダッシュボードとして可視化します。`vis serve` 一発で FastAPI + React SPA が起動し、戦略の閲覧・比較・最適化結果の確認・ライブ実績との突き合わせまでを行えます。
+`alpha-visualizer` は、[AlphaForge](https://alforgelabs.com/) のバックテストエンジンが出力する `backtest_results.db`（SQLite）と戦略 JSON を直接読み取り、ブラウザベースのダッシュボードとして可視化します。`alpha-vis serve` 一発で FastAPI + React SPA が起動し、戦略の閲覧・比較・最適化結果の確認・ライブ実績との突き合わせまでを行えます。
+
+> **0.3.0 で破壊的変更**: コマンド名を `vis` → `alpha-vis` にリネームしました。macOS 標準の `/usr/bin/vis`（BSD 系テキスト可視化ユーティリティ）と衝突して、旧 `vis serve` コマンドが `vis: serve: No such file or directory` などになる初学者の詰まりを解消するためです。詳細は [CHANGELOG](CHANGELOG.md) を参照してください。
 
 ![Browse 画面](docs/screenshots/ja/browse.png)
 
@@ -40,16 +42,16 @@ pip install alpha-visualizer
 
 ```bash
 # AlphaForge の作業ディレクトリで（backtest_results.db / strategies/ がある場所）
-vis serve
+alpha-vis serve
 
 # パスを明示する場合
-vis serve --forge-dir /path/to/alpha-strategies
+alpha-vis serve --forge-dir /path/to/alpha-strategies
 
 # ポート・ホスト指定
-vis serve --port 9000 --host 0.0.0.0
+alpha-vis serve --port 9000 --host 0.0.0.0
 
 # ブラウザを自動で開かない
-vis serve --no-open
+alpha-vis serve --no-open
 ```
 
 ブラウザで **http://127.0.0.1:8000** が開きます。`Ctrl+C` で停止します。
@@ -61,7 +63,7 @@ vis serve --no-open
 | `FORGE_CONFIG` | `forge.yaml` への絶対パス。**`--forge-dir` 引数より優先される**（探索順序: 引数 `config_path` → `FORGE_CONFIG` → `<forge_dir>/forge.yaml`） |
 | `VITE_API_PROXY` | フロント開発サーバーの API proxy 先（既定 `http://127.0.0.1:8000`） |
 
-開発時に予期せぬ `forge.yaml` が参照されている場合は `unset FORGE_CONFIG` で解除してください。手元で `vis serve --forge-dir /path/to/A` を打ったのに別ディレクトリの DB が読まれているときは、ほぼこの環境変数が原因です。
+開発時に予期せぬ `forge.yaml` が参照されている場合は `unset FORGE_CONFIG` で解除してください。手元で `alpha-vis serve --forge-dir /path/to/A` を打ったのに別ディレクトリの DB が読まれているときは、ほぼこの環境変数が原因です。
 
 ## スクリーンショット
 

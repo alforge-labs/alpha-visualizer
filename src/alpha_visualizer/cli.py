@@ -1,4 +1,4 @@
-"""vis CLI エントリーポイント"""
+"""alpha-vis CLI エントリーポイント"""
 
 import pathlib
 
@@ -92,7 +92,7 @@ def serve(
     app = create_app(config=config)
 
     url = f"http://{host}:{port}"
-    click.echo(f"vis serve: {url}  (Ctrl+C で停止)")
+    click.echo(f"alpha-vis serve: {url}  (Ctrl+C で停止)")
     click.echo(f"forge-dir: {forge_path}")
     click.echo(f"forge-db:  {config.forge_db}")
     if not config.forge_db.exists():
@@ -107,4 +107,4 @@ def serve(
         webbrowser.open(url)
 
     uvicorn.run(app, host=host, port=port)
-    click.echo("vis serve を停止しました。")
+    click.echo("alpha-vis serve を停止しました。")
