@@ -4,13 +4,15 @@ import { StrategySignalChartTV } from '../../charts/tv/StrategySignalChartTV'
 import { resolveLightweightChartsFlag } from '../../constants/featureFlags'
 import { Card, SectionHeader } from '../../design/primitives'
 import { useStrategyHistorical } from '../../hooks/useStrategyHistorical'
-import type { Trade } from '../../api/types'
+import type { RegimeSeries, Trade } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 
 export interface SignalChartCardProps {
   symbol: string | null
   trades: Trade[]
+  /** BacktestDetail.regime_series（未提供なら regime markers は描画しない） */
+  regimeSeries?: RegimeSeries | null
   lang: Lang
 }
 
@@ -25,7 +27,7 @@ export interface SignalChartCardProps {
  * StrategySignalChartTV 本体は純粋表示なので、本コンポーネントが上記の
  * UI 状態管理を担当することで関心の分離を保つ。
  */
-export function SignalChartCard({ symbol, trades, lang }: SignalChartCardProps) {
+export function SignalChartCard({ symbol, trades, regimeSeries, lang }: SignalChartCardProps) {
   const L = makeL(lang)
   // mount 時に 1 回だけ評価。?tv=1 で URL を切り替えた場合はリロード前提（既存 BacktestScreen と同等）。
   const [flagOn] = useState(() => resolveLightweightChartsFlag())
@@ -43,14 +45,18 @@ export function SignalChartCard({ symbol, trades, lang }: SignalChartCardProps) 
     )
   }
 
+  const caption = symbol
+    ? `${symbol} — 1d (β)${regimeSeries ? L('  •  regime 表示中', '  •  regime on') : ''}`
+    : undefined
+
   return (
-    <CardShell title={L('シグナル時系列', 'Signal Chart')} caption={symbol ? `${symbol} — 1d (β)` : undefined}>
-      <SignalChartBody symbol={symbol} trades={trades} lang={lang} />
+    <CardShell title={L('シグナル時系列', 'Signal Chart')} caption={caption}>
+      <SignalChartBody symbol={symbol} trades={trades} regimeSeries={regimeSeries} lang={lang} />
     </CardShell>
   )
 }
 
-function SignalChartBody({ symbol, trades, lang }: SignalChartCardProps) {
+function SignalChartBody({ symbol, trades, regimeSeries, lang }: SignalChartCardProps) {
   const L = makeL(lang)
   const state = useStrategyHistorical(symbol, '1d')
 
@@ -74,7 +80,12 @@ function SignalChartBody({ symbol, trades, lang }: SignalChartCardProps) {
   // ready
   return (
     <>
-      <StrategySignalChartTV bars={state.data.bars} trades={trades} />
+      <StrategySignalChartTV
+        bars={state.data.bars}
+        trades={trades}
+        regimeSeries={regimeSeries}
+        showRegime={regimeSeries != null}
+      />
       {trades.length === 0 && (
         <Hint>{L('シグナルなし', 'No signals')}</Hint>
       )}

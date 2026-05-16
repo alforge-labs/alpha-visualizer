@@ -10,9 +10,9 @@ import {
   type Time,
 } from 'lightweight-charts'
 
-import type { OhlcBar, Trade } from '../../api/types'
+import type { OhlcBar, RegimeSeries, Trade } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
-import { toCandlestickData } from './data'
+import { compareTime, toCandlestickData } from './data'
 import {
   candlestickOptions,
   chartThemeToOptions,
@@ -21,11 +21,20 @@ import {
   tpPriceLineOptions,
   tradeMarkerColors,
 } from './theme'
-import { pickFocusTrade, tradeToPriceLines, tradesToMarkers } from './trades'
+import { pickFocusTrade, regimeChangeMarkers, tradeToPriceLines, tradesToMarkers } from './trades'
 
 export interface StrategySignalChartTVProps {
   bars: OhlcBar[]
   trades: Trade[]
+  /**
+   * `BacktestDetail.regime_series` をそのまま渡す。`showRegime=true` のとき
+   * 状態遷移点に circle marker を打つ（trade markers と併存）。lightweight-charts
+   * では時間軸の背景塗り分けが標準で提供されないため marker ベースの最小実装で
+   * 開始し、将来 ISeriesPrimitive ベースの背景 overlay に拡張する余地を残す。
+   */
+  regimeSeries?: RegimeSeries | null
+  /** regime markers を表示するか（既定 false） */
+  showRegime?: boolean
   compact?: boolean
   ref?: React.Ref<StrategySignalChartTVHandle>
 }
@@ -36,7 +45,7 @@ export interface StrategySignalChartTVHandle {
 }
 
 export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
-  const { bars, trades, compact = false, ref } = props
+  const { bars, trades, regimeSeries, showRegime = false, compact = false, ref } = props
 
   const theme = useChartTheme()
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -47,7 +56,15 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
 
   const candlestickData = useMemo(() => toCandlestickData(bars), [bars])
   const colors = useMemo(() => tradeMarkerColors(theme), [theme])
-  const markers = useMemo(() => tradesToMarkers(trades, colors), [trades, colors])
+  const tradeMarkers = useMemo(() => tradesToMarkers(trades, colors), [trades, colors])
+  const regimeMarkers = useMemo(
+    () => (showRegime ? regimeChangeMarkers(regimeSeries, theme.text3) : []),
+    [showRegime, regimeSeries, theme.text3],
+  )
+  const markers = useMemo(() => {
+    if (regimeMarkers.length === 0) return tradeMarkers
+    return [...tradeMarkers, ...regimeMarkers].sort((a, b) => compareTime(a.time, b.time))
+  }, [tradeMarkers, regimeMarkers])
   const focusTrade = useMemo(() => pickFocusTrade(trades), [trades])
   const priceLineSpecs = useMemo(
     () => tradeToPriceLines(focusTrade, colors),
@@ -148,7 +165,9 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
       ref={containerRef}
       data-testid="strategy-signal-chart-tv"
       role="img"
-      aria-label={`Strategy signal chart, ${candlestickData.length} bars, ${trades.length} trades`}
+      aria-label={`Strategy signal chart, ${candlestickData.length} bars, ${trades.length} trades${
+        regimeMarkers.length > 0 ? `, ${regimeMarkers.length} regime changes` : ''
+      }`}
       style={{ width: '100%', height }}
     />
   )

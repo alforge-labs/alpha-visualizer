@@ -213,3 +213,31 @@ export const DenseMarkers: Story = {
   decorators: [withVariation('atelier')],
   args: { bars: denseBars, trades: denseTrades },
 }
+
+// ===== 6. WithRegime =====
+// regime 切替点に circle marker を打って trade markers と併存させる例。
+// 40 bars / 前半 low_vol / 後半 high_vol、その中に 3 trades を散らす。
+
+const regimeBars = generateBars(40, 0.27)
+const regimeTrades: Trade[] = [
+  makeTrade({ id: 1, direction: 'long', entry_date: regimeBars[3]?.time ?? '2024-01-05', exit_date: regimeBars[8]?.time ?? '2024-01-12', entry_price: regimeBars[3]?.close ?? 400, exit_price: regimeBars[8]?.close ?? 405, pnl: 500, return_pct: 1.2 }),
+  makeTrade({ id: 2, direction: 'short', entry_date: regimeBars[14]?.time ?? '2024-01-22', exit_date: regimeBars[20]?.time ?? '2024-01-29', entry_price: regimeBars[14]?.close ?? 410, exit_price: regimeBars[20]?.close ?? 403, pnl: 700, return_pct: 1.7 }),
+  makeTrade({ id: 3, direction: 'long', entry_date: regimeBars[28]?.time ?? '2024-02-08', exit_date: regimeBars[35]?.time ?? '2024-02-17', entry_price: regimeBars[28]?.close ?? 408, exit_price: regimeBars[35]?.close ?? 415, pnl: 700, return_pct: 1.7 }),
+]
+const regimeSeriesData = {
+  dates: regimeBars.map((b) => b.time),
+  // 前半 20 bars: state 0 (low_vol), 後半 20 bars: state 1 (high_vol)
+  states: regimeBars.map((_, i) => (i < 20 ? 0 : 1)),
+  n_states: 2,
+  label_names: { '0': 'low_vol', '1': 'high_vol' },
+}
+
+export const WithRegime: Story = {
+  decorators: [withVariation('atelier')],
+  args: {
+    bars: regimeBars,
+    trades: regimeTrades,
+    regimeSeries: regimeSeriesData,
+    showRegime: true,
+  },
+}
