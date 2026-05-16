@@ -5,7 +5,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`
 
 /**
  * README / alforge-labs サイト掲載用スクリーンショット撮影専用 config。
- * 既存の e2e フィクスチャを流用して `vis serve` を自動起動し、
+ * 既存の e2e フィクスチャを流用して `alpha-vis serve` を自動起動し、
  * `e2e/screenshots/capture.spec.ts` から各画面を順次撮影する。
  *
  * 出力先: ../docs/screenshots/{ja,en}/<page>.png
@@ -32,7 +32,7 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      'env FORGE_CONFIG= uv run vis serve --forge-dir frontend/e2e/fixtures/forge --forge-config frontend/e2e/fixtures/forge/forge.yaml --host 127.0.0.1 --port 8124 --no-open',
+      'env FORGE_CONFIG= uv run alpha-vis serve --forge-dir frontend/e2e/fixtures/forge --forge-config frontend/e2e/fixtures/forge/forge.yaml --host 127.0.0.1 --port 8124 --no-open',
     url: `${BASE_URL}/health`,
     cwd: '..',
     reuseExistingServer: !process.env.CI,

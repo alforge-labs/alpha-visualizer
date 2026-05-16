@@ -5,6 +5,7 @@
  * - ISO datetime (`T` 区切りや `Z`) は UTCTimestamp に変換する。
  */
 import type {
+  CandlestickData,
   HistogramData,
   LineData,
   SeriesMarker,
@@ -12,6 +13,7 @@ import type {
   UTCTimestamp,
 } from 'lightweight-charts'
 
+import type { OhlcBar } from '../../api/types'
 import type { EquityViewportPoint } from '../../hooks/useEquityViewport'
 
 const BUSINESS_DAY_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -42,6 +44,45 @@ export function toLineData(dates: string[], values: number[]): LineData[] {
     out.push({ time, value })
   }
   return out
+}
+
+/**
+ * `OhlcBar[]` を CandlestickSeries の入力データに変換する。
+ * 日付パース不能 / OHLC のどれかが非数値の行はスキップ。
+ * 出力は時刻昇順にソートする（lightweight-charts は unsorted で throw）。
+ */
+export function toCandlestickData(bars: OhlcBar[]): CandlestickData[] {
+  const out: CandlestickData[] = []
+  for (const bar of bars) {
+    const time = dateStringToTime(bar.time)
+    if (time == null) continue
+    if (
+      !Number.isFinite(bar.open)
+      || !Number.isFinite(bar.high)
+      || !Number.isFinite(bar.low)
+      || !Number.isFinite(bar.close)
+    ) continue
+    out.push({
+      time,
+      open: bar.open,
+      high: bar.high,
+      low: bar.low,
+      close: bar.close,
+    })
+  }
+  out.sort((a, b) => compareTime(a.time, b.time))
+  return out
+}
+
+/**
+ * Time 同士の比較。BusinessDay 文字列（YYYY-MM-DD）は文字列比較で十分、
+ * UTCTimestamp は数値比較。両方の型が混在しても通る簡易ルールを用意する。
+ */
+export function compareTime(a: Time, b: Time): number {
+  if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  // 型混在は実運用ではほぼ無いが、安全側で文字列に寄せて比較
+  return String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0
 }
 
 /**
