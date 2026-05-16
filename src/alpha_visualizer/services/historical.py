@@ -63,6 +63,9 @@ def _none_if_nan(value: Any) -> Any:
         if pd.isna(value):
             return None
     except (TypeError, ValueError):
+        # pd.isna は配列入力や独自型に対しては TypeError/ValueError を投げる。
+        # その場合は NaN テスト不能なので元の値をそのまま返して呼び出し側に委ねる。
+        # (CodeQL #43: empty-except の説明コメント要件を満たす)
         pass
     return value
 
