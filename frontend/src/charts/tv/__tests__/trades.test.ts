@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Trade } from '../../../api/types'
+import type { RegimeSeries, Trade } from '../../../api/types'
 import {
   pickFocusTrade,
+  regimeChangeMarkers,
   tradesToMarkers,
   tradeToPriceLines,
   type TradeMarkerColors,
@@ -151,5 +152,68 @@ describe('tradeToPriceLines', () => {
     )
     expect(lines).toHaveLength(1)
     expect(lines[0]?.kind).toBe('sl')
+  })
+})
+
+describe('regimeChangeMarkers', () => {
+  it('null / undefined / 配列なし → 空配列', () => {
+    expect(regimeChangeMarkers(null, '#888')).toEqual([])
+    expect(regimeChangeMarkers(undefined, '#888')).toEqual([])
+  })
+
+  it('長さ 0 / 1 → 空配列（遷移点がない）', () => {
+    const r0: RegimeSeries = { dates: [], states: [], n_states: 2 }
+    const r1: RegimeSeries = { dates: ['2025-01-02'], states: [0], n_states: 2 }
+    expect(regimeChangeMarkers(r0, '#888')).toEqual([])
+    expect(regimeChangeMarkers(r1, '#888')).toEqual([])
+  })
+
+  it('state が変わったバーだけ marker を返す', () => {
+    const r: RegimeSeries = {
+      dates: ['2025-01-02', '2025-01-03', '2025-01-04', '2025-01-05', '2025-01-06'],
+      states: [0, 0, 1, 1, 0],
+      n_states: 2,
+    }
+    const out = regimeChangeMarkers(r, '#888')
+    expect(out).toHaveLength(2)
+    expect(out[0]?.time).toBe('2025-01-04')
+    expect(out[1]?.time).toBe('2025-01-06')
+  })
+
+  it('label_names があれば marker text に short label を入れる', () => {
+    const r: RegimeSeries = {
+      dates: ['2025-01-02', '2025-01-03', '2025-01-04'],
+      states: [0, 1, 0],
+      n_states: 2,
+      label_names: { '0': 'low_vol', '1': 'high_vol' },
+    }
+    const out = regimeChangeMarkers(r, '#888')
+    expect(out).toHaveLength(2)
+    expect(out[0]?.text).toBe('high_vol')
+    expect(out[1]?.text).toBe('low_vol')
+  })
+
+  it('label_names が無ければ rN フォールバック', () => {
+    const r: RegimeSeries = {
+      dates: ['2025-01-02', '2025-01-03'],
+      states: [0, 2],
+      n_states: 3,
+    }
+    const out = regimeChangeMarkers(r, '#888')
+    expect(out[0]?.text).toBe('r2')
+  })
+
+  it('marker は aboveBar circle で指定色', () => {
+    const r: RegimeSeries = {
+      dates: ['2025-01-02', '2025-01-03'],
+      states: [0, 1],
+      n_states: 2,
+    }
+    const out = regimeChangeMarkers(r, '#abcdef')
+    expect(out[0]).toMatchObject({
+      position: 'aboveBar',
+      shape: 'circle',
+      color: '#abcdef',
+    })
   })
 })

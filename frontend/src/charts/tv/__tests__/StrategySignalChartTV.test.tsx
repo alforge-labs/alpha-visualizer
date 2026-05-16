@@ -189,4 +189,62 @@ describe('StrategySignalChartTV', () => {
     expect(el.getAttribute('aria-label')).toContain('10 bars')
     expect(el.getAttribute('aria-label')).toContain('1 trades')
   })
+
+  it('showRegime=true で regime 切替点 marker が trade markers と merge される', () => {
+    const regimeSeries = {
+      dates: ['2025-01-02', '2025-01-04', '2025-01-08'],
+      states: [0, 1, 0],
+      n_states: 2,
+    }
+    render(
+      <StrategySignalChartTV
+        bars={sampleBars}
+        trades={[trade({})]}
+        regimeSeries={regimeSeries}
+        showRegime
+      />,
+    )
+    const lastCall = setMarkersMock.mock.calls[setMarkersMock.mock.calls.length - 1]?.[0]
+    // 2 trade markers + 2 regime change markers
+    expect(lastCall).toHaveLength(4)
+    expect(lastCall.some((m: { shape: string }) => m.shape === 'circle')).toBe(true)
+  })
+
+  it('showRegime=false なら regimeSeries が渡されても無視', () => {
+    const regimeSeries = {
+      dates: ['2025-01-02', '2025-01-04'],
+      states: [0, 1],
+      n_states: 2,
+    }
+    render(
+      <StrategySignalChartTV
+        bars={sampleBars}
+        trades={[trade({})]}
+        regimeSeries={regimeSeries}
+        showRegime={false}
+      />,
+    )
+    const lastCall = setMarkersMock.mock.calls[setMarkersMock.mock.calls.length - 1]?.[0]
+    // 2 trade markers のみ
+    expect(lastCall).toHaveLength(2)
+    expect(lastCall.every((m: { shape: string }) => m.shape !== 'circle')).toBe(true)
+  })
+
+  it('aria-label に regime changes 数が含まれる（showRegime=true 時）', () => {
+    const regimeSeries = {
+      dates: ['2025-01-02', '2025-01-04', '2025-01-08'],
+      states: [0, 1, 0],
+      n_states: 2,
+    }
+    const { getByTestId } = render(
+      <StrategySignalChartTV
+        bars={sampleBars}
+        trades={[]}
+        regimeSeries={regimeSeries}
+        showRegime
+      />,
+    )
+    const label = getByTestId('strategy-signal-chart-tv').getAttribute('aria-label')
+    expect(label).toContain('2 regime changes')
+  })
 })

@@ -10,7 +10,7 @@
  */
 import type { SeriesMarker, Time } from 'lightweight-charts'
 
-import type { Trade } from '../../api/types'
+import type { RegimeSeries, Trade } from '../../api/types'
 import { compareTime, dateStringToTime } from './data'
 import type { TradeMarkerColors } from './theme'
 
@@ -130,4 +130,52 @@ export function tradeToPriceLines(
     })
   }
   return lines
+}
+
+/**
+ * RegimeSeries の状態遷移点（state が変化したバー）に marker を打つ。
+ *
+ * lightweight-charts は時間軸の背景色塗り分けを標準では提供しないため、
+ * regime 切替点を可視化する最小実装として "▽" 形 marker をローソク上方に
+ * 配置する。将来 ISeriesPrimitive ベースの背景 overlay に拡張する余地を
+ * 残す（marker と overlay は併用可能）。
+ *
+ * - 最初のバーは「最初の regime 開始」として扱わない（ノイズになるため）
+ * - 同じ state が連続する間はスキップ
+ * - label_names があれば marker text に short label を入れる
+ *
+ * @param regimeSeries `BacktestDetail.regime_series`
+ * @param color marker 色（theme.text3 等の弱めの色を推奨）
+ */
+export function regimeChangeMarkers(
+  regimeSeries: RegimeSeries | null | undefined,
+  color: string,
+): SeriesMarker<Time>[] {
+  if (!regimeSeries) return []
+  const { dates, states, label_names } = regimeSeries
+  if (!Array.isArray(dates) || !Array.isArray(states)) return []
+  const len = Math.min(dates.length, states.length)
+  if (len < 2) return []
+
+  const out: SeriesMarker<Time>[] = []
+  let prev: number | undefined = states[0]
+  for (let i = 1; i < len; i++) {
+    const cur = states[i]
+    if (cur === undefined || cur === prev) continue
+    const dateStr = dates[i]
+    if (!dateStr) continue
+    const time = dateStringToTime(dateStr)
+    if (time == null) continue
+    const label = label_names?.[String(cur)] ?? `r${cur}`
+    out.push({
+      time,
+      position: 'aboveBar',
+      shape: 'circle',
+      color,
+      text: label,
+    })
+    prev = cur
+  }
+  out.sort((a, b) => compareTime(a.time, b.time))
+  return out
 }

@@ -248,6 +248,9 @@ export function DetailPage() {
                   lang={lang}
                   symbol={backtest.status === 'ready' ? backtest.data.symbol : null}
                   trades={backtest.status === 'ready' ? backtest.data.trades : []}
+                  regimeSeries={
+                    backtest.status === 'ready' ? backtest.data.regime_series ?? null : null
+                  }
                 />
               ))}
           </div>
