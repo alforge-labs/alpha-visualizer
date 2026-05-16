@@ -54,20 +54,20 @@ jobs:
         working-directory: frontend
         run: pnpm run build
 
-      - name: Start vis serve
+      - name: Start alpha-vis serve
         run: |
-          uv run vis serve \
+          uv run alpha-vis serve \
             --forge-dir frontend/e2e/fixtures/forge \
             --port 8123 &
           # 起動待機（最大 30 秒）
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8123/health > /dev/null 2>&1; then
-              echo "vis serve is up"
+              echo "alpha-vis serve is up"
               exit 0
             fi
             sleep 1
           done
-          echo "::error::vis serve did not start within 30s"
+          echo "::error::alpha-vis serve did not start within 30s"
           exit 1
 
       - name: Run Lighthouse CI
