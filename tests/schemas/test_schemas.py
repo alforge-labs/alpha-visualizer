@@ -224,3 +224,72 @@ def test_optimize_result_with_trials() -> None:
     assert r.best_metric == 1.5
     assert len(r.trials) == 1
     assert r.trials[0].params == {"p1": 1.0}
+
+
+# --- Trade schema 拡張 (#189) ---
+
+def test_trade_exit_sl_tp_price_optional() -> None:
+    """Trade に exit_price / sl_price / tp_price を指定して validate できる"""
+    from alpha_visualizer.schemas.results import Trade
+
+    t = Trade.model_validate(
+        {
+            "id": 0,
+            "direction": "long",
+            "entry_price": 100.0,
+            "exit_price": 110.0,
+            "sl_price": 98.0,
+            "tp_price": 115.0,
+            "return_pct": 10.0,
+            "pnl": 1000.0,
+            "holding_days": 5,
+        }
+    )
+    assert t.exit_price == 110.0
+    assert t.sl_price == 98.0
+    assert t.tp_price == 115.0
+
+
+def test_trade_exit_sl_tp_price_default_none() -> None:
+    """exit_price / sl_price / tp_price を指定しない場合は None"""
+    from alpha_visualizer.schemas.results import Trade
+
+    t = Trade.model_validate({"id": 0, "direction": "long"})
+    assert t.exit_price is None
+    assert t.sl_price is None
+    assert t.tp_price is None
+
+
+def test_historical_response_schema() -> None:
+    """HistoricalResponse が validate できる"""
+    from alpha_visualizer.schemas.historical import HistoricalResponse
+
+    payload = {
+        "symbol": "SPY",
+        "interval": "1d",
+        "bars": [
+            {
+                "time": "2025-01-02",
+                "open": 100.0,
+                "high": 101.0,
+                "low": 99.0,
+                "close": 100.5,
+                "volume": 1_000_000.0,
+            }
+        ],
+    }
+    resp = HistoricalResponse.model_validate(payload)
+    assert resp.symbol == "SPY"
+    assert resp.interval == "1d"
+    assert len(resp.bars) == 1
+    assert resp.bars[0].open == 100.0
+
+
+def test_historical_response_volume_optional() -> None:
+    """OhlcBar の volume は省略可能"""
+    from alpha_visualizer.schemas.historical import OhlcBar
+
+    bar = OhlcBar.model_validate(
+        {"time": "2025-01-02", "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5}
+    )
+    assert bar.volume is None

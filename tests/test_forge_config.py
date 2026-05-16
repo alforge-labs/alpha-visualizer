@@ -28,6 +28,7 @@ class TestForgeConfigFallback:
         assert config.strategies_db is None
         assert config.ideas_json == tmp_path / "data" / "ideas" / "ideas.json"
         assert config.live_dir == tmp_path / "data" / "live"
+        assert config.historical_dir == tmp_path / "data" / "historical"
 
     def test_empty_yaml_uses_defaults(self, tmp_path: pathlib.Path) -> None:
         """forge.yaml が空（None）の場合もデフォルトにフォールバックする"""
@@ -116,6 +117,45 @@ class TestForgeConfigYamlReflection:
         )
         config = ForgeConfig.from_forge_dir(tmp_path)
         assert config.live_dir == tmp_path / "data" / "live"
+
+    def test_data_storage_path_reflected(self, tmp_path: pathlib.Path) -> None:
+        """data.storage_path が historical_dir に反映される（alpha-forge と同一キー）"""
+        _write_yaml(
+            tmp_path / "forge.yaml",
+            """
+            data:
+              storage_path: ./custom/historical
+            """,
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.historical_dir == tmp_path / "custom" / "historical"
+
+    def test_historical_dir_default_when_section_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """data セクションが無い場合は <forge_dir>/data/historical を使う"""
+        _write_yaml(
+            tmp_path / "forge.yaml",
+            """
+            report:
+              output_path: ./data/results
+            """,
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.historical_dir == tmp_path / "data" / "historical"
+
+    def test_historical_dir_absolute_path(self, tmp_path: pathlib.Path) -> None:
+        """data.storage_path が絶対パスならそのまま尊重される"""
+        abs_path = tmp_path / "external" / "historical_store"
+        _write_yaml(
+            tmp_path / "forge.yaml",
+            f"""
+            data:
+              storage_path: {abs_path}
+            """,
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.historical_dir == abs_path
 
 
 class TestForgeConfigPathResolution:

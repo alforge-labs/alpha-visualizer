@@ -7,3 +7,5 @@ strategies:
   use_db: false
 ideas:
   ideas_path: ./data/ideas
+data:
+  storage_path: ./data/historical

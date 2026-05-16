@@ -502,6 +502,89 @@
         }
       }
     },
+    "/api/historical/{symbol}": {
+      "get": {
+        "summary": "Get Historical",
+        "description": "指定 symbol × interval の OHLC ローソク足を返す。\n\n404: historical_dir 不在 or parquet ファイル不在\n400: symbol が不正、または start/end の形式不正",
+        "operationId": "get_historical_api_historical__symbol__get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(1m|2m|5m|15m|30m|60m|90m|1h|4h|1d|5d|1wk|1mo|3mo)$",
+              "default": "1d",
+              "title": "Interval"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -843,6 +926,34 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoricalResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "interval": {
+            "type": "string",
+            "title": "Interval"
+          },
+          "bars": {
+            "items": {
+              "$ref": "#/components/schemas/OhlcBar"
+            },
+            "type": "array",
+            "title": "Bars"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "symbol",
+          "interval",
+          "bars"
+        ],
+        "title": "HistoricalResponse",
+        "description": "OHLC 時系列のレスポンスエンベロープ。\n\n`bars` 配列に加えて symbol / interval を返すことで、フロント側で\n複数 symbol のキャッシュを取り違えないよう識別子を付与する。"
       },
       "Idea": {
         "properties": {
@@ -1299,6 +1410,52 @@
         ],
         "title": "LiveTrade",
         "description": "live trades JSON を正規化した 1 件。"
+      },
+      "OhlcBar": {
+        "properties": {
+          "time": {
+            "type": "string",
+            "title": "Time"
+          },
+          "open": {
+            "type": "number",
+            "title": "Open"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "close": {
+            "type": "number",
+            "title": "Close"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "time",
+          "open",
+          "high",
+          "low",
+          "close"
+        ],
+        "title": "OhlcBar",
+        "description": "1 本のローソク足 (open / high / low / close + volume)。\n\n`time` は ISO 8601 文字列（日足は ``YYYY-MM-DD``、intraday は\n``YYYY-MM-DDTHH:MM:SS``）。`volume` は無いカラムの parquet では None。"
       },
       "OptimizationHistoryEntry": {
         "properties": {
@@ -1924,6 +2081,39 @@
             "title": "Entry Price",
             "default": 0.0
           },
+          "exit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Price"
+          },
+          "sl_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sl Price"
+          },
+          "tp_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tp Price"
+          },
           "return_pct": {
             "type": "number",
             "title": "Return Pct",
@@ -1957,7 +2147,7 @@
           "direction"
         ],
         "title": "Trade",
-        "description": "``BacktestDetail.trades`` の 1 件。"
+        "description": "``BacktestDetail.trades`` の 1 件。\n\n``exit_price`` / ``sl_price`` / ``tp_price`` は TradingView lightweight-charts\nの markers / priceLine 表示用に追加されたフィールド (#189)。\nalpha-forge 側が値を出力していない場合 ``None`` のままになる。"
       },
       "ValidationError": {
         "properties": {
