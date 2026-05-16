@@ -243,7 +243,12 @@ export function DetailPage() {
               ) : strategyDetail.status === 'error' ? (
                 <Note tone="danger">{strategyDetail.error}</Note>
               ) : (
-                <StrategyScreen data={strategyDetail.data} lang={lang} />
+                <StrategyScreen
+                  data={strategyDetail.data}
+                  lang={lang}
+                  symbol={backtest.status === 'ready' ? backtest.data.symbol : null}
+                  trades={backtest.status === 'ready' ? backtest.data.trades : []}
+                />
               ))}
           </div>
         </div>

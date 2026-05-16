@@ -7,13 +7,28 @@ import {
   ColorType,
   LineStyle,
   type AreaSeriesPartialOptions,
+  type CandlestickSeriesPartialOptions,
   type ChartOptions,
+  type CreatePriceLineOptions,
   type DeepPartial,
   type HistogramSeriesPartialOptions,
   type LineSeriesPartialOptions,
 } from 'lightweight-charts'
 
 import type { ChartTheme } from '../../design/useChartTheme'
+
+/**
+ * Trade marker / priceLine の色トークン。
+ * `tradesToMarkers` / `tradeToPriceLines` に渡して使う。
+ */
+export interface TradeMarkerColors {
+  longWin: string
+  longLoss: string
+  shortWin: string
+  shortLoss: string
+  /** open trade（exit 未確定）の中立色 */
+  neutral: string
+}
 
 /**
  * `#RRGGBB` 表記の hex を `rgba(r, g, b, a)` 文字列へ変換する。
@@ -102,4 +117,64 @@ export function drawdownHistogramOptions(theme: ChartTheme): HistogramSeriesPart
     priceLineVisible: false,
     lastValueVisible: true,
   }
+}
+
+/**
+ * OHLC ローソク（CandlestickSeries）の up/down 色を equity area と統一する。
+ */
+export function candlestickOptions(theme: ChartTheme): CandlestickSeriesPartialOptions {
+  return {
+    upColor: theme.success,
+    downColor: theme.danger,
+    borderUpColor: theme.success,
+    borderDownColor: theme.danger,
+    wickUpColor: theme.success,
+    wickDownColor: theme.danger,
+    priceLineVisible: false,
+    lastValueVisible: true,
+  }
+}
+
+/**
+ * Trade marker の 4 色（long/short × win/loss）+ 中立色（open trade）。
+ *
+ * - long-win / long-loss: equity の up/down と同じ success/danger
+ * - short-win / short-loss: long と区別するため accentStrong / warn を割り当て
+ * - neutral: 未確定 open trade（exit_price == null）
+ */
+export function tradeMarkerColors(theme: ChartTheme): TradeMarkerColors {
+  return {
+    longWin: theme.success,
+    longLoss: theme.danger,
+    shortWin: theme.accentStrong,
+    shortLoss: theme.warn,
+    neutral: theme.text3,
+  }
+}
+
+function basePriceLineOptions(
+  color: string,
+  title: string,
+  price: number,
+): CreatePriceLineOptions {
+  return {
+    price,
+    color,
+    lineWidth: 1,
+    lineStyle: LineStyle.Dashed,
+    axisLabelVisible: true,
+    title,
+  }
+}
+
+export function entryPriceLineOptions(theme: ChartTheme, price: number): CreatePriceLineOptions {
+  return basePriceLineOptions(theme.text3, 'entry', price)
+}
+
+export function slPriceLineOptions(theme: ChartTheme, price: number): CreatePriceLineOptions {
+  return basePriceLineOptions(theme.danger, 'SL', price)
+}
+
+export function tpPriceLineOptions(theme: ChartTheme, price: number): CreatePriceLineOptions {
+  return basePriceLineOptions(theme.success, 'TP', price)
 }

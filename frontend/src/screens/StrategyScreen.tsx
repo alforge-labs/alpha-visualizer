@@ -1,19 +1,25 @@
 import { useState } from 'react'
-import type { ConditionNode, EntryExitConditions, IndicatorConfig, LeafConditionNode, RiskManagement, StrategyDetail, VariableConfig } from '../api/types'
+import type { ConditionNode, EntryExitConditions, IndicatorConfig, LeafConditionNode, RiskManagement, StrategyDetail, Trade, VariableConfig } from '../api/types'
 import { isLogicalConditionNode } from '../api/types'
 import { Card, Chip, SectionHeader, SectionLabel } from '../design/primitives'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { SignalChartCard } from './strategy/SignalChartCard'
 
 interface StrategyScreenProps {
   data: StrategyDetail
   lang: Lang
+  /** バックテスト結果から渡される銘柄シンボル（取得前なら null）。SignalChartCard が OHLC fetch に使う。 */
+  symbol: string | null
+  /** バックテスト結果から渡される trades。SignalChartCard が markers / priceLine に使う。 */
+  trades: Trade[]
 }
 
-export function StrategyScreen({ data, lang }: StrategyScreenProps) {
+export function StrategyScreen({ data, lang, symbol, trades }: StrategyScreenProps) {
   const L = makeL(lang)
   return (
     <div data-testid="strategy-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', paddingTop: 'var(--space-5)' }}>
+      <SignalChartCard symbol={symbol} trades={trades} lang={lang} />
       <ParametersCard parameters={data.parameters} lang={lang} />
       <IndicatorsCard indicators={data.indicators} lang={lang} />
       {(data.entry_conditions || data.exit_conditions) && (
