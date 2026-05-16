@@ -1,4 +1,4 @@
-import type { BacktestDetail, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, HistoricalResponse, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -97,6 +97,21 @@ export const api = {
   getLive: (strategyId: string, runId?: string): Promise<LiveDetailResponse> => {
     const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : ''
     return request<LiveDetailResponse>(`/live/${encodeURIComponent(strategyId)}${qs}`)
+  },
+
+  // OHLC 時系列（#189 で backend に追加）。
+  // backend の /api/historical/{symbol} を呼び lightweight-charts 互換の bars を取得する。
+  getHistorical: (
+    symbol: string,
+    interval: string = '1d',
+    range?: { start?: string; end?: string },
+  ): Promise<HistoricalResponse> => {
+    const params = new URLSearchParams({ interval })
+    if (range?.start) params.set('start', range.start)
+    if (range?.end) params.set('end', range.end)
+    return request<HistoricalResponse>(
+      `/historical/${encodeURIComponent(symbol)}?${params.toString()}`,
+    )
   },
 }
 

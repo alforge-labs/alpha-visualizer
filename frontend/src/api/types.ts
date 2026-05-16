@@ -26,6 +26,9 @@ export type LiveListItem = S['LiveListItem']
 export type LiveDiff = S['LiveDiff']
 export type StrategyComparison = S['StrategyComparison']
 export type OptimizationHistoryEntry = S['OptimizationHistoryEntry']
+// OHLC 時系列（#189 で backend に追加、#190 で frontend から利用開始）
+export type OhlcBar = S['OhlcBar']
+export type HistoricalResponse = S['HistoricalResponse']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
 
