@@ -40,6 +40,8 @@ DB_PATH = OUTPUT_DIR / "data" / "results" / "backtest_results.db"
 STRATEGIES_DIR = OUTPUT_DIR / "data" / "strategies"
 IDEAS_PATH = OUTPUT_DIR / "data" / "ideas" / "ideas.json"
 YAML_PATH = OUTPUT_DIR / "forge.yaml"
+HISTORICAL_DIR = OUTPUT_DIR / "data" / "historical"
+HISTORICAL_PARQUET = HISTORICAL_DIR / "SPY_1d.parquet"
 
 PERIOD_START = date(2024, 1, 2)
 PERIOD_DAYS = 60
@@ -273,6 +275,7 @@ def _ensure_dirs() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     STRATEGIES_DIR.mkdir(parents=True, exist_ok=True)
     IDEAS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    HISTORICAL_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _write_yaml() -> None:
@@ -285,9 +288,46 @@ def _write_yaml() -> None:
         "  path: ./data/strategies\n"
         "  use_db: false\n"
         "ideas:\n"
-        "  ideas_path: ./data/ideas\n",
+        "  ideas_path: ./data/ideas\n"
+        "data:\n"
+        "  storage_path: ./data/historical\n",
         encoding="utf-8",
     )
+
+
+def _write_historical_parquet() -> None:
+    """SPY_1d.parquet を決定論的に生成する（issue #189）。
+
+    OHLC + Volume × 60 営業日。圧縮後 ~3KB に収まる規模。
+    """
+    import pandas as pd  # ローカル import: スクリプト本体の依存範囲を最小化
+
+    rng = random.Random(7)  # noqa: S311 — フィクスチャ生成用、暗号用途ではない
+    dates = _business_dates(PERIOD_START, PERIOD_DAYS)
+    rows: list[dict[str, float]] = []
+    price = 400.0
+    for _ in dates:
+        o = price * (1 + rng.gauss(0, 0.003))
+        c = o * (1 + rng.gauss(0, 0.008))
+        h = max(o, c) * (1 + abs(rng.gauss(0, 0.004)))
+        low_val = min(o, c) * (1 - abs(rng.gauss(0, 0.004)))
+        rows.append(
+            {
+                "Open": round(o, 4),
+                "High": round(h, 4),
+                "Low": round(low_val, 4),
+                "Close": round(c, 4),
+                "Volume": float(rng.randint(1_000_000, 5_000_000)),
+            }
+        )
+        price = c
+    df = pd.DataFrame(
+        rows,
+        index=pd.DatetimeIndex(
+            [pd.Timestamp(d) for d in dates], name="Date"
+        ),
+    )
+    df.to_parquet(HISTORICAL_PARQUET)
 
 
 def _write_strategies() -> None:
@@ -429,13 +469,20 @@ def main() -> None:
     _write_strategies()
     _write_ideas()
     _write_db()
+    _write_historical_parquet()
     size = DB_PATH.stat().st_size
+    parquet_size = HISTORICAL_PARQUET.stat().st_size
     print(f"[ok] backtest_results.db generated: {DB_PATH} ({size} bytes)")
     print(f"[ok] strategies dir: {STRATEGIES_DIR}")
     print(f"[ok] ideas: {IDEAS_PATH}")
     print(f"[ok] yaml: {YAML_PATH}")
+    print(f"[ok] historical parquet: {HISTORICAL_PARQUET} ({parquet_size} bytes)")
     if size > 1_000_000:
         raise SystemExit(f"backtest_results.db exceeds 1MB ({size} bytes); shrink the fixture")
+    if parquet_size > 100_000:
+        raise SystemExit(
+            f"historical parquet exceeds 100KB ({parquet_size} bytes); shrink the fixture"
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

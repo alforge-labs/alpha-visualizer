@@ -33,6 +33,7 @@ class ForgeConfig:
     strategies_db: pathlib.Path | None
     ideas_json: pathlib.Path
     live_dir: pathlib.Path
+    historical_dir: pathlib.Path
 
     @classmethod
     def from_forge_dir(
@@ -61,6 +62,7 @@ class ForgeConfig:
         strategies = raw.get("strategies") or {}
         ideas = raw.get("ideas") or {}
         live = raw.get("live") or {}
+        data_section = raw.get("data") or {}
 
         report_output = _resolve_path(
             base, report.get("output_path"), default=forge_dir / "data" / "results"
@@ -85,6 +87,12 @@ class ForgeConfig:
             base, live.get("output_path"), default=forge_dir / "data" / "live"
         )
 
+        # OHLC parquet 保存先（alpha-forge ``config.py:_DEFAULT_DATA_STORAGE`` と一致させる）。
+        # forge.yaml 側のキー名は alpha-forge と揃えて ``data.storage_path`` を採用する。
+        historical_dir = _resolve_path(
+            base, data_section.get("storage_path"), default=forge_dir / "data" / "historical"
+        )
+
         return cls(
             forge_dir=forge_dir,
             forge_db=forge_db,
@@ -92,6 +100,7 @@ class ForgeConfig:
             strategies_db=strategies_db,
             ideas_json=ideas_json,
             live_dir=live_dir,
+            historical_dir=historical_dir,
         )
 
 

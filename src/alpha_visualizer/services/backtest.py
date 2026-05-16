@@ -125,6 +125,23 @@ def shape_regime_breakdown(raw: Any) -> dict[str, Any] | None:
     return raw
 
 
+def _optional_float(value: Any) -> float | None:
+    """alpha-forge 側の任意フィールドを float | None に正規化する。
+
+    None / 文字列 "None" / 数値化不能な値はすべて None として返す。
+    数値変換は ``float()`` を使用し、NaN を None に変換する。
+    """
+    if value is None:
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    if result != result:  # NaN チェック
+        return None
+    return result
+
+
 def shape_trades(
     raw_trades: list[dict[str, Any]] | None,
     trade_analysis: dict[str, Any] | None,
@@ -145,6 +162,10 @@ def shape_trades(
                 "entry_date": t.get("entry_date") or "",
                 "exit_date": t.get("exit_date") or "",
                 "entry_price": float(t.get("entry_price") or 0.0),
+                # alpha-forge 側で出力されていれば値、なければ None（#189 対応）
+                "exit_price": _optional_float(t.get("exit_price")),
+                "sl_price": _optional_float(t.get("sl_price")),
+                "tp_price": _optional_float(t.get("tp_price")),
                 "return_pct": return_pct,
                 "pnl": pnl,
                 "holding_days": int(t.get("holding_days") or 0),

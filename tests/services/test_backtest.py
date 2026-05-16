@@ -234,6 +234,81 @@ class TestBuildDetail:
         assert detail["trades"] == []
 
 
+class TestShapeTradesExitSlTpPrice:
+    """shape_trades の exit_price / sl_price / tp_price 透過テスト（issue #189）"""
+
+    def test_pickup_exit_sl_tp_when_present(self) -> None:
+        """alpha-forge 側が値を出していれば pickup される"""
+        raw = [
+            {
+                "id": 0,
+                "direction": "long",
+                "entry_price": 100.0,
+                "exit_price": 110.0,
+                "sl_price": 98.0,
+                "tp_price": 115.0,
+                "return_pct": 10.0,
+                "pnl": 1000.0,
+                "holding_days": 5,
+            }
+        ]
+        out = bt.shape_trades(raw, None)
+        assert len(out) == 1
+        assert out[0]["exit_price"] == 110.0
+        assert out[0]["sl_price"] == 98.0
+        assert out[0]["tp_price"] == 115.0
+
+    def test_default_none_when_missing(self) -> None:
+        """alpha-forge 側に該当キーがなければ None を返す"""
+        raw = [
+            {
+                "id": 0,
+                "direction": "long",
+                "entry_price": 100.0,
+                "return_pct": 10.0,
+                "pnl": 1000.0,
+                "holding_days": 5,
+            }
+        ]
+        out = bt.shape_trades(raw, None)
+        assert out[0]["exit_price"] is None
+        assert out[0]["sl_price"] is None
+        assert out[0]["tp_price"] is None
+
+    def test_nan_value_becomes_none(self) -> None:
+        """NaN 値は None に変換される"""
+        import math
+        raw = [
+            {
+                "id": 0,
+                "direction": "long",
+                "entry_price": 100.0,
+                "exit_price": math.nan,
+                "return_pct": 0.0,
+                "pnl": 0.0,
+                "holding_days": 1,
+            }
+        ]
+        out = bt.shape_trades(raw, None)
+        assert out[0]["exit_price"] is None
+
+    def test_invalid_value_becomes_none(self) -> None:
+        """数値化できない値は None に変換される"""
+        raw = [
+            {
+                "id": 0,
+                "direction": "long",
+                "entry_price": 100.0,
+                "exit_price": "not-a-number",
+                "return_pct": 0.0,
+                "pnl": 0.0,
+                "holding_days": 1,
+            }
+        ]
+        out = bt.shape_trades(raw, None)
+        assert out[0]["exit_price"] is None
+
+
 class TestFilterBySince:
     def test_none_since_returns_all(self) -> None:
         rows = [_make_row(run_id="a", run_at="2024-01-01T00:00:00")]

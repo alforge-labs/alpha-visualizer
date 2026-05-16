@@ -68,7 +68,12 @@ class RegimeSeries(BaseModel):
 
 
 class Trade(BaseModel):
-    """``BacktestDetail.trades`` の 1 件。"""
+    """``BacktestDetail.trades`` の 1 件。
+
+    ``exit_price`` / ``sl_price`` / ``tp_price`` は TradingView lightweight-charts
+    の markers / priceLine 表示用に追加されたフィールド (#189)。
+    alpha-forge 側が値を出力していない場合 ``None`` のままになる。
+    """
 
     model_config = ConfigDict(extra="allow")
 
@@ -77,6 +82,9 @@ class Trade(BaseModel):
     entry_date: str = ""
     exit_date: str = ""
     entry_price: float = 0.0
+    exit_price: float | None = None
+    sl_price: float | None = None
+    tp_price: float | None = None
     return_pct: float = 0.0
     pnl: float = 0.0
     holding_days: int = 0

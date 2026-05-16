@@ -219,6 +219,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/historical/{symbol}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Historical
+         * @description 指定 symbol × interval の OHLC ローソク足を返す。
+         *
+         *     404: historical_dir 不在 or parquet ファイル不在
+         *     400: symbol が不正、または start/end の形式不正
+         */
+        get: operations["get_historical_api_historical__symbol__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -228,6 +251,28 @@ export interface paths {
         };
         /** Health */
         get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/{full_path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spa Fallback
+         * @description SPA ルート対応: 起動時にスキャンした許可リストにあるファイルだけを
+         *     配信し、それ以外（未知のルート・トラバーサル試行・ディレクトリ）は
+         *     すべて index.html へフォールバックする。
+         */
+        get: operations["spa_fallback__full_path__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -416,6 +461,23 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HistoricalResponse
+         * @description OHLC 時系列のレスポンスエンベロープ。
+         *
+         *     `bars` 配列に加えて symbol / interval を返すことで、フロント側で
+         *     複数 symbol のキャッシュを取り違えないよう識別子を付与する。
+         */
+        HistoricalResponse: {
+            /** Symbol */
+            symbol: string;
+            /** Interval */
+            interval: string;
+            /** Bars */
+            bars: components["schemas"]["OhlcBar"][];
+        } & {
+            [key: string]: unknown;
         };
         /**
          * Idea
@@ -617,6 +679,29 @@ export interface components {
             return_pct?: number | null;
             /** Exit Reason */
             exit_reason?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OhlcBar
+         * @description 1 本のローソク足 (open / high / low / close + volume)。
+         *
+         *     `time` は ISO 8601 文字列（日足は ``YYYY-MM-DD``、intraday は
+         *     ``YYYY-MM-DDTHH:MM:SS``）。`volume` は無いカラムの parquet では None。
+         */
+        OhlcBar: {
+            /** Time */
+            time: string;
+            /** Open */
+            open: number;
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Close */
+            close: number;
+            /** Volume */
+            volume?: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -940,6 +1025,10 @@ export interface components {
         /**
          * Trade
          * @description ``BacktestDetail.trades`` の 1 件。
+         *
+         *     ``exit_price`` / ``sl_price`` / ``tp_price`` は TradingView lightweight-charts
+         *     の markers / priceLine 表示用に追加されたフィールド (#189)。
+         *     alpha-forge 側が値を出力していない場合 ``None`` のままになる。
          */
         Trade: {
             /** Id */
@@ -961,6 +1050,12 @@ export interface components {
              * @default 0
              */
             entry_price: number;
+            /** Exit Price */
+            exit_price?: number | null;
+            /** Sl Price */
+            sl_price?: number | null;
+            /** Tp Price */
+            tp_price?: number | null;
             /**
              * Return Pct
              * @default 0
@@ -1472,6 +1567,41 @@ export interface operations {
             };
         };
     };
+    get_historical_api_historical__symbol__get: {
+        parameters: {
+            query?: {
+                interval?: string;
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -1488,6 +1618,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    spa_fallback__full_path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                full_path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

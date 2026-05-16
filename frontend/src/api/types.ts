@@ -98,6 +98,10 @@ export interface BacktestMetrics {
 /**
  * Trade: 生成型 (`Trade`) は ``id: int | str`` / ``direction: str`` だが、
  * フロントは ``id: number`` / ``direction: 'long' | 'short'`` に narrow して扱う。
+ *
+ * `exit_price` / `sl_price` / `tp_price` は TradingView lightweight-charts の
+ * markers / priceLine 表示用フィールド（issue #189）。alpha-forge 側で値が
+ * 出力されていない場合は `null` になる。
  */
 export interface Trade {
   id: number
@@ -105,6 +109,9 @@ export interface Trade {
   entry_date: string
   exit_date: string
   entry_price: number
+  exit_price?: number | null
+  sl_price?: number | null
+  tp_price?: number | null
   return_pct: number
   pnl: number
   holding_days: number
