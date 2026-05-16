@@ -137,7 +137,9 @@ def _optional_float(value: Any) -> float | None:
         result = float(value)
     except (TypeError, ValueError):
         return None
-    if result != result:  # NaN チェック
+    # NaN は JSON シリアライズ不能なので None に正規化する
+    # (CodeQL #42: `x != x` 慣用句を避けて math.isnan を明示)
+    if math.isnan(result):
         return None
     return result
 
