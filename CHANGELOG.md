@@ -3,6 +3,33 @@
 alpha-visualizer の全バージョン変更履歴です。
 
 
+## [0.4.0] - 2026-05-17
+
+### Features
+
+- **TradingView lightweight-charts による「シグナル時系列」セクションを `StrategyScreen` に新規追加** (#191, #186, #197)
+  - OHLC ローソク + entry / exit markers (long/short × win/loss で 4 色分け) + SL / TP / entry の priceLine（focus trade は open trade 優先、無ければ最新 closed）
+  - regime 切替点に circle marker（`?tv=1` ON 時、`BacktestDetail.regime_series` 経由）
+  - `chart.takeScreenshot()` による PNG export ハンドル
+  - feature flag `?tv=1` OFF 時は実験機能 placeholder
+  - Storybook 6 stories（AtelierClosedTrades / LabOpenTrade / SLHit / TPHit / DenseMarkers / WithRegime）
+- **OHLC 時系列 API** `GET /api/historical/{symbol}?interval=1d&start=&end=` を追加 (#189)
+  - `{symbol}_{interval}.parquet` を読んで lightweight-charts 互換の bars 配列を返す
+  - `ForgeConfig.historical_dir` を `forge.yaml` の `data.storage_path` から解決（既定 `<forge_dir>/data/historical`）
+  - 依存 `pyarrow>=15.0` を追加
+- **`schemas/results.Trade` に `exit_price` / `sl_price` / `tp_price` を追加** (#189)
+  - alpha-forge の `_calc_trade_list` 拡張（ysakae/alpha-forge#751）の出力を透過 pickup
+- **frontend `api.getHistorical(symbol, interval, range?)` と `useStrategyHistorical(symbol)` フック追加** (#190)
+  - `useFetchByKey` ベースの薄いラッパー、interval 切替時の再 fetch にも対応
+
+### Fixes
+
+- **trades のソースを `metrics_json.trades` 優先に切替** (#198)
+  - alpha-forge は trades を 2 経路で保存（`metrics_json.trades` は snake_case、`trades_json` 列は vectorbt records_readable の PascalCase）
+  - 旧実装は PascalCase 列のみ参照しており `shape_trades` が値を読めず、実 backtest 結果で entry/exit markers / exit_price / sl_price / tp_price が常に機能しなかった
+  - snake_case → PascalCase の優先順位で解決し、新規・既存両方の backtest 結果で markers / priceLine が描画されるよう修正
+
+
 ## [0.3.0] - 2026-05-16
 
 ### ⚠️  Breaking Changes
