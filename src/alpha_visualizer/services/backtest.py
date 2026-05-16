@@ -357,10 +357,23 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
         except (json.JSONDecodeError, TypeError) as exc:
             logger.debug("buy_hold_curve_json のパースに失敗: %s", exc)
 
+    # trades のソース解決（issue #189/#191 ストリーム後の互換修正）:
+    # 1) metrics_json.trades (snake_case: entry_price/exit_price/sl_price/tp_price/...)
+    #    — alpha-forge `_calc_trade_list` の正式出力。markers / priceLine が動く。
+    # 2) trades_json 列 (legacy: vectorbt records_readable の PascalCase)
+    #    — `Avg Entry Price` 等を持つ古い保存形式。shape_trades は snake_case 期待
+    #    なので markers/価格は壊れるが、何も無いよりは件数情報を取れる。
+    # 既存テスト（trades_json 経路のみのケース）は metrics_json.trades が空のため
+    # フォールバック側で同じ JSON を読み、互換性が保たれる。
     trades: list[Any] = []
-    if row.trades_json:
+    metrics_trades = metrics.get("trades") if isinstance(metrics, dict) else None
+    if isinstance(metrics_trades, list) and len(metrics_trades) > 0:
+        trades = metrics_trades
+    elif row.trades_json:
         try:
-            trades = json.loads(row.trades_json)
+            parsed = json.loads(row.trades_json)
+            if isinstance(parsed, list):
+                trades = parsed
         except (json.JSONDecodeError, TypeError) as exc:
             logger.debug("trades_json のパースに失敗: %s", exc)
 

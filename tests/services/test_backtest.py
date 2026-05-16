@@ -352,3 +352,65 @@ class TestRowToDict:
         # JSON デコード失敗時はトップレベルカラムが merge された dict になる
         assert isinstance(rec["metrics"], dict)
         assert rec["equity_curve"] == []
+
+    def test_prefers_metrics_json_trades_over_trades_json(self) -> None:
+        """metrics_json.trades (snake_case) が存在すれば trades_json (legacy) より優先する。
+
+        alpha-forge の `_calc_trade_list` 出力は metrics_json.trades に入っており、
+        ここに sl_price / tp_price も含まれる（#189/#191 で frontend が利用）。
+        backtest_results.trades_json 列は vectorbt records_readable の
+        PascalCase で alpha-visualizer の `shape_trades` が認識できないため、
+        snake_case を持つ metrics_json.trades を優先する。
+        """
+        snake_trades = [
+            {
+                "id": 0,
+                "direction": "long",
+                "entry_date": "2024-01-02",
+                "entry_price": 100.0,
+                "exit_date": "2024-01-10",
+                "exit_price": 110.0,
+                "sl_price": 98.0,
+                "tp_price": 115.0,
+                "return_pct": 10.0,
+                "pnl": 1000.0,
+                "holding_days": 8,
+            }
+        ]
+        legacy_pascal = [
+            {"Avg Entry Price": 100.0, "Avg Exit Price": 110.0, "Direction": "Long"}
+        ]
+        row = _make_row(
+            metrics_json=json.dumps({"trades": snake_trades, "sharpe_ratio": 1.5}),
+            trades_json=json.dumps(legacy_pascal),
+        )
+        rec = bt.row_to_dict(row)
+        assert rec["trades"] == snake_trades
+        assert rec["trades"][0]["sl_price"] == 98.0
+
+    def test_falls_back_to_trades_json_when_metrics_has_no_trades(self) -> None:
+        """metrics_json に trades が無ければ trades_json をフォールバックで読む（後方互換）。"""
+        legacy_pascal = [
+            {"Avg Entry Price": 100.0, "Avg Exit Price": 110.0, "Direction": "Long"}
+        ]
+        row = _make_row(
+            metrics_json=json.dumps({"sharpe_ratio": 1.5}),
+            trades_json=json.dumps(legacy_pascal),
+        )
+        rec = bt.row_to_dict(row)
+        assert rec["trades"] == legacy_pascal
+
+    def test_both_empty_returns_empty_trades(self) -> None:
+        row = _make_row(metrics_json=json.dumps({}), trades_json=None)
+        rec = bt.row_to_dict(row)
+        assert rec["trades"] == []
+
+    def test_metrics_json_empty_trades_list_falls_back(self) -> None:
+        """metrics_json.trades が空 list の場合は trades_json をフォールバック。"""
+        legacy = [{"Avg Entry Price": 100.0}]
+        row = _make_row(
+            metrics_json=json.dumps({"trades": []}),
+            trades_json=json.dumps(legacy),
+        )
+        rec = bt.row_to_dict(row)
+        assert rec["trades"] == legacy
