@@ -3,7 +3,7 @@
 alpha-visualizer の全バージョン変更履歴です。
 
 
-## [Unreleased]
+## [0.3.0] - 2026-05-16
 
 ### ⚠️  Breaking Changes
 
