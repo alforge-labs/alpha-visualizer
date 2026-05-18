@@ -36,7 +36,7 @@ jobs:
       # (src/alpha_visualizer/static/) はリポジトリ管理対象外。
       # PyPI 配布用に wheel build 直前で frontend を再生成する。
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
