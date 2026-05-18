@@ -3,8 +3,8 @@ name = "alpha-visualizer"
 version = "0.5.0"
 description = "Web visualization tool for AlphaForge backtest results"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12"
 authors = [
     { name = "alforge-labs" },

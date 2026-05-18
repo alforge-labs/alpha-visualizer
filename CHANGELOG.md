@@ -2,6 +2,8 @@
 
 alpha-visualizer の全バージョン変更履歴です。
 
+> **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
+
 
 ## [0.5.0] - 2026-05-18
 
