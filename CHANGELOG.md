@@ -3,40 +3,88 @@
 alpha-visualizer の全バージョン変更履歴です。
 
 
-## [0.4.0] - 2026-05-17
+## [0.5.0] - 2026-05-18
 
-### Features
 
-- **TradingView lightweight-charts による「シグナル時系列」セクションを `StrategyScreen` に新規追加** (#191, #186, #197)
-  - OHLC ローソク + entry / exit markers (long/short × win/loss で 4 色分け) + SL / TP / entry の priceLine（focus trade は open trade 優先、無ければ最新 closed）
-  - regime 切替点に circle marker（`?tv=1` ON 時、`BacktestDetail.regime_series` 経由）
-  - `chart.takeScreenshot()` による PNG export ハンドル
-  - feature flag `?tv=1` OFF 時は実験機能 placeholder
-  - Storybook 6 stories（AtelierClosedTrades / LabOpenTrade / SLHit / TPHit / DenseMarkers / WithRegime）
-- **OHLC 時系列 API** `GET /api/historical/{symbol}?interval=1d&start=&end=` を追加 (#189)
-  - `{symbol}_{interval}.parquet` を読んで lightweight-charts 互換の bars 配列を返す
-  - `ForgeConfig.historical_dir` を `forge.yaml` の `data.storage_path` から解決（既定 `<forge_dir>/data/historical`）
-  - 依存 `pyarrow>=15.0` を追加
-- **`schemas/results.Trade` に `exit_price` / `sl_price` / `tp_price` を追加** (#189)
-  - alpha-forge の `_calc_trade_list` 拡張（ysakae/alpha-forge#751）の出力を透過 pickup
-- **frontend `api.getHistorical(symbol, interval, range?)` と `useStrategyHistorical(symbol)` フック追加** (#190)
-  - `useFetchByKey` ベースの薄いラッパー、interval 切替時の再 fetch にも対応
+### その他
 
-### Fixes
+- バージョン 0.5.0 にバンプ
 
-- **trades のソースを `metrics_json.trades` 優先に切替** (#198)
-  - alpha-forge は trades を 2 経路で保存（`metrics_json.trades` は snake_case、`trades_json` 列は vectorbt records_readable の PascalCase）
-  - 旧実装は PascalCase 列のみ参照しており `shape_trades` が値を読めず、実 backtest 結果で entry/exit markers / exit_price / sl_price / tp_price が常に機能しなかった
-  - snake_case → PascalCase の優先順位で解決し、新規・既存両方の backtest 結果で markers / priceLine が描画されるよう修正
+
+
+### バグ修正
+
+- **security**: CodeQL alert #42 #43 を解消 (#200)
+
+
+
+## [0.4.0] - 2026-05-16
+
+
+### その他
+
+- **release**: v0.4.0 — TradingView シグナル時系列チャートを正式リリース (#199)
+
+
+
+### バグ修正
+
+- **api**: trades のソースを metrics_json.trades 優先に切替（PascalCase 互換） (#198)
+
+
+
+### 新機能
+
+- **api**: backend に OHLC endpoint と Trade.exit_price/sl_price/tp_price を追加 (#189) (#194)
+
+
+- **client**: frontend に OHLC API client と useStrategyHistorical hook を追加 (#190) (#195)
+
+
+- **charts**: StrategySignalChartTV (candlestick + markers + priceLine) を StrategyScreen に追加 (#191) (#196)
+
+
+- **charts**: StrategySignalChartTV に regime change markers を追加 (#186) (#197)
+
 
 
 ## [0.3.0] - 2026-05-16
 
-### ⚠️  Breaking Changes
 
-- **CLI コマンドを `vis` → `alpha-vis` にリネーム**。macOS には標準コマンド `/usr/bin/vis`（BSD 系テキスト可視化ユーティリティ）があり、`$PATH` の優先順序によってはこちらが先に解決され、`vis serve: No such file or directory` で初学者が完全に詰まる問題を解消するため。
-  - 既存ユーザーは `vis ...` を `alpha-vis ...` に置き換えてください。
-  - `pyproject.toml` の `[project.scripts]` から `vis` エントリを削除し、`alpha-vis = "alpha_visualizer.cli:cli"` を追加しました。
+### その他
+
+- **release**: v0.3.0 — vis → alpha-vis CLI リネームを正式リリース (#193)
+
+
+
+### ドキュメント
+
+- CHANGELOG を v0.2.0 に更新
+
+
+- CLAUDE.md の重複と冗長を整理 (#181)
+
+
+
+### バグ修正
+
+- **release**: bump 直後に uv lock を挟んで uv.lock drift を防ぐ (#179)
+
+
+
+### 新機能
+
+- pnpm 移行 + minimumReleaseAge=3 days (#182)
+
+
+- **charts**: TradingView lightweight-charts を BacktestScreen の equity+drawdown に PoC 導入 (#180) (#183)
+
+
+- **charts**: RollingMetrics / WFO equity / CompareEquity を lightweight-charts へ移行 (#185) (#188)
+
+
+- CLI コマンドを vis → alpha-vis にリネーム（macOS BSD vis(1) 衝突解消） (#192) [**破壊的変更**]
+
 
 
 ## [0.2.0] - 2026-05-11
