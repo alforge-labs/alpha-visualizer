@@ -3,7 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/alpha-visualizer.svg)](https://pypi.org/project/alpha-visualizer/)
 [![CI](https://github.com/alforge-labs/alpha-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/alforge-labs/alpha-visualizer/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/alpha-visualizer.svg)](https://pypi.org/project/alpha-visualizer/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 [English](README.en.md) | **日本語**
 
@@ -110,4 +110,4 @@ cd frontend && pnpm run build
 
 ## ライセンス
 
-[MIT License](LICENSE) © [alforge-labs](https://github.com/alforge-labs)
+[Apache License 2.0](LICENSE) © [alforge-labs](https://github.com/alforge-labs)
