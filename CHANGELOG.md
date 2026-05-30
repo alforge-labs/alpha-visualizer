@@ -5,6 +5,39 @@ alpha-visualizer の全バージョン変更履歴です。
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
 
+## [0.7.0] - 2026-05-30
+
+
+### CI/CD
+
+- **deps**: bump pnpm/action-setup from 4 to 6 (#202)
+
+
+
+### その他
+
+- バージョン 0.7.0 にバンプ
+
+
+
+### ドキュメント
+
+- CHANGELOG を v0.6.0 に更新
+
+
+
+### バグ修正
+
+- **strategies**: use_db=true で DB 欠落時に JSON へ黙ってフォールバックせず Fail Loud (Closes #210) (#212)
+
+
+
+### 新機能
+
+- **live**: live 実績を JSON ファイルから SQLite 直読みへ移行 (Closes #209) (#211)
+
+
+
 ## [0.6.0] - 2026-05-18
 
 
