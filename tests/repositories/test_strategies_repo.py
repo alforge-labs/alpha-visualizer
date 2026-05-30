@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from alpha_visualizer.db import metadata, strategies
+from alpha_visualizer.errors import DataSourceUnavailableError
 from alpha_visualizer.repositories.strategies import (
     StrategiesRepository,
     StrategyRow,
@@ -155,18 +156,25 @@ def test_list_strategies_falls_back_to_json_when_db_path_none(tmp_path: Path) ->
     assert {r.strategy_id for r in rows} == {"alpha", "beta"}
 
 
-def test_list_strategies_falls_back_to_json_when_db_file_missing(
+def test_list_strategies_fails_loud_when_db_mode_but_db_file_missing(
     tmp_path: Path,
 ) -> None:
-    """strategies_db のパスを指定してもファイルが無い場合は JSON モードへ"""
-    strategies_dir = _make_json_dir(tmp_path)
+    """DB モード設定（strategies_db 指定）なのにファイルが無い場合は Fail Loud。
+
+    issue #210: 黙って stale な JSON へフォールバックすると、利用者が最新のつもり
+    で古い戦略を見てしまう。明示エラー（DataSourceUnavailableError）を投げて、
+    設定と実体の不一致を伝える。JSON ディレクトリが存在していてもエラーにする。
+    """
+    strategies_dir = _make_json_dir(tmp_path)  # JSON は存在するが使われない
 
     repo = StrategiesRepository.from_paths(
         strategies_dir=strategies_dir,
         strategies_db=tmp_path / "does_not_exist.db",
     )
-    rows = repo.list_strategies()
-    assert {r.strategy_id for r in rows} == {"alpha", "beta"}
+    with pytest.raises(DataSourceUnavailableError) as exc_info:
+        repo.list_strategies()
+    # メッセージに実体パスが含まれ、原因を特定できる
+    assert "does_not_exist.db" in str(exc_info.value)
 
 
 # --- DB モードのテスト ------------------------------------------------------
@@ -194,6 +202,34 @@ def test_list_strategies_db_mode_returns_all_rows(tmp_path: Path) -> None:
     assert by_id["db_alpha"].target_symbols == ("TQQQ", "QQQ")
     assert by_id["db_beta"].tags == ()
     assert by_id["db_beta"].target_symbols == ()
+
+
+def test_list_strategies_db_mode_empty_table_returns_empty_not_json(
+    tmp_path: Path,
+) -> None:
+    """DB モードで strategies テーブルが空（0 件）なら空を返す。
+
+    issue #210: 空テーブルは「戦略がまだ無い」正規状態であり、エラーにも JSON
+    フォールバックにもしない。stale な JSON へ落ちないことを保証する。
+    """
+    strategies_dir = tmp_path / "strategies"
+    strategies_dir.mkdir()
+    # JSON も置くが、DB（空）が優先され JSON は無視されることを確認する
+    (strategies_dir / "stale.json").write_text(
+        json.dumps({"strategy_id": "stale", "name": "古い戦略"}),
+        encoding="utf-8",
+    )
+    db_path = strategies_dir / "strategies.db"
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        metadata.create_all(engine, tables=[strategies])  # 空テーブルのみ
+    finally:
+        engine.dispose()
+
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=db_path
+    )
+    assert repo.list_strategies() == []
 
 
 # --- 共通操作 ---------------------------------------------------------------

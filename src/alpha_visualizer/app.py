@@ -72,6 +72,15 @@ def create_app(
         app.state.strategies_engine = get_engine(config.strategies_db)
     else:
         app.state.strategies_engine = None
+        if config.strategies_db is not None:
+            # DB モード設定なのに strategies.db が無い。戦略 API は stale な JSON へ
+            # 黙って落ちず Fail Loud（StrategiesRepository が明示エラーを返す）。
+            # 起動自体は止めない（backtest 等の他 API は提供する）が、原因を残す。
+            logger.warning(
+                "strategies.use_db=true ですが strategies.db が見つかりません: %s"
+                "（戦略 API は明示エラーを返します。forge で戦略を保存して DB を生成してください）",
+                config.strategies_db,
+            )
 
     @app.exception_handler(AlphaVisualizerError)
     async def _alpha_error_handler(
