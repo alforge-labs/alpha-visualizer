@@ -5,19 +5,24 @@
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
 
 class LiveListItem(BaseModel):
-    """``GET /api/live`` リストの 1 件。"""
+    """``GET /api/live`` リストの 1 件。
+
+    ``kind`` は ``"strategy"``（trade 単位 / ``live_summaries``）または
+    ``"position"``（combine portfolio / ``live_position_summaries``）。
+    """
 
     model_config = ConfigDict(extra="allow")
 
     strategy_id: str
     has_summary: bool
     has_trades: bool
+    kind: Literal["strategy", "position"] | None = None
 
 
 class LivePeriod(BaseModel):

@@ -426,7 +426,7 @@
     "/api/live": {
       "get": {
         "summary": "List Live",
-        "description": "live summary が存在する戦略 ID 一覧を返す。\n\nフロントの「Live」タブ表示判定に使う。",
+        "description": "live サマリを持つ戦略 / portfolio の一覧を返す。\n\nフロントの「Live」タブ表示判定に使う。trade 単位（``kind=\"strategy\"``）と\ncombine の position ベース（``kind=\"position\"``）を両方含める。",
         "operationId": "list_live_api_live_get",
         "responses": {
           "200": {
@@ -1268,6 +1268,21 @@
           "has_trades": {
             "type": "boolean",
             "title": "Has Trades"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "strategy",
+                  "position"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           }
         },
         "additionalProperties": true,
@@ -1278,7 +1293,7 @@
           "has_trades"
         ],
         "title": "LiveListItem",
-        "description": "``GET /api/live`` リストの 1 件。"
+        "description": "``GET /api/live`` リストの 1 件。\n\n``kind`` は ``\"strategy\"``（trade 単位 / ``live_summaries``）または\n``\"position\"``（combine portfolio / ``live_position_summaries``）。"
       },
       "LivePeriod": {
         "properties": {

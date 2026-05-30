@@ -5,13 +5,20 @@ Test Data Builder / Object Mother パターンで seed 操作を集約。
 ``_create_schema`` 経由で生成する（テスト側に raw CREATE TABLE は持たない）。
 
 なお、議論で「補助テーブル」と呼んでいた WFO ウィンドウ・OOS エクイティ
-カーブ・ライブ実績は実際には独立テーブルではなく以下に保存される:
+カーブは実際には独立テーブルではなく以下に保存される:
 
 - WFO ウィンドウ → ``optimization_runs.all_trials_json`` (JSON 列)
 - OOS エクイティカーブ → ``backtest_results.equity_curve_json`` + ``oos_start``
-- ライブ実績 (summaries / trades) → ``<live_dir>/{summaries,trades}/*.json``
 
-INSERT 操作は簡潔さを優先して ``sqlite3`` の raw SQL のままにしている。
+ライブ実績は ``backtest_results.db`` 内の SQLite テーブルに保存される（issue
+#209 で JSON ファイル経路を廃止）:
+
+- trade 単位サマリ → ``live_summaries``
+- trade 明細       → ``live_trades``
+- position サマリ   → ``live_position_summaries``（combine portfolio）
+
+INSERT 操作は backtest 系は ``sqlite3`` の raw SQL、live 系は列の取り違えを
+避けるため SQLAlchemy core insert を使う。
 """
 
 from __future__ import annotations
@@ -20,11 +27,15 @@ import datetime
 import json
 import pathlib
 import sqlite3
+from typing import Any
 
 from sqlalchemy import create_engine
 
 from alpha_visualizer.db import (
     backtest_results,
+    live_position_summaries,
+    live_summaries,
+    live_trades,
     metadata,
     optimization_runs,
     strategies,
@@ -32,17 +43,25 @@ from alpha_visualizer.db import (
 
 
 def _create_schema(db_path: pathlib.Path) -> None:
-    """``backtest_results`` / ``optimization_runs`` / ``strategies`` のスキーマを生成。
+    """テストで使うテーブル群のスキーマを生成する。
 
     db.py の SQLAlchemy MetaData を Single Source of Truth として、
-    重複した CREATE TABLE 文をテスト側で書かないようにする。
+    重複した CREATE TABLE 文をテスト側で書かないようにする。live_* テーブルも
+    含め、backtest_results.db 単一ファイルに同居させる（本番と同じ配置）。
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
         metadata.create_all(
             engine,
-            tables=[backtest_results, optimization_runs, strategies],
+            tables=[
+                backtest_results,
+                optimization_runs,
+                strategies,
+                live_summaries,
+                live_trades,
+                live_position_summaries,
+            ],
         )
     finally:
         engine.dispose()
@@ -281,30 +300,135 @@ def build_optimize_db(
         conn.close()
 
 
+# live_summaries の NOT NULL 列に対する seed 既定値（payload で上書き可能）。
+_LIVE_SUMMARY_DEFAULTS: dict[str, Any] = {
+    "strategy_version": None,
+    "snapshot_id": None,
+    "broker": "moomoo",
+    "total_trades": 0,
+    "win_rate_pct": 0.0,
+    "gross_pnl": 0.0,
+    "net_pnl": 0.0,
+    "profit_factor": 0.0,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "avg_slippage_bps": 0.0,
+    "total_commission": 0.0,
+    "max_drawdown_pct": 0.0,
+    "symbols": [],
+    "updated_at": "2026-05-01T00:00:00",
+}
+
+# live_trades の各列 seed 既定値（NOT NULL 列を満たす）。
+_LIVE_TRADE_DEFAULTS: dict[str, Any] = {
+    "trade_id": "",
+    "strategy_version": None,
+    "snapshot_id": None,
+    "broker": "moomoo",
+    "symbol": "",
+    "asset_class": None,
+    "timeframe": None,
+    "entry_at": "1970-01-01T00:00:00",
+    "exit_at": "1970-01-01T00:00:00",
+    "side": "long",
+    "qty": 0.0,
+    "entry_price": 0.0,
+    "exit_price": 0.0,
+    "gross_pnl": 0.0,
+    "net_pnl": 0.0,
+    "commission": 0.0,
+    "slippage_bps": None,
+    "return_pct": None,
+    "holding_seconds": None,
+    "exit_reason": None,
+    "tags": [],
+}
+
+
 def seed_live_summary(
-    live_dir: pathlib.Path,
+    db_path: pathlib.Path,
     strategy_id: str,
     payload: dict,
 ) -> None:
-    """<live_dir>/summaries/<strategy_id>.live.summary.json を作成する。"""
-    summaries_dir = live_dir / "summaries"
-    summaries_dir.mkdir(parents=True, exist_ok=True)
-    (summaries_dir / f"{strategy_id}.live.summary.json").write_text(
-        json.dumps(payload), encoding="utf-8"
-    )
+    """``live_summaries`` に 1 行 insert する（trade 単位サマリ）。
+
+    ``payload`` は live_summaries の列名キーを持つ部分辞書。未指定列は既定値で
+    補う。``symbols`` は list でも JSON 文字列でも受ける。
+    """
+    _create_schema(db_path)
+    values = dict(_LIVE_SUMMARY_DEFAULTS)
+    for key, value in payload.items():
+        if key in live_summaries.c:
+            values[key] = value
+    values["strategy_id"] = strategy_id
+    if not isinstance(values["symbols"], str):
+        values["symbols"] = json.dumps(values["symbols"])
+
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        with engine.begin() as conn:
+            conn.execute(live_summaries.insert().values(**values))
+    finally:
+        engine.dispose()
 
 
 def seed_live_trades(
-    live_dir: pathlib.Path,
+    db_path: pathlib.Path,
     strategy_id: str,
     trades: list[dict],
 ) -> None:
-    """<live_dir>/trades/<strategy_id>.trades.json を作成する。"""
-    trades_dir = live_dir / "trades"
-    trades_dir.mkdir(parents=True, exist_ok=True)
-    (trades_dir / f"{strategy_id}.trades.json").write_text(
-        json.dumps(trades), encoding="utf-8"
-    )
+    """``live_trades`` に複数行 insert する（trade 明細）。
+
+    各 trade 辞書は live_trades の列名キーを持つ部分辞書。未指定列は既定値で
+    補う。``tags`` は list でも JSON 文字列でも受ける。
+    """
+    _create_schema(db_path)
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        with engine.begin() as conn:
+            for trade in trades:
+                values = dict(_LIVE_TRADE_DEFAULTS)
+                for key, value in trade.items():
+                    if key in live_trades.c:
+                        values[key] = value
+                values["strategy_id"] = strategy_id
+                if not isinstance(values["tags"], str):
+                    values["tags"] = json.dumps(values["tags"])
+                conn.execute(live_trades.insert().values(**values))
+    finally:
+        engine.dispose()
+
+
+def seed_live_position_summary(
+    db_path: pathlib.Path,
+    portfolio_id: str,
+    *,
+    metrics: dict,
+    equity: list | None = None,
+    backtest_metrics: dict | None = None,
+    receipts_count: int = 0,
+    sub_strategies: list | None = None,
+    updated_at: str = "2026-05-01T00:00:00",
+) -> None:
+    """``live_position_summaries`` に 1 行 insert する（combine portfolio）。"""
+    _create_schema(db_path)
+    values = {
+        "portfolio_id": portfolio_id,
+        "metrics_json": json.dumps(metrics),
+        "backtest_metrics_json": (
+            json.dumps(backtest_metrics) if backtest_metrics is not None else None
+        ),
+        "equity_json": json.dumps(equity or []),
+        "receipts_count": receipts_count,
+        "sub_strategies_json": json.dumps(sub_strategies or []),
+        "updated_at": updated_at,
+    }
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+    try:
+        with engine.begin() as conn:
+            conn.execute(live_position_summaries.insert().values(**values))
+    finally:
+        engine.dispose()
 
 
 def seed_backtest_with_trades(

@@ -172,6 +172,35 @@ def compute_diff(
     return diff
 
 
+def position_detail(portfolio_id: str, pos: dict[str, Any]) -> dict[str, Any]:
+    """position ベース combine サマリを ``LiveDetail`` 互換の dict に整形する。
+
+    trade 単位ではないため ``trades`` 空・``period``/``backtest``/``diff`` は
+    ``None``。live metrics・equity 系列・``--compare`` 時の backtest metrics は
+    ``live.summary`` に載せてフロントへ渡す（``summary`` は柔軟な dict）。
+    """
+    summary: dict[str, Any] = {
+        "strategy_id": portfolio_id,
+        "portfolio_id": portfolio_id,
+        "kind": "position",
+        "metrics": pos.get("metrics") or {},
+        "backtest_metrics": pos.get("backtest_metrics"),
+        "equity": pos.get("equity") or [],
+        "receipts_count": pos.get("receipts_count"),
+        "sub_strategies": pos.get("sub_strategies") or [],
+        "updated_at": pos.get("updated_at"),
+    }
+    return {
+        "strategy_id": portfolio_id,
+        "live": {"summary": summary, "trades": [], "period": None},
+        "backtest": None,
+        "diff": None,
+        "warnings": [
+            "position ベースの combine portfolio のため trade 単位の backtest diff はありません"
+        ],
+    }
+
+
 __all__ = [
     "DIFF_METRICS",
     "aligned_aggregates",
@@ -180,6 +209,7 @@ __all__ = [
     "diff_value",
     "normalize_trade",
     "optional_float",
+    "position_detail",
     "safe_float",
     "trade_period",
 ]
