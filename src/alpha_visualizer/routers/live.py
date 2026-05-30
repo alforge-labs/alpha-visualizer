@@ -4,9 +4,10 @@
 整形ロジックは ``services.live`` に集約してあり、本ルーターは Repository
 アクセスと HTTP 変換、warnings 組み立てのみを担う。
 
-ファイル構造:
-- ``<live_dir>/summaries/<strategy_id>.live.summary.json``
-- ``<live_dir>/trades/<strategy_id>.trades.json``
+データ源は ``backtest_results.db`` の SQLite テーブル（issue #209）:
+- ``live_summaries`` / ``live_trades`` … trade 単位（strategy_id 粒度）
+- ``live_position_summaries``          … combine portfolio の position ベース
+  サマリ（portfolio_id 粒度・trade 無し）
 """
 from __future__ import annotations
 
@@ -102,17 +103,30 @@ def _backtest_record_for_diff(
 async def list_live(
     repo: Annotated[LiveDataRepository, Depends(get_live_repo)],
 ) -> list[dict[str, Any]]:
-    """live summary が存在する戦略 ID 一覧を返す。
+    """live サマリを持つ戦略 / portfolio の一覧を返す。
 
-    フロントの「Live」タブ表示判定に使う。
+    フロントの「Live」タブ表示判定に使う。trade 単位（``kind="strategy"``）と
+    combine の position ベース（``kind="position"``）を両方含める。
     """
     items: list[dict[str, Any]] = []
+    # has_trades を戦略ごとに引くと N+1 になるため 1 クエリで集合取得して照合する。
+    ids_with_trades = repo.strategy_ids_with_trades()
     for sid in repo.list_summary_strategy_ids():
         items.append(
             {
                 "strategy_id": sid,
-                "has_summary": repo.has_summary(sid),
-                "has_trades": repo.has_trades(sid),
+                "has_summary": True,
+                "has_trades": sid in ids_with_trades,
+                "kind": "strategy",
+            }
+        )
+    for pid in repo.list_position_portfolio_ids():
+        items.append(
+            {
+                "strategy_id": pid,
+                "has_summary": True,
+                "has_trades": False,
+                "kind": "position",
             }
         )
     return items
@@ -127,6 +141,10 @@ async def get_live(
     """指定戦略の live summary + trades と、期間整合した backtest aligned/diff を返す。"""
     summary = _load_live_summary(repo, strategy_id)
     if summary is None:
+        # trade 単位サマリが無ければ position ベース（combine portfolio）を試す。
+        pos = repo.load_position_summary(strategy_id)
+        if pos is not None:
+            return live_service.position_detail(strategy_id, pos)
         raise NotFoundError(
             f"strategy_id '{strategy_id}' の live summary が見つかりません",
         )

@@ -186,9 +186,10 @@ export interface paths {
         };
         /**
          * List Live
-         * @description live summary が存在する戦略 ID 一覧を返す。
+         * @description live サマリを持つ戦略 / portfolio の一覧を返す。
          *
-         *     フロントの「Live」タブ表示判定に使う。
+         *     フロントの「Live」タブ表示判定に使う。trade 単位（``kind="strategy"``）と
+         *     combine の position ベース（``kind="position"``）を両方含める。
          */
         get: operations["list_live_api_live_get"];
         put?: never;
@@ -571,6 +572,9 @@ export interface components {
         /**
          * LiveListItem
          * @description ``GET /api/live`` リストの 1 件。
+         *
+         *     ``kind`` は ``"strategy"``（trade 単位 / ``live_summaries``）または
+         *     ``"position"``（combine portfolio / ``live_position_summaries``）。
          */
         LiveListItem: {
             /** Strategy Id */
@@ -579,6 +583,8 @@ export interface components {
             has_summary: boolean;
             /** Has Trades */
             has_trades: boolean;
+            /** Kind */
+            kind?: ("strategy" | "position") | null;
         } & {
             [key: string]: unknown;
         };

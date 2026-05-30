@@ -63,6 +63,73 @@ optimization_runs = Table(
     Column("all_trials_json", Text),
 )
 
+# ライブ実績テーブル群（alpha-forge `live/db_repository.py` の読み取りミラー）。
+# alpha-forge は live trades/summaries を JSON ファイルではなく backtest_results.db
+# の以下テーブルへ永続化する方式へ移行済み（issue #209）。本ツールは読み取り専用。
+live_summaries = Table(
+    "live_summaries",
+    metadata,
+    Column("strategy_id", Text, primary_key=True),
+    Column("strategy_version", Text),
+    Column("snapshot_id", Text),
+    Column("broker", Text),
+    Column("total_trades", Integer, nullable=False),
+    Column("win_rate_pct", REAL, nullable=False),
+    Column("gross_pnl", REAL, nullable=False),
+    Column("net_pnl", REAL, nullable=False),
+    Column("profit_factor", REAL, nullable=False),
+    Column("avg_win", REAL, nullable=False),
+    Column("avg_loss", REAL, nullable=False),
+    Column("avg_slippage_bps", REAL, nullable=False),
+    Column("total_commission", REAL, nullable=False),
+    Column("max_drawdown_pct", REAL, nullable=False),
+    Column("symbols", Text, nullable=False, default="[]"),
+    Column("updated_at", Text, nullable=False),
+)
+
+live_trades = Table(
+    "live_trades",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("trade_id", Text, nullable=False),
+    Column("strategy_id", Text, nullable=False),
+    Column("strategy_version", Text),
+    Column("snapshot_id", Text),
+    Column("broker", Text, nullable=False),
+    Column("symbol", Text, nullable=False),
+    Column("asset_class", Text),
+    Column("timeframe", Text),
+    Column("entry_at", Text, nullable=False),
+    Column("exit_at", Text, nullable=False),
+    Column("side", Text, nullable=False),
+    Column("qty", REAL, nullable=False),
+    Column("entry_price", REAL, nullable=False),
+    Column("exit_price", REAL, nullable=False),
+    Column("gross_pnl", REAL, nullable=False),
+    Column("net_pnl", REAL, nullable=False),
+    Column("commission", REAL, nullable=False),
+    Column("slippage_bps", REAL),
+    Column("return_pct", REAL),
+    Column("holding_seconds", Integer),
+    Column("exit_reason", Text),
+    Column("tags", Text, nullable=False, default="[]"),
+)
+
+# combine portfolio（always-in-market overlay、trade_closed を出さない）の
+# position ベース live サマリ。trade 単位の live_summaries とは別エンティティで
+# portfolio_id 粒度・equity curve 由来の metrics を持つ（alpha-forge PR #995）。
+live_position_summaries = Table(
+    "live_position_summaries",
+    metadata,
+    Column("portfolio_id", Text, primary_key=True),
+    Column("metrics_json", Text, nullable=False),
+    Column("backtest_metrics_json", Text),
+    Column("equity_json", Text, nullable=False, default="[]"),
+    Column("receipts_count", Integer, nullable=False, default=0),
+    Column("sub_strategies_json", Text, nullable=False, default="[]"),
+    Column("updated_at", Text, nullable=False),
+)
+
 
 def get_engine(db_path: Path | str | PathLike[str]) -> Engine:
     """backtest_results.db / strategies.db への SQLAlchemy Engine を生成する。

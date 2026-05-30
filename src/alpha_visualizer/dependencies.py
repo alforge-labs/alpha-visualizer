@@ -58,16 +58,13 @@ def get_optimization_repo(request: Request) -> OptimizationRepository:
 
 
 def get_live_repo(request: Request) -> LiveDataRepository:
-    """``LiveDataRepository`` を ``ForgeConfig.live_dir`` から構築して返す。
+    """``LiveDataRepository`` を ``app.state.engine`` から構築して返す。
 
-    JSON ファイル群と ``backtest_results`` テーブルの両方にアクセスするため、
-    ``app.state.engine`` も合わせて注入する。
+    live 実績（live_summaries / live_trades / live_position_summaries）は
+    ``backtest_results.db`` 内のテーブルに永続化されるため、共有 Engine だけで
+    構築できる（issue #209 で JSON ファイル経路を廃止）。
     """
-    cfg: ForgeConfig = request.app.state.forge_config
-    return LiveDataRepository(
-        request.app.state.engine,
-        live_dir=cfg.live_dir,
-    )
+    return LiveDataRepository(request.app.state.engine)
 
 
 def get_ideas_reader(request: Request) -> IdeasReader:

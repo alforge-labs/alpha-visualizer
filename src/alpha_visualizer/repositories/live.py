@@ -1,23 +1,35 @@
 """ライブ実績 Repository。
 
-`<live_dir>/summaries/<strategy_id>.live.summary.json` および
-`<live_dir>/trades/<strategy_id>.trades.json` といった JSON ファイル群と、
-`backtest_results` テーブルからの 1 行取得（live と期間整合した diff
-計算に使う）をひとまとめに扱う Read-only Repository。
+alpha-forge は live 実績を JSON ファイルではなく ``backtest_results.db`` 内の
+SQLite テーブル群へ永続化する方式へ移行済み（issue #209）。本 Repository は
+その読み取り専用アクセサで、3 種のエンティティを扱う:
 
-Router 層からは本クラスを ``Depends`` で受け取り、HTTP 変換と純粋な
-集計ロジックのみを担当できるようにする。``backtest_results`` への
-アクセスは ``BacktestResultsRepository`` に委譲する（合成）。
+- ``live_summaries``           … trade 単位の戦略別サマリ（strategy_id 粒度）
+- ``live_trades``              … entry/exit trade 明細
+- ``live_position_summaries``  … combine portfolio の position ベースサマリ
+                                  （portfolio_id 粒度・equity 由来 metrics・trade 無し）
+
+加えて、live と期間整合した diff 計算のため ``backtest_results`` の 1 行取得を
+``BacktestResultsRepository`` に委譲する（合成）。
+
+live テーブルは ``backtest_results`` と同一 DB（``app.state.engine``）に存在する
+ため、追加の Engine 配線は不要。読み取り専用かつ tolerant に実装し、live を一度も
+使っていない DB（テーブル未作成）でも 500 を出さず空として扱う。
 """
 from __future__ import annotations
 
 import json
 import logging
-import pathlib
 from typing import Any
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
+from sqlalchemy.exc import OperationalError
 
+from alpha_visualizer.db import (
+    live_position_summaries,
+    live_summaries,
+    live_trades,
+)
 from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
     BacktestResultsRepository,
@@ -25,100 +37,173 @@ from alpha_visualizer.repositories.backtest_results import (
 
 logger = logging.getLogger(__name__)
 
-_SUMMARY_SUFFIX = ".live.summary.json"
-_TRADES_SUFFIX = ".trades.json"
+
+def _parse_json(raw: Any, default: Any) -> Any:
+    """TEXT 列に格納された JSON 文字列を安全にパースする。失敗時は ``default``。"""
+    if raw is None:
+        return default
+    if isinstance(raw, (list, dict)):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return default
+    return default
 
 
 class LiveDataRepository:
-    """ライブ実績データ（JSON ファイル群 + ``backtest_results`` 行）の Repository。
+    """ライブ実績データ（``backtest_results.db`` の live_* テーブル）の Repository。
 
-    `live_dir` 配下の JSON は SQLAlchemy の対象外のため、ファイルシステム
-    操作と JSON パースをこのクラスに集約する。``backtest_results`` への
-    クエリは ``BacktestResultsRepository`` に委譲し、SQL アクセスを 1 箇所
-    にまとめる。
+    ``backtest_results`` へのアクセスは ``BacktestResultsRepository`` に委譲し、
+    SQL アクセスを 1 箇所にまとめる。``engine`` が ``None``（backtest_results.db
+    不在、issue #173）の場合は live データも空として扱う。
     """
 
     def __init__(
         self,
-        engine: Engine,
+        engine: Engine | None,
         *,
-        live_dir: pathlib.Path,
         backtest_repo: BacktestResultsRepository | None = None,
     ) -> None:
-        # ``engine`` は ``backtest_repo`` 構築のためだけに使う（直接保持しない）。
-        # backtest_results へのアクセスは ``self._backtest_repo`` 経由に統一する。
-        self._live_dir = live_dir
-        self._backtest_repo = backtest_repo or BacktestResultsRepository(engine)
+        self._engine = engine
+        # engine が None のときは backtest 連携も不可。fetch_backtest_for_diff は
+        # その場合に呼ばれない想定（router 側で trades 有無に依存）だが、防御的に None。
+        if backtest_repo is not None:
+            self._backtest_repo: BacktestResultsRepository | None = backtest_repo
+        elif engine is not None:
+            self._backtest_repo = BacktestResultsRepository(engine)
+        else:
+            self._backtest_repo = None
 
     # ------------------------------------------------------------------
-    # パス解決ユーティリティ
+    # 内部: tolerant クエリ
     # ------------------------------------------------------------------
-    @property
-    def live_dir(self) -> pathlib.Path:
-        return self._live_dir
+    def _fetch_all(self, stmt: Any) -> list[Any]:
+        """SELECT を実行して全行返す。engine 不在 / テーブル未作成なら空リスト。
 
-    def summary_path(self, strategy_id: str) -> pathlib.Path:
-        return self._live_dir / "summaries" / f"{strategy_id}{_SUMMARY_SUFFIX}"
+        live を一度も使っていない DB には live_* テーブルが無いため、その
+        ``no such table`` のみ空扱いにする。DB 破損・ロック競合・ストレージ枯渇
+        など他の ``OperationalError`` は握り潰さず再送出する（Fail Loud）。
+        """
+        if self._engine is None:
+            return []
+        try:
+            with self._engine.connect() as conn:
+                return conn.execute(stmt).all()
+        except OperationalError as exc:
+            if "no such table" in str(exc).lower():
+                logger.debug("live テーブル未作成のため空として扱う: %s", exc)
+                return []
+            raise
 
-    def trades_path(self, strategy_id: str) -> pathlib.Path:
-        return self._live_dir / "trades" / f"{strategy_id}{_TRADES_SUFFIX}"
+    # ------------------------------------------------------------------
+    # 一覧 / 存在チェック
+    # ------------------------------------------------------------------
+    def list_summary_strategy_ids(self) -> list[str]:
+        """``live_summaries`` の strategy_id をソート済みで返す（trade 単位）。"""
+        rows = self._fetch_all(
+            select(live_summaries.c.strategy_id).order_by(live_summaries.c.strategy_id)
+        )
+        return [r.strategy_id for r in rows]
+
+    def list_position_portfolio_ids(self) -> list[str]:
+        """``live_position_summaries`` の portfolio_id をソート済みで返す（combine）。"""
+        rows = self._fetch_all(
+            select(live_position_summaries.c.portfolio_id).order_by(
+                live_position_summaries.c.portfolio_id
+            )
+        )
+        return [r.portfolio_id for r in rows]
 
     def has_summary(self, strategy_id: str) -> bool:
-        return self.summary_path(strategy_id).exists()
+        rows = self._fetch_all(
+            select(live_summaries.c.strategy_id).where(
+                live_summaries.c.strategy_id == strategy_id
+            )
+        )
+        return len(rows) > 0
 
     def has_trades(self, strategy_id: str) -> bool:
-        return self.trades_path(strategy_id).exists()
+        rows = self._fetch_all(
+            select(live_trades.c.id)
+            .where(live_trades.c.strategy_id == strategy_id)
+            .limit(1)
+        )
+        return len(rows) > 0
+
+    def strategy_ids_with_trades(self) -> set[str]:
+        """``live_trades`` に 1 件以上行を持つ strategy_id の集合を 1 クエリで返す。
+
+        一覧 API が戦略ごとに ``has_trades`` を個別クエリする N+1 を避けるための
+        まとめ取得用。
+        """
+        rows = self._fetch_all(select(live_trades.c.strategy_id).distinct())
+        return {r.strategy_id for r in rows}
 
     # ------------------------------------------------------------------
-    # JSON 読み取り
+    # サマリ / trade 読み取り（trade 単位）
     # ------------------------------------------------------------------
-    @staticmethod
-    def read_json_safe(path: pathlib.Path) -> Any:
-        """JSON ファイルを安全に読む。不在 / パース失敗時は ``None``。"""
-        if not path.exists():
-            return None
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("JSON 読み取り失敗 %s: %s", path, exc)
-            return None
-
-    def list_summary_strategy_ids(self) -> list[str]:
-        """``summaries/`` ディレクトリから戦略 ID 集合を抽出してソート済みで返す。"""
-        summaries_dir = self._live_dir / "summaries"
-        if not summaries_dir.exists():
-            return []
-        ids: set[str] = set()
-        for path in summaries_dir.glob(f"*{_SUMMARY_SUFFIX}"):
-            name = path.name
-            if name.endswith(_SUMMARY_SUFFIX):
-                ids.add(name[: -len(_SUMMARY_SUFFIX)])
-        return sorted(ids)
-
     def load_summary(self, strategy_id: str) -> dict[str, Any] | None:
-        """live summary JSON を辞書で返す。形式不正なら ``None``。"""
-        raw = self.read_json_safe(self.summary_path(strategy_id))
-        if not isinstance(raw, dict):
+        """``live_summaries`` の 1 行を辞書で返す。存在しなければ ``None``。
+
+        ``symbols`` は TEXT(JSON) 列なので ``list[str]`` にパースして返す。
+        """
+        rows = self._fetch_all(
+            select(live_summaries).where(
+                live_summaries.c.strategy_id == strategy_id
+            )
+        )
+        if not rows:
             return None
-        return raw
+        out = dict(rows[0]._mapping)
+        out["symbols"] = _parse_json(out.get("symbols"), [])
+        return out
 
     def load_raw_trades(self, strategy_id: str) -> list[dict[str, Any]]:
-        """live trades JSON を「dict のリスト」に正規化して返す。
+        """``live_trades`` の該当行を ``entry_at`` 昇順の辞書リストで返す。
 
-        ファイルが list ならそのまま、dict なら ``trades`` キー配下のリスト
-        を採用し、要素が dict でないものは捨てる。形式不正なら空リスト。
-        正規化（``entry_at`` 等のフィールド整形）は呼び出し側で行う。
+        正規化（``normalize_trade``）は呼び出し側に委ねる。``tags`` は list に
+        パースして返す。
         """
-        raw = self.read_json_safe(self.trades_path(strategy_id))
-        if raw is None:
-            return []
-        if isinstance(raw, list):
-            items: list[Any] = raw
-        elif isinstance(raw, dict):
-            items = list(raw.get("trades") or [])
-        else:
-            return []
-        return [item for item in items if isinstance(item, dict)]
+        rows = self._fetch_all(
+            select(live_trades)
+            .where(live_trades.c.strategy_id == strategy_id)
+            .order_by(live_trades.c.entry_at)
+        )
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            d = dict(r._mapping)
+            d["tags"] = _parse_json(d.get("tags"), [])
+            out.append(d)
+        return out
+
+    # ------------------------------------------------------------------
+    # position ベースサマリ（combine portfolio）
+    # ------------------------------------------------------------------
+    def load_position_summary(self, portfolio_id: str) -> dict[str, Any] | None:
+        """``live_position_summaries`` の 1 行を辞書で返す。無ければ ``None``。
+
+        ``metrics_json`` / ``backtest_metrics_json`` / ``equity_json`` /
+        ``sub_strategies_json`` をパースして展開する。
+        """
+        rows = self._fetch_all(
+            select(live_position_summaries).where(
+                live_position_summaries.c.portfolio_id == portfolio_id
+            )
+        )
+        if not rows:
+            return None
+        m = rows[0]._mapping
+        return {
+            "portfolio_id": m["portfolio_id"],
+            "metrics": _parse_json(m["metrics_json"], {}),
+            "backtest_metrics": _parse_json(m["backtest_metrics_json"], None),
+            "equity": _parse_json(m["equity_json"], []),
+            "receipts_count": m["receipts_count"],
+            "sub_strategies": _parse_json(m["sub_strategies_json"], []),
+            "updated_at": m["updated_at"],
+        }
 
     # ------------------------------------------------------------------
     # backtest_results 連携（diff 計算用の 1 行取得）
@@ -131,6 +216,8 @@ class LiveDataRepository:
         ``run_id`` 指定時はその ID を、未指定時は ``strategy_id`` の最新
         （``run_at`` 降順 1 件目）を返す。該当無し / DB 未到達時は ``None``。
         """
+        if self._backtest_repo is None:
+            return None
         if run_id:
             return self._backtest_repo.get_result(run_id)
         rows = self._backtest_repo.list_results(strategy_id=strategy_id)
