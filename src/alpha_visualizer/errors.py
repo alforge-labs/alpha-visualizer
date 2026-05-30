@@ -38,3 +38,14 @@ class DataCorruptError(AlphaVisualizerError):
     """データソースが存在するが内容が破損・不整合。"""
 
     status_code = 500
+
+
+class DataSourceUnavailableError(AlphaVisualizerError):
+    """設定上は使うはずのデータソースが利用できない（不在・未生成など）。
+
+    例: ``strategies.use_db: true`` なのに ``strategies.db`` が存在しない。
+    黙って別ソース（stale な JSON 等）へフォールバックせず、設定と実体の
+    不一致を明示するために使う（Fail Loud）。
+    """
+
+    status_code = 500

@@ -18,6 +18,7 @@ from sqlalchemy import Engine, select
 
 from alpha_visualizer.db import get_engine
 from alpha_visualizer.db import strategies as strategies_table
+from alpha_visualizer.errors import DataSourceUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +84,22 @@ class StrategiesRepository:
         *,
         strategies_db_engine: Engine | None,
         strategies_dir: Path,
+        strategies_db: Path | None = None,
     ) -> None:
+        """
+        Args:
+            strategies_db_engine: ``strategies.db`` への Engine。DB モード設定でも
+                ファイルが無いときは ``None`` になる。
+            strategies_dir: JSON モードで戦略を探すディレクトリ。
+            strategies_db: forge.yaml で ``strategies.use_db: true`` のときに解決
+                される ``strategies.db`` のパス（**ファイルが無くても非 None** で
+                「DB モード設定」を表す）。JSON モードでは ``None``。これが非 None
+                かつ Engine が ``None``（DB 不在）のときは、黙って JSON へフォール
+                バックせず明示エラーにする（Fail Loud）。
+        """
         self._db_engine = strategies_db_engine
         self._strategies_dir = strategies_dir
+        self._strategies_db = strategies_db
 
     @classmethod
     def from_paths(
@@ -96,22 +110,39 @@ class StrategiesRepository:
     ) -> StrategiesRepository:
         """パスから Engine を解決して Repository を構築する。
 
-        ``strategies_db`` が ``None`` または存在しないファイルの場合は
-        JSON モードにフォールバックする。
+        ``strategies_db`` が指定されていれば DB モード。そのうえでファイルが存在
+        すれば Engine を張る。``strategies_db`` が ``None`` のときは JSON モード。
         """
         engine = (
             get_engine(strategies_db)
             if strategies_db is not None and strategies_db.exists()
             else None
         )
-        return cls(strategies_db_engine=engine, strategies_dir=strategies_dir)
+        return cls(
+            strategies_db_engine=engine,
+            strategies_dir=strategies_dir,
+            strategies_db=strategies_db,
+        )
 
     # --- 公開 API -------------------------------------------------------------
 
     def list_strategies(self) -> list[StrategyRow]:
-        """戦略定義を全件返す（DB モード優先、JSON モードへフォールバック）。"""
+        """戦略定義を全件返す。
+
+        - Engine あり → DB モード（strategies テーブルから取得）
+        - Engine なし & DB モード設定 → ``DataSourceUnavailableError``（Fail Loud）。
+          stale な JSON を最新と誤認させないため、黙って JSON へ落とさない。
+        - Engine なし & JSON モード → JSON ディレクトリから取得（正規経路）
+        """
         if self._db_engine is not None:
             return self._load_from_db()
+        if self._strategies_db is not None:
+            raise DataSourceUnavailableError(
+                "strategies.use_db=true ですが strategies.db が見つかりません: "
+                f"{self._strategies_db}. "
+                "forge で戦略を保存して DB を生成するか、forge.yaml の "
+                "strategies.path / db_filename を確認してください。"
+            )
         return self._load_from_json_dir()
 
     def get_strategy(self, strategy_id: str) -> StrategyRow | None:

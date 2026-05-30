@@ -49,6 +49,9 @@ def get_strategies_repo(request: Request) -> StrategiesRepository:
     return StrategiesRepository(
         strategies_db_engine=request.app.state.strategies_engine,
         strategies_dir=cfg.strategies_dir,
+        # 設定上の strategies.db パス（不在でも非 None = DB モード）を渡す。
+        # DB モードなのにファイルが無いとき、stale な JSON へ黙って落ちず Fail Loud。
+        strategies_db=cfg.strategies_db,
     )
 
 

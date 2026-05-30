@@ -101,6 +101,47 @@ class TestForgeYamlIntegration:
         assert data[0]["name"] == "EMA クロス AAPL"
         assert data[0]["sharpe_ratio"] == pytest.approx(1.42)
 
+    def test_list_strategies_fails_loud_when_use_db_but_db_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """use_db: true なのに strategies.db が無いと /api/strategies は 500（issue #210）。
+
+        backtest_results.db は用意し strategies.db だけ欠く。stale な JSON へ黙って
+        落ちず、設定と実体の不一致を明示エラーで返すことを確認する。
+        """
+        build_backtest_db(tmp_path / "data" / "results" / "backtest_results.db")
+        # strategies.db は作らない。代わりに stale JSON を置く（使われてはいけない）
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True)
+        (strategies_dir / "stale.json").write_text(
+            json.dumps({"strategy_id": "stale", "name": "古い戦略"}),
+            encoding="utf-8",
+        )
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                report:
+                  output_path: ./data/results
+                  db_filename: backtest_results.db
+                strategies:
+                  path: ./data/strategies
+                  use_db: true
+                  db_filename: strategies.db
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        config = ForgeConfig.from_forge_dir(tmp_path)
+        client = TestClient(create_app(config=config))
+
+        response = client.get("/api/strategies")
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert "strategies.db" in detail
+        # stale JSON の戦略が漏れていないこと
+        assert "stale" not in detail
+
     def test_compare_strategies_returns_equity_and_daily_returns(
         self, tmp_path: pathlib.Path
     ) -> None:
