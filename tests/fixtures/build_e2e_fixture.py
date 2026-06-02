@@ -211,17 +211,28 @@ def _strategy_definition(strategy_id: str, name: str, params: dict[str, object])
 
 
 def _opt_trials(seed: int, n: int) -> list[dict[str, object]]:
+    """Grid/Optuna 形式のトライアル列（OptimizeScreen の感度散布図用）。
+
+    optimize ルーター ``_parse_trial`` はフラットな dict を期待する:
+    - ``_METRIC_KEYS`` 外の数値キー → パラメータ軸（fast_period / slow_period）
+    - ``_METRIC_KEYS`` 内の数値キー → メトリクス（sharpe_ratio / total_return_pct）
+
+    metric は ``best_metric_name`` (=sharpe_ratio) を持たせ、fast_period≈12 を頂点と
+    する擬似感度カーブ＋ノイズで変化させて、合否（sharpe>0）が混在する見栄えのする
+    散布図になるようにする。
+    """
     rng = random.Random(seed)  # noqa: S311
     out: list[dict[str, object]] = []
-    for i in range(n):
+    for _ in range(n):
+        fast = rng.randint(5, 20)
+        slow = rng.randint(25, 60)
+        sharpe = round(1.6 - abs(fast - 12) * 0.18 + rng.uniform(-0.7, 0.7), 4)
         out.append(
             {
-                "trial": i + 1,
-                "params": {
-                    "fast_period": rng.randint(5, 20),
-                    "slow_period": rng.randint(20, 60),
-                },
-                "metric_value": round(rng.uniform(0.4, 1.8), 4),
+                "fast_period": fast,
+                "slow_period": slow,
+                "sharpe_ratio": sharpe,
+                "total_return_pct": round(sharpe * rng.uniform(7.0, 12.0), 4),
             }
         )
     return out
@@ -405,8 +416,9 @@ def _build_backtest_row(
 
 
 def _build_optimization_row(strategy_id: str, run_at: str) -> dict[str, object]:
-    trials = _opt_trials(seed=42, n=20)
-    best = max(trials, key=lambda t: float(t["metric_value"]))
+    trials = _opt_trials(seed=42, n=30)
+    best = max(trials, key=lambda t: float(t["sharpe_ratio"]))
+    best_params = {"fast_period": best["fast_period"], "slow_period": best["slow_period"]}
     return {
         "run_id": f"opt_{strategy_id}_001",
         "strategy_id": strategy_id,
@@ -414,8 +426,8 @@ def _build_optimization_row(strategy_id: str, run_at: str) -> dict[str, object]:
         "run_at": run_at,
         "n_trials": len(trials),
         "best_metric_name": "sharpe_ratio",
-        "best_metric_value": float(best["metric_value"]),
-        "best_params_json": json.dumps(best["params"], ensure_ascii=False, sort_keys=True),
+        "best_metric_value": float(best["sharpe_ratio"]),
+        "best_params_json": json.dumps(best_params, ensure_ascii=False, sort_keys=True),
         "duration_seconds": 12.34,
         "all_trials_json": json.dumps(trials, ensure_ascii=False),
     }

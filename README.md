@@ -71,6 +71,10 @@ alpha-vis serve --no-open
 |---|---|
 | ![Detail](docs/screenshots/ja/detail.png) | ![Compare](docs/screenshots/ja/compare.png) |
 
+**Compare — 戦略間相関ヒートマップ**
+
+![相関ヒートマップ](docs/screenshots/ja/compare-heatmap.png)
+
 | Optimize | Strategy 構造 |
 |---|---|
 | ![Optimize](docs/screenshots/ja/optimize.png) | ![Strategy](docs/screenshots/ja/strategy.png) |

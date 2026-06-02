@@ -71,6 +71,10 @@ If `alpha-vis serve --forge-dir /path/to/A` seems to be reading a different DB t
 |---|---|
 | ![Detail](docs/screenshots/en/detail.png) | ![Compare](docs/screenshots/en/compare.png) |
 
+**Compare — Strategy correlation heatmap**
+
+![Correlation heatmap](docs/screenshots/en/compare-heatmap.png)
+
 | Optimize | Strategy structure |
 |---|---|
 | ![Optimize](docs/screenshots/en/optimize.png) | ![Strategy](docs/screenshots/en/strategy.png) |
