@@ -1,7 +1,9 @@
 version: 2
 updates:
-  # Python パッケージ（uv が pyproject.toml + uv.lock を使うが、Dependabot は pip エコシステムとして扱う）
-  - package-ecosystem: "pip"
+  # Python パッケージ（uv エコシステム: pyproject.toml + uv.lock を解析し、
+  # 推移的依存も含めた定期 version-update を発行できる。pip では uv.lock の
+  # 推移的依存を bump できないため uv を使用する）
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
