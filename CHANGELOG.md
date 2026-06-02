@@ -5,6 +5,51 @@ alpha-visualizer の全バージョン変更履歴です。
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
 
+## [0.7.1] - 2026-06-02
+
+
+### CI/CD
+
+- **deps**: bump idna from 3.13 to 3.15 (#203)
+
+
+- **deps**: Python の Dependabot を pip から uv エコシステムへ切替 (#213)
+
+
+
+### その他
+
+- **deps-dev**: bump @types/node from 25.7.0 to 25.9.1 in /frontend (#207)
+
+
+- **deps**: bump sqlalchemy from 2.0.49 to 2.0.50 (#214)
+
+
+- **deps-dev**: bump ruff from 0.15.12 to 0.15.15 (#216)
+
+
+- **deps**: bump fastapi from 0.136.1 to 0.136.3 (#217)
+
+
+- **deps-dev**: bump hypothesis from 6.152.4 to 6.155.1 (#218)
+
+
+- **deps**: bump pandas from 3.0.2 to 3.0.3 (#215)
+
+
+- **deps-dev**: bump @vitejs/plugin-react in /frontend (#208)
+
+
+- バージョン 0.7.1 にバンプ
+
+
+
+### ドキュメント
+
+- CHANGELOG を v0.7.0 に更新
+
+
+
 ## [0.7.0] - 2026-05-30
 
 
