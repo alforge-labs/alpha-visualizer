@@ -334,6 +334,21 @@ export interface IdeaItem {
 
 // ===== Live (issue #57) =====
 
+/**
+ * position ベース combine portfolio の live metrics
+ * （backend ``services/live.py`` の ``position_detail`` 互換）。
+ *
+ * ``max_drawdown_pct`` / ``volatility_pct`` は **正値**（大きいほど悪い）。
+ * trade 単位の ``LiveSummary.max_drawdown_pct``（負値）と符号規約が異なる点に注意。
+ */
+export interface LivePositionMetrics {
+  total_return_pct?: number | null
+  cagr_pct?: number | null
+  sharpe_ratio?: number | null
+  max_drawdown_pct?: number | null
+  volatility_pct?: number | null
+}
+
 /** LiveSummary: backend 側は ``LiveSection.summary: dict[str, unknown]`` のため手書き。 */
 export interface LiveSummary {
   strategy_id: string
@@ -351,6 +366,16 @@ export interface LiveSummary {
   total_commission?: number
   max_drawdown_pct?: number
   symbols?: string[]
+  /** 'position' = combine portfolio（``live_position_summaries`` 由来、#221） */
+  kind?: 'strategy' | 'position'
+  portfolio_id?: string | null
+  metrics?: LivePositionMetrics | null
+  backtest_metrics?: LivePositionMetrics | null
+  /** ``[[ISO 日時, equity 値], ...]`` の日次系列 */
+  equity?: [string, number][]
+  receipts_count?: number | null
+  sub_strategies?: string[]
+  updated_at?: string | null
 }
 
 /** LiveTrade: ``side: 'long' | 'short'`` に narrow（生成型は string）。 */
