@@ -159,3 +159,113 @@ describe('<LiveTab />', () => {
     expect(screen.queryByText(/取得に失敗/)).toBeNull()
   })
 })
+
+// position ベース combine portfolio（#221）。
+// strategies.db 未登録の portfolio_id でも live_position_summaries 由来の
+// summary を描画できることを保証する。
+const POSITION_RESPONSE: LiveDetailResponse = {
+  strategy_id: 'beat_qqq_hedged_v1',
+  live: {
+    summary: {
+      strategy_id: 'beat_qqq_hedged_v1',
+      portfolio_id: 'beat_qqq_hedged_v1',
+      kind: 'position',
+      metrics: {
+        total_return_pct: 1.2,
+        cagr_pct: 3.4,
+        sharpe_ratio: 0.8,
+        max_drawdown_pct: 2.1,
+        volatility_pct: 11.0,
+      },
+      backtest_metrics: {
+        total_return_pct: 881.63,
+        cagr_pct: 15.03,
+        sharpe_ratio: 1.02,
+        max_drawdown_pct: 23.49,
+        volatility_pct: 14.2,
+      },
+      equity: [
+        ['2026-06-01T00:00:00', 100000],
+        ['2026-06-02T00:00:00', 100500],
+        ['2026-06-03T00:00:00', 101200],
+      ],
+      receipts_count: 4,
+      sub_strategies: ['tqqq_sma200_atr_bho_phase2_v1_optimized', 'gld_bh_v1', 'tlt_bh_v1'],
+      updated_at: '2026-06-06T10:50:22+00:00',
+    },
+    trades: [],
+    period: null,
+  },
+  backtest: null,
+  diff: null,
+  warnings: ['position ベースの combine portfolio のため trade 単位の backtest diff はありません'],
+}
+
+describe('<LiveTab /> position kind (combine portfolio)', () => {
+  it('renders position metrics cards instead of trade summary', async () => {
+    vi.mocked(api.getLive).mockResolvedValue(POSITION_RESPONSE)
+    render(<LiveTab strategyId="beat_qqq_hedged_v1" runId="" lang="ja" />)
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('live-position-card').length).toBe(5)
+    })
+    // trade 単位のカード・トレード表は描画されないこと
+    expect(screen.queryAllByTestId('live-summary-card')).toHaveLength(0)
+    // 構成戦略とメタ情報
+    expect(screen.getByText(/gld_bh_v1/)).toBeInTheDocument()
+    expect(screen.getByText(/receipts: 4/)).toBeInTheDocument()
+  })
+
+  it('renders equity sparkline when equity series exists', async () => {
+    vi.mocked(api.getLive).mockResolvedValue(POSITION_RESPONSE)
+    render(<LiveTab strategyId="beat_qqq_hedged_v1" runId="" lang="ja" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-position-equity')).toBeInTheDocument()
+    })
+  })
+
+  it('inverts diff tone for max drawdown / volatility (lower is better)', async () => {
+    vi.mocked(api.getLive).mockResolvedValue(POSITION_RESPONSE)
+    render(<LiveTab strategyId="beat_qqq_hedged_v1" runId="" lang="ja" />)
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('live-position-card').length).toBe(5)
+    })
+    const cards = screen.getAllByTestId('live-position-card')
+    const findCard = (label: RegExp): HTMLElement => {
+      const hit = cards.find((c) => label.test(c.textContent ?? ''))
+      if (!hit) throw new Error(`card not found: ${label}`)
+      return hit
+    }
+    // live DD 2.1 < BT DD 23.49 → diff 負だが「DD 縮小 = 良い」ので success
+    const ddDiff = findCard(/最大DD/).querySelector<HTMLElement>('[data-testid="live-diff"]')
+    expect(ddDiff?.style.color).toBe('var(--success)')
+    // live CAGR 3.4 < BT 15.03 → diff 負で danger
+    const cagrDiff = findCard(/CAGR/).querySelector<HTMLElement>('[data-testid="live-diff"]')
+    expect(cagrDiff?.style.color).toBe('var(--danger)')
+  })
+
+  it('renders metrics without diff when backtest_metrics is null', async () => {
+    const noBt: LiveDetailResponse = {
+      ...POSITION_RESPONSE,
+      live: {
+        ...POSITION_RESPONSE.live,
+        summary: {
+          ...POSITION_RESPONSE.live.summary,
+          backtest_metrics: null,
+        },
+      },
+    }
+    vi.mocked(api.getLive).mockResolvedValue(noBt)
+    render(<LiveTab strategyId="beat_qqq_hedged_v1" runId="" lang="en" />)
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('live-position-card').length).toBe(5)
+    })
+    const diffs = screen
+      .getAllByTestId('live-position-card')
+      .flatMap((c) => Array.from(c.querySelectorAll('[data-testid="live-diff"]')))
+    expect(diffs.every((d) => (d.textContent ?? '').includes('—'))).toBe(true)
+  })
+})

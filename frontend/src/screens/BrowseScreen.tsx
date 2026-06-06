@@ -101,23 +101,28 @@ export function BrowseScreen({
           )}
         </p>
         {!list.loading && <Heroline items={list.all} lang={lang} />}
-        <Link
-          to="/ideas"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            marginTop: 'var(--space-3)',
-            fontFamily: 'var(--sans)',
-            fontSize: 'var(--fs-caption)',
-            fontWeight: 500,
-            color: 'var(--text3)',
-            textDecoration: 'none',
-            letterSpacing: 'var(--tracking-caption)',
-            textTransform: 'uppercase',
-          }}
-        >
-          {L('Ideas →', 'Ideas →')}
-        </Link>
+        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+          {(['/ideas', '/live'] as const).map((to) => (
+            <Link
+              key={to}
+              to={to}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginTop: 'var(--space-3)',
+                fontFamily: 'var(--sans)',
+                fontSize: 'var(--fs-caption)',
+                fontWeight: 500,
+                color: 'var(--text3)',
+                textDecoration: 'none',
+                letterSpacing: 'var(--tracking-caption)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {to === '/ideas' ? L('Ideas →', 'Ideas →') : L('Live →', 'Live →')}
+            </Link>
+          ))}
+        </div>
         </div>
         <SettingsToggles
           lang={lang}
