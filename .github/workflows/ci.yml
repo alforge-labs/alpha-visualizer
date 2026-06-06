@@ -15,7 +15,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "latest"
+          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.12
@@ -74,7 +74,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "latest"
+          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.12
@@ -120,7 +120,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "latest"
+          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.12
@@ -128,12 +128,22 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras
 
+      # SQLite DB はヘッダに書き込みライブラリのバージョンを記録するため、
+      # バイナリ git diff ではなく SQL ダンプの論理比較で検証する（#223）。
+      - name: Snapshot committed fixture DB
+        run: cp frontend/e2e/fixtures/forge/data/results/backtest_results.db /tmp/committed_fixture.db
+
       - name: Regenerate E2E fixture
         run: uv run python tests/fixtures/build_e2e_fixture.py
 
       - name: Verify fixture is committed
         run: |
-          if ! git diff --exit-code frontend/e2e/fixtures/; then
+          if ! uv run python scripts/compare_sqlite_dump.py /tmp/committed_fixture.db frontend/e2e/fixtures/forge/data/results/backtest_results.db; then
+            echo "::error::E2E fixture DB is out of date (logical dump differs)."
+            echo "Run 'uv run python tests/fixtures/build_e2e_fixture.py' locally and commit the changes."
+            exit 1
+          fi
+          if ! git diff --exit-code -- frontend/e2e/fixtures/ ':(exclude)frontend/e2e/fixtures/forge/data/results/backtest_results.db'; then
             echo "::error::E2E fixture is out of date."
             echo "Run 'uv run python tests/fixtures/build_e2e_fixture.py' locally and commit the changes."
             exit 1
@@ -149,7 +159,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "latest"
+          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.12
@@ -157,12 +167,21 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras
 
+      # SQLite DB はバイナリ比較ではなく SQL ダンプの論理比較で検証する（#223）。
+      - name: Snapshot committed samples DB
+        run: cp samples/sample-forge/data/results/backtest_results.db /tmp/committed_samples.db
+
       - name: Regenerate OSS sample dataset
         run: uv run python samples/build_samples.py
 
       - name: Verify sample-forge is committed (determinism)
         run: |
-          if ! git diff --exit-code samples/sample-forge/; then
+          if ! uv run python scripts/compare_sqlite_dump.py /tmp/committed_samples.db samples/sample-forge/data/results/backtest_results.db; then
+            echo "::error::samples/sample-forge/ DB is out of date (logical dump differs)."
+            echo "Run 'uv run python samples/build_samples.py' locally and commit the changes."
+            exit 1
+          fi
+          if ! git diff --exit-code -- samples/sample-forge/ ':(exclude)samples/sample-forge/data/results/backtest_results.db'; then
             echo "::error::samples/sample-forge/ is out of date."
             echo "Run 'uv run python samples/build_samples.py' locally and commit the changes."
             exit 1
@@ -177,7 +196,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "latest"
+          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.12
