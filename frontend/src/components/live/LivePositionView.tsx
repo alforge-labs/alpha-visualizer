@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { ParentSize } from '@visx/responsive'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
@@ -43,7 +44,7 @@ function metricDiff(live: number | null | undefined, bt: number | null | undefin
  * ``summary.kind === 'position'``）向けに、equity 由来メトリクスと
  * backtest combine 比較・equity sparkline を描画する。
  */
-export function LivePositionView({ summary, warnings, lang }: Props) {
+export function LivePositionView({ summary, warnings, lang }: Props): ReactElement {
   const L = makeL(lang)
   const metrics = summary.metrics ?? {}
   const bt = summary.backtest_metrics ?? null
@@ -127,7 +128,7 @@ interface MetaLineProps {
   lang: Lang
 }
 
-function MetaLine({ summary, warnings, lang }: MetaLineProps) {
+function MetaLine({ summary, warnings, lang }: MetaLineProps): ReactElement {
   const L = makeL(lang)
   const subs = summary.sub_strategies ?? []
   return (
@@ -145,7 +146,7 @@ function MetaLine({ summary, warnings, lang }: MetaLineProps) {
       {summary.receipts_count != null && <span>receipts: {summary.receipts_count}</span>}
       {summary.updated_at && (
         <span>
-          {L('更新', 'updated')}: {summary.updated_at}
+          {L('更新', 'updated')}: {summary.updated_at.slice(0, 19).replace('T', ' ')}
         </span>
       )}
       {subs.length > 0 && (

@@ -101,4 +101,11 @@ describe('<LiveScreen />', () => {
     renderScreen({ items: [], selectedId: null })
     expect(screen.getByText(/ライブ実績データがまだありません/)).toBeInTheDocument()
   })
+
+  it('shows loading state and does not fetch detail while loading', () => {
+    renderScreen({ items: [], selectedId: null, loading: true })
+    expect(screen.getByText(/読み込み中/)).toBeInTheDocument()
+    expect(screen.queryByText(/ライブ実績データがまだありません/)).toBeNull()
+    expect(api.getLive).not.toHaveBeenCalled()
+  })
 })
