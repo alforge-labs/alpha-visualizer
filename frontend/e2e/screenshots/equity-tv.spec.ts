@@ -39,7 +39,9 @@ test.describe.serial('lightweight-charts (TV) 用スクリーンショット', (
   }
 
   test('backtest-tv (ja, gotoDetail helper)', async ({ page }) => {
-    // gotoDetail を経由しても feature flag が ON のまま維持されることの回帰確認
+    // gotoDetail を経由しても feature flag が ON のまま維持されることの回帰確認。
+    // renderer-mode バッジは issue #231 以降 ?tv クエリ無しの本番ビルドでは
+    // 表示されないため、TV チャート本体の testid で検証する。
     await clearViewerSettings(page)
     await page.addInitScript(() => {
       try {
@@ -50,6 +52,6 @@ test.describe.serial('lightweight-charts (TV) 用スクリーンショット', (
     })
     await gotoDetail(page, STRATEGY_ID)
     await page.waitForLoadState('networkidle')
-    await page.getByTestId('renderer-mode').waitFor({ state: 'visible' })
+    await page.locator('[data-testid="backtest-equity-chart-tv"]').waitFor({ state: 'visible' })
   })
 })

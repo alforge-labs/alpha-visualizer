@@ -9,9 +9,9 @@ test.describe('Detail スモーク', () => {
   test('sma_cross の主要タブを順次切り替えられる', async ({ page }) => {
     await gotoDetail(page, 'sma_cross')
 
-    // backtest タブ（既定）
+    // backtest タブ（既定）— issue #231 以降は TV レンダラが既定
     await expect(page.getByTestId('backtest-screen')).toBeVisible()
-    await expect(page.getByTestId('backtest-equity-chart')).toBeVisible()
+    await expect(page.getByTestId('backtest-equity-chart-tv')).toBeVisible()
 
     // IS / OOS タブ
     await page.getByRole('tab', { name: 'IS / OOS' }).click()
@@ -35,5 +35,12 @@ test.describe('Detail スモーク', () => {
     await gotoDetail(page, 'rsi_reversal')
     await page.getByRole('tab', { name: /最適化|Optimize/ }).click()
     await expect(page.getByTestId('optimize-screen')).toBeVisible()
+  })
+
+  test('?tv=0 で visx レンダラに fallback できる', async ({ page }) => {
+    // issue #231: TV 既定化後も visx を opt-out 経路として維持していることの回帰確認
+    await page.goto('/detail/sma_cross?tv=0')
+    await expect(page.getByTestId('backtest-equity-chart')).toBeVisible()
+    await expect(page.getByTestId('backtest-equity-chart-tv')).not.toBeVisible()
   })
 })

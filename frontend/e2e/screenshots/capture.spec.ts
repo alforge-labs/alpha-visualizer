@@ -151,12 +151,13 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await captureViewport(page, lang, 'browse', 1180)
       })
 
-      // detail: 「エクイティ vs Buy&Hold」カード（タイトル＋チャート）をクロップ
+      // detail: 「エクイティ & ドローダウン」カード（タイトル＋チャート）をクロップ
       test('detail', async ({ page }) => {
         await gotoDetail(page, STRATEGY_ID)
         await setLang(page, lang)
-        // backtest-equity-chart の親 div = セクションラベル＋エクイティチャート
-        const equitySection = page.getByTestId('backtest-equity-chart').locator('..')
+        // backtest-equity-chart-tv の親 div = セクションラベル＋エクイティチャート
+        // （issue #231 以降は TV レンダラが既定）
+        const equitySection = page.getByTestId('backtest-equity-chart-tv').locator('..')
         await captureElement(page, lang, 'detail', equitySection, 280)
       })
 

@@ -1,21 +1,25 @@
 /**
- * Feature flag 解決ロジック。issue #180 の lightweight-charts PoC 用。
+ * Feature flag 解決ロジック。issue #180 の lightweight-charts PoC として導入し、
+ * issue #231 で既定 ON に反転（TV レンダラを正式採用。visx は `?tv=0` fallback）。
  *
  * 優先順位:
  *   1. URL クエリ `?tv=1` / `?tv=0` (top priority — セッション中は localStorage へ persist)
  *   2. localStorage['alpha.flags.lightweightCharts']
- *   3. import.meta.env.VITE_USE_LIGHTWEIGHT_CHARTS === '1'
- *   4. デフォルト false
+ *   3. import.meta.env.VITE_USE_LIGHTWEIGHT_CHARTS（'1'/'true' で ON、'0'/'false' で OFF）
+ *   4. デフォルト true
  *
  * SSR / non-DOM コンテキストでは env と デフォルトだけを評価する。
  */
 
 const LS_KEY = 'alpha.flags.lightweightCharts'
 const QS_KEY = 'tv'
+const DEFAULT_FLAG = true
 
-function readEnvFlag(): boolean {
+function readEnvFlag(): boolean | null {
   const raw = import.meta.env.VITE_USE_LIGHTWEIGHT_CHARTS
-  return raw === '1' || raw === 'true'
+  if (raw === '1' || raw === 'true') return true
+  if (raw === '0' || raw === 'false') return false
+  return null
 }
 
 function readQueryFlag(): boolean | null {
@@ -62,7 +66,7 @@ export function resolveLightweightChartsFlag(): boolean {
   }
   const fromStorage = readStorageFlag()
   if (fromStorage != null) return fromStorage
-  return readEnvFlag()
+  return readEnvFlag() ?? DEFAULT_FLAG
 }
 
 /**
