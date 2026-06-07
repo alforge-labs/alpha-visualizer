@@ -230,6 +230,35 @@ def test_alpha_error_handler_returns_json_with_status(
     assert res.json() == {"detail": "test resource"}
 
 
+def test_missing_db_warning_matches_actual_behavior(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """DB 欠落時の起動 warning が実挙動と一致する（issue #227）。
+
+    一覧 API（/api/results・/api/live）は 200 + 空配列を返すため、
+    「関連 API は 404 を返します」という旧文言は誤誘導。文言と実挙動の
+    両方をここで突合し、将来どちらかだけが変わったら fail させる。
+    """
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="alpha_visualizer.app"):
+        app = create_app(forge_dir=tmp_path)
+
+    messages = [r.getMessage() for r in caplog.records if "backtest_results.db" in r.getMessage()]
+    assert messages, "DB 欠落の warning が出ていない"
+    # 文言が実挙動（一覧=空配列・個別=404）を正しく説明していること
+    assert any("空配列" in m and "404" in m for m in messages), messages
+    # 旧文言（一覧 API まで 404 と読める表現）が残っていないこと
+    assert not any("関連 API は 404" in m for m in messages), messages
+
+    # 実挙動の突合: 一覧 API は 200 + 空配列
+    client = TestClient(app)
+    res = client.get("/api/results")
+    assert res.status_code == 200
+    assert res.json() == []
+
+
 def test_missing_static_dir_logs_warning(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
