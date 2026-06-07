@@ -148,5 +148,14 @@ def create_app(
             if target is not None:
                 return FileResponse(target)
             return FileResponse(index_html)
+    else:
+        # wheel への static/ 同梱漏れ（issue #225）や frontend 未ビルドの開発環境では
+        # SPA を配信できない。無言でルート / が 404 になるのではなく、
+        # 起動ログから原因と対処に到達できるよう warning を残す。
+        logger.warning(
+            "static/ が見つかりません: %s（SPA ダッシュボードは配信されず、ルート / は 404 を返します。"
+            "開発環境では `cd frontend && pnpm run build` を実行してください）",
+            static_dir,
+        )
 
     return app

@@ -48,6 +48,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/alpha_visualizer"]
 
+# static/（Vite ビルド成果物）は .gitignore 管理のため、hatchling の既定挙動
+# （VCS ignore を尊重）では `packages` 指定だけだと wheel から除外される（issue #225）。
+# `artifacts` は VCS ignore された生成物を同梱するための正規機構で、
+# 存在しない場合はスキップされるため editable install（uv sync / uv run）を壊さない。
+# 「同梱漏れのまま公開」は scripts/verify_build_artifacts.py（CI packaging ジョブ・
+# release.yml の公開前検証）が fail loud で検出する。
+[tool.hatch.build]
+artifacts = ["src/alpha_visualizer/static/**"]
+
 # OSS 同梱サンプル forge_dir を wheel に含める。
 # `alpha-vis serve --use-bundled-samples` または
 # `alpha_visualizer/samples/sample-forge` 経由でアクセス可能になる。
