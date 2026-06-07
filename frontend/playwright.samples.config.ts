@@ -37,7 +37,7 @@ export default defineConfig({
   webServer: {
     // FORGE_CONFIG が外部 forge.yaml を指していないよう明示クリア。
     command:
-      'env FORGE_CONFIG= uv run vis serve --forge-dir samples/sample-forge --forge-config samples/sample-forge/forge.yaml --host 127.0.0.1 --port 8124 --no-open',
+      'env FORGE_CONFIG= uv run alpha-vis serve --forge-dir samples/sample-forge --forge-config samples/sample-forge/forge.yaml --host 127.0.0.1 --port 8124 --no-open',
     url: `${BASE_URL}/health`,
     cwd: '..',
     reuseExistingServer: !process.env.CI,
