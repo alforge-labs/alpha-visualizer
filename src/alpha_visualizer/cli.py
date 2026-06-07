@@ -49,7 +49,7 @@ def cli() -> None:
     "forge_config",
     default=None,
     type=click.Path(exists=False, file_okay=True, dir_okay=False),
-    help="forge.yaml のパス。未指定なら $FORGE_CONFIG → <forge-dir>/forge.yaml の順で探索",
+    help="forge.yaml のパス。未指定なら <forge-dir>/forge.yaml → $FORGE_CONFIG の順で探索",
 )
 @click.option("--no-open", "no_open", is_flag=True, default=False, help="ブラウザを自動で開かない")
 @click.option(

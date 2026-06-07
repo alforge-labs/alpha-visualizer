@@ -257,3 +257,27 @@ def test_missing_db_warning_matches_actual_behavior(
     res = client.get("/api/results")
     assert res.status_code == 200
     assert res.json() == []
+
+
+def test_missing_static_dir_logs_warning(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """static/ が無い環境では SPA 非配信の旨を warning で残す（issue #225）。
+
+    wheel への同梱漏れ・frontend 未ビルドのとき、無言で / が 404 になるのではなく
+    起動ログから原因に到達できることを保証する。
+    """
+    import logging
+
+    import alpha_visualizer.app as app_module
+
+    # static/ を含まないディレクトリへ __file__ を向ける
+    monkeypatch.setattr(app_module, "__file__", str(tmp_path / "app.py"))
+
+    with caplog.at_level(logging.WARNING, logger="alpha_visualizer.app"):
+        create_app(forge_dir=tmp_path)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("static" in m and "SPA" in m for m in messages), messages
