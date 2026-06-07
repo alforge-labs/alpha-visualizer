@@ -208,10 +208,16 @@ class TestForgeConfigSearchOrder:
         config = ForgeConfig.from_forge_dir(tmp_path, config_path=explicit)
         assert config.forge_db.name == "explicit.db"
 
-    def test_env_var_used_when_no_explicit(
+    def test_forge_dir_yaml_wins_over_env_var(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """明示指定なしのとき FORGE_CONFIG が forge_dir/forge.yaml より優先"""
+        """forge_dir/forge.yaml が存在するとき FORGE_CONFIG より優先される（issue #226）。
+
+        alpha-forge system init は ~/.zshrc への export FORGE_CONFIG を推奨しており、
+        env が残ったまま --forge-dir で別プロジェクトを明示すると、旧順序（env 優先）では
+        別プロジェクトの DB を無警告で読んでしまう。--forge-dir のプロジェクトに
+        forge.yaml があるなら、それがユーザーの見たいプロジェクトの正である。
+        """
         env = tmp_path / "env.yaml"
         forge_local = tmp_path / "forge.yaml"
         _write_yaml(env, "report:\n  db_filename: env.db")
@@ -219,9 +225,41 @@ class TestForgeConfigSearchOrder:
         monkeypatch.setenv("FORGE_CONFIG", str(env))
 
         config = ForgeConfig.from_forge_dir(tmp_path)
+        assert config.forge_db.name == "local.db"
+
+    def test_env_var_used_as_fallback_without_local_yaml(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """forge_dir/forge.yaml が無いときは FORGE_CONFIG にフォールバックする"""
+        env = tmp_path / "env.yaml"
+        _write_yaml(env, "report:\n  db_filename: env.db")
+        monkeypatch.setenv("FORGE_CONFIG", str(env))
+
+        config = ForgeConfig.from_forge_dir(tmp_path)
         assert config.forge_db.name == "env.db"
 
-    def test_forge_dir_yaml_used_as_last_resort(
+    def test_env_var_fallback_logs_source(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """FORGE_CONFIG フォールバック時は採用元をログに残す（issue #226）。
+
+        意図しないプロジェクトの DB を読んでいるとき、起動ログから
+        「なぜこのパスが選ばれたか」に到達できることを保証する。
+        """
+        import logging
+
+        env = tmp_path / "env.yaml"
+        _write_yaml(env, "report:\n  db_filename: env.db")
+        monkeypatch.setenv("FORGE_CONFIG", str(env))
+
+        with caplog.at_level(logging.INFO, logger="alpha_visualizer.forge_config"):
+            ForgeConfig.from_forge_dir(tmp_path)
+
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("FORGE_CONFIG" in m for m in messages), messages
+
+    def test_forge_dir_yaml_used_without_env(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """環境変数なし・明示なしのとき forge_dir/forge.yaml を使う"""
