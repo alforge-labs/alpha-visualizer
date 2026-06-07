@@ -20,7 +20,7 @@ export interface SignalChartCardProps {
  * StrategyScreen の「シグナル時系列」セクション。
  *
  * 責務:
- * - feature flag `?tv=1` の gating（OFF 時は実験機能 placeholder）
+ * - feature flag の gating（既定 ON。`?tv=0` で OFF にした場合は placeholder を表示）
  * - `useStrategyHistorical(symbol)` の loading / no_data / error / ready 分岐
  * - 空 trades のときも chart は表示し caption で「シグナルなし」と伝える
  *
@@ -29,7 +29,7 @@ export interface SignalChartCardProps {
  */
 export function SignalChartCard({ symbol, trades, regimeSeries, lang }: SignalChartCardProps) {
   const L = makeL(lang)
-  // mount 時に 1 回だけ評価。?tv=1 で URL を切り替えた場合はリロード前提（既存 BacktestScreen と同等）。
+  // mount 時に 1 回だけ評価。?tv= で URL を切り替えた場合はリロード前提（既存 BacktestScreen と同等）。
   const [flagOn] = useState(() => resolveLightweightChartsFlag())
 
   if (!flagOn) {
@@ -37,8 +37,8 @@ export function SignalChartCard({ symbol, trades, regimeSeries, lang }: SignalCh
       <CardShell title={L('シグナル時系列', 'Signal Chart')}>
         <Hint>
           {L(
-            'シグナル時系列は実験機能です（?tv=1 で有効化）',
-            'Signal chart is experimental (enable with ?tv=1)',
+            'シグナル時系列は TV レンダラでのみ利用できます（?tv=1 で再有効化）',
+            'Signal chart requires the TV renderer (re-enable with ?tv=1)',
           )}
         </Hint>
       </CardShell>

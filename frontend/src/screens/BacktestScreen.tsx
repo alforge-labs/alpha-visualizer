@@ -148,25 +148,28 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                   {L('エクイティ & ドローダウン', 'Equity & Drawdown')}
                 </SectionLabel>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span
-                    data-testid="renderer-mode"
-                    style={{
-                      fontFamily: 'var(--mono)',
-                      fontSize: 10,
-                      letterSpacing: '0.08em',
-                      color: 'var(--accent)',
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      background: 'var(--accent-bg)',
-                      border: '1px solid var(--accent-glow)',
-                    }}
-                  >
-                    tv β
-                  </span>
+                  {/* issue #231: TV が既定レンダラになったため、開発時のみバッジを表示（本番露出を防ぐ） */}
                   {showRendererToggle && (
-                    <button type="button" style={exportBtnS} onClick={toggleTvRenderer}>
-                      {L('visx に戻す', 'Switch to visx')}
-                    </button>
+                    <>
+                      <span
+                        data-testid="renderer-mode"
+                        style={{
+                          fontFamily: 'var(--mono)',
+                          fontSize: 10,
+                          letterSpacing: '0.08em',
+                          color: 'var(--accent)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          background: 'var(--accent-bg)',
+                          border: '1px solid var(--accent-glow)',
+                        }}
+                      >
+                        tv
+                      </span>
+                      <button type="button" style={exportBtnS} onClick={toggleTvRenderer}>
+                        {L('visx に戻す', 'Switch to visx')}
+                      </button>
+                    </>
                   )}
                   <button
                     type="button"
