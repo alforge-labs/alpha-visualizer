@@ -96,7 +96,10 @@ def serve(
     click.echo(f"forge-dir: {forge_path}")
     click.echo(f"forge-db:  {config.forge_db}")
     if not config.forge_db.exists():
-        click.echo("  ⚠ backtest_results.db が見つかりません（関連 API は 404 を返します）")
+        click.echo(
+            "  ⚠ backtest_results.db が見つかりません"
+            "（空 DB として扱います。一覧 API は空配列・個別取得 API は 404 を返します）"
+        )
     if config.strategies_db is not None:
         click.echo(f"strategies-db: {config.strategies_db}")
     else:

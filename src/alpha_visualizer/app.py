@@ -61,7 +61,8 @@ def create_app(
         app.state.engine = get_engine(config.forge_db)
     else:
         logger.warning(
-            "backtest_results.db が見つかりません: %s（空 DB として扱い、関連 API は 404 を返します）",
+            "backtest_results.db が見つかりません: %s"
+            "（空 DB として扱います。一覧 API は空配列を、個別取得 API は 404 を返します）",
             config.forge_db,
         )
         app.state.engine = None
