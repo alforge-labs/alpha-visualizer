@@ -28,6 +28,7 @@ frontend/.tsbuildinfo
 
 # Playwright artifacts
 frontend/playwright-report/
+frontend/playwright-report-samples/
 frontend/test-results/
 frontend/blob-report/
 frontend/playwright/.cache/
