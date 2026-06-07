@@ -1,6 +1,6 @@
 [project]
 name = "alpha-visualizer"
-version = "0.7.2"
+version = "0.7.3"
 description = "Web visualization tool for AlphaForge backtest results"
 readme = "README.md"
 license = "Apache-2.0"
@@ -85,7 +85,7 @@ dev = [
 ]
 
 [tool.bumpversion]
-current_version = "0.7.2"
+current_version = "0.7.3"
 commit = true
 message = "chore: バージョン {new_version} にバンプ"
 tag = true
