@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { OptimizeResult, OptimizeTrial } from '../api/types'
-import { SectionHeader, SectionLabel } from '../design/primitives'
+import { SectionHeader, SectionLabel, Tab, TabBar } from '../design/primitives'
 import { OptimizeScatter } from '../components/charts/OptimizeScatter'
+import { OptimizeHeatmap } from '../components/charts/OptimizeHeatmap'
+import { metricOptions, numericParamNames } from '../lib/optimizeHeatmap'
 import { fmtNumber } from '../lib/format'
 
 interface Props {
@@ -16,10 +18,37 @@ function topTrials(trials: OptimizeTrial[], n: number): OptimizeTrial[] {
   return [...trials].sort((a, b) => b.metric - a.metric).slice(0, n)
 }
 
+type ChartView = 'scatter' | 'heatmap'
+
 export function OptimizeScreen({ data, compact, lang }: Props) {
   const L = makeL(lang)
   const paramNames = data.trials.length > 0 ? Object.keys(data.trials[0]!.params) : []
   const [xParam, setXParam] = useState<string>(paramNames[0] ?? '')
+  const [view, setView] = useState<ChartView>('scatter')
+
+  // ヒートマップ用の選択状態。null = 未選択（先頭の有効値にフォールバック）
+  const [heatXState, setHeatXState] = useState<string | null>(null)
+  const [heatYState, setHeatYState] = useState<string | null>(null)
+  const [heatMetricState, setHeatMetricState] = useState<string | null>(null)
+
+  const numericParams = useMemo(() => numericParamNames(data.trials), [data.trials])
+  const metricKeys = useMemo(
+    () => metricOptions(data.metric_name, data.trials),
+    [data.metric_name, data.trials],
+  )
+  const heatX =
+    heatXState !== null && numericParams.includes(heatXState)
+      ? heatXState
+      : (numericParams[0] ?? '')
+  const heatYOptions = numericParams.filter((p) => p !== heatX)
+  const heatY =
+    heatYState !== null && heatYOptions.includes(heatYState)
+      ? heatYState
+      : (heatYOptions[0] ?? '')
+  const heatMetric =
+    heatMetricState !== null && metricKeys.includes(heatMetricState)
+      ? heatMetricState
+      : data.metric_name
 
   const top10 = topTrials(data.trials, 10)
   const allParamKeys = paramNames
@@ -55,48 +84,139 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
         </div>
       ) : (
         <>
-          {/* 散布図セクション */}
+          {/* チャートセクション（散布図 / ヒートマップ切替） */}
           <div style={{ marginTop: 'var(--space-4)' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
-              <SectionLabel>
-                {L('パラメータ感度散布図', 'Parameter Sensitivity Scatter')}
-              </SectionLabel>
-              <select
-                value={xParam}
-                onChange={(e) => setXParam(e.target.value)}
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 'var(--fs-mono-sm)',
-                  letterSpacing: 'var(--tracking-mono)',
-                  background: 'var(--surface)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
-                  padding: '4px 8px',
-                  cursor: 'pointer',
-                }}
-              >
-                {paramNames.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <OptimizeScatter
-              trials={data.trials}
-              xParam={xParam}
-              metricName={data.metric_name}
-              lang={lang}
-              compact={compact}
-            />
+            <TabBar ariaLabel={L('チャート表示切替', 'Chart view')}>
+              <Tab active={view === 'scatter'} onClick={() => setView('scatter')} small>
+                {L('散布図', 'Scatter')}
+              </Tab>
+              <Tab active={view === 'heatmap'} onClick={() => setView('heatmap')} small>
+                {L('ヒートマップ', 'Heatmap')}
+              </Tab>
+            </TabBar>
+
+            {view === 'scatter' && (
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  <SectionLabel>
+                    {L('パラメータ感度散布図', 'Parameter Sensitivity Scatter')}
+                  </SectionLabel>
+                  <select
+                    value={xParam}
+                    onChange={(e) => setXParam(e.target.value)}
+                    style={selectStyle}
+                  >
+                    {paramNames.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <OptimizeScatter
+                  trials={data.trials}
+                  xParam={xParam}
+                  metricName={data.metric_name}
+                  lang={lang}
+                  compact={compact}
+                />
+              </div>
+            )}
+
+            {view === 'heatmap' &&
+              (numericParams.length < 2 ? (
+                <div
+                  style={{
+                    padding: 'var(--space-5) 0',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 'var(--fs-mono-sm)',
+                    letterSpacing: 'var(--tracking-mono)',
+                    color: 'var(--text3)',
+                  }}
+                >
+                  {L(
+                    `ヒートマップ表示には数値パラメータが 2 種類以上必要です（現在 ${numericParams.length} 種類）`,
+                    `Heatmap view requires at least 2 numeric parameters (found ${numericParams.length})`,
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginBottom: 12,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <SectionLabel>
+                      {L('パラメータヒートマップ', 'Parameter Heatmap')}
+                    </SectionLabel>
+                    <label style={selectLabelStyle}>
+                      X
+                      <select
+                        aria-label={L('X軸パラメータ', 'X-axis parameter')}
+                        value={heatX}
+                        onChange={(e) => setHeatXState(e.target.value)}
+                        style={selectStyle}
+                      >
+                        {numericParams.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={selectLabelStyle}>
+                      Y
+                      <select
+                        aria-label={L('Y軸パラメータ', 'Y-axis parameter')}
+                        value={heatY}
+                        onChange={(e) => setHeatYState(e.target.value)}
+                        style={selectStyle}
+                      >
+                        {heatYOptions.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={selectLabelStyle}>
+                      {L('メトリクス', 'Metric')}
+                      <select
+                        aria-label={L('メトリクス', 'Metric')}
+                        value={heatMetric}
+                        onChange={(e) => setHeatMetricState(e.target.value)}
+                        style={selectStyle}
+                      >
+                        {metricKeys.map((m) => (
+                          <option key={m} value={m}>
+                            {m.replace(/_/g, ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <OptimizeHeatmap
+                    trials={data.trials}
+                    xParam={heatX}
+                    yParam={heatY}
+                    metricKey={heatMetric}
+                    primaryMetricName={data.metric_name}
+                    lang={lang}
+                    compact={compact}
+                  />
+                </div>
+              ))}
           </div>
 
           {/* 上位 10 試行テーブル */}
@@ -221,6 +341,28 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
       )}
     </div>
   )
+}
+
+const selectStyle: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 'var(--fs-mono-sm)',
+  letterSpacing: 'var(--tracking-mono)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  padding: '4px 8px',
+  cursor: 'pointer',
+}
+
+const selectLabelStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  fontFamily: 'var(--mono)',
+  fontSize: 'var(--fs-mono-sm)',
+  letterSpacing: 'var(--tracking-mono)',
+  color: 'var(--text3)',
 }
 
 const thStyle: React.CSSProperties = {
