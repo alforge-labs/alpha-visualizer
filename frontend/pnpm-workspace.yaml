@@ -3,3 +3,8 @@ packages:
 allowBuilds:
   esbuild: true
 minimumReleaseAge: 4320
+# Dependabot セキュリティアラート対応: 依存元の範囲制約で自然更新できない
+# 推移的依存をパッチ版へ強制する（undici/@babel/core は自然解決済みのため対象外）
+overrides:
+  js-yaml: '>=4.2.0'
+  esbuild: '0.28.1'
