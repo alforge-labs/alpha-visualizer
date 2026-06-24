@@ -7,7 +7,7 @@
 
 **English** | [日本語](README.md)
 
-> **A standalone web visualization tool for AlphaForge backtest results**
+> **A standalone web visualization tool for [AlphaForge](https://alforgelabs.com) backtest results** — the agent-native quant CLI: write strategies in JSON, optimize with Optuna TPE, validate with walk-forward, and export to TradingView Pine v6. Your AI agent can drive the whole pipeline. → **[Try AlphaForge free](https://alforgelabs.com)**
 
 `alpha-visualizer` reads `backtest_results.db` (SQLite) and strategy JSON files produced by the [AlphaForge](https://alforgelabs.com/) backtest engine and serves a browser-based dashboard. A single `alpha-vis serve` command launches a FastAPI + React SPA that lets you browse strategies, compare metrics, inspect optimization results, and reconcile live trading against backtests.
 
