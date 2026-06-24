@@ -7,7 +7,7 @@
 
 [English](README.en.md) | **日本語**
 
-> **AlphaForge バックテスト結果を Web ブラウザで可視化するスタンドアロンツール**
+> **[AlphaForge](https://alforgelabs.com) のバックテスト結果を Web ブラウザで可視化するスタンドアロンツール** — JSON で戦略を記述し、Optuna TPE で最適化、ウォークフォワード検証して TradingView Pine v6 にエクスポート。AI エージェントがパイプライン全体を駆動できる、ローカルファースト Quant CLI です。→ **[AlphaForge を無料で試す](https://alforgelabs.com)**
 
 `alpha-visualizer` は、[AlphaForge](https://alforgelabs.com/) のバックテストエンジンが出力する `backtest_results.db`（SQLite）と戦略 JSON を直接読み取り、ブラウザベースのダッシュボードとして可視化します。`alpha-vis serve` 一発で FastAPI + React SPA が起動し、戦略の閲覧・比較・最適化結果の確認・ライブ実績との突き合わせまでを行えます。
 
