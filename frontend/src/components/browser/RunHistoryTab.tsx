@@ -36,7 +36,9 @@ export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) 
                   {r.sharpe_ratio?.toFixed(2) ?? '—'}
                 </td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: (r.total_return_pct ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                  {r.total_return_pct !== null ? `${r.total_return_pct.toFixed(1)}%` : '—'}
+                  {r.total_return_pct !== null
+                    ? `${r.total_return_pct >= 0 ? '+' : ''}${r.total_return_pct.toFixed(1)}%`
+                    : '—'}
                 </td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: 'var(--danger)' }}>
                   {r.max_drawdown_pct !== null ? `${r.max_drawdown_pct.toFixed(1)}%` : '—'}
