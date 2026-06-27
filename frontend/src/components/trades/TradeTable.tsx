@@ -3,6 +3,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
 import { buildTradesCsv, downloadCsv } from '../../lib/csv'
+import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 
 type SortKey =
   | 'id'
@@ -110,14 +111,16 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
           <thead>
             <tr>
               {COLS.map((c) => (
-                <th
+                <SortHeaderCell
                   key={c.key}
-                  style={{ ...thS, width: c.w, textAlign: c.align }}
-                  onClick={() => toggle(c.key)}
-                >
-                  {c.label}
-                  {sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
-                </th>
+                  label={c.label}
+                  active={sort.key === c.key}
+                  direction={sort.dir === 1 ? 'asc' : 'desc'}
+                  onSort={() => toggle(c.key)}
+                  align={c.align}
+                  width={c.w}
+                  baseStyle={thS}
+                />
               ))}
             </tr>
           </thead>
