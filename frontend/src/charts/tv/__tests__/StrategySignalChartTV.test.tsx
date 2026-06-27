@@ -190,6 +190,16 @@ describe('StrategySignalChartTV', () => {
     expect(el?.getAttribute('aria-label')).toContain('1 trades')
   })
 
+  it('OHLC データテーブルを代替として描画する (issue #262)', () => {
+    const { getByRole, getAllByRole } = render(
+      <StrategySignalChartTV bars={sampleBars} trades={[]} />,
+    )
+    expect(getByRole('columnheader', { name: 'Open' })).toBeInTheDocument()
+    expect(getByRole('columnheader', { name: 'Close' })).toBeInTheDocument()
+    // 10 bars → ヘッダ + 10 行以上
+    expect(getAllByRole('row').length).toBeGreaterThanOrEqual(10)
+  })
+
   it('showRegime=true で regime 切替点 marker が trade markers と merge される', () => {
     const regimeSeries = {
       dates: ['2025-01-02', '2025-01-04', '2025-01-08'],
