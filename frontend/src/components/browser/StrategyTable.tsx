@@ -449,11 +449,23 @@ export function StrategyTable({
       >
         <thead>
           <tr>
-            <th
-              scope="col"
-              aria-label={L('選択', 'Select')}
-              style={{ ...TH_BASE, width: 36, padding: '14px 4px' }}
-            ></th>
+            <th scope="col" style={{ ...TH_BASE, width: 36, padding: '14px 4px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  width: 1,
+                  height: 1,
+                  padding: 0,
+                  margin: -1,
+                  overflow: 'hidden',
+                  clip: 'rect(0 0 0 0)',
+                  whiteSpace: 'nowrap',
+                  border: 0,
+                }}
+              >
+                {L('選択', 'Select')}
+              </span>
+            </th>
             <SortHeaderCell
               label={L('戦略', 'Strategy')}
               active={sortKey === 'name'}
