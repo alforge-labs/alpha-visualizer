@@ -134,13 +134,13 @@ export function CompareEquityTV(props: CompareEquityTVProps) {
   }, [linesData])
 
   return (
-    <div data-testid="compare-equity-tv" style={{ position: 'relative' }}>
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={`Compare equity chart, ${series.length} strategies`}
-        style={{ width: '100%', height }}
-      />
+    <div
+      data-testid="compare-equity-tv"
+      role="group"
+      aria-label={`Compare equity chart, ${series.length} strategies`}
+      style={{ position: 'relative' }}
+    >
+      <div ref={containerRef} style={{ width: '100%', height }} />
       <div
         style={{
           display: 'flex',

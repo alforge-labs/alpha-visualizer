@@ -83,7 +83,7 @@ describe('RollingMetricsChartTV', () => {
 
   it('aria-label に window 幅と point 数が含まれる', () => {
     render(<RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />)
-    const region = screen.getByRole('img')
+    const region = screen.getByRole('group', { name: /Rolling Sharpe/ })
     expect(region.getAttribute('aria-label')).toMatch(/Rolling Sharpe \(60-day window\)/)
   })
 

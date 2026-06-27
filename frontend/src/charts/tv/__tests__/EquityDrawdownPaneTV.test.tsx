@@ -197,7 +197,7 @@ describe('EquityDrawdownPaneTV', () => {
         isCutoffIdx={15}
       />,
     )
-    const region = screen.getByRole('img')
+    const region = screen.getByRole('group', { name: /Equity and drawdown chart/ })
     expect(region.getAttribute('aria-label')).toMatch(/Equity and drawdown chart/)
   })
 })

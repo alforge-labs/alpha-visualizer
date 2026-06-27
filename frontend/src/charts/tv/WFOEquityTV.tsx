@@ -113,12 +113,12 @@ export function WFOEquityTV(props: WFOEquityTVProps) {
   const height = compact ? 220 : 300
 
   return (
-    <div
-      data-testid="wfo-equity-tv"
-      ref={containerRef}
-      role="img"
+    <figure
+      style={{ margin: 0 }}
       aria-label={`WFO OOS composite equity, ${equityData.length} points, ${windows.length} windows`}
-      style={{ width: '100%', height }}
-    />
+    >
+      {/* canvas は素の generic div。アクセシブル名は親 figure（aria-label）で提供 */}
+      <div data-testid="wfo-equity-tv" ref={containerRef} style={{ width: '100%', height }} />
+    </figure>
   )
 }

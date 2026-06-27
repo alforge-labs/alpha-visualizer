@@ -93,7 +93,7 @@ describe('CompareEquityTV', () => {
   it('aria-label に series 件数が入る', () => {
     const series = [makeSeries('a', 100), makeSeries('b', 90), makeSeries('c', 95)]
     render(<CompareEquityTV series={series} />)
-    const region = screen.getByRole('img')
+    const region = screen.getByRole('group')
     expect(region.getAttribute('aria-label')).toMatch(/3 strategies/)
   })
 
