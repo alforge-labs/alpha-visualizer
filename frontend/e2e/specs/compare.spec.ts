@@ -14,7 +14,7 @@ test.describe('Compare スモーク', () => {
     // issue #231 以降は TV レンダラが既定（canvas 描画）
     const chart = page.getByTestId('compare-equity-tv')
     await expect(chart).toBeVisible()
-    await expect(chart.getByLabel(/Compare equity chart, 2 strategies/)).toBeVisible()
+    await expect(chart).toHaveAttribute('aria-label', /Compare equity chart, 2 strategies/)
     await expect(chart.locator('canvas').first()).toBeVisible()
 
     const table = page.getByTestId('compare-table')
