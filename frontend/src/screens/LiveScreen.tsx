@@ -112,7 +112,7 @@ export function LiveScreen({
 
       <EntryList items={items} selectedId={selectedId} onSelect={onSelect} lang={lang} />
 
-      <main style={{ flex: 1, padding: 'var(--space-5) var(--space-7)' }}>
+      <div style={{ flex: 1, padding: 'var(--space-5) var(--space-7)' }}>
         {loading ? (
           <div style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
             {L('読み込み中…', 'Loading…')}
@@ -122,7 +122,7 @@ export function LiveScreen({
         ) : selectedId ? (
           <LiveTab key={selectedId} strategyId={selectedId} runId="" lang={lang} />
         ) : null}
-      </main>
+      </div>
     </div>
   )
 }

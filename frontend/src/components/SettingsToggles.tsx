@@ -88,7 +88,7 @@ export function LangToggle({ lang, onChange }: LangToggleProps) {
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={l === 'ja' ? '日本語' : 'English'}
+            aria-label={l === 'ja' ? '日本語 (JA)' : 'English (EN)'}
             onClick={() => onChange(l)}
             style={{
               padding: '4px 10px',

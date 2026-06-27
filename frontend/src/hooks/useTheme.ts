@@ -96,6 +96,12 @@ export function useViewerSettings() {
     document.documentElement.dataset.theme = settings.theme
   }, [settings.theme])
 
+  // lang を <html lang> に同期し、SR の読み上げ言語・翻訳/検索の言語判定を正す（issue #261）
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.lang = settings.lang
+  }, [settings.lang])
+
   const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }, [])

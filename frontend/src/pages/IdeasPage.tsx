@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { IdeasScreen } from '../screens/IdeasScreen'
 import { useIdeasList } from '../hooks/useIdeasList'
 import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 /**
  * IdeasPage（Container）。
@@ -16,6 +17,7 @@ import { useViewerSettings } from '../hooks/useTheme'
 export function IdeasPage(): ReactElement {
   const { settings, update } = useViewerSettings()
   const { lang, theme } = settings
+  useDocumentTitle(lang === 'ja' ? '投資アイデア' : 'Ideas')
   const list = useIdeasList()
 
   if (list.error) {

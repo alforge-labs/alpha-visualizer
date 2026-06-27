@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { LiveScreen } from '../screens/LiveScreen'
 import { useLiveList } from '../hooks/useLiveList'
 import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 /**
  * LivePage（Container、#221）。
@@ -17,6 +18,7 @@ import { useViewerSettings } from '../hooks/useTheme'
 export function LivePage(): ReactElement {
   const { settings, update } = useViewerSettings()
   const { lang, theme } = settings
+  useDocumentTitle(lang === 'ja' ? 'ライブ実績' : 'Live')
   const { items, loading, error } = useLiveList()
   const [searchParams, setSearchParams] = useSearchParams()
 

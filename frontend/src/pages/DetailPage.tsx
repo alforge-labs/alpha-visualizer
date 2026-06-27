@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBacktest, useOptimize, useRunBacktest, useStrategyDetail, useStrategyRuns, useWFO } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { BacktestScreen } from '../screens/BacktestScreen'
 import { ISOOSScreen } from '../screens/ISOOSScreen'
 import { WFOScreen } from '../screens/WFOScreen'
@@ -43,6 +44,7 @@ export function DetailPage() {
   const currentRunId = backtest.status === 'ready' ? backtest.data.run_id : ''
   const strategyName =
     backtest.status === 'ready' ? backtest.data.strategy_name : (strategyId ?? '')
+  useDocumentTitle(strategyName || undefined)
   const symbol = backtest.status === 'ready' ? backtest.data.symbol : ''
   const timeframe = backtest.status === 'ready' ? backtest.data.timeframe : ''
   const periodStart = backtest.status === 'ready' ? backtest.data.period.start : undefined
@@ -148,7 +150,7 @@ export function DetailPage() {
             <MetricsSummaryBarV2 metrics={backtest.data.metrics} lang={lang} />
           )}
 
-          <TabBar>
+          <TabBar ariaLabel={L('詳細タブ', 'Detail tabs')}>
             {tabs.map(([id, label]) => (
               <Tab key={id} active={tab === id} onClick={() => setTab(id)}>
                 {label}
@@ -156,7 +158,12 @@ export function DetailPage() {
             ))}
           </TabBar>
 
-          <div style={{ paddingBottom: 'var(--space-7)' }}>
+          <div
+            role="tabpanel"
+            tabIndex={0}
+            aria-label={tabs.find(([id]) => id === tab)?.[1]}
+            style={{ paddingBottom: 'var(--space-7)' }}
+          >
             {tab === 'backtest' &&
               (backtest.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>

@@ -6,6 +6,7 @@ import { COMPARE_MAX, type SortKey, type SortDir, type StrategyGroup } from '../
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Chip } from '../../design/primitives'
+import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import { fmtNumber, fmtDate } from '../../lib/format'
@@ -77,19 +78,16 @@ interface SortThProps {
 function SortTh({ col, label, align = 'right', width, sortKey, sortDir, onSort, className }: SortThProps) {
   const active = sortKey === col
   return (
-    <th
+    <SortHeaderCell
+      label={label}
+      active={active}
+      direction={sortDir}
+      onSort={() => onSort(col)}
+      align={align}
+      width={width}
       className={className}
-      style={{
-        ...TH_BASE,
-        textAlign: align,
-        color: active ? 'var(--text2)' : 'var(--text3)',
-        width,
-      }}
-      onClick={() => onSort(col)}
-    >
-      {label}
-      {active ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
-    </th>
+      baseStyle={{ ...TH_BASE, color: active ? 'var(--text2)' : 'var(--text3)' }}
+    />
   )
 }
 
@@ -451,21 +449,38 @@ export function StrategyTable({
       >
         <thead>
           <tr>
-            <th style={{ ...TH_BASE, width: 36, padding: '14px 4px' }}></th>
-            <th
-              style={{ ...TH_BASE, textAlign: 'left', cursor: 'pointer' }}
-              onClick={() => onSort('name')}
-            >
-              {L('戦略', 'Strategy')}
-              {sortKey === 'name' ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+            <th scope="col" style={{ ...TH_BASE, width: 36, padding: '14px 4px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  width: 1,
+                  height: 1,
+                  padding: 0,
+                  margin: -1,
+                  overflow: 'hidden',
+                  clip: 'rect(0 0 0 0)',
+                  whiteSpace: 'nowrap',
+                  border: 0,
+                }}
+              >
+                {L('選択', 'Select')}
+              </span>
             </th>
+            <SortHeaderCell
+              label={L('戦略', 'Strategy')}
+              active={sortKey === 'name'}
+              direction={sortDir}
+              onSort={() => onSort('name')}
+              align="left"
+              baseStyle={{ ...TH_BASE, color: sortKey === 'name' ? 'var(--text2)' : 'var(--text3)' }}
+            />
             <SortTh col="latest_sharpe" label="Sharpe" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_return_pct" label={L('リターン', 'Return')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_max_drawdown_pct" label="Max DD" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_profit_factor" label="Profit F." className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_win_rate_pct" label="Win %" className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="last_run_at" label={L('最終実行', 'Last run')} className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <th className="u-col-hide-md-down" style={{ ...TH_BASE, width: 132, textAlign: 'right' }}>
+            <th scope="col" className="u-col-hide-md-down" style={{ ...TH_BASE, width: 132, textAlign: 'right' }}>
               {L('推移', 'Trend')}
             </th>
           </tr>

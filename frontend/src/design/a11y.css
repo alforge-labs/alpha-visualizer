@@ -39,3 +39,26 @@ textarea:focus-visible {
 svg[role="img"] {
   outline: none;
 }
+
+/*
+ * スキップリンク（issue #260）。通常は画面外に退避し、フォーカス時のみ可視化する。
+ * RootLayout が <a class="skip-link" href="#main-content"> として描画する。
+ */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -56px;
+  z-index: 1000;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  transition: top var(--motion-fast);
+}
+
+.skip-link:focus {
+  top: 8px;
+}

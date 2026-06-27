@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 interface TabProps {
   children: ReactNode
@@ -49,11 +49,54 @@ interface TabBarProps {
   ariaLabel?: string
 }
 
+/**
+ * WAI-ARIA tabs パターンの自動アクティベーション（issue #258）。
+ * 矢印 / Home / End でフォーカスを移動し、移動先タブをそのまま選択する。
+ * Tab は composition で渡されるため、移動先要素に focus() + click() して
+ * 親の onClick（＝選択）を発火させる。複数 tablist が同一画面にあっても
+ * currentTarget 内に閉じて走査するため互いに干渉しない。
+ */
+function handleTablistKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+  const NAV_KEYS = ['ArrowRight', 'ArrowLeft', 'Home', 'End']
+  if (!NAV_KEYS.includes(e.key)) return
+
+  const tabs = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]'),
+  ).filter((t) => !t.hasAttribute('disabled'))
+  if (tabs.length === 0) return
+
+  const current = tabs.indexOf(document.activeElement as HTMLElement)
+  if (current === -1) return
+
+  e.preventDefault()
+  let next = current
+  switch (e.key) {
+    case 'ArrowRight':
+      next = (current + 1) % tabs.length
+      break
+    case 'ArrowLeft':
+      next = (current - 1 + tabs.length) % tabs.length
+      break
+    case 'Home':
+      next = 0
+      break
+    case 'End':
+      next = tabs.length - 1
+      break
+  }
+
+  const target = tabs[next]
+  if (!target) return
+  target.focus()
+  target.click()
+}
+
 export function TabBar({ children, bordered = true, ariaLabel }: TabBarProps) {
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
+      onKeyDown={handleTablistKeyDown}
       style={{
         display: 'flex',
         gap: 'var(--space-2)',
