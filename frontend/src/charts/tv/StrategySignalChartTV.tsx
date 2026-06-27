@@ -12,6 +12,7 @@ import {
 
 import type { OhlcBar, RegimeSeries, Trade } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
+import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { compareTime, toCandlestickData } from './data'
 import {
   candlestickOptions,
@@ -169,6 +170,19 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
     >
       {/* canvas は素の generic div。アクセシブル名は親 figure（aria-label）で提供 */}
       <div ref={containerRef} data-testid="strategy-signal-chart-tv" style={{ width: '100%', height }} />
+
+      <ChartDataTable
+        label="Data table / データ表"
+        caption={`OHLC bars, ${candlestickData.length} bars, ${trades.length} trades`}
+        columns={['Date', 'Open', 'High', 'Low', 'Close']}
+        rows={candlestickData.map((d) => [
+          String(d.time),
+          d.open.toFixed(2),
+          d.high.toFixed(2),
+          d.low.toFixed(2),
+          d.close.toFixed(2),
+        ])}
+      />
     </figure>
   )
 }
