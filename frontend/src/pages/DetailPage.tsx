@@ -148,7 +148,7 @@ export function DetailPage() {
             <MetricsSummaryBarV2 metrics={backtest.data.metrics} lang={lang} />
           )}
 
-          <TabBar>
+          <TabBar ariaLabel={L('詳細タブ', 'Detail tabs')}>
             {tabs.map(([id, label]) => (
               <Tab key={id} active={tab === id} onClick={() => setTab(id)}>
                 {label}
@@ -156,7 +156,12 @@ export function DetailPage() {
             ))}
           </TabBar>
 
-          <div style={{ paddingBottom: 'var(--space-7)' }}>
+          <div
+            role="tabpanel"
+            tabIndex={0}
+            aria-label={tabs.find(([id]) => id === tab)?.[1]}
+            style={{ paddingBottom: 'var(--space-7)' }}
+          >
             {tab === 'backtest' &&
               (backtest.status === 'loading' ? (
                 <Note>{L('読み込み中…', 'Loading…')}</Note>
