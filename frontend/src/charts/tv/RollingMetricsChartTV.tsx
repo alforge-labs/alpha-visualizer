@@ -10,6 +10,7 @@ import { useDashboard } from '../../contexts/DashboardContext'
 import { RANGE_N } from '../../contexts/dashboardConstants'
 import { useChartTheme } from '../../design/useChartTheme'
 import { computeRollingSharpe } from '../../lib/rolling'
+import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { chartThemeToOptions } from './theme'
 import { toLineData } from './data'
 
@@ -102,7 +103,12 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
   const height = compact ? 200 : 240
 
   return (
-    <div data-testid="rolling-metrics-tv" style={{ position: 'relative' }}>
+    <div
+      data-testid="rolling-metrics-tv"
+      role="group"
+      aria-label={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
+      style={{ position: 'relative' }}
+    >
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {WINDOWS.map((w) => {
           const active = w === win
@@ -131,11 +137,13 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
           )
         })}
       </div>
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
-        style={{ width: '100%', height }}
+      <div ref={containerRef} style={{ width: '100%', height }} />
+
+      <ChartDataTable
+        label="Data table / データ表"
+        caption={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
+        columns={['Date', 'Rolling Sharpe']}
+        rows={lineData.map((d) => [String(d.time), d.value.toFixed(2)])}
       />
     </div>
   )

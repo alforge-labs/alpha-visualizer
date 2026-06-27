@@ -53,9 +53,36 @@ export interface MAEMFEScatterVProps {
  */
 export function MAEMFEScatterV(props: MAEMFEScatterVProps): React.ReactElement {
   return (
-    <ParentSize>
-      {({ width }) => (width > 0 ? <Inner width={width} {...props} /> : null)}
-    </ParentSize>
+    <figure style={{ margin: 0 }}>
+      <ParentSize>
+        {({ width }) => (width > 0 ? <Inner width={width} {...props} /> : null)}
+      </ParentSize>
+      {/* 勝ち/負けを色だけでなくテキスト凡例でも示す（issue #262 色のみ依存の是正） */}
+      <figcaption
+        style={{
+          display: 'flex',
+          gap: 16,
+          marginTop: 4,
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          letterSpacing: 'var(--tracking-mono)',
+          color: 'var(--text3)',
+        }}
+      >
+        <span>
+          <span aria-hidden="true" style={{ color: props.theme.success }}>
+            ●
+          </span>{' '}
+          Win
+        </span>
+        <span>
+          <span aria-hidden="true" style={{ color: props.theme.danger }}>
+            ●
+          </span>{' '}
+          Loss
+        </span>
+      </figcaption>
+    </figure>
   )
 }
 

@@ -185,9 +185,9 @@ describe('StrategySignalChartTV', () => {
     const { getByTestId } = render(
       <StrategySignalChartTV bars={sampleBars} trades={[trade({})]} />,
     )
-    const el = getByTestId('strategy-signal-chart-tv')
-    expect(el.getAttribute('aria-label')).toContain('10 bars')
-    expect(el.getAttribute('aria-label')).toContain('1 trades')
+    const el = getByTestId('strategy-signal-chart-tv').closest('figure')
+    expect(el?.getAttribute('aria-label')).toContain('10 bars')
+    expect(el?.getAttribute('aria-label')).toContain('1 trades')
   })
 
   it('showRegime=true で regime 切替点 marker が trade markers と merge される', () => {
@@ -244,7 +244,7 @@ describe('StrategySignalChartTV', () => {
         showRegime
       />,
     )
-    const label = getByTestId('strategy-signal-chart-tv').getAttribute('aria-label')
+    const label = getByTestId('strategy-signal-chart-tv').closest('figure')?.getAttribute('aria-label')
     expect(label).toContain('2 regime changes')
   })
 })

@@ -132,7 +132,7 @@ describe('WFOEquityTV', () => {
         windows={windows}
       />,
     )
-    const region = screen.getByRole('img')
+    const region = screen.getByRole('figure')
     expect(region.getAttribute('aria-label')).toMatch(/2 windows/)
   })
 

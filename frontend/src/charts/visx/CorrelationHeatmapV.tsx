@@ -3,6 +3,7 @@ import { ParentSize } from '@visx/responsive'
 import { Group } from '@visx/group'
 import { useChartTheme } from '../../design/useChartTheme'
 import { fmtNumber } from '../../lib/format'
+import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 
 export interface CorrelationCellMeta {
   /** 共通サンプル数（最小長） */
@@ -214,6 +215,19 @@ function Inner({
           )}
         </Group>
       </svg>
+
+      <ChartDataTable
+        label="Data table / データ表"
+        caption={`Correlation matrix, ${n} strategies`}
+        columns={['Strategy', ...labels]}
+        rows={labels.map((rl, i) => [
+          rl,
+          ...labels.map((_, j) => {
+            const v = matrix[i]?.[j]
+            return v == null ? '—' : v.toFixed(2)
+          }),
+        ])}
+      />
 
       {hov && (
         <CellTooltip

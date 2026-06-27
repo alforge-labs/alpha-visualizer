@@ -161,14 +161,14 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
   const height = compact ? 320 : 420
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="strategy-signal-chart-tv"
-      role="img"
+    <figure
+      style={{ margin: 0 }}
       aria-label={`Strategy signal chart, ${candlestickData.length} bars, ${trades.length} trades${
         regimeMarkers.length > 0 ? `, ${regimeMarkers.length} regime changes` : ''
       }`}
-      style={{ width: '100%', height }}
-    />
+    >
+      {/* canvas は素の generic div。アクセシブル名は親 figure（aria-label）で提供 */}
+      <div ref={containerRef} data-testid="strategy-signal-chart-tv" style={{ width: '100%', height }} />
+    </figure>
   )
 }

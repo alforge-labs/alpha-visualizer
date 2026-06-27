@@ -12,6 +12,7 @@ import {
 } from 'lightweight-charts'
 
 import { RANGES } from '../../contexts/dashboardConstants'
+import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { useChartTheme } from '../../design/useChartTheme'
 import { useEquityViewport } from '../../hooks/useEquityViewport'
 import {
@@ -201,6 +202,8 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   return (
     <div
       data-testid="equity-drawdown-pane-tv"
+      role="group"
+      aria-label={`Equity and drawdown chart, ${equity.length} points`}
       style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'relative' }}
     >
       <div
@@ -256,11 +259,19 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
         )}
       </div>
 
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={`Equity and drawdown chart, ${equityData.length} points`}
-        style={{ width: '100%', height }}
+      {/* canvas は素の generic div（role/aria-hidden を付けない）にして nested-interactive /
+          aria-hidden-focus を回避。アクセシブル名は親 role="group"、データは ChartDataTable で提供 */}
+      <div ref={containerRef} style={{ width: '100%', height }} />
+
+      <ChartDataTable
+        label="Data table / データ表"
+        caption={`Equity and drawdown, ${equity.length} points`}
+        columns={['Date', 'Equity', 'DD %']}
+        rows={dates.map((d, i) => [
+          d,
+          Math.round(equity[i] ?? 0).toLocaleString(),
+          `${(drawdown[i] ?? 0).toFixed(1)}%`,
+        ])}
       />
     </div>
   )
