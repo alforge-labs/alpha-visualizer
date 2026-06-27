@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCompare } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { CompareScreen } from '../screens/CompareScreen'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { makeL } from '../i18n/strings'
@@ -10,6 +11,7 @@ import { Button, Divider, Toolbar } from '../design/primitives'
 export function ComparePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
   const { lang, theme } = settings
+  useDocumentTitle(lang === 'ja' ? '戦略比較' : 'Compare')
   const L = makeL(lang)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()

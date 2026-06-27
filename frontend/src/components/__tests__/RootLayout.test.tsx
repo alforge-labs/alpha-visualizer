@@ -24,7 +24,8 @@ describe('RootLayout (issue #260)', () => {
         <RootLayout />
       </MemoryRouter>,
     )
-    const skip = screen.getByRole('link')
-    expect(skip).toHaveAttribute('href', '#main-content')
+    // グローバルナビ（#263）のリンクも存在するため、href でスキップリンクを特定する
+    const skip = screen.getAllByRole('link').find((l) => l.getAttribute('href') === '#main-content')
+    expect(skip).toBeDefined()
   })
 })

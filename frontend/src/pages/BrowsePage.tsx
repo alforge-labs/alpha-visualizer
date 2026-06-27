@@ -3,10 +3,12 @@ import { BrowseScreen } from '../screens/BrowseScreen'
 import { useStrategyList } from '../hooks/useStrategyList'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function BrowsePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
   const { lang, theme } = settings
+  useDocumentTitle(lang === 'ja' ? '戦略ブラウザ' : 'Strategy Browser')
   const list = useStrategyList()
   useScrollRestoration(!list.loading)
 
