@@ -51,6 +51,7 @@ function FilterChipButton({ active, onClick, children }: FilterChipButtonProps) 
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       style={{
         padding: '4px 12px',
@@ -114,6 +115,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
     <Toolbar>
       <input
         style={SEARCH_INPUT}
+        aria-label={L('戦略名・銘柄を検索', 'Search strategy or symbol')}
         placeholder={L('戦略名・銘柄を検索…', 'Search strategy or symbol…')}
         value={q}
         onChange={(e) => set('q', e.target.value)}
@@ -160,6 +162,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
           type="number"
           step="0.1"
           min="0"
+          aria-label={L('Sharpe 下限', 'Sharpe ≥')}
           value={sharpeMin}
           placeholder="1.0"
           onChange={(e) => set('sharpe_min', e.target.value)}
@@ -174,6 +177,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
           step="1"
           min="0"
           max="100"
+          aria-label={L('DD 上限 (%)', 'DD ≤ %')}
           value={ddMax}
           placeholder="30"
           onChange={(e) => set('dd_max', e.target.value)}

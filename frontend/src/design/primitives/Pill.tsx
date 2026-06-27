@@ -10,6 +10,8 @@ interface PillProps {
 export function Pill({ children, active, onClick }: PillProps) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       style={{
         padding: '8px 16px',

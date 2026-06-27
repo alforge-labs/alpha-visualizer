@@ -193,7 +193,7 @@ export function IdeasScreen({
         )}
       </div>
 
-      <main style={{ flex: 1, padding: 'var(--space-6) var(--space-7)' }}>
+      <div style={{ flex: 1, padding: 'var(--space-6) var(--space-7)' }}>
         {loading ? (
           <div
             style={{
@@ -220,7 +220,7 @@ export function IdeasScreen({
             ))}
           </div>
         )}
-      </main>
+      </div>
     </div>
   )
 }

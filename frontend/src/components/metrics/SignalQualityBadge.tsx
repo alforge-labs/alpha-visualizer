@@ -74,7 +74,15 @@ export function SignalQualityBadge({ metrics, lang }: Props) {
             {(score * 100).toFixed(0)}/100
           </span>
         </div>
-        <div style={{ height: 5, background: 'var(--bg2)', borderRadius: 3 }}>
+        <div
+          role="progressbar"
+          aria-valuenow={Math.round(score * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuetext={`${(score * 100).toFixed(0)}/100`}
+          aria-label={L('品質スコア', 'Quality Score')}
+          style={{ height: 5, background: 'var(--bg2)', borderRadius: 3 }}
+        >
           <div
             style={{
               height: '100%',
