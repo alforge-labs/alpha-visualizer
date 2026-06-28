@@ -4,6 +4,7 @@
 import { lazy, Suspense, type ComponentType, type ReactElement } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { RootLayout } from './components/RootLayout'
+import { Loading } from './design/primitives'
 
 // 各 Page を React.lazy でコード分割。
 // 初期ロードで Browse 画面のみ fetch され、Detail / Compare / Ideas は
@@ -30,23 +31,9 @@ function lazyRoute(
   )
 }
 
-/** Page chunk fetch 中の最低限の placeholder。 */
+/** Page chunk fetch 中の placeholder。スケルトンで CLS を抑える（issue #266）。 */
 function PageFallback(): ReactElement {
-  return (
-    <div
-      style={{
-        padding: 'var(--space-7)',
-        fontFamily: 'var(--mono)',
-        fontSize: 'var(--fs-mono-md)',
-        color: 'var(--text3)',
-        letterSpacing: 'var(--tracking-mono)',
-        background: 'var(--bg)',
-        minHeight: '100vh',
-      }}
-    >
-      Loading…
-    </div>
-  )
+  return <Loading fullPage label="Loading…" />
 }
 
 export const router = createBrowserRouter([

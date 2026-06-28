@@ -3,6 +3,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
 import { buildTradesCsv, downloadCsv } from '../../lib/csv'
+import { fmtNumber } from '../../lib/format'
 import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 
 type SortKey =
@@ -137,12 +138,14 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                         ? 'var(--danger)'
                         : 'var(--text)'
                     : 'var(--text)'
-                  let display = isNum
-                    ? Math.abs(v) >= 100
-                      ? v.toFixed(1)
-                      : v.toFixed(2)
+                  // issue #266: 数値は SSoT（fmtNumber）経由で桁区切り。
+                  // color 列のみ正の符号 '+' を付ける（sign オプション）。
+                  const display = isNum
+                    ? fmtNumber(v, {
+                        decimals: Math.abs(v) >= 100 ? 1 : 2,
+                        sign: Boolean(c.color),
+                      })
                     : String(v ?? '—')
-                  if (c.color && isNum && v > 0) display = `+${display}`
                   return (
                     <td key={c.key} style={{ ...tdS(i), textAlign: c.align }}>
                       {c.key === 'direction' ? (

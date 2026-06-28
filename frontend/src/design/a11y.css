@@ -62,3 +62,28 @@ svg[role="img"] {
 .skip-link:focus {
   top: 8px;
 }
+
+/*
+ * スケルトン（issue #266）。ローディング中のレイアウトシフト(CLS)を抑える
+ * プレースホルダの shimmer アニメーション。色は tokens.css のトークンを参照する。
+ * prefers-reduced-motion 環境では tokens.css のグローバル指定で自動的に無効化される。
+ */
+.af-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: af-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes af-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}

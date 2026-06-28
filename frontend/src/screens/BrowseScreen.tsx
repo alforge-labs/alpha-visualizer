@@ -13,6 +13,7 @@ import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
 import { SymbolAtlas } from '../components/browser/SymbolAtlas'
 import { SettingsToggles } from '../components/SettingsToggles'
+import { Loading } from '../design/primitives'
 import { makeL } from '../i18n/strings'
 
 interface BrowseScreenProps {
@@ -155,18 +156,7 @@ export function BrowseScreen({
 
       <div style={{ display: 'flex', flex: 1 }}>
         {list.loading ? (
-          <div
-            style={{
-              padding: 'var(--space-7)',
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--fs-mono-md)',
-              color: 'var(--text3)',
-              letterSpacing: 'var(--tracking-mono)',
-              textTransform: 'uppercase',
-            }}
-          >
-            {L('読み込み中…', 'Loading…')}
-          </div>
+          <Loading label={L('読み込み中…', 'Loading…')} />
         ) : (
           <StrategyTable
             items={list.filtered}

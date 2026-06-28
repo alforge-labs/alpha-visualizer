@@ -1,6 +1,7 @@
 import type { StrategyRun } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
+import { fmtNumber } from '../../lib/format'
 
 interface Props {
   runs: StrategyRun[]
@@ -33,15 +34,14 @@ export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) 
               }}>
                 <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{r.run_at.slice(0, 16).replace('T', ' ')}</td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: r.sharpe_ratio !== null && r.sharpe_ratio >= 1 ? 'var(--success)' : 'var(--warn)', fontWeight: 700 }}>
-                  {r.sharpe_ratio?.toFixed(2) ?? '—'}
+                  {/* issue #266: 数値整形を SSoT（fmtNumber）経由へ統一 */}
+                  {fmtNumber(r.sharpe_ratio, { decimals: 2 })}
                 </td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: (r.total_return_pct ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                  {r.total_return_pct !== null
-                    ? `${r.total_return_pct >= 0 ? '+' : ''}${r.total_return_pct.toFixed(1)}%`
-                    : '—'}
+                  {fmtNumber(r.total_return_pct, { decimals: 1, sign: true, suffix: '%' })}
                 </td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: 'var(--danger)' }}>
-                  {r.max_drawdown_pct !== null ? `${r.max_drawdown_pct.toFixed(1)}%` : '—'}
+                  {fmtNumber(r.max_drawdown_pct, { decimals: 1, suffix: '%' })}
                 </td>
                 <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                   {isCurrent ? (

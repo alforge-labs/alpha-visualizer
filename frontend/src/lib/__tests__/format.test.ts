@@ -31,14 +31,42 @@ describe('fmtNumber', () => {
 
   it('uses 1 decimal for |v| >= 100 (auto)', () => {
     expect(fmtNumber(100)).toBe('100.0')
-    expect(fmtNumber(1234.56)).toBe('1234.6')
+    // issue #266: |v| >= 1000 では Intl 桁区切りが入る（旧 '1234.6' → '1,234.6'）
+    expect(fmtNumber(1234.56)).toBe('1,234.6')
     expect(fmtNumber(-987.6)).toBe('-987.6')
   })
 
   it('honors explicit decimals option', () => {
     expect(fmtNumber(1.23456, { decimals: 0 })).toBe('1')
     expect(fmtNumber(1.23456, { decimals: 4 })).toBe('1.2346')
-    expect(fmtNumber(1234.5, { decimals: 3 })).toBe('1234.500')
+    // issue #266: 桁区切り導入により '1234.500' → '1,234.500'
+    expect(fmtNumber(1234.5, { decimals: 3 })).toBe('1,234.500')
+  })
+
+  // issue #266: Intl.NumberFormat による桁区切りを SSoT に導入する。
+  // 千の位以上で区切り、suffix / sign / 負号とも両立すること。
+  describe('thousands grouping (issue #266)', () => {
+    it('groups integers and keeps no separator below 1000', () => {
+      expect(fmtNumber(999.9, { decimals: 1 })).toBe('999.9')
+      expect(fmtNumber(1000, { decimals: 0 })).toBe('1,000')
+      expect(fmtNumber(1234567, { decimals: 0 })).toBe('1,234,567')
+    })
+
+    it('groups with auto decimals (|v| >= 100 → 1 桁)', () => {
+      expect(fmtNumber(12345)).toBe('12,345.0')
+    })
+
+    it('keeps the minus sign with grouping', () => {
+      expect(fmtNumber(-1234.5, { decimals: 1 })).toBe('-1,234.5')
+    })
+
+    it('combines + sign and grouping for positives', () => {
+      expect(fmtNumber(1500, { decimals: 0, sign: true })).toBe('+1,500')
+    })
+
+    it('combines grouping with suffix', () => {
+      expect(fmtNumber(1234.5, { decimals: 1, suffix: '%' })).toBe('1,234.5%')
+    })
   })
 
   it('appends suffix', () => {

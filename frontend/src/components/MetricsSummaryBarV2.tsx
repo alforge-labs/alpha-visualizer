@@ -2,6 +2,7 @@ import { useState, useEffect, type CSSProperties } from 'react'
 import type { BacktestMetrics } from '../api/types'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { fmtNumber } from '../lib/format'
 import { METRIC_DEFINITIONS } from '../constants/metricDefinitions'
 
 interface Props {
@@ -91,7 +92,8 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
       {ITEMS.map(({ key, suffix, decimals, tone }) => {
         const def = METRIC_DEFINITIONS[key]
         const val = metrics[key] as number | undefined
-        const display = val == null ? '—' : val.toFixed(decimals) + suffix
+        // issue #266: 数値整形を SSoT（fmtNumber）経由へ統一し桁区切りを効かせる
+        const display = fmtNumber(val, { decimals, suffix })
         const valueColor =
           typeof val === 'number' && tone ? TONE_COLOR[tone(val)] : 'var(--text)'
 

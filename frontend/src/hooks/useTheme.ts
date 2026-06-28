@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 
 export type Theme = 'dark' | 'light'
@@ -70,19 +70,50 @@ function readStorage(): Partial<ViewerSettings> {
 }
 
 export function useViewerSettings() {
-  const initial = useMemo<ViewerSettings>(
-    () => ({ ...DEFAULTS, theme: getSystemTheme(), ...readStorage(), ...readUrlOverrides() }),
-    []
-  )
-  const [settings, setSettings] = useState<ViewerSettings>(initial)
+  const initial = useMemo(() => {
+    const stored = readStorage()
+    const url = readUrlOverrides()
+    const settings: ViewerSettings = {
+      ...DEFAULTS,
+      theme: getSystemTheme(),
+      ...stored,
+      ...url,
+    }
+    // theme を storage か URL で明示していたら「ユーザー明示設定あり」とみなす（issue #266）
+    const themeExplicit = 'theme' in stored || 'theme' in url
+    return { settings, themeExplicit }
+  }, [])
+  const [settings, setSettings] = useState<ViewerSettings>(initial.settings)
+  // ユーザーが theme を明示選択したか。明示している間は OS 追従しない（issue #266）。
+  const themeExplicitRef = useRef<boolean>(initial.themeExplicit)
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+      // issue #266: 明示選択していない間は theme を保存しない。
+      // 保存してしまうと再読込時に「明示あり」と誤認し、OS 追従が止まるため。
+      const toStore: Record<string, unknown> = {
+        density: settings.density,
+        variation: settings.variation,
+        lang: settings.lang,
+      }
+      if (themeExplicitRef.current) toStore.theme = settings.theme
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
     } catch {
       // storage may be disabled (private mode etc.) — ignore silently
     }
   }, [settings])
+
+  // issue #266: OS のカラースキーム変更を購読し、ユーザー明示設定が無い場合のみ追従する。
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e: MediaQueryListEvent): void => {
+      if (themeExplicitRef.current) return
+      setSettings((prev) => ({ ...prev, theme: e.matches ? 'dark' : 'light' }))
+    }
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
 
   // variation を <html data-variation> に同期し、tokens.css の切替トリガーにする
   useEffect(() => {
@@ -103,6 +134,8 @@ export function useViewerSettings() {
   }, [settings.lang])
 
   const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
+    // theme を明示更新したら以降は OS 追従を止める（issue #266）
+    if (key === 'theme') themeExplicitRef.current = true
     setSettings((prev) => ({ ...prev, [key]: value }))
   }, [])
 

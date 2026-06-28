@@ -34,3 +34,19 @@ describe('TradeTable tokenized colors (issue #264)', () => {
     expect(screen.getByText('short').getAttribute('style')).toContain('var(--warn)')
   })
 })
+
+/**
+ * issue #266: 数値整形を SSoT（lib/format.fmtNumber）経由へ統一し、桁区切りを効かせる。
+ * 直書き toFixed では 1000 以上の P&L が "1250.0" と区切り無しで読みにくかった。
+ */
+describe('TradeTable number formatting via SSoT (issue #266)', () => {
+  const bigTrade = [
+    { id: 1, direction: 'long', entry_date: '2025-01-01', exit_date: '2025-01-05', holding_days: 4, return_pct: 2.5, pnl: 1250, mae_pct: -1, mfe_pct: 3 },
+  ] as unknown as Trade[]
+
+  it('groups thousands in P&L and keeps the explicit + sign', () => {
+    render(<TradeTable trades={bigTrade} lang="ja" />)
+    // 桁区切り + 正の符号（color 列なので '+'）
+    expect(screen.getByText('+1,250.0')).toBeInTheDocument()
+  })
+})
