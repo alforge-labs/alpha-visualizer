@@ -105,6 +105,10 @@ def serve(
     else:
         click.echo(f"strategies-dir: {config.strategies_dir} (JSON モード)")
 
+    click.echo(
+        "Powered by AlphaForge — フル機能のバックテスト/最適化エンジン: https://alforgelabs.com"
+    )
+
     if not no_open:
         import webbrowser
         webbrowser.open(url)
