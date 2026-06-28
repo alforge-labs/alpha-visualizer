@@ -5,6 +5,147 @@ alpha-visualizer の全バージョン変更履歴です。
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
 
+## [0.8.0] - 2026-06-28
+
+
+### その他
+
+- **deps**: bump fastapi from 0.136.3 to 0.137.0 (#244)
+
+
+- **deps**: bump starlette from 1.0.1 to 1.3.1 (#248)
+
+
+- **deps-dev**: bump pytest from 9.0.3 to 9.1.0 (#246)
+
+
+- **deps-dev**: bump ruff from 0.15.15 to 0.15.17 (#245)
+
+
+- **deps**: bump click from 8.3.3 to 8.4.1 (#238)
+
+
+- **deps-dev**: bump hypothesis from 6.155.1 to 6.155.2 (#235)
+
+
+- **deps-dev**: bump vite from 8.0.12 to 8.0.16 in /frontend (#247)
+
+
+- **deps**: bump react-router-dom from 7.15.0 to 7.17.0 in /frontend (#242)
+
+
+- **deps**: 推移的依存のセキュリティ脆弱性を解消（undici/js-yaml/@babel/core/esbuild） (#250)
+
+
+- **deps**: bump pydantic-settings from 2.14.0 to 2.14.2 (#249)
+
+
+- **deps-dev**: bump vitest (#240)
+
+
+- バージョン 0.8.0 にバンプ
+
+
+
+### ドキュメント
+
+- **readme**: AlphaForge への送客 CTA を先頭に追加 (#257)
+
+
+
+### バグ修正
+
+- **a11y**: セマンティック色とアクティブchipの accent を WCAG AA に調整 (#271)
+
+
+- **web**: ハードコード色一掃 (#264) とエラー/再実行 UX 改善 (#265) (#273)
+
+
+
+### 新機能
+
+- **frontend**: 最適化結果のパラメータヒートマップビューを追加 (#243)
+
+
+- **a11y**: キーボード操作・ARIA・ランドマーク・lang・コントラストの改善（Critical+High） (#268)
+
+
+- **a11y**: チャートのテキスト/データ代替・キーボード/SR 対応（#262） (#270)
+
+
+- **a11y**: candlestick(signal) チャートに OHLC データテーブル代替を追加 (#272)
+
+
+- **web**: Loading スケルトン共有化・Intl 桁区切り・OS テーマ追従 (Refs #266) (#274)
+
+
+
+## [0.7.3] - 2026-06-07
+
+
+### その他
+
+- **deps**: bump starlette from 1.0.0 to 1.0.1 (#220)
+
+
+- バージョン 0.7.3 にバンプ
+
+
+
+### バグ修正
+
+- **e2e**: playwright.samples.config.ts の webServer を alpha-vis serve に修正し CI に e2e:samples スモークを追加 (#232) (#233)
+
+
+
+### 新機能
+
+- **charts**: TradingView lightweight-charts を既定レンダラに反転 (#231) (#234)
+
+
+
+## [0.7.2] - 2026-06-07
+
+
+### CI/CD
+
+- SQLite drift check を論理比較化し uv バージョンを固定 (#223) (#224)
+
+
+
+### その他
+
+- バージョン 0.7.2 にバンプ
+
+
+
+### ドキュメント
+
+- CHANGELOG を v0.7.1 に更新
+
+
+- **screenshots**: README スクショを主役が切れないよう撮り直し＋相関ヒートマップ追加 (#219)
+
+
+
+### バグ修正
+
+- **packaging**: wheel/sdist に frontend の static/ を同梱する (#225) (#228)
+
+
+- **config**: <forge-dir>/forge.yaml を FORGE_CONFIG より優先する (#226) (#229)
+
+
+- **logging**: DB 欠落時の起動メッセージを実挙動に一致させる (#227) (#230)
+
+
+
+### 新機能
+
+- **live**: Live 一覧ページを追加し combine portfolio へ UI 導線を開通 (#222)
+
+
+
 ## [0.7.1] - 2026-06-02
 
 
