@@ -1,12 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCompare } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { CompareScreen } from '../screens/CompareScreen'
 import { SettingsToggles } from '../components/SettingsToggles'
+import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
-import { Button, Divider, Toolbar } from '../design/primitives'
+import { Button, Divider, ErrorBanner, Toolbar } from '../design/primitives'
 
 export function ComparePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
@@ -17,7 +18,9 @@ export function ComparePage(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams()
   const idsParam = searchParams.get('ids') ?? ''
   const ids = useMemo(() => idsParam.split(',').filter(Boolean), [idsParam])
-  const compare = useCompare(ids.length > 0 ? ids : null)
+  // issue #265: エラー時の再試行で同じ ids のまま再フェッチするためのトークン。
+  const [reloadToken, setReloadToken] = useState(0)
+  const compare = useCompare(ids.length > 0 ? ids : null, reloadToken)
 
   const removeId = (id: string): void => {
     const next = ids.filter(x => x !== id)
@@ -204,20 +207,12 @@ export function ComparePage(): React.ReactElement {
           </div>
         )}
         {compare.status === 'error' && (
-          <div
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--fs-mono-md)',
-              color: 'var(--danger)',
-              letterSpacing: 'var(--tracking-mono)',
-              padding: '12px 16px',
-              background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--danger) 22%, transparent)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            {compare.error}
-          </div>
+          <ErrorBanner
+            message={normalizeErrorMessage(compare.error, lang)}
+            title={compare.error}
+            retryLabel={L('再試行', 'Retry')}
+            onRetry={() => setReloadToken((t) => t + 1)}
+          />
         )}
         {compare.status === 'ready' && (
           <CompareScreen data={compare.data} lang={lang} symbol={symbol} />

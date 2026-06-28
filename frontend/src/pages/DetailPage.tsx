@@ -13,6 +13,8 @@ import { MetricsSummaryBarV2 } from '../components/MetricsSummaryBarV2'
 import { DetailToolbar } from '../components/DetailToolbar'
 import { StrategyHero } from '../components/StrategyHero'
 import { Tab, TabBar } from '../design/primitives/TabBar'
+import { ConfirmDialog, ErrorBanner } from '../design/primitives'
+import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
 
 type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history' | 'strategy'
@@ -26,15 +28,18 @@ export function DetailPage() {
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState<DetailTab>('backtest')
   const [manualRunId, setManualRunId] = useState<string | null>(null)
+  // issue #265: 再実行後の更新を全画面リロードでなく再フェッチで行うためのトークン。
+  const [reloadToken, setReloadToken] = useState(0)
+  const [confirmRun, setConfirmRun] = useState(false)
 
-  const runsState = useStrategyRuns(strategyId ?? null)
+  const runsState = useStrategyRuns(strategyId ?? null, reloadToken)
 
   const urlRunId = searchParams.get('run_id')
   const latestRunId =
     runsState.status === 'ready' && runsState.data.length > 0 ? runsState.data[0]!.run_id : null
   const runId = urlRunId ?? manualRunId ?? latestRunId
 
-  const backtest = useBacktest({ runId })
+  const backtest = useBacktest({ runId, reloadToken })
   const wfo = useWFO(strategyId ?? null)
   const optimize = useOptimize(strategyId ?? null)
   const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
@@ -56,17 +61,18 @@ export function DetailPage() {
     setTab('backtest')
   }
 
-  const handleRun = async () => {
+  const requestRun = () => {
     if (!symbol || !timeframe || !strategyId) return
-    const ok = window.confirm(
-      L(
-        '再実行すると最新結果が上書きされます。続けますか？',
-        'Re-running will overwrite the latest result. Continue?',
-      ),
-    )
-    if (!ok) return
+    setConfirmRun(true)
+  }
+
+  const doRun = async () => {
+    setConfirmRun(false)
+    if (!symbol || !timeframe || !strategyId) return
     const success = await runBt(strategyId, symbol, timeframe)
-    if (success) window.location.reload()
+    // issue #265: 全画面リロードせず、reloadToken を進めて該当データを再フェッチ
+    // （タブ・スクロール位置などの画面状態を保持したまま最新結果へ更新する）。
+    if (success) setReloadToken((t) => t + 1)
   }
 
   const handleAddToCompare = () => {
@@ -105,26 +111,20 @@ export function DetailPage() {
           update('variation', t === 'dark' ? 'lab' : 'atelier')
         }}
         onBack={() => navigate(-1)}
-        onRun={handleRun}
+        onRun={requestRun}
         onAddToCompare={handleAddToCompare}
         running={btRunning}
         canRun={Boolean(symbol && timeframe && strategyId)}
       />
 
       {runError && (
-        <div
-          style={{
-            padding: 'var(--space-2) var(--layout-gutter)',
-            fontFamily: 'var(--mono)',
-            fontSize: 'var(--fs-mono-sm)',
-            letterSpacing: 'var(--tracking-mono)',
-            color: 'var(--danger)',
-            background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
-            borderBottom: '1px solid var(--border)',
-            flexShrink: 0,
-          }}
-        >
-          {runError}
+        <div style={{ padding: 'var(--space-2) var(--layout-gutter)', flexShrink: 0 }}>
+          <ErrorBanner
+            message={normalizeErrorMessage(runError, lang)}
+            title={runError}
+            retryLabel={L('再試行', 'Retry')}
+            onRetry={doRun}
+          />
         </div>
       )}
 
@@ -263,6 +263,20 @@ export function DetailPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmRun}
+        title={L('バックテスト再実行', 'Re-run backtest')}
+        message={L(
+          '再実行すると最新結果が上書きされます。続けますか？',
+          'Re-running will overwrite the latest result. Continue?',
+        )}
+        confirmLabel={btRunning ? L('実行中…', 'Running…') : L('実行', 'Run')}
+        cancelLabel={L('やめる', 'Cancel')}
+        onConfirm={doRun}
+        onCancel={() => setConfirmRun(false)}
+        tone="danger"
+      />
     </div>
   )
 }

@@ -25,11 +25,14 @@ export type { LoadState }
 
 interface UseBacktestParams {
   runId: string | null
+  /** 値を変えると同じ runId のまま再フェッチする（issue #265 の状態保持リトライ） */
+  reloadToken?: number
 }
 
-export function useBacktest({ runId }: UseBacktestParams): LoadState<BacktestDetail> {
+export function useBacktest({ runId, reloadToken }: UseBacktestParams): LoadState<BacktestDetail> {
   return useFetchByKey<BacktestDetail>(runId, api.getBacktest, {
     mockFallback: MOCK_BACKTEST_FALLBACK,
+    reloadToken,
   })
 }
 
@@ -39,12 +42,15 @@ export function useWFO(strategyId: string | null): LoadState<WFOResult> {
   })
 }
 
-export function useCompare(ids: string[] | null): LoadState<StrategyComparison[]> {
+export function useCompare(
+  ids: string[] | null,
+  reloadToken?: number,
+): LoadState<StrategyComparison[]> {
   const idsKey = ids && ids.length > 0 ? ids.join(',') : null
   return useFetchByKey<StrategyComparison[]>(
     idsKey,
     (key) => api.compareStrategies(key.split(',')),
-    { mockFallback: MOCK_STRATEGIES_FALLBACK },
+    { mockFallback: MOCK_STRATEGIES_FALLBACK, reloadToken },
   )
 }
 
@@ -54,8 +60,11 @@ export function useOptimize(strategyId: string | null): LoadState<OptimizeResult
   })
 }
 
-export function useStrategyRuns(strategyId: string | null): LoadState<StrategyRun[]> {
-  const state = useFetchByKey<StrategyRun[]>(strategyId, api.getStrategyRuns)
+export function useStrategyRuns(
+  strategyId: string | null,
+  reloadToken?: number,
+): LoadState<StrategyRun[]> {
+  const state = useFetchByKey<StrategyRun[]>(strategyId, api.getStrategyRuns, { reloadToken })
   if (!strategyId) return { status: 'ready', data: [], isMock: false }
   return state
 }
