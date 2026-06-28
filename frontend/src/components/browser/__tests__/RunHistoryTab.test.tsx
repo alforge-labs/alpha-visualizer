@@ -19,3 +19,19 @@ describe('RunHistoryTab return sign (issue #261)', () => {
     expect(screen.getByText('-8.4%')).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #264: 現在行ハイライトがテラコッタ基調と不調和な緑 rgba(0,228,154,...) の
+ * 直書きだった。パレットに調和する accent トークンへ置換し、両テーマで成立させる。
+ */
+describe('RunHistoryTab current-row highlight (issue #264)', () => {
+  it('highlights the current row with a palette token, not hardcoded green', () => {
+    const { container } = render(
+      <RunHistoryTab runs={runs} currentRunId="a" onSelectRun={() => {}} lang="ja" />,
+    )
+    const rows = container.querySelectorAll('tbody tr')
+    expect(rows[0]!.getAttribute('style')).toContain('var(--accent-bg)')
+    expect(rows[1]!.getAttribute('style')).toContain('transparent')
+    expect(container.innerHTML).not.toContain('rgba(0,228,154')
+  })
+})

@@ -86,8 +86,8 @@ function VaRChartInner({
     [maxCount, innerH],
   )
 
-  const danger = theme.danger || '#B33A2F'
-  const warn = theme.warn || '#B27A1F'
+  const danger = theme.danger || 'var(--danger)'
+  const warn = theme.warn || 'var(--warn)'
 
   return (
     <div>

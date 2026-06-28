@@ -158,6 +158,29 @@ describe('<LiveTab />', () => {
     // 生のエラーメッセージ "API 404" が表示されないこと
     expect(screen.queryByText(/取得に失敗/)).toBeNull()
   })
+
+  /**
+   * issue #264: トレード表のゼブラがグレー直書き rgba(127,127,127,0.04) で、
+   * テーマトークンを迂回していた。surface-2 トークンへ置換して両テーマで成立させる。
+   */
+  it('uses var(--surface-2) for zebra rows instead of hardcoded gray rgba (issue #264)', async () => {
+    const base = BASE_RESPONSE.live.trades[0]!
+    const twoTrades: LiveDetailResponse = {
+      ...BASE_RESPONSE,
+      live: { ...BASE_RESPONSE.live, trades: [base, { ...base, trade_id: 't2' }] },
+    }
+    vi.mocked(api.getLive).mockResolvedValue(twoTrades)
+    const { container } = render(<LiveTab strategyId="strat_a" runId="bt_run_1" lang="ja" />)
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('live-summary-card').length).toBeGreaterThan(0)
+    })
+
+    const rows = container.querySelectorAll('table tbody tr')
+    expect(rows.length).toBe(2)
+    expect(rows[1]!.getAttribute('style')).toContain('var(--surface-2)')
+    expect(container.innerHTML).not.toContain('rgba(127,127,127')
+  })
 })
 
 // position ベース combine portfolio（#221）。
