@@ -94,4 +94,23 @@ describe('useFetchByKey', () => {
     })
     expect(fetcher).toHaveBeenCalledTimes(2)
   })
+
+  it('refetches when reloadToken changes without changing the key (issue #265)', async () => {
+    // 同じ key のまま再フェッチできることが「状態保持リトライ」の前提。
+    const fetcher = vi.fn(async (k: string) => `data-${k}`)
+    const { result, rerender } = renderHook(
+      ({ token }) => useFetchByKey<string>('key1', fetcher, { reloadToken: token }),
+      { initialProps: { token: 0 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current).toEqual({ status: 'ready', data: 'data-key1', isMock: false })
+    })
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    rerender({ token: 1 })
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledTimes(2)
+    })
+  })
 })

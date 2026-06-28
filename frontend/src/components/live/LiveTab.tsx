@@ -266,7 +266,7 @@ function LiveTradesTable({ trades, lang }: LiveTradesTableProps) {
               <tr
                 key={t.trade_id || i}
                 style={{
-                  background: i % 2 === 0 ? 'transparent' : 'rgba(127,127,127,0.04)',
+                  background: i % 2 === 0 ? 'transparent' : 'var(--surface-2)',
                 }}
               >
                 <td style={cellS}>{t.symbol || '—'}</td>

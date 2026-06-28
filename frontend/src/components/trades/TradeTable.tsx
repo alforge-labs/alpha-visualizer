@@ -78,8 +78,8 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
 
   const tdS = (i: number): React.CSSProperties => ({
     padding: '8px 10px',
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
-    background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.012)',
+    borderBottom: '1px solid var(--border)',
+    background: i % 2 === 0 ? 'transparent' : 'var(--surface-2)',
   })
 
   const exportBtnS: React.CSSProperties = {
@@ -153,7 +153,9 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                             fontWeight: 600,
                             color: v === 'long' ? 'var(--success)' : 'var(--warn)',
                             background:
-                              v === 'long' ? 'rgba(0,228,154,0.08)' : 'rgba(245,166,35,0.08)',
+                              v === 'long'
+                                ? 'color-mix(in srgb, var(--success) 12%, transparent)'
+                                : 'color-mix(in srgb, var(--warn) 14%, transparent)',
                             padding: '1px 6px',
                             borderRadius: 3,
                           }}

@@ -497,7 +497,7 @@ function EquityChartInner({
             padding: '8px 12px',
             fontFamily: theme.mono,
             fontSize: 12,
-            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+            boxShadow: 'var(--shadow-2)',
           }}
         >
           {(() => {

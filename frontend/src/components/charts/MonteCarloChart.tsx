@@ -81,7 +81,7 @@ function MonteCarloInner({
     [minV, maxV, innerH],
   )
 
-  const success = theme.success || '#4F7A3F'
+  const success = theme.success || 'var(--success)'
   const successFaint = `color-mix(in srgb, ${success} 18%, transparent)`
   const successSoft = `color-mix(in srgb, ${success} 8%, transparent)`
 

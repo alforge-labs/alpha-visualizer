@@ -212,7 +212,7 @@ function Inner({
             fontSize: 'var(--fs-mono-sm)',
             color: 'var(--text)',
             letterSpacing: 'var(--tracking-mono)',
-            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+            boxShadow: 'var(--shadow-2)',
             pointerEvents: 'none',
           }}
         >

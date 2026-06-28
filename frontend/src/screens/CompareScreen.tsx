@@ -53,7 +53,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
         label: s.name,
         values: s.equity!.values,
         dates: s.equity!.dates,
-        color: theme.series[i % theme.series.length] ?? '#888',
+        color: theme.series[i % theme.series.length] ?? 'var(--text2)',
         isBaseline: s.is_baseline,
       }))
   }, [data, theme.series])
@@ -71,7 +71,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
     .map((s, i) => ({
       label: s.name,
       returns: s.daily_returns!,
-      color: theme.series[i % theme.series.length] ?? '#888',
+      color: theme.series[i % theme.series.length] ?? 'var(--text2)',
     }))
 
   return (

@@ -29,7 +29,7 @@ export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) 
             return (
               <tr key={r.run_id} style={{
                 borderBottom: '1px solid var(--border)',
-                background: isCurrent ? 'rgba(0,228,154,0.06)' : 'transparent',
+                background: isCurrent ? 'var(--accent-bg)' : 'transparent',
               }}>
                 <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{r.run_at.slice(0, 16).replace('T', ' ')}</td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: r.sharpe_ratio !== null && r.sharpe_ratio >= 1 ? 'var(--success)' : 'var(--warn)', fontWeight: 700 }}>

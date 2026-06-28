@@ -1,11 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { StrategyListItem } from '../../api/types'
 import { useRunBacktest, useStrategyRuns } from '../../hooks/useBacktestData'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { Button, Chip, Divider } from '../../design/primitives'
+import { Button, Chip, ConfirmDialog, Divider } from '../../design/primitives'
 import { Sparkline } from '../../charts/visx/Sparkline'
 
 interface Props {
@@ -25,7 +25,10 @@ const SECTION_LABEL: React.CSSProperties = {
 
 export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React.ReactElement {
   const L = makeL(lang)
-  const runs = useStrategyRuns(s.strategy_id)
+  // issue #265: 再実行後の更新を全画面リロードでなく実行履歴の再フェッチで行う。
+  const [reloadToken, setReloadToken] = useState(0)
+  const [confirmRun, setConfirmRun] = useState(false)
+  const runs = useStrategyRuns(s.strategy_id, reloadToken)
   const recentRuns = runs.status === 'ready' ? runs.data.slice(0, 5) : []
   const { run, running, error: runError } = useRunBacktest()
   const sparkline = useSparklineCache()
@@ -35,19 +38,22 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
     sparkline.prefetch(s.strategy_id)
   }, [s.strategy_id, sparkline])
 
-  const handleRun = async (): Promise<void> => {
+  const requestRun = (): void => {
     if (!s.symbol || !s.timeframe) return
+    // 既存結果がある場合のみ上書き確認する（初回実行は確認不要）。
     if (s.last_run_at !== null) {
-      const ok = window.confirm(
-        L(
-          '再実行すると最新結果が上書きされます。続けますか？',
-          'Re-running will overwrite the latest result. Continue?',
-        ),
-      )
-      if (!ok) return
+      setConfirmRun(true)
+      return
     }
+    void doRun()
+  }
+
+  const doRun = async (): Promise<void> => {
+    setConfirmRun(false)
+    if (!s.symbol || !s.timeframe) return
     const success = await run(s.strategy_id, s.symbol, s.timeframe)
-    if (success) window.location.reload()
+    // パネルは開いたまま（状態保持）、実行履歴だけを再フェッチして最新化する。
+    if (success) setReloadToken((t) => t + 1)
   }
 
   return (
@@ -149,7 +155,7 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
         <Button
           variant="subtle"
           size="sm"
-          onClick={handleRun}
+          onClick={requestRun}
           disabled={running || !s.symbol || !s.timeframe}
         >
           {running ? L('実行中…', 'Running…') : L('バックテスト再実行', 'Re-run backtest')}
@@ -282,6 +288,19 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
         </div>
       </section>
 
+      <ConfirmDialog
+        open={confirmRun}
+        title={L('バックテスト再実行', 'Re-run backtest')}
+        message={L(
+          '再実行すると最新結果が上書きされます。続けますか？',
+          'Re-running will overwrite the latest result. Continue?',
+        )}
+        confirmLabel={running ? L('実行中…', 'Running…') : L('実行', 'Run')}
+        cancelLabel={L('やめる', 'Cancel')}
+        onConfirm={doRun}
+        onCancel={() => setConfirmRun(false)}
+        tone="danger"
+      />
     </aside>
   )
 }

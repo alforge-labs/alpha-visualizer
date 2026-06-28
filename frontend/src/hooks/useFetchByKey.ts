@@ -22,6 +22,12 @@ interface UseFetchByKeyOptions<T> {
    * PROD では呼び出し側で `null` を渡すことで Vite の tree-shaking が効く。
    */
   mockFallback?: T | null
+  /**
+   * key を変えずに再フェッチするためのトークン（issue #265）。
+   * 値を変える（インクリメントする）と同じ key のまま fetch をやり直す。
+   * 全画面リロードに頼らない「状態保持リトライ／再実行後の再取得」に使う。
+   */
+  reloadToken?: number
 }
 
 /**
@@ -40,7 +46,7 @@ export function useFetchByKey<T>(
   fetcher: (key: string) => Promise<T>,
   options: UseFetchByKeyOptions<T> = {},
 ): LoadState<T> {
-  const { mockFallback = null } = options
+  const { mockFallback = null, reloadToken = 0 } = options
   const [result, setResult] = useState<{ forKey: string; state: FetchedState<T> } | null>(null)
 
   useEffect(() => {
@@ -73,8 +79,9 @@ export function useFetchByKey<T>(
       cancelled = true
     }
     // fetcher / mockFallback は安定参照前提（呼び出し側が API 関数や module-level const を渡す）
+    // reloadToken を変えると同じ key のまま再フェッチする（issue #265）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
+  }, [key, reloadToken])
 
   if (!key) {
     return IS_DEV && mockFallback != null

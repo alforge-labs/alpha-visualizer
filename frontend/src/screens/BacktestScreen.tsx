@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
-import { api } from '../api/client'
 import type { BacktestDetail } from '../api/types'
+import { useLiveAvailability } from '../hooks/useLiveAvailability'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
@@ -47,30 +47,12 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const hasRegime = !!data.regime_series
   const [showRegime, setShowRegime] = useState<boolean>(hasRegime)
-  const [hasLive, setHasLive] = useState<boolean>(false)
+  // issue #265: listLive() の失敗を silent に握りつぶさず、liveError として通知する。
+  const { hasLive, error: liveError } = useLiveAvailability(data.strategy_id)
   const [useTv, setUseTv] = useState<boolean>(() => resolveLightweightChartsFlag())
   const showRendererToggle = shouldShowRendererToggle()
   const L = makeL(lang)
   const chartTheme = useChartTheme()
-
-  useEffect(() => {
-    let cancelled = false
-    api
-      .listLive()
-      .then((items) => {
-        if (cancelled) return
-        const match = items.some(
-          (it) => it.strategy_id === data.strategy_id && it.has_summary,
-        )
-        setHasLive(match)
-      })
-      .catch(() => {
-        if (!cancelled) setHasLive(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [data.strategy_id])
 
   const equityRef = useRef<HTMLDivElement>(null)
   const drawdownRef = useRef<HTMLDivElement>(null)
@@ -138,6 +120,22 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           </Tab>
         ))}
       </TabBar>
+
+      {liveError && (
+        <p
+          role="status"
+          title={liveError}
+          style={{
+            margin: 0,
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            letterSpacing: 'var(--tracking-mono)',
+            color: 'var(--warn)',
+          }}
+        >
+          {L('ライブ実績の確認に失敗しました', 'Could not check live results')}
+        </p>
+      )}
 
       {tab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

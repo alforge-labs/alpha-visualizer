@@ -247,7 +247,7 @@ function CellTooltip({ hov, grid, xLabel, yLabel, metricLabel, left, top, theme 
         padding: '10px 12px',
         fontFamily: theme.mono,
         fontSize: 12,
-        boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+        boxShadow: 'var(--shadow-2)',
         minWidth: 180,
         pointerEvents: 'none',
         zIndex: 10,
