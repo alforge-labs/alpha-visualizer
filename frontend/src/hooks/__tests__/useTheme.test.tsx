@@ -135,3 +135,113 @@ describe('useViewerSettings — update()', () => {
     }).not.toThrow()
   })
 })
+
+/**
+ * issue #266: OS のカラースキーム変更が起動後に追従しない（初期化時のみ matchMedia を読む）。
+ * change イベントを購読し、ユーザーが明示的に theme を選んでいない場合のみ OS に追従する。
+ */
+describe('useViewerSettings — OS theme change subscription (issue #266)', () => {
+  let originalMatchMedia: typeof window.matchMedia
+  let emit: (matches: boolean) => void
+
+  function installMatchMedia(initialMatches: boolean): void {
+    let matches = initialMatches
+    const listeners = new Set<(e: MediaQueryListEvent) => void>()
+    const mql = {
+      get matches() {
+        return matches
+      },
+      media: '(prefers-color-scheme: dark)',
+      onchange: null,
+      addEventListener: (_: string, cb: (e: MediaQueryListEvent) => void) => {
+        listeners.add(cb)
+      },
+      removeEventListener: (_: string, cb: (e: MediaQueryListEvent) => void) => {
+        listeners.delete(cb)
+      },
+      addListener: (cb: (e: MediaQueryListEvent) => void) => listeners.add(cb),
+      removeListener: (cb: (e: MediaQueryListEvent) => void) => listeners.delete(cb),
+      dispatchEvent: () => true,
+    }
+    window.matchMedia = (() => mql) as unknown as typeof window.matchMedia
+    emit = (next: boolean) => {
+      matches = next
+      for (const cb of listeners) cb({ matches } as MediaQueryListEvent)
+    }
+  }
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia
+  })
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia
+  })
+
+  it('follows OS theme change when the user has no explicit theme', () => {
+    installMatchMedia(false) // 初期は light
+    const { result } = renderHook(() => useViewerSettings())
+    expect(result.current.settings.theme).toBe('light')
+
+    act(() => {
+      emit(true) // OS が dark に切替
+    })
+    expect(result.current.settings.theme).toBe('dark')
+
+    act(() => {
+      emit(false) // OS が light に戻す
+    })
+    expect(result.current.settings.theme).toBe('light')
+  })
+
+  it('does NOT follow OS change when the user set a theme via storage', () => {
+    installMatchMedia(false)
+    storage.setItem(STORAGE_KEY, JSON.stringify({ theme: 'light' }))
+
+    const { result } = renderHook(() => useViewerSettings())
+    expect(result.current.settings.theme).toBe('light')
+
+    act(() => {
+      emit(true) // OS dark になっても明示設定を尊重
+    })
+    expect(result.current.settings.theme).toBe('light')
+  })
+
+  it('stops following once the user explicitly updates the theme', () => {
+    installMatchMedia(false)
+    const { result } = renderHook(() => useViewerSettings())
+
+    act(() => {
+      result.current.update('theme', 'dark') // 明示選択
+    })
+    expect(result.current.settings.theme).toBe('dark')
+
+    act(() => {
+      emit(false) // OS が light になっても追従しない
+    })
+    expect(result.current.settings.theme).toBe('dark')
+  })
+
+  it('does not persist theme to storage while following the OS (no explicit choice)', () => {
+    installMatchMedia(false)
+    renderHook(() => useViewerSettings())
+
+    const raw = storage.getItem(STORAGE_KEY)
+    expect(raw).not.toBeNull()
+    const parsed = JSON.parse(raw as string) as { theme?: string }
+    // 明示選択していない間は theme を保存しない（再読込時に OS 追従を継続させるため）
+    expect(parsed.theme).toBeUndefined()
+  })
+
+  it('persists theme to storage once explicitly chosen', () => {
+    installMatchMedia(false)
+    const { result } = renderHook(() => useViewerSettings())
+
+    act(() => {
+      result.current.update('theme', 'dark')
+    })
+
+    const parsed = JSON.parse(storage.getItem(STORAGE_KEY) as string) as { theme?: string }
+    expect(parsed.theme).toBe('dark')
+  })
+})

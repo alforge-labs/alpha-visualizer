@@ -35,3 +35,18 @@ describe('RunHistoryTab current-row highlight (issue #264)', () => {
     expect(container.innerHTML).not.toContain('rgba(0,228,154')
   })
 })
+
+/**
+ * issue #266: 数値整形を SSoT（lib/format）経由へ統一し、桁区切りを効かせる。
+ * 直書き toFixed では大きなリターンが区切り無しで表示されていた。
+ */
+describe('RunHistoryTab number formatting via SSoT (issue #266)', () => {
+  const bigRuns = [
+    { run_id: 'x', run_at: '2025-01-01T00:00', sharpe_ratio: 1.2, total_return_pct: 1234.5, max_drawdown_pct: -5 },
+  ] as unknown as StrategyRun[]
+
+  it('groups thousands in the return column and keeps the + sign', () => {
+    render(<RunHistoryTab runs={bigRuns} currentRunId="x" onSelectRun={() => {}} lang="ja" />)
+    expect(screen.getByText('+1,234.5%')).toBeInTheDocument()
+  })
+})

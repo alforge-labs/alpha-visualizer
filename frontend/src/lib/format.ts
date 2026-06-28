@@ -35,9 +35,14 @@ export function fmtNumber(
 
   const abs = Math.abs(value)
   const dec = decimals ?? (abs >= 100 ? 1 : abs >= 10 ? 2 : 3)
-  const fixed = value.toFixed(dec)
+  // issue #266: 桁区切りを SSoT 化。ja / en はともに ',' 区切り・'.' 小数点なので、
+  // CI ロケール差で出力がブレないよう 'en-US' に固定する（両言語で表記は同一）。
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  }).format(value)
   const prefix = sign && value > 0 ? '+' : ''
-  return `${prefix}${fixed}${suffix}`
+  return `${prefix}${formatted}${suffix}`
 }
 
 /** Sharpe など 2 桁固定の指標向けショートカット。 */

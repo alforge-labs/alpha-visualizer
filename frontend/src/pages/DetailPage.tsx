@@ -13,7 +13,7 @@ import { MetricsSummaryBarV2 } from '../components/MetricsSummaryBarV2'
 import { DetailToolbar } from '../components/DetailToolbar'
 import { StrategyHero } from '../components/StrategyHero'
 import { Tab, TabBar } from '../design/primitives/TabBar'
-import { ConfirmDialog, ErrorBanner } from '../design/primitives'
+import { ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
 
@@ -166,7 +166,7 @@ export function DetailPage() {
           >
             {tab === 'backtest' &&
               (backtest.status === 'loading' ? (
-                <Note>{L('読み込み中…', 'Loading…')}</Note>
+                <Loading label={L('読み込み中…', 'Loading…')} />
               ) : backtest.status === 'no_data' ? (
                 <Note>
                   {L(
@@ -189,7 +189,7 @@ export function DetailPage() {
               ))}
             {tab === 'wfo' &&
               (wfo.status === 'loading' ? (
-                <Note>{L('読み込み中…', 'Loading…')}</Note>
+                <Loading label={L('読み込み中…', 'Loading…')} />
               ) : wfo.status === 'no_data' ? (
                 <Note>
                   {L(
@@ -204,7 +204,7 @@ export function DetailPage() {
               ))}
             {tab === 'optimize' &&
               (optimize.status === 'loading' ? (
-                <Note>{L('読み込み中…', 'Loading…')}</Note>
+                <Loading label={L('読み込み中…', 'Loading…')} />
               ) : optimize.status === 'no_data' ? (
                 <Note>
                   {L(
@@ -235,11 +235,11 @@ export function DetailPage() {
               ) : runsState.status === 'error' ? (
                 <Note tone="danger">{runsState.error}</Note>
               ) : (
-                <Note>{L('読み込み中…', 'Loading…')}</Note>
+                <Loading label={L('読み込み中…', 'Loading…')} />
               ))}
             {tab === 'strategy' &&
               (strategyDetail.status === 'loading' ? (
-                <Note>{L('読み込み中…', 'Loading…')}</Note>
+                <Loading label={L('読み込み中…', 'Loading…')} />
               ) : strategyDetail.status === 'no_data' ? (
                 <Note>
                   {L(
