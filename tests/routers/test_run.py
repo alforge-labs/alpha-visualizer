@@ -41,9 +41,9 @@ class TestRunRouter:
         assert resp.status_code == 500
         detail = resp.json()["detail"]
         assert "forge" in detail.lower()
-        # CodeQL py/incomplete-url-substring-sanitization 回避のため
-        # substring 判定ではなく末尾一致で導線 URL を検証する
-        assert detail.endswith("https://alforgelabs.com")
+        # CodeQL py/incomplete-url-substring-sanitization は substring/endswith
+        # 判定を誤検知するため、末尾トークンの等価比較で導線 URL を検証する
+        assert detail.rsplit(" ", 1)[-1] == "https://alforgelabs.com"
 
     def test_run_subprocess_failure(self, client_with_db: TestClient) -> None:
         """forge コマンドが非ゼロで終了したとき 500 を返す"""
