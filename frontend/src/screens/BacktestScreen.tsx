@@ -184,7 +184,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                   >
                     PNG
                   </button>
-                  <ShareCardButton data={data} lang={lang} />
+                  <ShareCardButton data={data} lang={lang} theme={chartTheme} />
                 </div>
               </div>
               <div data-testid="backtest-equity-chart-tv">
@@ -259,7 +259,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                     >
                       PNG
                     </button>
-                    <ShareCardButton data={data} lang={lang} />
+                    <ShareCardButton data={data} lang={lang} theme={chartTheme} />
                   </div>
                 </div>
                 <div ref={equityRef} data-testid="backtest-equity-chart">

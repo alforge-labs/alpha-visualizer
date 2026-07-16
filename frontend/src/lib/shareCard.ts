@@ -107,16 +107,24 @@ export function normalizeEquity(
   width: number,
   height: number,
 ): ChartPoint[] {
-  if (values.length < 2) return []
+  // NaN/Infinity は 1 点でも混入すると Math.min/max を NaN 化して
+  // 全点の座標を壊すため、座標化の前に除外する（Fail Loud より
+  // 「有効な点だけで描く」を選ぶ: カードは他の指標だけでも成立する）。
+  const finite: Array<{ v: number; i: number }> = []
+  values.forEach((v, i) => {
+    if (Number.isFinite(v)) finite.push({ v, i })
+  })
+  if (finite.length < 2) return []
 
-  const sampled: Array<{ v: number; i: number }> = []
-  if (values.length <= MAX_CHART_POINTS) {
-    values.forEach((v, i) => sampled.push({ v, i }))
+  let sampled: Array<{ v: number; i: number }>
+  if (finite.length <= MAX_CHART_POINTS) {
+    sampled = finite
   } else {
+    sampled = []
     for (let k = 0; k < MAX_CHART_POINTS; k++) {
-      const i = Math.round((k * (values.length - 1)) / (MAX_CHART_POINTS - 1))
-      const v = values[i]
-      if (v !== undefined) sampled.push({ v, i })
+      const j = Math.round((k * (finite.length - 1)) / (MAX_CHART_POINTS - 1))
+      const p = finite[j]
+      if (p !== undefined) sampled.push(p)
     }
   }
 
@@ -129,6 +137,21 @@ export function normalizeEquity(
     x: (i / lastIndex) * width,
     y: span === 0 ? height / 2 : ((max - v) / span) * height,
   }))
+}
+
+/**
+ * measure（幅計測関数）で maxWidth に収まるまで末尾を削り「…」を付ける。
+ * canvas の ctx.measureText を注入して使う（テストでは擬似メジャーを注入）。
+ */
+export function truncateToWidth(
+  text: string,
+  maxWidth: number,
+  measure: (s: string) => number,
+): string {
+  if (measure(text) <= maxWidth) return text
+  let t = text
+  while (t.length > 0 && measure(`${t}…`) > maxWidth) t = t.slice(0, -1)
+  return `${t}…`
 }
 
 /** strategy_id / symbol からパス安全なファイル名を組み立てる。 */
@@ -192,13 +215,16 @@ export function drawShareCard(
   ctx.lineWidth = 2
   ctx.strokeRect(1, 1, w - 2, h - 2)
 
+  const maxTextWidth = w - PAD * 2
+  const measure = (s: string): number => ctx.measureText(s).width
+
   ctx.fillStyle = theme.text
   ctx.font = `600 52px ${theme.serif}`
-  ctx.fillText(data.title, PAD, 118)
+  ctx.fillText(truncateToWidth(data.title, maxTextWidth, measure), PAD, 118)
 
   ctx.fillStyle = theme.text2
   ctx.font = `24px ${theme.mono}`
-  ctx.fillText(data.subtitle, PAD, 166)
+  ctx.fillText(truncateToWidth(data.subtitle, maxTextWidth, measure), PAD, 166)
 
   drawChart(ctx, points, theme)
 

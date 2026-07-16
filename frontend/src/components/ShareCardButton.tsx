@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import type { BacktestDetail } from '../api/types'
-import { useChartTheme } from '../design/useChartTheme'
+import type { ChartTheme } from '../design/useChartTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { downloadShareCard } from '../lib/shareCard'
@@ -8,16 +8,18 @@ import { downloadShareCard } from '../lib/shareCard'
 /**
  * バックテスト結果を SNS シェア用の PNG カード（1200×630）として書き出す
  * ボタン（C5 バイラルループ）。カードのブランド行が AlphaForge の認知経路になる。
+ * theme は呼び出し元（useChartTheme 済み）から受け取り、購読を二重化しない。
  */
 export function ShareCardButton({
   data,
   lang,
+  theme,
 }: {
   data: BacktestDetail
   lang: Lang
+  theme: ChartTheme
 }): ReactElement {
   const L = makeL(lang)
-  const theme = useChartTheme()
   return (
     <button
       type="button"

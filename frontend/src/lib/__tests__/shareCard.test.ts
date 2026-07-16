@@ -4,6 +4,7 @@ import {
   buildShareCardData,
   normalizeEquity,
   shareCardFilename,
+  truncateToWidth,
 } from '../shareCard'
 
 /**
@@ -86,12 +87,48 @@ describe('normalizeEquity', () => {
     expect(normalizeEquity([100], 100, 50)).toEqual([])
   })
 
+  it('drops NaN/Infinity samples instead of poisoning the whole curve', () => {
+    // Math.min/max は NaN が 1 点でも混ざると全体を NaN 化する。
+    // 壊れたカード（曲線が空白のまま SNS に共有される）を防ぐため、
+    // 非有限値は座標化から除外する。
+    const pts = normalizeEquity([100, NaN, 300, Infinity, 200], 100, 50)
+    expect(pts).toHaveLength(3)
+    expect(pts.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true)
+    expect(pts[0]).toEqual({ x: 0, y: 50 })    // min → 下端
+    expect(pts[1]).toEqual({ x: 50, y: 0 })    // max → 上端
+    expect(pts[2]).toEqual({ x: 100, y: 25 })  // 中間値 → 中央
+  })
+
+  it('returns [] when fewer than 2 finite values remain', () => {
+    expect(normalizeEquity([NaN, 100, Infinity], 100, 50)).toEqual([])
+    expect(normalizeEquity([NaN, NaN], 100, 50)).toEqual([])
+  })
+
   it('downsamples long series to a bounded number of points', () => {
     const long = Array.from({ length: 5000 }, (_, i) => i)
     const pts = normalizeEquity(long, 1000, 300)
     expect(pts.length).toBeLessThanOrEqual(400)
     expect(pts[0]?.x).toBe(0)
     expect(pts.at(-1)?.x).toBe(1000)
+  })
+})
+
+describe('truncateToWidth', () => {
+  // 長い strategy_id がカード右端をはみ出すと SNS 上で破綻した画像が拡散する。
+  // 1 文字 10px の擬似メジャーで切り詰め動作を検証する。
+  const measure = (s: string): number => s.length * 10
+
+  it('returns the text unchanged when it fits', () => {
+    expect(truncateToWidth('abcdef', 100, measure)).toBe('abcdef')
+  })
+
+  it('truncates with an ellipsis when too wide', () => {
+    expect(truncateToWidth('abcdefghij', 60, measure)).toBe('abcde…')
+  })
+
+  it('keeps the truncated result within maxWidth including the ellipsis', () => {
+    const out = truncateToWidth('abcdefghij', 60, measure)
+    expect(measure(out)).toBeLessThanOrEqual(60)
   })
 })
 

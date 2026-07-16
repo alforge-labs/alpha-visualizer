@@ -25,7 +25,7 @@
 - **Live** — バックテストとライブ実績の期間整合 diff
 - **Ideas** — 探索アイデアの一覧（ステータス・タグフィルタ）
 - **テーマ切替** — ダーク/ライトモード、日英バイリンガル UI
-- **エクスポート** — CSV / PNG エクスポート、URL 共有（Browse の selectedId / compareIds 同期）
+- **エクスポート** — CSV / PNG エクスポート、SNS シェアカード（equity curve＋主要指標入り OGP サイズ PNG）、URL 共有（Browse の selectedId / compareIds 同期）
 
 ## クイックスタート
 
