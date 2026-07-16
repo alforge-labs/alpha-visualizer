@@ -4,9 +4,12 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { LivePositionMetrics, LiveSummary } from '../../api/types'
 import { SectionLabel } from '../../design/primitives'
+import { useChartTheme } from '../../design/useChartTheme'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { diffTone } from './format'
 import { fmtDiff, fmtNumber } from '../../lib/format'
+import { downloadLiveShareCard } from '../../lib/shareCard'
+import { ShareButton } from '../ShareCardButton'
 import { SummaryCard } from './SummaryCard'
 
 interface Props {
@@ -46,6 +49,7 @@ function metricDiff(live: number | null | undefined, bt: number | null | undefin
  */
 export function LivePositionView({ summary, warnings, lang }: Props): ReactElement {
   const L = makeL(lang)
+  const theme = useChartTheme()
   const metrics = summary.metrics ?? {}
   const bt = summary.backtest_metrics ?? null
   const equity = summary.equity ?? []
@@ -54,9 +58,22 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <SectionLabel>
-          {L('ライブ実績サマリー（ポジションベース）', 'Live Summary (position-based)')}
-        </SectionLabel>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <SectionLabel>
+            {L('ライブ実績サマリー（ポジションベース）', 'Live Summary (position-based)')}
+          </SectionLabel>
+          <ShareButton
+            lang={lang}
+            onClick={() => downloadLiveShareCard(summary, lang, theme)}
+          />
+        </div>
         <MetaLine summary={summary} warnings={warnings} lang={lang} />
         <div
           style={{

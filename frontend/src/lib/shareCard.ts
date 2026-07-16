@@ -160,6 +160,118 @@ export function shareCardFilename(strategyId: string, symbol: string): string {
   return `alphaforge_${safe(strategyId)}_${safe(symbol)}.png`
 }
 
+/**
+ * 値列を先頭の有限・非ゼロ値を基準とした変化率（%）に変換する。
+ * 比較カードは初期資金が戦略ごとに異なりうるため、共通スケールに
+ * 乗せる前に必ず変化率へ正規化する。基準が見つからなければ []。
+ * 非有限値は NaN のまま残し、座標化（normalizeMultiSeries）側で落とす。
+ */
+export function rebaseToPct(values: number[]): number[] {
+  const base = values.find((v) => Number.isFinite(v) && v !== 0)
+  if (base === undefined) return []
+  return values.map((v) => (Number.isFinite(v) ? (v / base - 1) * 100 : NaN))
+}
+
+/**
+ * 複数系列を「共通の min/max」で width×height のボックス座標へ正規化する。
+ * 系列ごとに別スケールにすると比較カードの傾きが嘘になるため、
+ * グローバルスケールであることが本質。有限値が 2 点未満の系列は []。
+ */
+export function normalizeMultiSeries(
+  seriesValues: number[][],
+  width: number,
+  height: number,
+): ChartPoint[][] {
+  const finiteSeries = seriesValues.map((values) => {
+    const finite: Array<{ v: number; i: number }> = []
+    values.forEach((v, i) => {
+      if (Number.isFinite(v)) finite.push({ v, i })
+    })
+    return { finite, lastIndex: values.length - 1 }
+  })
+
+  const allValues = finiteSeries.flatMap((s) =>
+    s.finite.length >= 2 ? s.finite.map((p) => p.v) : [],
+  )
+  if (allValues.length === 0) return seriesValues.map(() => [])
+
+  const min = Math.min(...allValues)
+  const max = Math.max(...allValues)
+  const span = max - min
+
+  return finiteSeries.map(({ finite, lastIndex }) => {
+    if (finite.length < 2) return []
+    return finite.map(({ v, i }) => ({
+      x: (i / lastIndex) * width,
+      y: span === 0 ? height / 2 : ((max - v) / span) * height,
+    }))
+  })
+}
+
+/** Compare カードの入力（StrategyComparison の構造的部分集合）。 */
+export interface CompareShareInput {
+  name: string
+  total_return_pct?: number | null
+  equity?: { dates: string[]; values: number[] } | null
+}
+
+/** 比較カードのタイル数上限（横幅とラベル可読性の兼ね合い）。 */
+const MAX_COMPARE_TILES = 5
+
+export function buildCompareShareCardData(
+  strategies: ReadonlyArray<Pick<CompareShareInput, 'name' | 'total_return_pct'>>,
+  symbol: string,
+  lang: Lang,
+): ShareCardData {
+  return {
+    title: L(lang, '戦略比較', 'Strategy Comparison'),
+    subtitle: `${symbol} · ${strategies.length} ${L(lang, '戦略', 'strategies')}`,
+    metrics: strategies.slice(0, MAX_COMPARE_TILES).map((s) => ({
+      label: s.name,
+      value: fmtPercent(s.total_return_pct, { decimals: 2, sign: true }),
+      tone: returnTone(s.total_return_pct ?? 0),
+    })),
+    brand: SHARE_CARD_BRAND,
+  }
+}
+
+/** Live カードの入力（LiveSummary の構造的部分集合）。 */
+export interface LiveShareInput {
+  strategy_id: string
+  updated_at?: string | null
+  metrics?: {
+    total_return_pct?: number | null
+    cagr_pct?: number | null
+    sharpe_ratio?: number | null
+    max_drawdown_pct?: number | null
+  } | null
+  equity?: [string, number][] | null
+}
+
+export function buildLiveShareCardData(
+  input: Pick<LiveShareInput, 'strategy_id' | 'updated_at' | 'metrics'>,
+  lang: Lang,
+): ShareCardData {
+  const m = input.metrics ?? {}
+  const date = input.updated_at ? input.updated_at.slice(0, 10) : null
+  const base = L(lang, 'ペーパートレード実績（ライブ）', 'Paper trading live record')
+  return {
+    title: input.strategy_id,
+    subtitle: date ? `${base} · ${date}` : base,
+    metrics: [
+      {
+        label: L(lang, 'リターン', 'Return'),
+        value: fmtPercent(m.total_return_pct, { decimals: 2, sign: true }),
+        tone: returnTone(m.total_return_pct ?? 0),
+      },
+      { label: 'CAGR', value: fmtPercent(m.cagr_pct, { decimals: 2 }), tone: 'neutral' },
+      { label: L(lang, 'シャープ', 'Sharpe'), value: fmtSharpe(m.sharpe_ratio), tone: 'neutral' },
+      { label: L(lang, '最大DD', 'Max DD'), value: fmtPercent(m.max_drawdown_pct, { decimals: 2 }), tone: 'danger' },
+    ],
+    brand: SHARE_CARD_BRAND,
+  }
+}
+
 /* ---- 以下は canvas 描画（jsdom では 2D コンテキスト非対応のため単体テスト対象外） ---- */
 
 const PAD = 64
@@ -167,43 +279,79 @@ const CHART_TOP = 220
 const CHART_HEIGHT = 210
 const METRICS_TOP = 486
 
+/** カードに描く1系列（色・凡例ラベル付き）。 */
+export interface ShareCardSeries {
+  points: ChartPoint[]
+  color: string
+  label?: string
+}
+
 function drawChart(
   ctx: CanvasRenderingContext2D,
-  points: ChartPoint[],
+  series: ShareCardSeries[],
   theme: ChartTheme,
 ): void {
-  const first = points[0]
-  const last = points[points.length - 1]
-  if (points.length < 2 || first === undefined || last === undefined) return
+  const drawable = series.filter((s) => s.points.length >= 2)
   const ox = PAD
   const oy = CHART_TOP
 
-  const path = new Path2D()
-  points.forEach((p, i) => {
-    if (i === 0) path.moveTo(ox + p.x, oy + p.y)
-    else path.lineTo(ox + p.x, oy + p.y)
+  drawable.forEach((s) => {
+    const first = s.points[0]
+    const last = s.points[s.points.length - 1]
+    if (first === undefined || last === undefined) return
+
+    const path = new Path2D()
+    s.points.forEach((p, i) => {
+      if (i === 0) path.moveTo(ox + p.x, oy + p.y)
+      else path.lineTo(ox + p.x, oy + p.y)
+    })
+
+    // グラデーション塗りは単一系列のみ（複数系列では重なって濁る）
+    if (drawable.length === 1) {
+      const fill = new Path2D(path)
+      fill.lineTo(ox + last.x, oy + CHART_HEIGHT)
+      fill.lineTo(ox + first.x, oy + CHART_HEIGHT)
+      fill.closePath()
+      const grad = ctx.createLinearGradient(0, oy, 0, oy + CHART_HEIGHT)
+      grad.addColorStop(0, theme.accentBg)
+      grad.addColorStop(1, theme.bg)
+      ctx.fillStyle = grad
+      ctx.fill(fill)
+    }
+
+    ctx.strokeStyle = s.color
+    ctx.lineWidth = drawable.length === 1 ? 3 : 2.5
+    ctx.lineJoin = 'round'
+    ctx.stroke(path)
   })
+}
 
-  const fill = new Path2D(path)
-  fill.lineTo(ox + last.x, oy + CHART_HEIGHT)
-  fill.lineTo(ox + first.x, oy + CHART_HEIGHT)
-  fill.closePath()
-  const grad = ctx.createLinearGradient(0, oy, 0, oy + CHART_HEIGHT)
-  grad.addColorStop(0, theme.accentBg)
-  grad.addColorStop(1, theme.bg)
-  ctx.fillStyle = grad
-  ctx.fill(fill)
-
-  ctx.strokeStyle = theme.accent
-  ctx.lineWidth = 3
-  ctx.lineJoin = 'round'
-  ctx.stroke(path)
+function drawLegend(
+  ctx: CanvasRenderingContext2D,
+  series: ShareCardSeries[],
+  theme: ChartTheme,
+): void {
+  const labeled = series.filter((s) => s.label)
+  if (labeled.length < 2) return
+  let x = PAD
+  const y = CHART_TOP - 22
+  ctx.font = `18px ${theme.mono}`
+  for (const s of labeled) {
+    const label = s.label ?? ''
+    const w = ctx.measureText(label).width
+    if (x + 22 + w > SHARE_CARD_WIDTH - PAD) break
+    ctx.fillStyle = s.color
+    ctx.fillRect(x, y - 7, 14, 4)
+    ctx.fillStyle = theme.text2
+    ctx.fillText(label, x + 22, y)
+    x += 22 + w + 28
+  }
 }
 
 export function drawShareCard(
   ctx: CanvasRenderingContext2D,
   data: ShareCardData,
-  points: ChartPoint[],
+  series: ShareCardSeries[],
   theme: ChartTheme,
 ): void {
   const w = SHARE_CARD_WIDTH
@@ -226,7 +374,8 @@ export function drawShareCard(
   ctx.font = `24px ${theme.mono}`
   ctx.fillText(truncateToWidth(data.subtitle, maxTextWidth, measure), PAD, 166)
 
-  drawChart(ctx, points, theme)
+  drawLegend(ctx, series, theme)
+  drawChart(ctx, series, theme)
 
   const toneColor: Record<MetricTone, string> = {
     success: theme.success,
@@ -255,13 +404,17 @@ export function drawShareCard(
   ctx.fillText(data.brand, PAD, h - 26)
 }
 
+/** カードのチャート描画領域（座標化に使う共通ボックス）。 */
+const CHART_BOX_WIDTH = SHARE_CARD_WIDTH - PAD * 2
+
 /**
- * 共有カード PNG を生成してダウンロードする。
+ * 任意のカードデータ＋系列を PNG としてダウンロードする共通経路。
  * 2D コンテキストが取得できない環境では Fail Loud（黙って何もしない、を避ける）。
  */
-export function downloadShareCard(
-  input: ShareCardInput,
-  lang: Lang,
+export function downloadCardPng(
+  data: ShareCardData,
+  series: ShareCardSeries[],
+  filename: string,
   theme: ChartTheme,
 ): void {
   const dpr = 2 // OGP 用途は固定サイズなので端末非依存の 2x で書き出す
@@ -272,21 +425,73 @@ export function downloadShareCard(
   if (!ctx) throw new Error('Canvas 2D context is unavailable')
   ctx.scale(dpr, dpr)
 
-  const data = buildShareCardData(input, lang)
-  const points = normalizeEquity(
-    input.equity.values,
-    SHARE_CARD_WIDTH - PAD * 2,
-    CHART_HEIGHT,
-  )
-  drawShareCard(ctx, data, points, theme)
+  drawShareCard(ctx, data, series, theme)
 
   canvas.toBlob((blob) => {
     if (!blob) return
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = shareCardFilename(input.strategy_id, input.symbol)
+    a.download = filename
     a.click()
     URL.revokeObjectURL(url)
   }, 'image/png')
+}
+
+/** Detail 画面のバックテスト結果カード（単一系列＋5指標）。 */
+export function downloadShareCard(
+  input: ShareCardInput,
+  lang: Lang,
+  theme: ChartTheme,
+): void {
+  const data = buildShareCardData(input, lang)
+  const points = normalizeEquity(input.equity.values, CHART_BOX_WIDTH, CHART_HEIGHT)
+  downloadCardPng(
+    data,
+    [{ points, color: theme.accent }],
+    shareCardFilename(input.strategy_id, input.symbol),
+    theme,
+  )
+}
+
+/** Compare 画面の複数戦略比較カード（共通スケール・変化率ベース）。 */
+export function downloadCompareShareCard(
+  strategies: ReadonlyArray<CompareShareInput>,
+  symbol: string,
+  lang: Lang,
+  theme: ChartTheme,
+): void {
+  const withEquity = strategies.filter((s) => s.equity && s.equity.values.length >= 2)
+  const pointsPerSeries = normalizeMultiSeries(
+    withEquity.map((s) => rebaseToPct(s.equity?.values ?? [])),
+    CHART_BOX_WIDTH,
+    CHART_HEIGHT,
+  )
+  const series: ShareCardSeries[] = withEquity.map((s, i) => ({
+    points: pointsPerSeries[i] ?? [],
+    color: theme.series[i % theme.series.length] ?? theme.accent,
+    label: s.name,
+  }))
+  downloadCardPng(
+    buildCompareShareCardData(strategies, symbol, lang),
+    series,
+    shareCardFilename('compare', symbol),
+    theme,
+  )
+}
+
+/** Live 画面のペーパートレード実績カード（position ベース）。 */
+export function downloadLiveShareCard(
+  summary: LiveShareInput,
+  lang: Lang,
+  theme: ChartTheme,
+): void {
+  const values = (summary.equity ?? []).map(([, v]) => v)
+  const points = normalizeEquity(values, CHART_BOX_WIDTH, CHART_HEIGHT)
+  downloadCardPng(
+    buildLiveShareCardData(summary, lang),
+    [{ points, color: theme.accent }],
+    shareCardFilename('live', summary.strategy_id),
+    theme,
+  )
 }
