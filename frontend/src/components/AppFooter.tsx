@@ -24,6 +24,10 @@ export function AppFooter({ lang }: { lang: Lang }): ReactElement {
         href="https://alforgelabs.com"
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={L(
+          'Powered by AlphaForge — バックテスト・最適化エンジン本体を無料で試す（別タブで開く）',
+          'Powered by AlphaForge — Try the full backtest & optimization engine free (opens in new tab)',
+        )}
         style={{
           fontFamily: 'var(--mono)',
           fontSize: 'var(--fs-mono-sm)',
@@ -33,9 +37,10 @@ export function AppFooter({ lang }: { lang: Lang }): ReactElement {
         }}
       >
         {L(
-          'Powered by AlphaForge — バックテスト・最適化エンジン本体を無料で試す ↗',
-          'Powered by AlphaForge — Try the full backtest & optimization engine free ↗',
+          'Powered by AlphaForge — バックテスト・最適化エンジン本体を無料で試す',
+          'Powered by AlphaForge — Try the full backtest & optimization engine free',
         )}
+        <span aria-hidden="true"> ↗</span>
       </a>
     </footer>
   )

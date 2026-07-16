@@ -111,6 +111,12 @@ describe('<LiveScreen />', () => {
     expect(screen.getByText(/live sync-events/)).toBeInTheDocument()
   })
 
+  it('empty state explains the pipeline in English too', () => {
+    renderScreen({ items: [], selectedId: null, lang: 'en' })
+    expect(screen.getByText(/alpha-strike/)).toBeInTheDocument()
+    expect(screen.getByText(/live sync-events/)).toBeInTheDocument()
+  })
+
   it('shows loading state and does not fetch detail while loading', () => {
     renderScreen({ items: [], selectedId: null, loading: true })
     expect(screen.getByText(/読み込み中/)).toBeInTheDocument()

@@ -18,6 +18,15 @@ describe('<AppFooter />', () => {
     expect(link.getAttribute('rel') ?? '').toContain('noreferrer')
   })
 
+  it('announces the new-tab navigation in the accessible name', () => {
+    // target="_blank" は視覚外の文脈変化なので、SR 利用者にも新規タブ遷移を
+    // アクセシブルネームで伝える（装飾矢印 ↗ は aria-hidden で読み上げ対象外）
+    render(<AppFooter lang="ja" />)
+    const link = screen.getByRole('link', { name: /別タブで開く/ })
+    expect(link).toBeInTheDocument()
+    expect(link.getAttribute('aria-label') ?? '').not.toContain('↗')
+  })
+
   it('shows the ja CTA copy for lang=ja', () => {
     render(<AppFooter lang="ja" />)
     expect(screen.getByText(/無料で試す/)).toBeInTheDocument()
