@@ -25,7 +25,7 @@
 - **Live** — Period-aligned diff between backtest and live execution
 - **Ideas** — Exploration idea board with status / tag filters
 - **Theme & i18n** — Dark/Light modes, English/Japanese UI toggle
-- **Export & share** — CSV / PNG export, URL-based state sharing for Browse
+- **Export & share** — CSV / PNG export, social share card (OGP-sized PNG with equity curve + headline metrics), URL-based state sharing for Browse
 
 ## Quick Start
 
