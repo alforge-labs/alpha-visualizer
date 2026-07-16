@@ -102,6 +102,15 @@ describe('<LiveScreen />', () => {
     expect(screen.getByText(/ライブ実績データがまだありません/)).toBeInTheDocument()
   })
 
+  it('empty state explains the alpha-strike → alpha-forge import pipeline', () => {
+    // Live 画面のデータ供給源は alpha-strike の JSONL イベントログ。
+    // 空状態はエコシステムの取り込み手順（strike が記録 → forge が取込）を
+    // 明示し、strike ユーザーの可視化導線・forge への送客を兼ねる。
+    renderScreen({ items: [], selectedId: null })
+    expect(screen.getByText(/alpha-strike/)).toBeInTheDocument()
+    expect(screen.getByText(/live sync-events/)).toBeInTheDocument()
+  })
+
   it('shows loading state and does not fetch detail while loading', () => {
     renderScreen({ items: [], selectedId: null, loading: true })
     expect(screen.getByText(/読み込み中/)).toBeInTheDocument()

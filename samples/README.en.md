@@ -97,4 +97,4 @@ samples/
 - This sample dataset is **fully synthetic** and contains no real financial instrument prices.
 - Symbol names always carry the `_SYNTH` suffix. Do not confuse them with real tickers such as `AAPL` or `BTC`.
 - The 8 bundled strategies are **textbook combinations** of technical indicators (SMA / RSI / MACD / Bollinger / ADX / Donchian). HMM-based and proprietary optimized strategies are intentionally excluded.
-- For commercial backtesting engines, full-scale optimization, and live trading, please use [alpha-forge](https://github.com/ysakae/alpha-forge) (commercial license).
+- For commercial backtesting engines, full-scale optimization, and live trading, please use [AlphaForge](https://alforgelabs.com) (commercial license).

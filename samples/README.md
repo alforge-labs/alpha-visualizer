@@ -97,4 +97,4 @@ samples/
 - 本サンプルは **完全に合成** で、実在する金融商品の価格データを一切含みません。
 - 銘柄シンボルは `_SYNTH` サフィックス必須です。`AAPL` や `BTC` 等の実銘柄との取り違えは避けてください。
 - 同梱する 8 戦略はテクニカル指標の **教科書的な組み合わせのみ**（SMA / RSI / MACD / Bollinger / ADX / Donchian）で、商用最適化や HMM 系は含みません。
-- 商用バックテストエンジン・本格的な最適化・本番運用には [alpha-forge](https://github.com/ysakae/alpha-forge)（商用ライセンス）をご利用ください。
+- 商用バックテストエンジン・本格的な最適化・本番運用には [AlphaForge](https://alforgelabs.com)（商用ライセンス）をご利用ください。

@@ -195,8 +195,8 @@ function EmptyState({ lang }: { lang: Lang }): ReactElement {
       <div>{L('ライブ実績データがまだありません', 'No live records yet')}</div>
       <div style={{ color: 'var(--text2)', fontSize: '0.78rem' }}>
         {L(
-          'alpha-forge live sync-events → live import-events / live replay で実績を取り込むとここに表示されます。',
-          'Records appear here after importing via alpha-forge live sync-events → live import-events / live replay.',
+          'alpha-strike が記録したライブイベントを alpha-forge live sync-events → live import-events / live replay で取り込むとここに表示されます。',
+          'Records appear here after alpha-strike logs live events and you import them with alpha-forge live sync-events → live import-events / live replay.',
         )}
       </div>
     </div>
