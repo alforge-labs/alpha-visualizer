@@ -45,8 +45,12 @@ def run_backtest(
     """forge backtest run をサブプロセス実行し、最新の run_id を返す。"""
     forge_exe = shutil.which("forge")
     if forge_exe is None:
+        # Run 実行時が AlphaForge 導入意欲の最も高い接点なので、
+        # インストール先への導線をエラーメッセージに含める。
         raise ExternalProcessError(
-            "forge コマンドが見つかりません / forge command not found in PATH",
+            "forge コマンドが見つかりません。AlphaForge を導入してください"
+            " / forge command not found in PATH. Install AlphaForge"
+            " — https://alforgelabs.com",
         )
 
     env = os.environ.copy()

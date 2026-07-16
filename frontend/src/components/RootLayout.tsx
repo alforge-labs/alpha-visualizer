@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useViewerSettings } from '../hooks/useTheme'
 import { makeL } from '../i18n/strings'
+import { AppFooter } from './AppFooter'
 import { AppNav } from './AppNav'
 import { CommandPalette } from './CommandPalette'
 
@@ -37,6 +38,7 @@ export function RootLayout(): React.ReactElement {
       <main id={MAIN_ID} tabIndex={-1}>
         <Outlet />
       </main>
+      <AppFooter lang={settings.lang} />
       {paletteOpen && (
         <CommandPalette
           open

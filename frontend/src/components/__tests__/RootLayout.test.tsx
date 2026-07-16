@@ -28,4 +28,20 @@ describe('RootLayout (issue #260)', () => {
     const skip = screen.getAllByRole('link').find((l) => l.getAttribute('href') === '#main-content')
     expect(skip).toBeDefined()
   })
+
+  it('renders the AlphaForge funnel footer on every screen', () => {
+    // ダッシュボード常用ユーザーへの唯一の常設 forge 導線。
+    // 全ルート共通の RootLayout に置くことで画面を問わず表示されることを保証する。
+    render(
+      <MemoryRouter>
+        <RootLayout />
+      </MemoryRouter>,
+    )
+    const footer = screen.getByRole('contentinfo')
+    expect(footer).toBeInTheDocument()
+    const link = screen.getAllByRole('link').find(
+      (l) => l.getAttribute('href') === 'https://alforgelabs.com',
+    )
+    expect(link).toBeDefined()
+  })
 })
