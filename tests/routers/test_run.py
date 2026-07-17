@@ -46,6 +46,75 @@ class TestRunRouter:
         assert kwargs["timeout"] == 600
         assert kwargs["env"]["FORGE_NONINTERACTIVE"] == "1"
 
+    def test_run_subprocess_contract_prevents_hang_and_option_injection(
+        self, client_with_db: TestClient
+    ) -> None:
+        """subprocess 呼び出しの安全契約（レビュー第2ラウンド対応）。
+
+        - stdin=DEVNULL: EULA 未同意の初回実行では forge が Confirm.ask() で
+          stdin 入力を待つ（FORGE_ACCEPT_EULA のみが非対話同意の手段で、
+          FORGE_NONINTERACTIVE では防げない）。stdin を閉じておくことで
+          タイムアウトまでハングせず即座に失敗させる。
+        - ``--`` 終端マーカー: symbol が「-」始まりの文字列でもオプションと
+          誤解釈されず positional として渡る。
+        """
+        stdout = json.dumps({"run_id": "run-from-json"})
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run", return_value=_proc(stdout=stdout)
+            ) as run_mock,
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+            )
+        assert resp.status_code == 200
+        args, kwargs = run_mock.call_args
+        assert kwargs["stdin"] == subprocess.DEVNULL
+        # symbol は必ず -- の直後（末尾）に置く
+        assert args[0][-2:] == ["--", "AAPL"]
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"strategy_id": "", "symbol": "AAPL"},
+            {"strategy_id": "test_strategy", "symbol": ""},
+        ],
+    )
+    def test_run_rejects_empty_fields_with_422(
+        self, client_with_db: TestClient, payload: dict[str, str]
+    ) -> None:
+        """空文字の strategy_id / symbol は subprocess に渡さず境界で 422 にする"""
+        resp = client_with_db.post("/api/run", json=payload)
+        assert resp.status_code == 422
+
+    def test_run_failure_detail_is_truncated_to_tail(
+        self, client_with_db: TestClient
+    ) -> None:
+        """失敗時の detail も成功時 log_tail と同じ末尾50行に丸める。
+
+        forge の長大なトレースバックで HTTP レスポンスが無制限に
+        膨らまないようにする（成功/失敗でログの扱いを対称にする）。
+        """
+        stderr_lines = [f"line-{i}" for i in range(60)]
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=_proc(returncode=1, stderr="\n".join(stderr_lines)),
+            ),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+            )
+        assert resp.status_code == 500
+        detail = resp.json()["detail"]
+        assert detail.startswith("line-10")
+        assert detail.endswith("line-59")
+        assert "line-9\n" not in detail
+
     def test_run_falls_back_to_db_when_stdout_not_json(
         self, client_with_db: TestClient
     ) -> None:

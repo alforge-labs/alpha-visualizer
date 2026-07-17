@@ -1660,10 +1660,12 @@
         "properties": {
           "strategy_id": {
             "type": "string",
+            "minLength": 1,
             "title": "Strategy Id"
           },
           "symbol": {
             "type": "string",
+            "minLength": 1,
             "title": "Symbol"
           }
         },
