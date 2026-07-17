@@ -7,8 +7,9 @@ import { CompareTable } from '../components/metrics/CompareTable'
 import { CompareEquityV } from '../charts/visx/CompareEquityV'
 import type { CompareSeries } from '../charts/visx/CompareEquityV'
 import { CompareEquityTV } from '../charts/tv/CompareEquityTV'
-import { ShareButton } from '../components/ShareCardButton'
+import { ShareButton, ShareXButton } from '../components/ShareCardButton'
 import { downloadCompareShareCard } from '../lib/shareCard'
+import { buildCompareShareTweetText, openXIntent } from '../lib/shareTweet'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
 import { DashboardProvider } from '../contexts/DashboardContext'
@@ -178,6 +179,13 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
             <ShareButton
               lang={lang}
               onClick={() => downloadCompareShareCard(data, symbol, lang, theme)}
+            />
+            <ShareXButton
+              lang={lang}
+              onClick={() => {
+                downloadCompareShareCard(data, symbol, lang, theme)
+                openXIntent(buildCompareShareTweetText(data, symbol, lang))
+              }}
             />
           </div>
 

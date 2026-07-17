@@ -68,4 +68,14 @@ describe('<CompareScreen /> share card', () => {
     expect(call?.[1]).toBe('SPY')
     expect(call?.[2]).toBe('ja')
   })
+
+  it('renders an X share button that downloads the card and opens the post intent', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    render(<CompareScreen data={STRATS} lang="ja" symbol="SPY" />)
+    await userEvent.click(screen.getByRole('button', { name: /X で共有/ }))
+    expect(downloadCompareShareCard).toHaveBeenCalled()
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(String(openSpy.mock.calls[0]?.[0])).toContain('https://x.com/intent/post?text=')
+    openSpy.mockRestore()
+  })
 })

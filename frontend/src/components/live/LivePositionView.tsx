@@ -9,7 +9,8 @@ import { Sparkline } from '../../charts/visx/Sparkline'
 import { diffTone } from './format'
 import { fmtDiff, fmtNumber } from '../../lib/format'
 import { downloadLiveShareCard } from '../../lib/shareCard'
-import { ShareButton } from '../ShareCardButton'
+import { buildLiveShareTweetText, openXIntent } from '../../lib/shareTweet'
+import { ShareButton, ShareXButton } from '../ShareCardButton'
 import { SummaryCard } from './SummaryCard'
 
 interface Props {
@@ -69,10 +70,19 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
           <SectionLabel>
             {L('ライブ実績サマリー（ポジションベース）', 'Live Summary (position-based)')}
           </SectionLabel>
-          <ShareButton
-            lang={lang}
-            onClick={() => downloadLiveShareCard(summary, lang, theme)}
-          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <ShareButton
+              lang={lang}
+              onClick={() => downloadLiveShareCard(summary, lang, theme)}
+            />
+            <ShareXButton
+              lang={lang}
+              onClick={() => {
+                downloadLiveShareCard(summary, lang, theme)
+                openXIntent(buildLiveShareTweetText(summary, lang))
+              }}
+            />
+          </div>
         </div>
         <MetaLine summary={summary} warnings={warnings} lang={lang} />
         <div
