@@ -12,6 +12,8 @@ forge CLI の長時間処理（backtest / optimize / walk-forward）をジョブ
 from __future__ import annotations
 
 import json
+import pathlib
+import tempfile
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -20,13 +22,15 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from alpha_visualizer.dependencies import get_job_manager
-from alpha_visualizer.errors import NotFoundError
+from alpha_visualizer.dependencies import get_job_manager, get_strategies_repo
+from alpha_visualizer.errors import InvalidRequestError, NotFoundError
+from alpha_visualizer.repositories.strategies import StrategiesRepository
 from alpha_visualizer.services.jobs import (
     TERMINAL_STATUSES,
     JobManager,
     JobRecord,
 )
+from alpha_visualizer.services.tuning import build_override_file
 
 router = APIRouter()
 
@@ -47,6 +51,10 @@ class CreateJobRequest(BaseModel):
     # trials は optimize、windows は wft でのみ意味を持つ（他 kind では無視）
     trials: int | None = Field(default=None, ge=1, le=1000)
     windows: int | None = Field(default=None, ge=2, le=20)
+    # チューニング実行（#293）: backtest 専用。指定キーだけ上書きした一時戦略
+    # ファイルで実行する（元の戦略定義は変更しない）。値の検証は
+    # services/tuning.build_override_file が行う。
+    parameters: dict[str, Any] | None = Field(default=None, max_length=100)
 
 
 class JobSummary(BaseModel):
@@ -104,14 +112,41 @@ def _get_or_404(manager: JobManager, job_id: str) -> JobRecord:
 async def create_job(
     body: CreateJobRequest,
     manager: Annotated[JobManager, Depends(get_job_manager)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
 ) -> JobSummary:
-    """ジョブを起動し、実行を待たずにサマリを返す。"""
+    """ジョブを起動し、実行を待たずにサマリを返す。
+
+    ``parameters`` 指定時（チューニング実行 #293）は、元の戦略定義の
+    parameters だけを差し替えた一時ファイルを作り ``--strategy-file`` で
+    実行する。一時ファイルはジョブ終了時に JobManager が削除する。
+    """
+    strategy_file: str | None = None
+    if body.parameters is not None:
+        if body.kind != "backtest":
+            raise InvalidRequestError(
+                "parameters はチューニング実行（kind=backtest）専用です"
+                " / parameters is only supported for kind=backtest",
+            )
+        row = strategies_repo.get_strategy(body.strategy_id)
+        if row is None:
+            raise NotFoundError(
+                f"戦略が見つかりません / Strategy not found: {body.strategy_id}",
+            )
+        strategy_file = str(
+            build_override_file(
+                row.raw_definition,
+                body.parameters,
+                pathlib.Path(tempfile.gettempdir()),
+            )
+        )
+
     record = await manager.create(
         kind=body.kind,
         strategy_id=body.strategy_id,
         symbol=body.symbol,
         trials=body.trials,
         windows=body.windows,
+        strategy_file=strategy_file,
     )
     return _to_summary(record)
 

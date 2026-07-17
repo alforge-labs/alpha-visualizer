@@ -217,6 +217,56 @@
         }
       }
     },
+    "/api/strategies/{strategy_id}/parameters": {
+      "post": {
+        "summary": "Save Strategy Parameters",
+        "description": "編集済みパラメータを戦略定義へ書き戻す（destructive・UI 側で確認必須）。\n\nvisualizer はファイル・DB を直接書かず、パラメータ差し替え済みの一時\nJSON を ``forge strategy save --force`` に渡して登録を委譲する\n（single-writer 維持。スキーマ検証は forge 側 Pydantic が SSoT で、\nエラーはそのまま表面化させる）。",
+        "operationId": "save_strategy_parameters_api_strategies__strategy_id__parameters_post",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveParametersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveParametersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ideas": {
       "get": {
         "summary": "List Ideas",
@@ -426,7 +476,7 @@
     "/api/jobs": {
       "post": {
         "summary": "Create Job",
-        "description": "ジョブを起動し、実行を待たずにサマリを返す。",
+        "description": "ジョブを起動し、実行を待たずにサマリを返す。\n\n``parameters`` 指定時（チューニング実行 #293）は、元の戦略定義の\nparameters だけを差し替えた一時ファイルを作り ``--strategy-file`` で\n実行する。一時ファイルはジョブ終了時に JobManager が削除する。",
         "operationId": "create_job_api_jobs_post",
         "requestBody": {
           "required": true,
@@ -1162,6 +1212,19 @@
               }
             ],
             "title": "Windows"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object",
+                "maxProperties": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
           }
         },
         "type": "object",
@@ -2153,6 +2216,52 @@
           "status"
         ],
         "title": "RunBacktestResponse"
+      },
+      "SaveParametersRequest": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "maxProperties": 100,
+            "minProperties": 1,
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameters"
+        ],
+        "title": "SaveParametersRequest"
+      },
+      "SaveParametersResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "log_tail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Tail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "parameters"
+        ],
+        "title": "SaveParametersResponse"
       },
       "StrategyComparison": {
         "properties": {

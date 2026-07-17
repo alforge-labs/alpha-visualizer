@@ -107,6 +107,82 @@ class TestJobsRouter:
         resp = jobs_client.post("/api/jobs", json=payload)
         assert resp.status_code == 422
 
+    def test_create_backtest_job_with_parameters_uses_strategy_file(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """parameters 指定時は一時戦略ファイル経由で実行する（チューニング #293）。
+
+        スタブが argv を stderr に echo するので、ジョブログから
+        --strategy-file が使われたことを検証できる。
+        """
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True)
+        (strategies_dir / "strat_a.json").write_text(
+            json.dumps(
+                {
+                    "strategy_id": "strat_a",
+                    "name": "テスト戦略",
+                    "parameters": {"period": 20},
+                }
+            ),
+            encoding="utf-8",
+        )
+        stub = _make_stub(
+            tmp_path,
+            'echo "$@" >&2\nprintf \'{"run_id": "run-tune-1"}\'\n',
+        )
+        app = create_app(forge_dir=tmp_path)
+        app.state.job_manager = JobManager(
+            forge_config=ForgeConfig.from_forge_dir(tmp_path),
+            forge_resolver=lambda: stub,
+            concurrency=1,
+            timeout_sec=30,
+        )
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/jobs",
+                json={
+                    "kind": "backtest",
+                    "strategy_id": "strat_a",
+                    "symbol": "AAPL",
+                    "parameters": {"period": 30},
+                },
+            )
+            assert resp.status_code == 202
+            done = _wait_status(client, resp.json()["job_id"], {"succeeded", "failed"})
+            assert done["status"] == "succeeded"
+            assert "--strategy-file" in (done["log_tail"] or "")
+            assert "--strategy " not in (done["log_tail"] or "")
+
+    def test_create_job_with_parameters_rejects_non_backtest_kind(
+        self, jobs_client: TestClient
+    ) -> None:
+        """parameters は backtest（チューニング実行）専用"""
+        resp = jobs_client.post(
+            "/api/jobs",
+            json={
+                "kind": "optimize",
+                "strategy_id": "s1",
+                "symbol": "AAPL",
+                "parameters": {"period": 30},
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_create_job_with_parameters_unknown_strategy_returns_404(
+        self, jobs_client: TestClient
+    ) -> None:
+        resp = jobs_client.post(
+            "/api/jobs",
+            json={
+                "kind": "backtest",
+                "strategy_id": "no-such-strategy",
+                "symbol": "AAPL",
+                "parameters": {"period": 30},
+            },
+        )
+        assert resp.status_code == 404
+
     def test_create_job_returns_429_when_active_limit_reached(
         self, tmp_path: pathlib.Path
     ) -> None:

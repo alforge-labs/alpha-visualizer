@@ -8,9 +8,13 @@ from __future__ import annotations
 import json
 import logging
 import math
+import pathlib
+import subprocess
+import tempfile
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
@@ -18,7 +22,11 @@ from alpha_visualizer.dependencies import (
     get_optimization_repo,
     get_strategies_repo,
 )
-from alpha_visualizer.errors import InvalidRequestError, NotFoundError
+from alpha_visualizer.errors import (
+    ExternalProcessError,
+    InvalidRequestError,
+    NotFoundError,
+)
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
@@ -34,6 +42,13 @@ from alpha_visualizer.schemas.strategies import (
     StrategyDetail,
     StrategySummary,
 )
+from alpha_visualizer.services.forge_cli import (
+    FORGE_NOT_FOUND_MESSAGE,
+    build_forge_env,
+    mask_home,
+    resolve_forge_exe,
+)
+from alpha_visualizer.services.tuning import build_override_file
 
 logger = logging.getLogger(__name__)
 
@@ -298,3 +313,88 @@ async def get_strategy(
             opt_repo, forge_db_exists, strategy_id
         ),
     }
+
+
+# ---- パラメータ保存（チューニングループの書き戻し, #293） ------------------- #
+
+# strategy save は軽量な登録処理なので短いタイムアウトで足りる
+STRATEGY_SAVE_TIMEOUT_SEC = 60
+SAVE_LOG_TAIL_MAX_LINES = 20
+
+
+class SaveParametersRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # 値の検証（既存キーのみ・スカラーのみ）は build_override_file が行う
+    parameters: dict[str, Any] = Field(min_length=1, max_length=100)
+
+
+class SaveParametersResponse(BaseModel):
+    status: str
+    parameters: dict[str, Any]
+    log_tail: str | None = None
+
+
+@router.post(
+    "/strategies/{strategy_id}/parameters", response_model=SaveParametersResponse
+)
+def save_strategy_parameters(
+    strategy_id: str,
+    body: SaveParametersRequest,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
+) -> SaveParametersResponse:
+    """編集済みパラメータを戦略定義へ書き戻す（destructive・UI 側で確認必須）。
+
+    visualizer はファイル・DB を直接書かず、パラメータ差し替え済みの一時
+    JSON を ``forge strategy save --force`` に渡して登録を委譲する
+    （single-writer 維持。スキーマ検証は forge 側 Pydantic が SSoT で、
+    エラーはそのまま表面化させる）。
+    """
+    strategy = strategies_repo.get_strategy(strategy_id)
+    if strategy is None:
+        raise NotFoundError(f"strategy_id '{strategy_id}' が見つかりません")
+
+    # 入力検証（400）を forge 解決（500）より先に行う: 不正入力の診断が
+    # forge の有無に左右されないようにするため。
+    override_path = build_override_file(
+        strategy.raw_definition,
+        body.parameters,
+        pathlib.Path(tempfile.gettempdir()),
+    )
+    try:
+        forge_exe = resolve_forge_exe()
+        if forge_exe is None:
+            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+        merged: dict[str, Any] = json.loads(
+            override_path.read_text(encoding="utf-8")
+        ).get("parameters", {})
+        proc = subprocess.run(
+            [forge_exe, "strategy", "save", str(override_path), "--force"],
+            capture_output=True,
+            text=True,
+            env=build_forge_env(config),
+            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
+            stdin=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ExternalProcessError(
+            f"戦略の保存が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
+            f" / Strategy save did not finish within {STRATEGY_SAVE_TIMEOUT_SEC} seconds",
+        ) from exc
+    finally:
+        try:
+            override_path.unlink()
+        except OSError:
+            logger.debug("一時戦略ファイルの削除に失敗: %s", override_path)
+
+    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
+    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
+    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
+
+    if proc.returncode != 0:
+        raise ExternalProcessError(
+            log_tail or "戦略の保存に失敗しました / Strategy save failed",
+        )
+
+    return SaveParametersResponse(status="ok", parameters=merged, log_tail=log_tail)

@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import pathlib
 import signal
 import subprocess
 import uuid
@@ -106,6 +107,7 @@ def build_argv(
     symbol: str,
     trials: int | None,
     windows: int | None,
+    strategy_file: str | None = None,
 ) -> list[str]:
     """kind に応じた forge CLI の argv を構築する。
 
@@ -113,9 +115,14 @@ def build_argv(
     誤解釈されるのを防ぐ。/api/run と同じ契約）。
     optimize は ``--save`` 必須: これが無いと all_trials が DB に保存されず、
     Optimize タブに結果が反映されない。
+    strategy_file はチューニング実行（#293）用: パラメータ差し替え済みの
+    一時戦略 JSON を --strategy-file で渡す（--strategy と排他）。
     """
     if kind == "backtest":
-        argv = [forge_exe, "backtest", "run", "--strategy", strategy_id, "--json"]
+        if strategy_file is not None:
+            argv = [forge_exe, "backtest", "run", "--strategy-file", strategy_file, "--json"]
+        else:
+            argv = [forge_exe, "backtest", "run", "--strategy", strategy_id, "--json"]
     elif kind == "optimize":
         argv = [forge_exe, "optimize", "run", "--strategy", strategy_id, "--save", "--json"]
         if trials is not None:
@@ -181,6 +188,9 @@ class JobRecord:
     trials: int | None
     windows: int | None
     created_at: datetime
+    # チューニング実行（#293）: パラメータ差し替え済み一時戦略 JSON のパス。
+    # ジョブ終了時に削除される。
+    strategy_file: str | None = None
     status: JobStatus = "queued"
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -307,6 +317,7 @@ class JobManager:
         symbol: str,
         trials: int | None = None,
         windows: int | None = None,
+        strategy_file: str | None = None,
     ) -> JobRecord:
         """ジョブを登録し、バックグラウンド実行タスクを起動する。
 
@@ -330,6 +341,7 @@ class JobManager:
             symbol=symbol,
             trials=trials,
             windows=windows,
+            strategy_file=strategy_file,
             created_at=datetime.now(UTC),
         )
         self._jobs[job_id] = record
@@ -437,6 +449,12 @@ class JobManager:
         record.error = error
         record.finished_at = datetime.now(UTC)
         self._procs.pop(record.job_id, None)
+        if record.strategy_file is not None:
+            # チューニング用の一時戦略ファイルを片付ける（失敗しても致命的でない）
+            try:
+                pathlib.Path(record.strategy_file).unlink()
+            except OSError:
+                logger.debug("一時戦略ファイルの削除に失敗: %s", record.strategy_file)
         await self._notify()
 
     async def _run_job(self, record: JobRecord) -> None:
@@ -482,6 +500,7 @@ class JobManager:
             record.symbol,
             record.trials,
             record.windows,
+            strategy_file=record.strategy_file,
         )
         spawn_kwargs: dict[str, Any] = {}
         if os.name == "posix":

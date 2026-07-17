@@ -74,8 +74,13 @@ export function useStrategyRuns(
   return state
 }
 
-export function useStrategyDetail(strategyId: string | null): LoadState<StrategyDetail> {
-  const state = useFetchByKey<StrategyDetail>(strategyId, api.getStrategyDetail)
+export function useStrategyDetail(
+  strategyId: string | null,
+  reloadToken?: number,
+): LoadState<StrategyDetail> {
+  const state = useFetchByKey<StrategyDetail>(strategyId, api.getStrategyDetail, {
+    reloadToken,
+  })
   if (!strategyId) return { status: 'error', error: 'strategy_id が指定されていません' }
   return state
 }
