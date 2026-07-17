@@ -48,4 +48,16 @@ describe('<LivePositionView /> share card', () => {
     expect(vi.mocked(downloadLiveShareCard).mock.calls[0]?.[0]).toBe(SUMMARY)
     expect(vi.mocked(downloadLiveShareCard).mock.calls[0]?.[1]).toBe('ja')
   })
+
+  it('renders an X share button that downloads the card and opens the post intent', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    render(<LivePositionView summary={SUMMARY} warnings={[]} lang="ja" />)
+    await userEvent.click(screen.getByRole('button', { name: /X で共有/ }))
+    expect(downloadLiveShareCard).toHaveBeenCalled()
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    const url = String(openSpy.mock.calls[0]?.[0])
+    expect(url).toContain('https://x.com/intent/post?text=')
+    expect(url).toContain(encodeURIComponent('beat_qqq_hedged_v1'))
+    openSpy.mockRestore()
+  })
 })
