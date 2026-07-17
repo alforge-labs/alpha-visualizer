@@ -7,6 +7,8 @@ import { CompareTable } from '../components/metrics/CompareTable'
 import { CompareEquityV } from '../charts/visx/CompareEquityV'
 import type { CompareSeries } from '../charts/visx/CompareEquityV'
 import { CompareEquityTV } from '../charts/tv/CompareEquityTV'
+import { ShareButton } from '../components/ShareCardButton'
+import { downloadCompareShareCard } from '../lib/shareCard'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
 import { DashboardProvider } from '../contexts/DashboardContext'
@@ -173,6 +175,10 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
                 </span>
               ))}
             </div>
+            <ShareButton
+              lang={lang}
+              onClick={() => downloadCompareShareCard(data, symbol, lang, theme)}
+            />
           </div>
 
           {series.length > 0 ? (
