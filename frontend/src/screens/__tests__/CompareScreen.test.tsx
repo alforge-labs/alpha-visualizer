@@ -75,7 +75,10 @@ describe('<CompareScreen /> share card', () => {
     await userEvent.click(screen.getByRole('button', { name: /X で共有/ }))
     expect(downloadCompareShareCard).toHaveBeenCalled()
     expect(openSpy).toHaveBeenCalledTimes(1)
-    expect(String(openSpy.mock.calls[0]?.[0])).toContain('https://x.com/intent/post?text=')
+    const url = String(openSpy.mock.calls[0]?.[0])
+    expect(url).toContain('https://x.com/intent/post?text=')
+    // ベスト（最高シャープ = SMA v1: 1.4 > 0.4）の名前が本文に反映される
+    expect(url).toContain(encodeURIComponent('SMA v1'))
     openSpy.mockRestore()
   })
 })

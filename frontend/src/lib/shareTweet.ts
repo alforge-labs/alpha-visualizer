@@ -1,5 +1,6 @@
 import type { Lang } from '../i18n/strings'
 import { L } from '../i18n/strings'
+import { selectBestSharpe } from './bestSharpe'
 import { fmtPercent, fmtSharpe } from './format'
 import type { LiveShareInput, ShareCardInput } from './shareCard'
 
@@ -42,14 +43,18 @@ export function weightedTweetLength(text: string): number {
   return total
 }
 
-/** 加重文字数が maxWeighted に収まるまで末尾を削って「…」を付ける。 */
+/**
+ * 加重文字数が maxWeighted に収まるまで末尾を削って「…」を付ける。
+ * サロゲートペア（絵文字等）を分断して孤立サロゲートを作ると
+ * encodeURIComponent が throw するため、コードポイント単位で削る。
+ */
 function truncateToWeighted(text: string, maxWeighted: number): string {
   if (weightedTweetLength(text) <= maxWeighted) return text
-  let t = text
-  while (t.length > 0 && weightedTweetLength(`${t}…`) > maxWeighted) {
-    t = t.slice(0, -1)
+  const units = Array.from(text)
+  while (units.length > 0 && weightedTweetLength(`${units.join('')}…`) > maxWeighted) {
+    units.pop()
   }
-  return `${t}…`
+  return `${units.join('')}…`
 }
 
 /**
@@ -88,11 +93,7 @@ export function buildCompareShareTweetText(
   symbol: string,
   lang: Lang,
 ): string {
-  const winner = strategies.reduce(
-    (best, s) =>
-      (s.sharpe_ratio ?? -Infinity) > (best?.sharpe_ratio ?? -Infinity) ? s : best,
-    strategies[0],
-  )
+  const winner = selectBestSharpe(strategies)
   const ret = fmtPercent(winner?.total_return_pct, { decimals: 2, sign: true })
   const sharpe = fmtSharpe(winner?.sharpe_ratio)
   const headline = L(

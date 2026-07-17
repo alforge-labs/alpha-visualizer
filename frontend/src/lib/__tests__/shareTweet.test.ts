@@ -91,6 +91,18 @@ describe('tweet length guard (280 weighted)', () => {
     const text = buildShareTweetText(INPUT, 'ja')
     expect(text).not.toContain('…')
   })
+
+  it('truncates at code-point boundaries (no lone surrogates from emoji)', () => {
+    // サロゲートペアを UTF-16 単位で分断すると encodeURIComponent が
+    // throw して X 共有ボタンごとクラッシュする。コードポイント単位の
+    // 切り詰めであることを絵文字連打の全境界相当で固定化する。
+    const emoji = { ...INPUT, strategy_id: '📈'.repeat(300) }
+    const text = buildShareTweetText(emoji, 'ja')
+    expect(text).toContain('…')
+    // 孤立サロゲートが無い（= URL エンコードが成功する）
+    expect(() => xIntentUrl(text)).not.toThrow()
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)).toBe(false)
+  })
 })
 
 describe('buildCompareShareTweetText', () => {
