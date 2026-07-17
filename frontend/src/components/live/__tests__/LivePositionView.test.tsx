@@ -19,7 +19,8 @@ const SUMMARY = {
     total_return_pct: 5.4,
     cagr_pct: 11.2,
     sharpe_ratio: 1.31,
-    max_drawdown_pct: -6.5,
+    // LivePositionMetrics の max_drawdown_pct は正値規約
+    max_drawdown_pct: 6.5,
     volatility_pct: 9.9,
   },
   backtest_metrics: null,

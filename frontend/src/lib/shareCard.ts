@@ -172,40 +172,50 @@ export function rebaseToPct(values: number[]): number[] {
   return values.map((v) => (Number.isFinite(v) ? (v / base - 1) * 100 : NaN))
 }
 
+/** 日付付きの1系列（Compare カードの入力単位）。 */
+export interface ShareCardTimeSeries {
+  dates: string[]
+  values: number[]
+}
+
 /**
- * 複数系列を「共通の min/max」で width×height のボックス座標へ正規化する。
- * 系列ごとに別スケールにすると比較カードの傾きが嘘になるため、
- * グローバルスケールであることが本質。有限値が 2 点未満の系列は []。
+ * 複数系列を「共通の日付ドメイン × 共通の値 min/max」で width×height の
+ * ボックス座標へ正規化する。Y だけでなく X も共通スケールであることが本質:
+ * 期間の異なるバックテスト同士を各系列個別に横幅いっぱいへ引き伸ばすと、
+ * 期間の長さの違いが消えて比較が嘘になる（画面側 CompareEquityV の
+ * scaleTime による共通 xDomain と同じ規約）。
+ * 有効点（値が有限かつ日付がパース可能）が 2 点未満の系列は []。
  */
 export function normalizeMultiSeries(
-  seriesValues: number[][],
+  seriesInputs: ShareCardTimeSeries[],
   width: number,
   height: number,
 ): ChartPoint[][] {
-  const finiteSeries = seriesValues.map((values) => {
-    const finite: Array<{ v: number; i: number }> = []
-    values.forEach((v, i) => {
-      if (Number.isFinite(v)) finite.push({ v, i })
+  const parsed = seriesInputs.map((s) => {
+    const pts: Array<{ v: number; t: number }> = []
+    s.values.forEach((v, i) => {
+      const t = Date.parse(s.dates[i] ?? '')
+      if (Number.isFinite(v) && Number.isFinite(t)) pts.push({ v, t })
     })
-    return { finite, lastIndex: values.length - 1 }
+    return pts.length >= 2 ? pts : []
   })
 
-  const allValues = finiteSeries.flatMap((s) =>
-    s.finite.length >= 2 ? s.finite.map((p) => p.v) : [],
+  const all = parsed.flat()
+  if (all.length === 0) return seriesInputs.map(() => [])
+
+  const tMin = Math.min(...all.map((p) => p.t))
+  const tMax = Math.max(...all.map((p) => p.t))
+  const tSpan = tMax - tMin
+  const vMin = Math.min(...all.map((p) => p.v))
+  const vMax = Math.max(...all.map((p) => p.v))
+  const vSpan = vMax - vMin
+
+  return parsed.map((pts) =>
+    pts.map((p) => ({
+      x: tSpan === 0 ? width / 2 : ((p.t - tMin) / tSpan) * width,
+      y: vSpan === 0 ? height / 2 : ((vMax - p.v) / vSpan) * height,
+    })),
   )
-  if (allValues.length === 0) return seriesValues.map(() => [])
-
-  const min = Math.min(...allValues)
-  const max = Math.max(...allValues)
-  const span = max - min
-
-  return finiteSeries.map(({ finite, lastIndex }) => {
-    if (finite.length < 2) return []
-    return finite.map(({ v, i }) => ({
-      x: (i / lastIndex) * width,
-      y: span === 0 ? height / 2 : ((max - v) / span) * height,
-    }))
-  })
 }
 
 /** Compare カードの入力（StrategyComparison の構造的部分集合）。 */
@@ -454,16 +464,24 @@ export function downloadShareCard(
   )
 }
 
-/** Compare 画面の複数戦略比較カード（共通スケール・変化率ベース）。 */
+/** Compare 画面の複数戦略比較カード（共通日付ドメイン・変化率ベース）。 */
 export function downloadCompareShareCard(
   strategies: ReadonlyArray<CompareShareInput>,
   symbol: string,
   lang: Lang,
   theme: ChartTheme,
 ): void {
-  const withEquity = strategies.filter((s) => s.equity && s.equity.values.length >= 2)
+  // フィルタ条件は画面側（CompareScreen の `filter(s => s.equity)`）と同一に
+  // して系列色のインデックスずれを防ぐ。描画系列もタイルと同じ上限で切り、
+  // 5色パレットの色衝突・凡例欠落を避ける
+  const withEquity = strategies
+    .filter((s) => s.equity != null)
+    .slice(0, MAX_COMPARE_TILES)
   const pointsPerSeries = normalizeMultiSeries(
-    withEquity.map((s) => rebaseToPct(s.equity?.values ?? [])),
+    withEquity.map((s) => ({
+      dates: s.equity?.dates ?? [],
+      values: rebaseToPct(s.equity?.values ?? []),
+    })),
     CHART_BOX_WIDTH,
     CHART_HEIGHT,
   )

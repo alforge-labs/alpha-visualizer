@@ -38,24 +38,52 @@ describe('rebaseToPct', () => {
 })
 
 describe('normalizeMultiSeries', () => {
+  const D = ['2020-01-01', '2020-01-02', '2020-01-03']
+
   it('maps all series onto a COMMON y-scale (global min/max)', () => {
     // 系列A: 0..10, 系列B: 0..20 → グローバル min=0, max=20。
     // 別々の min/max で正規化すると比較カードの傾きが嘘になるため、
     // 共通スケールであることが本質。
-    const [a, b] = normalizeMultiSeries([[0, 10], [0, 20]], 100, 100)
+    const [a, b] = normalizeMultiSeries(
+      [
+        { dates: [D[0]!, D[1]!], values: [0, 10] },
+        { dates: [D[0]!, D[1]!], values: [0, 20] },
+      ],
+      100,
+      100,
+    )
     expect(a).toEqual([{ x: 0, y: 100 }, { x: 100, y: 50 }])
     expect(b).toEqual([{ x: 0, y: 100 }, { x: 100, y: 0 }])
   })
 
-  it('drops non-finite values and series with fewer than 2 finite points', () => {
-    const [a, b] = normalizeMultiSeries([[0, NaN, 10], [NaN, 5]], 100, 100)
+  it('maps X onto a COMMON date domain (short backtests do not stretch)', () => {
+    // 3日分と31日分の比較: 日付を無視して各系列を横幅いっぱいに
+    // 引き伸ばすと期間の違いが嘘になる。X も共通ドメインが本質。
+    const short = { dates: ['2020-01-01', '2020-01-04'], values: [0, 5] }
+    const long = { dates: ['2020-01-01', '2020-01-31'], values: [0, 10] }
+    const [s, l] = normalizeMultiSeries([short, long], 300, 100)
+    expect(l?.[1]?.x).toBe(300)
+    expect(s?.[1]?.x).toBeCloseTo(30) // 3日 / 30日 = 1/10 の位置
+  })
+
+  it('drops non-finite values / unparsable dates and series with <2 valid points', () => {
+    const [a, b, c] = normalizeMultiSeries(
+      [
+        { dates: D, values: [0, NaN, 10] },
+        { dates: ['2020-01-01', '2020-01-02'], values: [NaN, 5] },
+        { dates: ['not-a-date', '2020-01-02', '2020-01-03'], values: [1, 2, 3] },
+      ],
+      100,
+      100,
+    )
     expect(a).toHaveLength(2)
-    expect(a?.every((p) => Number.isFinite(p.y))).toBe(true)
+    expect(a?.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true)
     expect(b).toEqual([])
+    expect(c).toHaveLength(2)
   })
 
   it('renders flat global span as centered lines', () => {
-    const [a] = normalizeMultiSeries([[5, 5, 5]], 100, 60)
+    const [a] = normalizeMultiSeries([{ dates: D, values: [5, 5, 5] }], 100, 60)
     expect(a?.every((p) => p.y === 30)).toBe(true)
   })
 })
@@ -99,14 +127,16 @@ describe('buildLiveShareCardData', () => {
           total_return_pct: 5.4,
           cagr_pct: 11.2,
           sharpe_ratio: 1.31,
-          max_drawdown_pct: -6.5,
+          // LivePositionMetrics の max_drawdown_pct は正値規約
+          // （trade 単位の負値規約とは異なる。api/types.ts 参照）
+          max_drawdown_pct: 6.5,
         },
       },
       'ja',
     )
     expect(data.title).toBe('beat_qqq_hedged_v1')
     expect(data.subtitle).toBe('ペーパートレード実績（ライブ） · 2026-06-06')
-    expect(data.metrics.map((m) => m.value)).toEqual(['+5.40%', '11.20%', '1.31', '-6.50%'])
+    expect(data.metrics.map((m) => m.value)).toEqual(['+5.40%', '11.20%', '1.31', '6.50%'])
     expect(data.metrics[0]?.tone).toBe('success')
     expect(data.brand).toBe(SHARE_CARD_BRAND)
   })
