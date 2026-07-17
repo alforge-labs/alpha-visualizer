@@ -43,7 +43,7 @@ test.describe('シェア導線', () => {
     await page.getByRole('button', { name: /X で共有|Share on X/ }).first().click()
 
     const popup = await pagePromise
-    await popup.waitForURL(/x\.com\/intent\/post/)
+    await popup.waitForURL(/^https:\/\/x\.com\/intent\/post/)
     const decoded = decodeURIComponent(popup.url())
     expect(decoded).toContain('sma_cross')
     expect(decoded).toContain('Backtested with AlphaForge')
