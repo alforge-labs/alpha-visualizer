@@ -16,7 +16,7 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
@@ -44,8 +44,8 @@ class RunBacktestRequest(BaseModel):
     # 場合も extra="ignore"（明示）で互換を保つ。
     model_config = ConfigDict(extra="ignore")
 
-    strategy_id: str
-    symbol: str
+    strategy_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
 
 
 class RunBacktestResponse(BaseModel):
@@ -142,7 +142,10 @@ def run_backtest(
         )
 
     env = os.environ.copy()
-    # EULA 等の対話プロンプトで subprocess が永久待ちにならないようにする。
+    # 破壊的操作の確認プロンプト（forge_confirm）を非対話化する。
+    # 注意: EULA 未同意時の Confirm.ask() はこれでは防げない（非対話同意は
+    # FORGE_ACCEPT_EULA のみ）。勝手に EULA へ同意するのは避け、stdin を
+    # 閉じることでハングせず即座に失敗させる（下の stdin=DEVNULL）。
     env["FORGE_NONINTERACTIVE"] = "1"
     forge_yaml = forge_cfg.forge_dir / "forge.yaml"
     if forge_yaml.exists():
@@ -155,15 +158,19 @@ def run_backtest(
                 forge_exe,
                 "backtest",
                 "run",
-                body.symbol,
                 "--strategy",
                 body.strategy_id,
                 "--json",
+                # -- 以降は positional 扱い: symbol が「-」始まりでも
+                # オプションと誤解釈されない。
+                "--",
+                body.symbol,
             ],
             capture_output=True,
             text=True,
             env=env,
             timeout=timeout,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired as exc:
         raise ExternalProcessError(
@@ -172,8 +179,10 @@ def run_backtest(
         ) from exc
 
     if proc.returncode != 0:
+        # 成功時 log_tail と同じ末尾丸め＋ホームパスマスクを通し、
+        # 長大なトレースバックでレスポンスが膨らまないようにする。
         detail = (
-            _mask_home(proc.stderr.strip())
+            _log_tail(proc.stderr)
             or "バックテストの実行に失敗しました / Backtest execution failed"
         )
         raise ExternalProcessError(detail)
