@@ -70,9 +70,11 @@ interface TuningPanelProps {
   onSaved?: () => void
 }
 
-/** 編集値をパラメータの元の型に合わせて解釈する（数値化できなければ null）。 */
+/** 編集値をパラメータの元の型に合わせて解釈する（解釈不能・空欄は null = 変更なし）。 */
 function parseEdit(original: unknown, raw: string): unknown | null {
   if (typeof original === 'number') {
+    // Number('') は 0 になるため、空欄は「0 への変更」ではなく「未変更」として扱う
+    if (raw.trim() === '') return null
     const n = Number(raw)
     return Number.isFinite(n) ? n : null
   }
@@ -105,14 +107,8 @@ export function TuningPanel({
   const [saveDone, setSaveDone] = useState(false)
   const { start, cancel, status, logLines, result, error, running } = useJobRunner()
 
-  // 別戦略に切り替わったら編集状態を破棄する（render 中の状態調整パターン）
-  const [lastStrategyId, setLastStrategyId] = useState(strategyId)
-  if (strategyId !== lastStrategyId) {
-    setLastStrategyId(strategyId)
-    setEdits({})
-    setSaveError(null)
-    setSaveDone(false)
-  }
+  // 戦略切替時の状態破棄は親側の key={strategyId} による再マウントで行う
+  // （useJobRunner の内部状態まで含めて確実にリセットするため）。
 
   const editableKeys = useMemo(
     () =>
@@ -370,8 +366,8 @@ export function TuningPanel({
             }}
           >
             {L(
-              'このランは実行履歴タブにも記録されています。',
-              'This run is also recorded in the Run History tab.',
+              '試行ランも実行履歴に通常ランとして記録され、最新ラン（Backtest タブの既定表示）に影響します。',
+              'Trial runs are recorded as regular runs in Run History and affect the latest run (default view of the Backtest tab).',
             )}
           </p>
         </div>

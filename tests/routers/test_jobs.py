@@ -169,6 +169,55 @@ class TestJobsRouter:
         )
         assert resp.status_code == 400
 
+    def test_create_job_with_parameters_cleans_temp_file_on_429(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """流量ガード 429 で拒否されたとき、生成済みの一時戦略ファイルをリークしない"""
+        import tempfile
+
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True)
+        (strategies_dir / "strat_a.json").write_text(
+            json.dumps(
+                {"strategy_id": "strat_a", "name": "t", "parameters": {"period": 20}}
+            ),
+            encoding="utf-8",
+        )
+        stub = _make_stub(tmp_path, "sleep 30\n")
+        app = create_app(forge_dir=tmp_path)
+        app.state.job_manager = JobManager(
+            forge_config=ForgeConfig.from_forge_dir(tmp_path),
+            forge_resolver=lambda: stub,
+            concurrency=1,
+            timeout_sec=60,
+            max_active=1,
+        )
+        tmp_dir = pathlib.Path(tempfile.gettempdir())
+        with TestClient(app) as client:
+            first = client.post(
+                "/api/jobs",
+                json={"kind": "backtest", "strategy_id": "strat_a", "symbol": "AAPL"},
+            )
+            assert first.status_code == 202
+
+            before = set(tmp_dir.glob("tune-*.json"))
+            second = client.post(
+                "/api/jobs",
+                json={
+                    "kind": "backtest",
+                    "strategy_id": "strat_a",
+                    "symbol": "AAPL",
+                    "parameters": {"period": 30},
+                },
+            )
+            assert second.status_code == 429
+            after = set(tmp_dir.glob("tune-*.json"))
+            assert after - before == set()
+
+            # 後始末
+            client.post(f"/api/jobs/{first.json()['job_id']}/cancel")
+            _wait_status(client, first.json()["job_id"], {"cancelled"})
+
     def test_create_job_with_parameters_unknown_strategy_returns_404(
         self, jobs_client: TestClient
     ) -> None:

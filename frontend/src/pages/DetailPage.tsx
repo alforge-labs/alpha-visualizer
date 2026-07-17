@@ -298,6 +298,9 @@ export function DetailPage() {
                 <>
                   {strategyId && (
                     <TuningPanel
+                      // 戦略切替時に編集・ジョブ実行状態ごと再マウントして破棄する
+                      // （前戦略の比較テーブルが残る誤表示防止）
+                      key={strategyId}
                       strategyId={strategyId}
                       symbol={symbol || null}
                       parameters={strategyDetail.data.parameters}

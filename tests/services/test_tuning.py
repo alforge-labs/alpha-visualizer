@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 
 import pytest
@@ -60,3 +61,14 @@ class TestBuildOverrideFile:
     def test_rejects_empty_override(self, tmp_path: pathlib.Path) -> None:
         with pytest.raises(InvalidRequestError):
             build_override_file(RAW, {}, tmp_path)
+
+    @pytest.mark.skipif(os.name != "posix", reason="POSIX パーミッションのみ検証")
+    def test_file_is_owner_only_readable(self, tmp_path: pathlib.Path) -> None:
+        """一時戦略ファイルは 0600 で作成する。
+
+        共有 /tmp に書くため、他ユーザーから戦略パラメータ（非公開資産）が
+        読めないようにする（CWE-377 対策）。
+        """
+        path = build_override_file(RAW, {"period": 30}, tmp_path)
+        mode = pathlib.Path(path).stat().st_mode & 0o777
+        assert mode == 0o600

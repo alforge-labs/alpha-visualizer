@@ -153,6 +153,16 @@ def _compact_scalar(value: Any) -> Any:
     return value
 
 
+def _cleanup_strategy_file(record: JobRecord) -> None:
+    """チューニング用の一時戦略ファイルを片付ける（失敗しても致命的でない）。"""
+    if record.strategy_file is None:
+        return
+    try:
+        pathlib.Path(record.strategy_file).unlink()
+    except OSError:
+        logger.debug("一時戦略ファイルの削除に失敗: %s", record.strategy_file)
+
+
 def _compact_result(data: dict[str, Any]) -> dict[str, Any]:
     """結果 JSON をスカラー（と 1 段のスカラー dict）のみに圧縮する。
 
@@ -405,10 +415,12 @@ class JobManager:
             if still_pending:
                 await asyncio.gather(*still_pending, return_exceptions=True)
         # タスクを強制キャンセルした場合に running のまま残る record を閉じる
+        # （このパスは _finish() を通らないため一時戦略ファイルもここで掃除する）
         for record in self._jobs.values():
             if record.status not in TERMINAL_STATUSES:
                 record.status = "cancelled"
                 record.finished_at = datetime.now(UTC)
+                _cleanup_strategy_file(record)
 
     def _prune(self) -> None:
         """terminal な古いジョブから保持上限まで間引く。"""
@@ -449,12 +461,7 @@ class JobManager:
         record.error = error
         record.finished_at = datetime.now(UTC)
         self._procs.pop(record.job_id, None)
-        if record.strategy_file is not None:
-            # チューニング用の一時戦略ファイルを片付ける（失敗しても致命的でない）
-            try:
-                pathlib.Path(record.strategy_file).unlink()
-            except OSError:
-                logger.debug("一時戦略ファイルの削除に失敗: %s", record.strategy_file)
+        _cleanup_strategy_file(record)
         await self._notify()
 
     async def _run_job(self, record: JobRecord) -> None:

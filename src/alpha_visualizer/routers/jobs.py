@@ -140,14 +140,21 @@ async def create_job(
             )
         )
 
-    record = await manager.create(
-        kind=body.kind,
-        strategy_id=body.strategy_id,
-        symbol=body.symbol,
-        trials=body.trials,
-        windows=body.windows,
-        strategy_file=strategy_file,
-    )
+    try:
+        record = await manager.create(
+            kind=body.kind,
+            strategy_id=body.strategy_id,
+            symbol=body.symbol,
+            trials=body.trials,
+            windows=body.windows,
+            strategy_file=strategy_file,
+        )
+    except Exception:
+        # create が拒否（流量ガード 429 等）された場合、JobRecord に紐付かない
+        # 一時ファイルは _finish() の掃除を通らないためここで回収する。
+        if strategy_file is not None:
+            pathlib.Path(strategy_file).unlink(missing_ok=True)
+        raise
     return _to_summary(record)
 
 
