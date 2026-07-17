@@ -387,7 +387,7 @@
     "/api/run": {
       "post": {
         "summary": "Run Backtest",
-        "description": "forge backtest run をサブプロセス実行し、最新の run_id を返す。",
+        "description": "forge backtest run をサブプロセス実行し、run_id と実行ログ末尾を返す。",
         "operationId": "run_backtest_api_run_post",
         "requestBody": {
           "content": {
@@ -1665,17 +1665,12 @@
           "symbol": {
             "type": "string",
             "title": "Symbol"
-          },
-          "timeframe": {
-            "type": "string",
-            "title": "Timeframe"
           }
         },
         "type": "object",
         "required": [
           "strategy_id",
-          "symbol",
-          "timeframe"
+          "symbol"
         ],
         "title": "RunBacktestRequest"
       },
@@ -1688,6 +1683,17 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "log_tail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Tail"
           }
         },
         "type": "object",

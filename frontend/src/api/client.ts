@@ -1,4 +1,4 @@
-import type { BacktestDetail, HistoricalResponse, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, HistoricalResponse, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -78,11 +78,11 @@ export const api = {
   getStrategyDetail: (strategyId: string): Promise<StrategyDetail> =>
     request<StrategyDetail>(`/strategies/${encodeURIComponent(strategyId)}`),
 
-  runBacktest: (strategyId: string, symbol: string, timeframe: string): Promise<{ run_id: string; status: string }> =>
-    request<{ run_id: string; status: string }>('/run', {
+  runBacktest: (strategyId: string, symbol: string): Promise<RunBacktestResult> =>
+    request<RunBacktestResult>('/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategy_id: strategyId, symbol, timeframe }),
+      body: JSON.stringify({ strategy_id: strategyId, symbol }),
     }),
 
   listIdeas: (status?: string): Promise<IdeaItem[]> =>

@@ -168,7 +168,7 @@ export interface paths {
         put?: never;
         /**
          * Run Backtest
-         * @description forge backtest run をサブプロセス実行し、最新の run_id を返す。
+         * @description forge backtest run をサブプロセス実行し、run_id と実行ログ末尾を返す。
          */
         post: operations["run_backtest_api_run_post"];
         delete?: never;
@@ -810,8 +810,6 @@ export interface components {
             strategy_id: string;
             /** Symbol */
             symbol: string;
-            /** Timeframe */
-            timeframe: string;
         };
         /** RunBacktestResponse */
         RunBacktestResponse: {
@@ -819,6 +817,8 @@ export interface components {
             run_id: string;
             /** Status */
             status: string;
+            /** Log Tail */
+            log_tail?: string | null;
         };
         /**
          * StrategyComparison
