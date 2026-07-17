@@ -12,7 +12,10 @@ describe('<AppFooter />', () => {
     render(<AppFooter lang="ja" />)
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /AlphaForge/ })
-    expect(link.getAttribute('href')).toBe('https://alforgelabs.com')
+    // UTM で「アプリ内フッター経由の流入」を計測可能にする（Wave 4）
+    expect(link.getAttribute('href')).toBe(
+      'https://alforgelabs.com/?utm_source=alpha-visualizer&utm_medium=footer',
+    )
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel') ?? '').toContain('noopener')
     expect(link.getAttribute('rel') ?? '').toContain('noreferrer')

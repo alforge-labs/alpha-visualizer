@@ -21,7 +21,7 @@ export function AppFooter({ lang }: { lang: Lang }): ReactElement {
       }}
     >
       <a
-        href="https://alforgelabs.com"
+        href="https://alforgelabs.com/?utm_source=alpha-visualizer&utm_medium=footer"
         target="_blank"
         rel="noopener noreferrer"
         aria-label={L(

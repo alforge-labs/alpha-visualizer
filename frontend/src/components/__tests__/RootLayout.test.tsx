@@ -40,7 +40,11 @@ describe('RootLayout (issue #260)', () => {
     const footer = screen.getByRole('contentinfo')
     expect(footer).toBeInTheDocument()
     const link = screen.getAllByRole('link').find(
-      (l) => l.getAttribute('href') === 'https://alforgelabs.com',
+      // CodeQL js/incomplete-url-substring-sanitization は startsWith も
+      // 誤検知するため、フッター CTA の URL と完全一致で判定する
+      (l) =>
+        l.getAttribute('href') ===
+        'https://alforgelabs.com/?utm_source=alpha-visualizer&utm_medium=footer',
     )
     expect(link).toBeDefined()
   })
