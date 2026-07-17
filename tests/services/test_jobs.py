@@ -10,9 +10,9 @@ import pathlib
 import stat
 
 import pytest
-from alpha_visualizer.services.jobs import JobManager, build_argv
 
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.services.jobs import JobManager, build_argv
 
 pytestmark = pytest.mark.anyio
 
