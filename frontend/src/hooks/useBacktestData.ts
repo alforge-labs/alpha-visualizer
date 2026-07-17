@@ -78,12 +78,15 @@ export function useStrategyDetail(strategyId: string | null): LoadState<Strategy
 export function useRunBacktest() {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [logTail, setLogTail] = useState<string | null>(null)
 
-  const run = useCallback(async (strategyId: string, symbol: string, timeframe: string): Promise<boolean> => {
+  const run = useCallback(async (strategyId: string, symbol: string): Promise<boolean> => {
     setRunning(true)
     setError(null)
+    setLogTail(null)
     try {
-      await api.runBacktest(strategyId, symbol, timeframe)
+      const result = await api.runBacktest(strategyId, symbol)
+      setLogTail(result.log_tail)
       setRunning(false)
       return true
     } catch (err) {
@@ -93,5 +96,5 @@ export function useRunBacktest() {
     }
   }, [])
 
-  return { run, running, error }
+  return { run, running, error, logTail }
 }

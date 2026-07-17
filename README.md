@@ -63,6 +63,7 @@ alpha-vis serve --no-open
 |---|---|
 | `FORGE_CONFIG` | `forge.yaml` への絶対パス。**`--forge-dir` 引数より優先される**（探索順序: 引数 `config_path` → `FORGE_CONFIG` → `<forge_dir>/forge.yaml`） |
 | `VITE_API_PROXY` | フロント開発サーバーの API proxy 先（既定 `http://127.0.0.1:8000`） |
+| `ALPHA_VIS_RUN_TIMEOUT` | `POST /api/run`（バックテスト再実行）の forge CLI タイムアウト秒数（既定 `600`） |
 
 開発時に予期せぬ `forge.yaml` が参照されている場合は `unset FORGE_CONFIG` で解除してください。手元で `alpha-vis serve --forge-dir /path/to/A` を打ったのに別ディレクトリの DB が読まれているときは、ほぼこの環境変数が原因です。
 

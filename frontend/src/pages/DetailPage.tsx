@@ -44,7 +44,7 @@ export function DetailPage() {
   const optimize = useOptimize(strategyId ?? null)
   const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
   const compact = density === 'compact'
-  const { run: runBt, running: btRunning, error: runError } = useRunBacktest()
+  const { run: runBt, running: btRunning, error: runError, logTail: runLogTail } = useRunBacktest()
 
   const currentRunId = backtest.status === 'ready' ? backtest.data.run_id : ''
   const strategyName =
@@ -62,14 +62,15 @@ export function DetailPage() {
   }
 
   const requestRun = () => {
-    if (!symbol || !timeframe || !strategyId) return
+    if (!symbol || !strategyId) return
     setConfirmRun(true)
   }
 
   const doRun = async () => {
     setConfirmRun(false)
-    if (!symbol || !timeframe || !strategyId) return
-    const success = await runBt(strategyId, symbol, timeframe)
+    if (!symbol || !strategyId) return
+    // timeframe は戦略定義由来のため API へは渡さない（issue #291）。
+    const success = await runBt(strategyId, symbol)
     // issue #265: 全画面リロードせず、reloadToken を進めて該当データを再フェッチ
     // （タブ・スクロール位置などの画面状態を保持したまま最新結果へ更新する）。
     if (success) setReloadToken((t) => t + 1)
@@ -114,7 +115,7 @@ export function DetailPage() {
         onRun={requestRun}
         onAddToCompare={handleAddToCompare}
         running={btRunning}
-        canRun={Boolean(symbol && timeframe && strategyId)}
+        canRun={Boolean(symbol && strategyId)}
       />
 
       {runError && (
@@ -125,6 +126,41 @@ export function DetailPage() {
             retryLabel={L('再試行', 'Retry')}
             onRetry={doRun}
           />
+        </div>
+      )}
+
+      {runLogTail && (
+        <div style={{ padding: 'var(--space-2) var(--layout-gutter)', flexShrink: 0 }}>
+          <details>
+            <summary
+              style={{
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              {L('実行ログ', 'Run log')}
+            </summary>
+            <pre
+              style={{
+                margin: '8px 0 0',
+                padding: '8px 12px',
+                maxHeight: 180,
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text2)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              {runLogTail}
+            </pre>
+          </details>
         </div>
       )}
 

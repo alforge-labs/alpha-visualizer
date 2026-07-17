@@ -30,7 +30,7 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
   const [confirmRun, setConfirmRun] = useState(false)
   const runs = useStrategyRuns(s.strategy_id, reloadToken)
   const recentRuns = runs.status === 'ready' ? runs.data.slice(0, 5) : []
-  const { run, running, error: runError } = useRunBacktest()
+  const { run, running, error: runError, logTail } = useRunBacktest()
   const sparkline = useSparklineCache()
   const sparkValues = sparkline.entries[s.strategy_id]
 
@@ -39,7 +39,7 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
   }, [s.strategy_id, sparkline])
 
   const requestRun = (): void => {
-    if (!s.symbol || !s.timeframe) return
+    if (!s.symbol) return
     // 既存結果がある場合のみ上書き確認する（初回実行は確認不要）。
     if (s.last_run_at !== null) {
       setConfirmRun(true)
@@ -50,8 +50,9 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
 
   const doRun = async (): Promise<void> => {
     setConfirmRun(false)
-    if (!s.symbol || !s.timeframe) return
-    const success = await run(s.strategy_id, s.symbol, s.timeframe)
+    if (!s.symbol) return
+    // timeframe は戦略定義由来のため API へは渡さない（issue #291）。
+    const success = await run(s.strategy_id, s.symbol)
     // パネルは開いたまま（状態保持）、実行履歴だけを再フェッチして最新化する。
     if (success) setReloadToken((t) => t + 1)
   }
@@ -156,7 +157,7 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
           variant="subtle"
           size="sm"
           onClick={requestRun}
-          disabled={running || !s.symbol || !s.timeframe}
+          disabled={running || !s.symbol}
         >
           {running ? L('実行中…', 'Running…') : L('バックテスト再実行', 'Re-run backtest')}
         </Button>
@@ -176,6 +177,38 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
           >
             {runError}
           </p>
+        )}
+        {logTail && (
+          <details style={{ width: '100%', marginTop: 8 }}>
+            <summary
+              style={{
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              {L('実行ログ', 'Run log')}
+            </summary>
+            <pre
+              style={{
+                margin: '8px 0 0',
+                padding: '8px 12px',
+                maxHeight: 180,
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text2)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              {logTail}
+            </pre>
+          </details>
         )}
       </div>
 
