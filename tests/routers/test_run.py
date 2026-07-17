@@ -63,6 +63,29 @@ class TestRunRouter:
         assert resp.status_code == 200
         assert resp.json()["run_id"] == "run-abc123"
 
+    def test_run_parses_json_even_with_leading_warning_lines(
+        self, client_with_db: TestClient
+    ) -> None:
+        """JSON の前に警告行が混ざっても run_id を取得できる。
+
+        forge が deprecation warning 等を stdout に出すバージョンでも
+        レース解消（JSON からの直接取得）が無効化されないようにする。
+        """
+        stdout = (
+            "Warning: something is deprecated\n"
+            + json.dumps({"run_id": "run-from-json"})
+        )
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch("subprocess.run", return_value=_proc(stdout=stdout)),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["run_id"] == "run-from-json"
+
     def test_run_falls_back_to_db_when_json_lacks_run_id(
         self, client_with_db: TestClient
     ) -> None:
@@ -98,11 +121,39 @@ class TestRunRouter:
             )
         assert resp.status_code == 200
         log_tail = resp.json()["log_tail"]
-        # 末尾 50 行に丸める（先頭側が落ちる）
-        assert "line-59" in log_tail
-        assert "line-10" in log_tail
+        # 全 60 行のうち末尾 50 行（line-10〜line-59）に丸める。
+        # 先頭は line-10 になり、切り落とし境界の line-9 は含まれない。
+        assert log_tail.startswith("line-10\n")
+        assert log_tail.endswith("line-59")
         assert "line-9\n" not in log_tail
-        assert not log_tail.startswith("line-9")
+
+    def test_run_log_tail_masks_home_directory(
+        self, client_with_db: TestClient
+    ) -> None:
+        """log_tail 内のホームディレクトリ絶対パスは ~ にマスクする。
+
+        forge の stderr にはデータ保存先などの絶対パスが含まれうる。
+        非 localhost バインドで公開された場合にユーザー名等の実行環境情報が
+        API 経由で漏れないよう、レスポンスに載せる前にマスクする。
+        """
+        stdout = json.dumps({"run_id": "run-from-json"})
+        stderr = "saved to /home/testuser/data/AAPL_1d.parquet"
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run", return_value=_proc(stdout=stdout, stderr=stderr)
+            ),
+            mock.patch(
+                "pathlib.Path.home",
+                return_value=__import__("pathlib").Path("/home/testuser"),
+            ),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["log_tail"] == "saved to ~/data/AAPL_1d.parquet"
 
     def test_run_log_tail_is_none_when_stderr_empty(
         self, client_with_db: TestClient
@@ -155,11 +206,16 @@ class TestRunRouter:
         assert resp.status_code == 200
         assert run_mock.call_args.kwargs["timeout"] == 30
 
+    @pytest.mark.parametrize("raw", ["abc", "0", "-5"])
     def test_run_invalid_timeout_env_falls_back_to_default(
-        self, client_with_db: TestClient, monkeypatch: pytest.MonkeyPatch
+        self, client_with_db: TestClient, monkeypatch: pytest.MonkeyPatch, raw: str
     ) -> None:
-        """ALPHA_VIS_RUN_TIMEOUT が数値でない場合はデフォルト 600 秒で続行する"""
-        monkeypatch.setenv("ALPHA_VIS_RUN_TIMEOUT", "abc")
+        """ALPHA_VIS_RUN_TIMEOUT が数値でない・0 以下の場合はデフォルト 600 秒で続行する。
+
+        0 は subprocess.run(timeout=0) の即時 TimeoutExpired、負値は ValueError に
+        なるため、下限もここで弾く。
+        """
+        monkeypatch.setenv("ALPHA_VIS_RUN_TIMEOUT", raw)
         stdout = json.dumps({"run_id": "run-from-json"})
         with (
             mock.patch("shutil.which", return_value="/usr/local/bin/forge"),

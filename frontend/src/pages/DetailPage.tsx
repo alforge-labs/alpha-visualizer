@@ -129,7 +129,8 @@ export function DetailPage() {
         </div>
       )}
 
-      {runLogTail && (
+      {/* 実行ログは再実行結果が反映される backtest タブでのみ表示する（他タブへの残留防止） */}
+      {runLogTail && tab === 'backtest' && (
         <div style={{ padding: 'var(--space-2) var(--layout-gutter)', flexShrink: 0 }}>
           <details>
             <summary

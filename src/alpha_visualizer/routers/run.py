@@ -10,12 +10,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pathlib
 import shutil
 import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
@@ -38,11 +39,13 @@ LOG_TAIL_MAX_LINES = 50
 
 
 class RunBacktestRequest(BaseModel):
-    strategy_id: str
-    symbol: str
     # timeframe は受け取らない: forge backtest run に timeframe フラグは存在せず、
     # 戦略定義（strategy JSON）の timeframe が使われる。旧フロントが送ってきた
-    # 場合も Pydantic のデフォルト挙動（余剰フィールド無視）で互換を保つ。
+    # 場合も extra="ignore"（明示）で互換を保つ。
+    model_config = ConfigDict(extra="ignore")
+
+    strategy_id: str
+    symbol: str
 
 
 class RunBacktestResponse(BaseModel):
@@ -55,38 +58,61 @@ def _resolve_timeout() -> int:
     """環境変数 ALPHA_VIS_RUN_TIMEOUT から timeout 秒を解決する。
 
     不正値でリクエストを落とすとタイポひとつで Run が全滅するため、
-    警告ログを出してデフォルトで続行する。
+    警告ログを出してデフォルトで続行する。0 以下も弾く（0 は即時
+    TimeoutExpired、負値は subprocess の ValueError になるため）。
     """
     raw = os.environ.get(RUN_TIMEOUT_ENV)
     if raw is None:
         return DEFAULT_RUN_TIMEOUT_SEC
     try:
-        return int(raw)
+        value = int(raw)
     except ValueError:
+        value = 0
+    if value <= 0:
         logger.warning(
-            "%s の値が数値ではありません（デフォルト %d 秒を使用）",
+            "%s の値が正の整数ではありません（デフォルト %d 秒を使用）",
             RUN_TIMEOUT_ENV,
             DEFAULT_RUN_TIMEOUT_SEC,
         )
         return DEFAULT_RUN_TIMEOUT_SEC
+    return value
 
 
 def _parse_run_id(stdout: str) -> str | None:
     """``--json`` の stdout から run_id を取り出す。
 
-    forge #1232（v0.17 系）以降は JSON 本体に run_id が載る。JSON でない・
-    run_id が無い場合は None を返し、呼び出し側で DB フォールバックする。
+    forge #1232（v0.17 系）以降は JSON 本体に run_id が載る。stdout 全体が
+    JSON でない場合も、警告行などが前後に混ざっただけの可能性があるため、
+    最初の ``{`` から最後の ``}`` までの抽出を試す。それでも取れなければ
+    None を返し、呼び出し側で DB フォールバックする。
     """
-    try:
-        data = json.loads(stdout)
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    run_id = data.get("run_id")
-    if isinstance(run_id, str) and run_id:
-        return run_id
+    candidates = [stdout]
+    start = stdout.find("{")
+    end = stdout.rfind("}")
+    if 0 <= start < end:
+        candidates.append(stdout[start : end + 1])
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        run_id = data.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            return run_id
     return None
+
+
+def _mask_home(text: str) -> str:
+    """ホームディレクトリの絶対パスを ``~`` にマスクする。
+
+    forge の出力にはデータ保存先などの絶対パスが含まれうる。非 localhost
+    バインドで公開された場合にユーザー名等の実行環境情報が API レスポンス
+    経由で漏れないようにする。
+    """
+    home = str(pathlib.Path.home())
+    return text.replace(home, "~")
 
 
 def _log_tail(stderr: str) -> str | None:
@@ -95,7 +121,7 @@ def _log_tail(stderr: str) -> str | None:
     if not text:
         return None
     lines = text.splitlines()
-    return "\n".join(lines[-LOG_TAIL_MAX_LINES:])
+    return _mask_home("\n".join(lines[-LOG_TAIL_MAX_LINES:]))
 
 
 @router.post("/run", response_model=RunBacktestResponse)
@@ -147,7 +173,7 @@ def run_backtest(
 
     if proc.returncode != 0:
         detail = (
-            proc.stderr.strip()
+            _mask_home(proc.stderr.strip())
             or "バックテストの実行に失敗しました / Backtest execution failed"
         )
         raise ExternalProcessError(detail)
@@ -156,6 +182,11 @@ def run_backtest(
     if run_id is None:
         # 旧 forge 互換: --json に run_id が載らないバージョンでは
         # 従来どおり DB の最新 run_id を拾う（並行実行時はレースの可能性あり）。
+        # 旧 forge なのかパース失敗なのか運用時に切り分けられるようログを残す。
+        logger.info(
+            "stdout から run_id を取得できず DB フォールバックしました"
+            "（旧 forge または --json 出力のパース失敗）"
+        )
         # backtest_results.db が未生成のときに Repository が OperationalError を
         # 投げないよう、先にファイル存在を確認してから問い合わせる。
         if forge_cfg.forge_db.exists():
