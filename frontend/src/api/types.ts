@@ -202,6 +202,38 @@ export interface RunBacktestResult {
   log_tail: string | null
 }
 
+export type JobKind = 'backtest' | 'optimize' | 'wft'
+export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+
+export interface JobSummary {
+  job_id: string
+  kind: string
+  strategy_id: string
+  symbol: string
+  status: string
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  error: string | null
+}
+
+export interface JobDetail extends JobSummary {
+  returncode: number | null
+  /** stdout JSON のスカラー要約（equity_curve 等の巨大配列は backend で除去済み） */
+  result: Record<string, unknown> | null
+  log_tail: string | null
+}
+
+export interface CreateJobParams {
+  kind: JobKind
+  strategy_id: string
+  symbol: string
+  /** optimize のみ有効（省略時は forge 既定値） */
+  trials?: number
+  /** wft のみ有効（省略時は forge 既定値 5） */
+  windows?: number
+}
+
 /**
  * OptimizeTrial: backend は ``pass`` キーが Python 予約語のため
  * Pydantic 明示フィールドにできず、生成型に含まれない（``extra="allow"`` 経由で透過）。

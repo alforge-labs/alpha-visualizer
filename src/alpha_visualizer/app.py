@@ -13,12 +13,14 @@ from alpha_visualizer.errors import AlphaVisualizerError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers import historical as historical_router
 from alpha_visualizer.routers import ideas as ideas_router
+from alpha_visualizer.routers import jobs as jobs_router
 from alpha_visualizer.routers import live as live_router
 from alpha_visualizer.routers import optimize as optimize_router
 from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
 from alpha_visualizer.routers import wfo as wfo_router
+from alpha_visualizer.services.jobs import JobManager
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,8 @@ def create_app(
         version="0.1.0",
     )
     app.state.forge_config = config
+    # 非同期ジョブ基盤（#292）。in-process 保持のため uvicorn 単一ワーカー前提。
+    app.state.job_manager = JobManager(forge_config=config)
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
     # backtest_results.db が存在する場合のみ Engine を作る。これは
@@ -109,6 +113,7 @@ def create_app(
     app.include_router(wfo_router.router, prefix="/api")
     app.include_router(optimize_router.router, prefix="/api")
     app.include_router(run_router.router, prefix="/api")
+    app.include_router(jobs_router.router, prefix="/api")
     app.include_router(live_router.router, prefix="/api")
     app.include_router(historical_router.router, prefix="/api")
 

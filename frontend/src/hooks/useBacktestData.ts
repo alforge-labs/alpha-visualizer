@@ -36,9 +36,10 @@ export function useBacktest({ runId, reloadToken }: UseBacktestParams): LoadStat
   })
 }
 
-export function useWFO(strategyId: string | null): LoadState<WFOResult> {
+export function useWFO(strategyId: string | null, reloadToken?: number): LoadState<WFOResult> {
   return useFetchByKey<WFOResult>(strategyId, api.getWFO, {
     mockFallback: MOCK_WFO_FALLBACK,
+    reloadToken,
   })
 }
 
@@ -54,9 +55,13 @@ export function useCompare(
   )
 }
 
-export function useOptimize(strategyId: string | null): LoadState<OptimizeResult> {
+export function useOptimize(
+  strategyId: string | null,
+  reloadToken?: number,
+): LoadState<OptimizeResult> {
   return useFetchByKey<OptimizeResult>(strategyId, api.getOptimize, {
     mockFallback: MOCK_OPTIMIZE_FALLBACK,
+    reloadToken,
   })
 }
 

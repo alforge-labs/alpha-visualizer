@@ -7,6 +7,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Button, Chip, ConfirmDialog, Divider } from '../../design/primitives'
 import { Sparkline } from '../../charts/visx/Sparkline'
+import { RunLogDetails } from '../RunLogDetails'
 
 interface Props {
   strategy: StrategyListItem
@@ -179,36 +180,9 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
           </p>
         )}
         {logTail && (
-          <details style={{ width: '100%', marginTop: 8 }}>
-            <summary
-              style={{
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text3)',
-                letterSpacing: 'var(--tracking-mono)',
-              }}
-            >
-              {L('実行ログ', 'Run log')}
-            </summary>
-            <pre
-              style={{
-                margin: '8px 0 0',
-                padding: '8px 12px',
-                maxHeight: 180,
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text2)',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-              }}
-            >
-              {logTail}
-            </pre>
-          </details>
+          <div style={{ width: '100%', marginTop: 8 }}>
+            <RunLogDetails log={logTail} lang={lang} />
+          </div>
         )}
       </div>
 
