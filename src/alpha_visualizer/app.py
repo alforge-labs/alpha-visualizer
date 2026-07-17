@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 import pathlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.requests import Request
@@ -44,14 +46,24 @@ def create_app(
             raise ValueError("forge_dir または config のいずれかを指定してください")
         config = ForgeConfig.from_forge_dir(pathlib.Path(forge_dir))
 
+    # 非同期ジョブ基盤（#292）。in-process 保持のため uvicorn 単一ワーカー前提。
+    job_manager = JobManager(forge_config=config)
+
+    @asynccontextmanager
+    async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        yield
+        # forge は start_new_session でセッション分離しているため、明示的に
+        # 止めないと Ctrl+C でのサーバー終了時に孤児プロセスが残る。
+        await job_manager.shutdown()
+
     app = FastAPI(
         title="alpha-visualizer",
         description="AlphaForge バックテスト結果の Web 可視化ツール",
         version="0.1.0",
+        lifespan=_lifespan,
     )
     app.state.forge_config = config
-    # 非同期ジョブ基盤（#292）。in-process 保持のため uvicorn 単一ワーカー前提。
-    app.state.job_manager = JobManager(forge_config=config)
+    app.state.job_manager = job_manager
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
     # backtest_results.db が存在する場合のみ Engine を作る。これは

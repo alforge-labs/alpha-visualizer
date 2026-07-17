@@ -116,8 +116,11 @@ async def create_job(
     return _to_summary(record)
 
 
+# 参照系も async def にする: 同期 def だと FastAPI がスレッドプールで実行し、
+# イベントループ上の JobManager（ロック無し前提）の状態を別スレッドから読む
+# ことになり、_append_log との競合で不整合な log_tail/seq を返しうる。
 @router.get("/jobs", response_model=list[JobSummary])
-def list_jobs(
+async def list_jobs(
     manager: Annotated[JobManager, Depends(get_job_manager)],
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> list[JobSummary]:
@@ -126,7 +129,7 @@ def list_jobs(
 
 
 @router.get("/jobs/{job_id}", response_model=JobDetail)
-def get_job(
+async def get_job(
     job_id: str,
     manager: Annotated[JobManager, Depends(get_job_manager)],
 ) -> JobDetail:
