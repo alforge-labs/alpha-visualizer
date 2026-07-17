@@ -14,6 +14,7 @@ import { DetailToolbar } from '../components/DetailToolbar'
 import { StrategyHero } from '../components/StrategyHero'
 import { RunLogDetails } from '../components/RunLogDetails'
 import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
+import { TuningPanel } from '../components/tuning/TuningPanel'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
@@ -44,11 +45,16 @@ export function DetailPage() {
   // optimize ジョブ完了時にタブのデータだけ再フェッチするトークン（issue #292）。
   // WFT は forge 側に DB 記録が無く再フェッチしても新データは来ないため対象外。
   const [optimizeReload, setOptimizeReload] = useState(0)
+  // パラメータ保存後に戦略詳細を再フェッチするトークン（issue #293）
+  const [strategyReload, setStrategyReload] = useState(0)
 
   const backtest = useBacktest({ runId, reloadToken })
   const wfo = useWFO(strategyId ?? null)
   const optimize = useOptimize(strategyId ?? null, optimizeReload)
-  const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
+  const strategyDetail = useStrategyDetail(
+    tab === 'strategy' ? (strategyId ?? null) : null,
+    strategyReload,
+  )
   const compact = density === 'compact'
   const { run: runBt, running: btRunning, error: runError, logTail: runLogTail } = useRunBacktest()
 
@@ -289,15 +295,38 @@ export function DetailPage() {
               ) : strategyDetail.status === 'error' ? (
                 <Note tone="danger">{strategyDetail.error}</Note>
               ) : (
-                <StrategyScreen
-                  data={strategyDetail.data}
-                  lang={lang}
-                  symbol={backtest.status === 'ready' ? backtest.data.symbol : null}
-                  trades={backtest.status === 'ready' ? backtest.data.trades : []}
-                  regimeSeries={
-                    backtest.status === 'ready' ? backtest.data.regime_series ?? null : null
-                  }
-                />
+                <>
+                  {strategyId && (
+                    <TuningPanel
+                      // 戦略切替時に編集・ジョブ実行状態ごと再マウントして破棄する
+                      // （前戦略の比較テーブルが残る誤表示防止）
+                      key={strategyId}
+                      strategyId={strategyId}
+                      symbol={symbol || null}
+                      parameters={strategyDetail.data.parameters}
+                      baseline={
+                        runsState.status === 'ready' && runsState.data.length > 0
+                          ? {
+                              sharpe: runsState.data[0]!.sharpe_ratio,
+                              returnPct: runsState.data[0]!.total_return_pct,
+                              maxDrawdownPct: runsState.data[0]!.max_drawdown_pct,
+                            }
+                          : null
+                      }
+                      lang={lang}
+                      onSaved={() => setStrategyReload((t) => t + 1)}
+                    />
+                  )}
+                  <StrategyScreen
+                    data={strategyDetail.data}
+                    lang={lang}
+                    symbol={backtest.status === 'ready' ? backtest.data.symbol : null}
+                    trades={backtest.status === 'ready' ? backtest.data.trades : []}
+                    regimeSeries={
+                      backtest.status === 'ready' ? backtest.data.regime_series ?? null : null
+                    }
+                  />
+                </>
               ))}
           </div>
         </div>

@@ -232,6 +232,14 @@ export interface CreateJobParams {
   trials?: number
   /** wft のみ有効（省略時は forge 既定値 5） */
   windows?: number
+  /** backtest のみ有効: 指定キーだけ上書きしたチューニング実行（元定義は不変） */
+  parameters?: Record<string, unknown>
+}
+
+export interface SaveParametersResult {
+  status: string
+  parameters: Record<string, unknown>
+  log_tail: string | null
 }
 
 /**

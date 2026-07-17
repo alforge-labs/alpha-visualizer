@@ -84,7 +84,8 @@ alpha-vis serve --forge-dir <dir>
 | `GET /api/ideas` | アイデア一覧 |
 | `GET /api/wfo/{strategy_id}` | WFO 結果 |
 | `POST /api/run` | forge backtest run の同期実行（run_id と実行ログ末尾を返す） |
-| `POST /api/jobs` | 非同期ジョブ起動（kind: backtest / optimize / wft）→ 202 |
+| `POST /api/jobs` | 非同期ジョブ起動（kind: backtest / optimize / wft）→ 202。backtest は `parameters` でチューニング実行（一時戦略ファイル・元定義は不変） |
+| `POST /api/strategies/{id}/parameters` | パラメータの戦略定義への書き戻し（`forge strategy save --force` へ委譲・destructive） |
 | `GET /api/jobs` / `GET /api/jobs/{id}` | ジョブ一覧 / 詳細（ログ末尾・結果要約） |
 | `POST /api/jobs/{id}/cancel` | ジョブのキャンセル（プロセスグループごと terminate → kill） |
 | `GET /api/jobs/{id}/events` | SSE 進捗ストリーム（snapshot → log → status） |

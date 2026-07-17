@@ -89,6 +89,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/strategies/{strategy_id}/parameters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Strategy Parameters
+         * @description 編集済みパラメータを戦略定義へ書き戻す（destructive・UI 側で確認必須）。
+         *
+         *     visualizer はファイル・DB を直接書かず、パラメータ差し替え済みの一時
+         *     JSON を ``forge strategy save --force`` に渡して登録を委譲する
+         *     （single-writer 維持。スキーマ検証は forge 側 Pydantic が SSoT で、
+         *     エラーはそのまま表面化させる）。
+         */
+        post: operations["save_strategy_parameters_api_strategies__strategy_id__parameters_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ideas": {
         parameters: {
             query?: never;
@@ -193,6 +218,10 @@ export interface paths {
         /**
          * Create Job
          * @description ジョブを起動し、実行を待たずにサマリを返す。
+         *
+         *     ``parameters`` 指定時（チューニング実行 #293）は、元の戦略定義の
+         *     parameters だけを差し替えた一時ファイルを作り ``--strategy-file`` で
+         *     実行する。一時ファイルはジョブ終了時に JobManager が削除する。
          */
         post: operations["create_job_api_jobs_post"];
         delete?: never;
@@ -538,6 +567,10 @@ export interface components {
             trials?: number | null;
             /** Windows */
             windows?: number | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -976,6 +1009,24 @@ export interface components {
             run_id: string;
             /** Status */
             status: string;
+            /** Log Tail */
+            log_tail?: string | null;
+        };
+        /** SaveParametersRequest */
+        SaveParametersRequest: {
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+        };
+        /** SaveParametersResponse */
+        SaveParametersResponse: {
+            /** Status */
+            status: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
             /** Log Tail */
             log_tail?: string | null;
         };
@@ -1487,6 +1538,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StrategyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_strategy_parameters_api_strategies__strategy_id__parameters_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strategy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveParametersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveParametersResponse"];
                 };
             };
             /** @description Validation Error */

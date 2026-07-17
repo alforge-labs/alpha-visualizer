@@ -77,6 +77,18 @@ class TestBuildArgv:
             "--json", "--windows", "7", "--", "AAPL",
         ]
 
+    def test_backtest_with_strategy_file_replaces_strategy_option(self) -> None:
+        """一時戦略ファイル指定時は --strategy-file を使う（チューニング実行 #293）"""
+        argv = build_argv(
+            "/bin/forge", "backtest", "s1", "AAPL", None, None,
+            strategy_file="/tmp/tune-abc.json",
+        )
+        assert argv == [
+            "/bin/forge", "backtest", "run",
+            "--strategy-file", "/tmp/tune-abc.json", "--json", "--", "AAPL",
+        ]
+        assert "--strategy" not in argv
+
 
 class TestJobLifecycle:
     async def test_backtest_job_succeeds_with_compact_result(
@@ -286,6 +298,24 @@ class TestJobLifecycle:
         for job_id in (second.job_id, third.job_id):
             await manager.cancel(job_id)
             await manager.wait_terminal(job_id, timeout=10)
+
+    async def test_strategy_file_is_deleted_after_job_finishes(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """一時戦略ファイルはジョブ終了時に削除される（ゴミ掃除）"""
+        stub = _make_stub(tmp_path, 'printf \'{"run_id": "r1"}\'\n')
+        strategy_file = tmp_path / "tune-test.json"
+        strategy_file.write_text("{}", encoding="utf-8")
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(
+            kind="backtest",
+            strategy_id="s1",
+            symbol="AAPL",
+            strategy_file=str(strategy_file),
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "succeeded"
+        assert not strategy_file.exists()
 
     async def test_list_returns_newest_first(self, tmp_path: pathlib.Path) -> None:
         stub = _make_stub(tmp_path, "exit 0\n")
