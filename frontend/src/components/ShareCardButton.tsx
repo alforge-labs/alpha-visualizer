@@ -4,6 +4,7 @@ import type { ChartTheme } from '../design/useChartTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { downloadShareCard } from '../lib/shareCard'
+import { buildShareTweetText, xIntentUrl } from '../lib/shareTweet'
 
 const BTN_STYLE: React.CSSProperties = {
   height: 26,
@@ -52,4 +53,30 @@ export function ShareCardButton({
   theme: ChartTheme
 }): ReactElement {
   return <ShareButton lang={lang} onClick={() => downloadShareCard(data, lang, theme)} />
+}
+
+/**
+ * Detail（Backtest）画面用: シェアカード PNG を保存し、続けて X の投稿
+ * インテントを新規タブで開く（画像は投稿画面で手動添付）。保存と投稿を
+ * 1クリックにしてシェアの摩擦を最小化する。
+ */
+export function ShareCardXButton({
+  data,
+  lang,
+  theme,
+}: {
+  data: BacktestDetail
+  lang: Lang
+  theme: ChartTheme
+}): ReactElement {
+  const L = makeL(lang)
+  const onClick = (): void => {
+    downloadShareCard(data, lang, theme)
+    window.open(xIntentUrl(buildShareTweetText(data, lang)), '_blank', 'noopener,noreferrer')
+  }
+  return (
+    <button type="button" style={BTN_STYLE} onClick={onClick}>
+      {L('X で共有', 'Share on X')}
+    </button>
+  )
 }

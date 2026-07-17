@@ -31,7 +31,7 @@ import { MonteCarloChart } from '../components/charts/MonteCarloChart'
 import { MetricsGrid } from '../components/metrics/MetricsGrid'
 import { RegimeBreakdownCards } from '../components/metrics/RegimeBreakdownCards'
 import { SignalQualityBadge } from '../components/metrics/SignalQualityBadge'
-import { ShareCardButton } from '../components/ShareCardButton'
+import { ShareCardButton, ShareCardXButton } from '../components/ShareCardButton'
 import { TradeTable } from '../components/trades/TradeTable'
 import { AnnualReturnsBar } from '../components/charts/AnnualReturnsBar'
 import { LiveTab } from '../components/live/LiveTab'
@@ -185,6 +185,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                     PNG
                   </button>
                   <ShareCardButton data={data} lang={lang} theme={chartTheme} />
+                  <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
                 </div>
               </div>
               <div data-testid="backtest-equity-chart-tv">
@@ -260,6 +261,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                       PNG
                     </button>
                     <ShareCardButton data={data} lang={lang} theme={chartTheme} />
+                    <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
                   </div>
                 </div>
                 <div ref={equityRef} data-testid="backtest-equity-chart">

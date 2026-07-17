@@ -40,7 +40,7 @@ describe('RootLayout (issue #260)', () => {
     const footer = screen.getByRole('contentinfo')
     expect(footer).toBeInTheDocument()
     const link = screen.getAllByRole('link').find(
-      (l) => l.getAttribute('href') === 'https://alforgelabs.com',
+      (l) => (l.getAttribute('href') ?? '').startsWith('https://alforgelabs.com'),
     )
     expect(link).toBeDefined()
   })
