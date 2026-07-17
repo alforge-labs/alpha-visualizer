@@ -49,3 +49,9 @@ class DataSourceUnavailableError(AlphaVisualizerError):
     """
 
     status_code = 500
+
+
+class TooManyJobsError(AlphaVisualizerError):
+    """アクティブなジョブ数が上限に達している（流量ガード）。"""
+
+    status_code = 429

@@ -95,9 +95,16 @@ export function JobRunnerCard({
     cancelled: L('キャンセル済み', 'Cancelled'),
   }
 
+  const optionMin = isOptimize ? 1 : 2
+  const optionMax = isOptimize ? 1000 : 20
+
   const handleStart = (): void => {
     const parsed = optionValue.trim() === '' ? undefined : Number(optionValue)
-    const numeric = parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined
+    // <input min/max> は打鍵入力を制限しないため、送信前に API の許容範囲へクランプする
+    const numeric =
+      parsed !== undefined && Number.isFinite(parsed)
+        ? Math.min(optionMax, Math.max(optionMin, Math.round(parsed)))
+        : undefined
     void start({
       kind,
       strategy_id: strategyId,
@@ -137,8 +144,8 @@ export function JobRunnerCard({
           {optionLabel}
           <input
             type="number"
-            min={isOptimize ? 1 : 2}
-            max={isOptimize ? 1000 : 20}
+            min={optionMin}
+            max={optionMax}
             value={optionValue}
             onChange={(e) => setOptionValue(e.target.value)}
             disabled={running}

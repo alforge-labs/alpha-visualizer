@@ -30,8 +30,10 @@ from alpha_visualizer.services.jobs import (
 
 router = APIRouter()
 
-# SSE のハートビート間隔（プロキシ・ブラウザのアイドル切断対策）
-SSE_HEARTBEAT_SEC = 15.0
+# SSE の待機スライス。クライアント切断後もジェネレータは次の yield まで
+# 生存するため、待機を短く刻んで滞留時間を最大この秒数に抑える
+# （アイドル時はこの間隔でハートビートコメントを送る。keep-alive を兼ねる）。
+SSE_WAIT_SLICE_SEC = 2.0
 # 詳細レスポンスに含めるログ末尾の行数
 DETAIL_LOG_TAIL_LINES = 100
 
@@ -174,6 +176,9 @@ async def job_events(
         )
         sent_seq = seq
         version = manager.version
+        # ログの連続性は sent_seq ベースの log_since 再取得が保証する。
+        # version はウェイクアップのヒントに過ぎず、通知を取り逃しても
+        # 次のループで seq 差分から必ず回収される。
         while True:
             record = manager.get(job_id)
             if record is None:
@@ -193,7 +198,7 @@ async def job_events(
                     }
                 )
                 return
-            changed = await manager.wait_change(version, timeout=SSE_HEARTBEAT_SEC)
+            changed = await manager.wait_change(version, timeout=SSE_WAIT_SLICE_SEC)
             version = manager.version
             if not changed:
                 # コメント行はイベントとして解釈されない（keep-alive 用）

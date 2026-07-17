@@ -107,6 +107,36 @@ class TestJobsRouter:
         resp = jobs_client.post("/api/jobs", json=payload)
         assert resp.status_code == 422
 
+    def test_create_job_returns_429_when_active_limit_reached(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """非 terminal ジョブが上限に達したら 429 を返す（流量ガード）"""
+        stub = _make_stub(tmp_path, "sleep 30\n")
+        app = create_app(forge_dir=tmp_path)
+        app.state.job_manager = JobManager(
+            forge_config=ForgeConfig.from_forge_dir(tmp_path),
+            forge_resolver=lambda: stub,
+            concurrency=1,
+            timeout_sec=60,
+            max_active=1,
+        )
+        with TestClient(app) as client:
+            first = client.post(
+                "/api/jobs",
+                json={"kind": "backtest", "strategy_id": "s1", "symbol": "AAPL"},
+            )
+            assert first.status_code == 202
+
+            second = client.post(
+                "/api/jobs",
+                json={"kind": "backtest", "strategy_id": "s2", "symbol": "MSFT"},
+            )
+            assert second.status_code == 429
+
+            # 後始末: 実行中ジョブを止める
+            client.post(f"/api/jobs/{first.json()['job_id']}/cancel")
+            _wait_status(client, first.json()["job_id"], {"cancelled"})
+
     def test_cancel_job(self, tmp_path: pathlib.Path) -> None:
         stub = _make_stub(tmp_path, 'echo "started" >&2\nsleep 30\n')
         app = create_app(forge_dir=tmp_path)

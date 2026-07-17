@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 
+from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
@@ -49,6 +50,9 @@ JOB_CONCURRENCY_ENV = "ALPHA_VIS_JOB_CONCURRENCY"
 LOG_MAX_LINES = 500
 # 終了済みジョブの保持上限（超過した古い terminal ジョブから捨てる）
 MAX_JOBS_KEPT = 50
+# 非 terminal（queued / running）ジョブの上限。これが無いと大量作成で
+# セマフォ待ちタスクが際限なく積み上がる（流量ガード）
+MAX_ACTIVE_JOBS = 20
 # stdout（結果 JSON）の取り込み上限。これを超える分は切り捨てる
 STDOUT_MAX_BYTES = 20 * 1024 * 1024
 # terminate 後にプロセスが残った場合の kill までの猶予秒
@@ -123,6 +127,17 @@ def build_argv(
     return [*argv, "--", symbol]
 
 
+# 結果要約に保持するスカラー文字列の最大長（超過分は切り詰める）
+RESULT_STR_MAX_CHARS = 500
+
+
+def _compact_scalar(value: Any) -> Any:
+    """スカラー値を安全なサイズに丸める（長い文字列は切り詰め）。"""
+    if isinstance(value, str) and len(value) > RESULT_STR_MAX_CHARS:
+        return value[:RESULT_STR_MAX_CHARS] + "…"
+    return value
+
+
 def _compact_result(data: dict[str, Any]) -> dict[str, Any]:
     """結果 JSON をスカラー（と 1 段のスカラー dict）のみに圧縮する。
 
@@ -135,10 +150,10 @@ def _compact_result(data: dict[str, Any]) -> dict[str, Any]:
         if len(out) >= 40:
             break
         if value is None or isinstance(value, (str, int, float, bool)):
-            out[key] = value
+            out[key] = _compact_scalar(value)
         elif isinstance(value, dict):
             sub = {
-                k: v
+                k: _compact_scalar(v)
                 for k, v in list(value.items())[:40]
                 if v is None or isinstance(v, (str, int, float, bool))
             }
@@ -184,9 +199,11 @@ class JobManager:
         forge_resolver: Callable[[], str | None] = resolve_forge_exe,
         concurrency: int | None = None,
         timeout_sec: int | None = None,
+        max_active: int | None = None,
     ) -> None:
         self._forge_config = forge_config
         self._forge_resolver = forge_resolver
+        self._max_active = max_active or MAX_ACTIVE_JOBS
         self._concurrency = concurrency or _env_int(
             JOB_CONCURRENCY_ENV, DEFAULT_JOB_CONCURRENCY
         )
@@ -246,7 +263,11 @@ class JobManager:
             return False
 
     async def wait_status(self, job_id: str, status: JobStatus, timeout: float) -> JobRecord:
-        """指定ステータス（または terminal）到達まで待つテスト・内部用ヘルパー。"""
+        """指定ステータス（または terminal）到達まで待つテスト・内部用ヘルパー。
+
+        注意: 指定 status に到達しないまま terminal（failed 等）で終わった場合も
+        正常リターンする。呼び出し側は返り値の status を確認すること。
+        """
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             record = self._jobs[job_id]
@@ -279,7 +300,20 @@ class JobManager:
         trials: int | None = None,
         windows: int | None = None,
     ) -> JobRecord:
-        """ジョブを登録し、バックグラウンド実行タスクを起動する。"""
+        """ジョブを登録し、バックグラウンド実行タスクを起動する。
+
+        Raises:
+            TooManyJobsError: 非 terminal ジョブが上限（max_active）に達している。
+        """
+        active = sum(
+            1 for r in self._jobs.values() if r.status not in TERMINAL_STATUSES
+        )
+        if active >= self._max_active:
+            raise TooManyJobsError(
+                f"実行中・待機中のジョブが上限（{self._max_active}）に達しています。"
+                f" 完了またはキャンセルを待ってください"
+                f" / Too many active jobs (limit: {self._max_active})",
+            )
         job_id = f"job-{uuid.uuid4().hex[:12]}"
         record = JobRecord(
             job_id=job_id,

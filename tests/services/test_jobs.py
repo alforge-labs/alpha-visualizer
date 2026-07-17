@@ -11,6 +11,7 @@ import stat
 
 import pytest
 
+from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services.jobs import JobManager, build_argv
 
@@ -36,6 +37,7 @@ def _manager(
     *,
     concurrency: int = 1,
     timeout_sec: int = 10,
+    max_active: int | None = None,
 ) -> JobManager:
     cfg = ForgeConfig.from_forge_dir(tmp_path)
     return JobManager(
@@ -43,6 +45,7 @@ def _manager(
         forge_resolver=lambda: stub,
         concurrency=concurrency,
         timeout_sec=timeout_sec,
+        max_active=max_active,
     )
 
 
@@ -193,6 +196,32 @@ class TestJobLifecycle:
         assert record.status == "failed"
         assert record.error is not None
         assert record.error.rsplit(" ", 1)[-1] == "https://alforgelabs.com"
+
+    async def test_create_rejects_when_active_limit_reached(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """非 terminal ジョブが上限に達したら 429 相当のエラーで拒否する。
+
+        流量ガードが無いとジョブ大量作成でセマフォ待ちタスクが際限なく
+        積み上がる（SECURITY.md の非 localhost バインド注意との整合）。
+        """
+        stub = _make_stub(tmp_path, "sleep 30\n")
+        manager = _manager(tmp_path, stub, max_active=2)
+        first = await manager.create(kind="backtest", strategy_id="s1", symbol="AAPL")
+        second = await manager.create(kind="backtest", strategy_id="s2", symbol="MSFT")
+
+        with pytest.raises(TooManyJobsError):
+            await manager.create(kind="backtest", strategy_id="s3", symbol="GOOG")
+
+        # terminal になれば枠が空き、再び作成できる
+        await manager.cancel(first.job_id)
+        await manager.wait_terminal(first.job_id, timeout=10)
+        third = await manager.create(kind="backtest", strategy_id="s3", symbol="GOOG")
+        assert manager.get(third.job_id) is not None
+        # 後始末
+        for job_id in (second.job_id, third.job_id):
+            await manager.cancel(job_id)
+            await manager.wait_terminal(job_id, timeout=10)
 
     async def test_list_returns_newest_first(self, tmp_path: pathlib.Path) -> None:
         stub = _make_stub(tmp_path, "exit 0\n")
