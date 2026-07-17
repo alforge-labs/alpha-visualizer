@@ -518,7 +518,48 @@ export function StrategyTable({
                   letterSpacing: 'var(--tracking-mono)',
                 }}
               >
-                {L('該当する戦略はありません', 'No strategies match the current filters')}
+                {total > 0 ? (
+                  L('該当する戦略はありません', 'No strategies match the current filters')
+                ) : (
+                  /* データが一切ない初回起動（forge 未導入の OSS ユーザーの
+                     最初の接点）はデッドエンドにせず、次の一歩を提示する */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, lineHeight: 1.8 }}>
+                    <div style={{ color: 'var(--text2)' }}>
+                      {L('まだ戦略がありません', 'No strategies yet')}
+                    </div>
+                    <div>
+                      {L('サンプルデータで試す: ', 'Try with bundled samples: ')}
+                      <code
+                        style={{
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 4,
+                          padding: '2px 6px',
+                        }}
+                      >
+                        alpha-vis serve --use-bundled-samples
+                      </code>
+                    </div>
+                    <div>
+                      <a
+                        href="https://alforgelabs.com/?utm_source=alpha-visualizer&utm_medium=empty_state"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={L(
+                          'AlphaForge で最初のバックテストを作る（別タブで開く）',
+                          'Create your first backtest with AlphaForge (opens in new tab)',
+                        )}
+                        style={{ color: 'var(--accent)', textDecoration: 'none' }}
+                      >
+                        {L(
+                          'AlphaForge で最初のバックテストを作る',
+                          'Create your first backtest with AlphaForge',
+                        )}
+                        <span aria-hidden="true"> ↗</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
               </td>
             </tr>
           )}
