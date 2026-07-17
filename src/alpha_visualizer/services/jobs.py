@@ -132,9 +132,17 @@ RESULT_STR_MAX_CHARS = 500
 
 
 def _compact_scalar(value: Any) -> Any:
-    """スカラー値を安全なサイズに丸める（長い文字列は切り詰め）。"""
-    if isinstance(value, str) and len(value) > RESULT_STR_MAX_CHARS:
-        return value[:RESULT_STR_MAX_CHARS] + "…"
+    """スカラー値を安全なサイズ・内容に丸める。
+
+    - 長い文字列は切り詰め
+    - 文字列中のホームパスは ~ にマスク（optimize --save の stdout JSON には
+      saved_path 等の絶対パスが含まれる。ログと同じ漏洩対策を結果要約にも適用）
+    """
+    if isinstance(value, str):
+        masked = mask_home(value)
+        if len(masked) > RESULT_STR_MAX_CHARS:
+            return masked[:RESULT_STR_MAX_CHARS] + "…"
+        return masked
     return value
 
 
@@ -362,6 +370,34 @@ class JobManager:
             logger.warning("job %s が terminate に応答しないため kill します", job_id)
             _signal_process_tree(proc, force=True)
 
+    async def shutdown(self) -> None:
+        """実行中のジョブプロセスを止め、ワーカータスクを回収する（サーバー終了時）。
+
+        forge は start_new_session でセッション分離しているため、これを呼ばずに
+        サーバーを終了すると Ctrl+C の SIGINT が伝播せず孤児プロセスが残る。
+        FastAPI の lifespan（shutdown 側）から呼ばれる想定。
+        """
+        for record in self._jobs.values():
+            if record.status not in TERMINAL_STATUSES:
+                record.cancel_requested = True
+        for proc in list(self._procs.values()):
+            if proc.returncode is None:
+                _signal_process_tree(proc, force=True)
+        await self._notify()
+
+        pending = [t for t in self._tasks.values() if not t.done()]
+        if pending:
+            _done, still_pending = await asyncio.wait(pending, timeout=5.0)
+            for task in still_pending:
+                task.cancel()
+            if still_pending:
+                await asyncio.gather(*still_pending, return_exceptions=True)
+        # タスクを強制キャンセルした場合に running のまま残る record を閉じる
+        for record in self._jobs.values():
+            if record.status not in TERMINAL_STATUSES:
+                record.status = "cancelled"
+                record.finished_at = datetime.now(UTC)
+
     def _prune(self) -> None:
         """terminal な古いジョブから保持上限まで間引く。"""
         while len(self._order) > MAX_JOBS_KEPT:
@@ -483,15 +519,34 @@ class JobManager:
                 if len(stdout_buf) < STDOUT_MAX_BYTES:
                     stdout_buf.extend(chunk)
 
+        # 行分割は readline() でなくチャンク読みで自前処理する:
+        # StreamReader.readline() は改行なしの 64KiB 超で ValueError を投げ、
+        # ジョブが「内部エラー」に丸められてしまうため。
+        STDERR_LINE_MAX = 64 * 1024
+
         async def _pump_stderr() -> None:
             assert proc.stderr is not None
+            buf = b""
             while True:
-                line = await proc.stderr.readline()
-                if not line:
+                chunk = await proc.stderr.read(65536)
+                if not chunk:
+                    if buf:
+                        await self._append_log(
+                            record, buf.decode("utf-8", errors="replace").rstrip()
+                        )
                     return
-                await self._append_log(
-                    record, line.decode("utf-8", errors="replace").rstrip()
-                )
+                buf += chunk
+                *complete, buf = buf.split(b"\n")
+                for raw in complete:
+                    await self._append_log(
+                        record, raw.decode("utf-8", errors="replace").rstrip()
+                    )
+                if len(buf) > STDERR_LINE_MAX:
+                    # 改行の来ない巨大行は切り出してログへ吐き、バッファ肥大を防ぐ
+                    await self._append_log(
+                        record, buf.decode("utf-8", errors="replace")
+                    )
+                    buf = b""
 
         # パイプ回収はプロセス終了待ちと分離する: 子（sh）が死んでも孫プロセスが
         # パイプを握り続けると pump が EOF にならず、gather 一体待ちだと

@@ -41,12 +41,12 @@ export function DetailPage() {
     runsState.status === 'ready' && runsState.data.length > 0 ? runsState.data[0]!.run_id : null
   const runId = urlRunId ?? manualRunId ?? latestRunId
 
-  // ジョブ（optimize / WFT）完了時にタブのデータだけ再フェッチするトークン（issue #292）
+  // optimize ジョブ完了時にタブのデータだけ再フェッチするトークン（issue #292）。
+  // WFT は forge 側に DB 記録が無く再フェッチしても新データは来ないため対象外。
   const [optimizeReload, setOptimizeReload] = useState(0)
-  const [wfoReload, setWfoReload] = useState(0)
 
   const backtest = useBacktest({ runId, reloadToken })
-  const wfo = useWFO(strategyId ?? null, wfoReload)
+  const wfo = useWFO(strategyId ?? null)
   const optimize = useOptimize(strategyId ?? null, optimizeReload)
   const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
   const compact = density === 'compact'
@@ -209,9 +209,6 @@ export function DetailPage() {
                     strategyId={strategyId}
                     symbol={symbol}
                     lang={lang}
-                    onFinished={(s) => {
-                      if (s === 'succeeded') setWfoReload((t) => t + 1)
-                    }}
                   />
                 )}
                 {wfo.status === 'loading' ? (

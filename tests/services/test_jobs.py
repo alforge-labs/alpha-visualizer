@@ -133,6 +133,70 @@ class TestJobLifecycle:
         _, lines = manager.log_since(job.job_id, 0)
         assert any(line == "saved to ~/data/x.parquet" for line in lines)
 
+    async def test_result_masks_home_directory(self, tmp_path: pathlib.Path) -> None:
+        """結果要約内の文字列値もホームパスを ~ にマスクする。
+
+        optimize --save の stdout JSON には saved_path（絶対パス）が含まれる。
+        SECURITY.md の「レスポンス中のホームパスはマスクされる」という約束を
+        ログだけでなく結果要約にも適用する。
+        """
+        stub = _make_stub(
+            tmp_path,
+            'printf \'{"run_id": "r1", "saved_path": "%s/data/results/opt.json",'
+            ' "report": {"path": "%s/report.json"}}\' "$HOME" "$HOME"\n',
+        )
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(kind="optimize", strategy_id="s1", symbol="AAPL")
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["saved_path"] == "~/data/results/opt.json"
+        assert record.result["report"]["path"] == "~/report.json"
+
+    async def test_shutdown_terminates_running_jobs(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """shutdown() は実行中プロセスを止めてワーカーを回収する。
+
+        start_new_session でセッション分離しているため、これが無いと
+        サーバー終了（Ctrl+C）時に forge プロセスが孤児として残る。
+        """
+        stub = _make_stub(tmp_path, 'echo "started" >&2\nsleep 30\n')
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(kind="backtest", strategy_id="s1", symbol="AAPL")
+        await manager.wait_status(job.job_id, "running", timeout=10)
+
+        await manager.shutdown()
+
+        record = manager.get(job.job_id)
+        assert record is not None
+        assert record.status in {"cancelled", "failed"}
+
+    async def test_huge_single_stderr_line_does_not_fail_job(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """改行なしの巨大 stderr 行（64KiB 超）でジョブが内部エラーにならない。
+
+        StreamReader.readline() は limit 超過で ValueError を投げるため、
+        行分割はチャンク読みで自前処理する必要がある。
+        """
+        stub = _make_stub(
+            tmp_path,
+            # 100KB の改行なし1行を stderr へ出してから正常終了する
+            "head -c 102400 /dev/zero | tr '\\0' 'x' >&2\n"
+            'printf \'{"run_id": "run-huge-1"}\'\n',
+        )
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(kind="backtest", strategy_id="s1", symbol="AAPL")
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["run_id"] == "run-huge-1"
+        _, lines = manager.log_since(job.job_id, 0)
+        assert any("x" in line for line in lines)
+
     async def test_cancel_running_job(self, tmp_path: pathlib.Path) -> None:
         stub = _make_stub(tmp_path, 'echo "started" >&2\nsleep 30\n')
         manager = _manager(tmp_path, stub)
