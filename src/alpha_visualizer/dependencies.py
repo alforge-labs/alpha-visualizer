@@ -14,6 +14,7 @@ from alpha_visualizer.repositories.ideas import IdeasReader
 from alpha_visualizer.repositories.live import LiveDataRepository
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import StrategiesRepository
+from alpha_visualizer.services.jobs import JobManager
 
 
 def get_forge_config_dep(request: Request) -> ForgeConfig:
@@ -58,6 +59,11 @@ def get_strategies_repo(request: Request) -> StrategiesRepository:
 def get_optimization_repo(request: Request) -> OptimizationRepository:
     """``OptimizationRepository`` を ``app.state.engine`` から構築して返す。"""
     return OptimizationRepository(request.app.state.engine)
+
+
+def get_job_manager(request: Request) -> JobManager:
+    """``app.state.job_manager``（非同期ジョブ基盤）を返す。"""
+    return request.app.state.job_manager
 
 
 def get_live_repo(request: Request) -> LiveDataRepository:

@@ -4,14 +4,14 @@
 forge backtest run を ``--json`` 付きでサブプロセス実行し、stdout の JSON から
 run_id を取得して返す。古い forge（--json に run_id 非搭載）では従来どおり
 ``BacktestResultsRepository`` の最新 run_id にフォールバックする（#291）。
+
+長時間ジョブ（optimize / WFT）は ``routers/jobs.py`` の非同期ジョブ基盤を使う。
+forge CLI 呼び出しの共有ヘルパーは ``services/forge_cli.py`` に集約。
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
-import pathlib
-import shutil
 import subprocess
 from typing import Annotated
 
@@ -25,6 +25,13 @@ from alpha_visualizer.dependencies import (
 from alpha_visualizer.errors import DataCorruptError, ExternalProcessError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
+from alpha_visualizer.services.forge_cli import (
+    FORGE_NOT_FOUND_MESSAGE,
+    build_forge_env,
+    mask_home,
+    parse_json_lenient,
+    resolve_forge_exe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,38 +88,16 @@ def _resolve_timeout() -> int:
 def _parse_run_id(stdout: str) -> str | None:
     """``--json`` の stdout から run_id を取り出す。
 
-    forge #1232（v0.17 系）以降は JSON 本体に run_id が載る。stdout 全体が
-    JSON でない場合も、警告行などが前後に混ざっただけの可能性があるため、
-    最初の ``{`` から最後の ``}`` までの抽出を試す。それでも取れなければ
+    forge #1232（v0.17 系）以降は JSON 本体に run_id が載る。取れなければ
     None を返し、呼び出し側で DB フォールバックする。
     """
-    candidates = [stdout]
-    start = stdout.find("{")
-    end = stdout.rfind("}")
-    if 0 <= start < end:
-        candidates.append(stdout[start : end + 1])
-    for candidate in candidates:
-        try:
-            data = json.loads(candidate)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if not isinstance(data, dict):
-            continue
-        run_id = data.get("run_id")
-        if isinstance(run_id, str) and run_id:
-            return run_id
+    data = parse_json_lenient(stdout)
+    if data is None:
+        return None
+    run_id = data.get("run_id")
+    if isinstance(run_id, str) and run_id:
+        return run_id
     return None
-
-
-def _mask_home(text: str) -> str:
-    """ホームディレクトリの絶対パスを ``~`` にマスクする。
-
-    forge の出力にはデータ保存先などの絶対パスが含まれうる。非 localhost
-    バインドで公開された場合にユーザー名等の実行環境情報が API レスポンス
-    経由で漏れないようにする。
-    """
-    home = str(pathlib.Path.home())
-    return text.replace(home, "~")
 
 
 def _log_tail(stderr: str) -> str | None:
@@ -121,7 +106,7 @@ def _log_tail(stderr: str) -> str | None:
     if not text:
         return None
     lines = text.splitlines()
-    return _mask_home("\n".join(lines[-LOG_TAIL_MAX_LINES:]))
+    return mask_home("\n".join(lines[-LOG_TAIL_MAX_LINES:]))
 
 
 @router.post("/run", response_model=RunBacktestResponse)
@@ -131,25 +116,13 @@ def run_backtest(
     bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
 ) -> RunBacktestResponse:
     """forge backtest run をサブプロセス実行し、run_id と実行ログ末尾を返す。"""
-    forge_exe = shutil.which("forge")
+    forge_exe = resolve_forge_exe()
     if forge_exe is None:
-        # Run 実行時が AlphaForge 導入意欲の最も高い接点なので、
-        # インストール先への導線をエラーメッセージに含める。
-        raise ExternalProcessError(
-            "forge コマンドが見つかりません。AlphaForge を導入してください"
-            " / forge command not found in PATH. Install AlphaForge"
-            " — https://alforgelabs.com",
-        )
+        raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
 
-    env = os.environ.copy()
-    # 破壊的操作の確認プロンプト（forge_confirm）を非対話化する。
-    # 注意: EULA 未同意時の Confirm.ask() はこれでは防げない（非対話同意は
-    # FORGE_ACCEPT_EULA のみ）。勝手に EULA へ同意するのは避け、stdin を
-    # 閉じることでハングせず即座に失敗させる（下の stdin=DEVNULL）。
-    env["FORGE_NONINTERACTIVE"] = "1"
-    forge_yaml = forge_cfg.forge_dir / "forge.yaml"
-    if forge_yaml.exists():
-        env["FORGE_CONFIG"] = str(forge_yaml)
+    # EULA 未同意時の Confirm.ask() は FORGE_NONINTERACTIVE では防げないため、
+    # stdin=DEVNULL でハングせず即座に失敗させる（build_forge_env の docstring 参照）。
+    env = build_forge_env(forge_cfg)
 
     timeout = _resolve_timeout()
     try:

@@ -12,6 +12,8 @@ import { RunHistoryTab } from '../components/browser/RunHistoryTab'
 import { MetricsSummaryBarV2 } from '../components/MetricsSummaryBarV2'
 import { DetailToolbar } from '../components/DetailToolbar'
 import { StrategyHero } from '../components/StrategyHero'
+import { RunLogDetails } from '../components/RunLogDetails'
+import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
@@ -39,9 +41,13 @@ export function DetailPage() {
     runsState.status === 'ready' && runsState.data.length > 0 ? runsState.data[0]!.run_id : null
   const runId = urlRunId ?? manualRunId ?? latestRunId
 
+  // ジョブ（optimize / WFT）完了時にタブのデータだけ再フェッチするトークン（issue #292）
+  const [optimizeReload, setOptimizeReload] = useState(0)
+  const [wfoReload, setWfoReload] = useState(0)
+
   const backtest = useBacktest({ runId, reloadToken })
-  const wfo = useWFO(strategyId ?? null)
-  const optimize = useOptimize(strategyId ?? null)
+  const wfo = useWFO(strategyId ?? null, wfoReload)
+  const optimize = useOptimize(strategyId ?? null, optimizeReload)
   const strategyDetail = useStrategyDetail(tab === 'strategy' ? (strategyId ?? null) : null)
   const compact = density === 'compact'
   const { run: runBt, running: btRunning, error: runError, logTail: runLogTail } = useRunBacktest()
@@ -132,36 +138,7 @@ export function DetailPage() {
       {/* 実行ログは再実行結果が反映される backtest タブでのみ表示する（他タブへの残留防止） */}
       {runLogTail && tab === 'backtest' && (
         <div style={{ padding: 'var(--space-2) var(--layout-gutter)', flexShrink: 0 }}>
-          <details>
-            <summary
-              style={{
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text3)',
-                letterSpacing: 'var(--tracking-mono)',
-              }}
-            >
-              {L('実行ログ', 'Run log')}
-            </summary>
-            <pre
-              style={{
-                margin: '8px 0 0',
-                padding: '8px 12px',
-                maxHeight: 180,
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text2)',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-              }}
-            >
-              {runLogTail}
-            </pre>
-          </details>
+          <RunLogDetails log={runLogTail} lang={lang} />
         </div>
       )}
 
@@ -224,36 +201,64 @@ export function DetailPage() {
                   {L('バックテストタブを先に読み込んでください', 'Load Backtest tab first')}
                 </Note>
               ))}
-            {tab === 'wfo' &&
-              (wfo.status === 'loading' ? (
-                <Loading label={L('読み込み中…', 'Loading…')} />
-              ) : wfo.status === 'no_data' ? (
-                <Note>
-                  {L(
-                    'この戦略にはウォークフォワード（WFO）データがありません',
-                    'No walk-forward (WFO) data for this strategy',
-                  )}
-                </Note>
-              ) : wfo.status === 'error' ? (
-                <Note tone="danger">{wfo.error}</Note>
-              ) : (
-                <WFOScreen data={wfo.data} compact={compact} lang={lang} />
-              ))}
-            {tab === 'optimize' &&
-              (optimize.status === 'loading' ? (
-                <Loading label={L('読み込み中…', 'Loading…')} />
-              ) : optimize.status === 'no_data' ? (
-                <Note>
-                  {L(
-                    'この戦略には最適化（Optimize）データがありません',
-                    'No optimization data for this strategy',
-                  )}
-                </Note>
-              ) : optimize.status === 'error' ? (
-                <Note tone="danger">{optimize.error}</Note>
-              ) : (
-                <OptimizeScreen data={optimize.data} compact={compact} lang={lang} />
-              ))}
+            {tab === 'wfo' && (
+              <>
+                {strategyId && symbol && (
+                  <JobRunnerCard
+                    kind="wft"
+                    strategyId={strategyId}
+                    symbol={symbol}
+                    lang={lang}
+                    onFinished={(s) => {
+                      if (s === 'succeeded') setWfoReload((t) => t + 1)
+                    }}
+                  />
+                )}
+                {wfo.status === 'loading' ? (
+                  <Loading label={L('読み込み中…', 'Loading…')} />
+                ) : wfo.status === 'no_data' ? (
+                  <Note>
+                    {L(
+                      'この戦略にはウォークフォワード（WFO）データがありません',
+                      'No walk-forward (WFO) data for this strategy',
+                    )}
+                  </Note>
+                ) : wfo.status === 'error' ? (
+                  <Note tone="danger">{wfo.error}</Note>
+                ) : (
+                  <WFOScreen data={wfo.data} compact={compact} lang={lang} />
+                )}
+              </>
+            )}
+            {tab === 'optimize' && (
+              <>
+                {strategyId && symbol && (
+                  <JobRunnerCard
+                    kind="optimize"
+                    strategyId={strategyId}
+                    symbol={symbol}
+                    lang={lang}
+                    onFinished={(s) => {
+                      if (s === 'succeeded') setOptimizeReload((t) => t + 1)
+                    }}
+                  />
+                )}
+                {optimize.status === 'loading' ? (
+                  <Loading label={L('読み込み中…', 'Loading…')} />
+                ) : optimize.status === 'no_data' ? (
+                  <Note>
+                    {L(
+                      'この戦略には最適化（Optimize）データがありません',
+                      'No optimization data for this strategy',
+                    )}
+                  </Note>
+                ) : optimize.status === 'error' ? (
+                  <Note tone="danger">{optimize.error}</Note>
+                ) : (
+                  <OptimizeScreen data={optimize.data} compact={compact} lang={lang} />
+                )}
+              </>
+            )}
             {tab === 'history' &&
               (runsState.status === 'ready' ? (
                 <RunHistoryTab

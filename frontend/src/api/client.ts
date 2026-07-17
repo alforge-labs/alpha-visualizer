@@ -1,4 +1,4 @@
-import type { BacktestDetail, HistoricalResponse, IdeaItem, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, CreateJobParams, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -84,6 +84,21 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ strategy_id: strategyId, symbol }),
     }),
+
+  createJob: (params: CreateJobParams): Promise<JobSummary> =>
+    request<JobSummary>('/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    }),
+
+  listJobs: (): Promise<JobSummary[]> => request<JobSummary[]>('/jobs'),
+
+  getJob: (jobId: string): Promise<JobDetail> =>
+    request<JobDetail>(`/jobs/${encodeURIComponent(jobId)}`),
+
+  cancelJob: (jobId: string): Promise<JobSummary> =>
+    request<JobSummary>(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }),
 
   listIdeas: (status?: string): Promise<IdeaItem[]> =>
     request<IdeaItem[]>(`/ideas${status ? `?status=${encodeURIComponent(status)}` : ''}`),
