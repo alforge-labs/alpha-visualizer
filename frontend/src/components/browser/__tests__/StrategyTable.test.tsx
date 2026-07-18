@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { StrategyTable } from '../StrategyTable'
 
@@ -45,5 +46,51 @@ describe('<StrategyTable /> empty states', () => {
     )
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel') ?? '').toContain('noopener')
+  })
+})
+
+/**
+ * vis#299: Browse 一覧の latest 指標が「保存していないチューニング試行ラン」に
+ * すり替わったことに気づけるよう、latest_source=strategy-file にマーカーを出す。
+ */
+describe('<StrategyTable /> latest-source marker (issue #299)', () => {
+  function renderWithItem(latestSource: string | null) {
+    render(
+      <MemoryRouter>
+        <StrategyTable
+          items={[
+            {
+              strategy_id: 's1',
+              name: 'S1',
+              symbol: 'AAPL',
+              timeframe: '1d',
+              tags: [],
+              target_symbols: [],
+              latest_sharpe: 1.2,
+              latest_source: latestSource,
+            } as unknown as import('../../../api/types').StrategyListItem,
+          ]}
+          total={1}
+          sortKey="latest_sharpe"
+          sortDir="desc"
+          onSort={vi.fn()}
+          selectedId={null}
+          onSelect={vi.fn()}
+          compareIds={[]}
+          onToggleCompare={vi.fn()}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+  }
+
+  it('shows the marker when the latest run is a strategy-file trial', () => {
+    renderWithItem('strategy-file')
+    expect(screen.getByTestId('latest-source-badge')).toBeInTheDocument()
+  })
+
+  it('shows no marker for normal or unknown provenance', () => {
+    renderWithItem('strategy')
+    expect(screen.queryByTestId('latest-source-badge')).not.toBeInTheDocument()
   })
 })

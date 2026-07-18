@@ -185,6 +185,8 @@ export interface BacktestDetail {
   benchmark_annual_returns: Record<string, number>
   regime_series?: RegimeSeries
   regime_breakdown?: RegimeBreakdown
+  /** 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299） */
+  source?: string | null
 }
 
 export interface StrategyRun {
@@ -193,6 +195,8 @@ export interface StrategyRun {
   sharpe_ratio: number | null
   total_return_pct: number | null
   max_drawdown_pct: number | null
+  /** 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299） */
+  source: string | null
 }
 
 export interface RunBacktestResult {

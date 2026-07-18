@@ -53,6 +53,7 @@ export const api = {
       sharpe?: number | null
       return_pct?: number | null
       max_drawdown_pct?: number | null
+      source?: string | null
     }
     interface StrategyDetailLite {
       results?: StrategyResultRow[]
@@ -72,6 +73,7 @@ export const api = {
         sharpe_ratio: r.sharpe ?? null,
         total_return_pct: r.return_pct ?? null,
         max_drawdown_pct: r.max_drawdown_pct ?? null,
+        source: r.source ?? null,
       }))
   },
 

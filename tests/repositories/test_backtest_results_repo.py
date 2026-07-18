@@ -225,3 +225,61 @@ def test_find_latest_by_strategy_ids_returns_latest(tmp_path: Path) -> None:
     # 最新は run_002
     assert result["sma_cross"].run_id == "run_002"
     assert result["sma_cross"].run_at == "2026-04-02T12:00:00"
+
+
+class TestSourceColumn:
+    """source（実行元 provenance・vis#299）の読み取りテスト。
+
+    WHY: source 列は forge 側の ALTER TABLE（書き込み時）で後付けされるため、
+    旧 forge が書いた DB には存在しない。visualizer は読み取り専用で ALTER
+    しない（single-writer 原則）ので、列の有無どちらでも読めることを固定する。
+    """
+
+    def test_source列があるdbで値が返る(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET source = 'strategy-file'"
+                " WHERE run_id = 'run_001'"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.source == "strategy-file"
+        # 他の行（UPDATE していない）は NULL → None
+        rows = {r.run_id: r for r in repo.list_results()}
+        assert rows["run_002"].source is None
+
+    def test_find_latest_by_strategy_idsでもsourceが返る(
+        self, tmp_path: Path
+    ) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET source = 'strategy-file'"
+                " WHERE run_id = 'run_002'"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        latest = repo.find_latest_by_strategy_ids(["sma_cross"])
+        # sma_cross の最新は run_002（2026-04-02）
+        assert latest["sma_cross"].source == "strategy-file"
+
+    def test_source列がない旧dbでも読めてsourceはnone(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("ALTER TABLE backtest_results DROP COLUMN source")
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        rows = repo.list_results()
+        assert len(rows) == 3
+        assert all(r.source is None for r in rows)
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.source is None
+
+        latest = repo.find_latest_by_strategy_ids(["sma_cross", "ema_cross"])
+        assert latest["sma_cross"].source is None
+        assert latest["ema_cross"].source is None

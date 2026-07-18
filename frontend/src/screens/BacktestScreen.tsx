@@ -114,6 +114,26 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
   return (
     <div data-testid="backtest-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      {data.source === 'strategy-file' && (
+        <p
+          data-testid="source-trial-note"
+          role="status"
+          style={{
+            margin: 0,
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: '1px solid var(--warn)',
+            color: 'var(--warn)',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+          }}
+        >
+          {L(
+            'このランは定義ファイル直接実行（保存していないパラメータでのチューニング試行など）です。保存済みの戦略定義とはパラメータが異なる可能性があります。',
+            'This run was executed from a definition file (e.g. a tuning trial with unsaved parameters) and may differ from the saved strategy definition.',
+          )}
+        </p>
+      )}
       <TabBar bordered>
         {tabs.map(([id, label]) => (
           <Tab key={id} active={tab === id} onClick={() => setTab(id)} small>

@@ -228,6 +228,23 @@ function StrategyRow({
         }}
       >
         {fmtNumber(s.latest_sharpe, { decimals: 2 })}
+        {s.latest_source === 'strategy-file' && (
+          <span
+            data-testid="latest-source-badge"
+            role="img"
+            aria-label={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            title={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            style={{ marginLeft: 4, color: 'var(--warn)', fontSize: 10 }}
+          >
+            ⚠
+          </span>
+        )}
       </td>
       <td
         style={{

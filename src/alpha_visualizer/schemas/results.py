@@ -127,6 +127,8 @@ class BacktestDetail(BaseModel):
     benchmark_annual_returns: dict[int, float] = {}
     regime_series: RegimeSeries | None = None
     regime_breakdown: dict[str, Any] | None = None
+    # 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299）
+    source: str | None = None
 
     @model_serializer(mode="wrap")
     def _serialize_with_optional_regime(self, handler):  # type: ignore[no-untyped-def]

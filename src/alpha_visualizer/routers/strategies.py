@@ -104,6 +104,7 @@ def _strategy_to_summary(
         "latest_win_rate_pct": None,
         "latest_total_trades": None,
         "last_run_at": None,
+        "latest_source": None,
     }
     if latest is not None:
         entry["symbol"] = latest.symbol
@@ -114,6 +115,7 @@ def _strategy_to_summary(
         entry["latest_win_rate_pct"] = latest.win_rate_pct
         entry["latest_total_trades"] = latest.total_trades
         entry["last_run_at"] = latest.run_at
+        entry["latest_source"] = latest.source
     return entry
 
 
@@ -178,6 +180,7 @@ def _list_all_results_summary(
             "max_drawdown_pct": r.max_drawdown_pct,
             "total_trades": r.total_trades,
             "run_at": r.run_at,
+            "source": r.source,
         }
         for r in rows
     ]

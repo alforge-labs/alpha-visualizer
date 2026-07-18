@@ -398,6 +398,7 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
         "max_drawdown_pct": row.max_drawdown_pct,
         "total_trades": row.total_trades,
         "oos_start": row.oos_start,
+        "source": row.source,
         "metrics": metrics,
         "equity_curve": equity_curve,
         "buy_hold_curve": buy_hold_curve,
@@ -466,6 +467,8 @@ def _shape_detail_from_record(record: dict[str, Any]) -> dict[str, Any]:
         "monthly_returns": monthly,
         "trades": trades,
         "benchmark_annual_returns": benchmark_annual,
+        # 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299）
+        "source": record.get("source"),
     }
     if regime_series is not None:
         result["regime_series"] = regime_series
