@@ -2,6 +2,7 @@ import type { StrategyRun } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { fmtNumber } from '../../lib/format'
+import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 interface Props {
   runs: StrategyRun[]
@@ -34,7 +35,7 @@ export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) 
               }}>
                 <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>
                   {r.run_at.slice(0, 16).replace('T', ' ')}
-                  {r.source === 'strategy-file' && (
+                  {r.source === RUN_SOURCE_STRATEGY_FILE && (
                     <span
                       data-testid="run-source-badge"
                       title={L(

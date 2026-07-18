@@ -283,3 +283,45 @@ class TestSourceColumn:
         latest = repo.find_latest_by_strategy_ids(["sma_cross", "ema_cross"])
         assert latest["sma_cross"].source is None
         assert latest["ema_cross"].source is None
+
+    def test_列検出が旧スキーマ系エラーのとき列なしへフォールバックする(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """inspect が NoSuchTableError / OperationalError のときは「列なし」扱い。
+
+        WHY: 検出失敗で 500 になるより、source なし（旧 DB 相当）として
+        読み取りを継続する方が読み取り専用ビューアとして適切。それ以外の
+        例外は Fail Loud で送出する（次テスト）。
+        """
+        from sqlalchemy.exc import NoSuchTableError
+
+        from alpha_visualizer.repositories import backtest_results as module
+
+        db_path = _make_db(tmp_path)
+
+        def _raise_no_table(engine: object) -> object:
+            raise NoSuchTableError("backtest_results")
+
+        monkeypatch.setattr(module, "inspect", _raise_no_table)
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        rows = repo.list_results()
+        assert len(rows) == 3
+        # 実 DB には source 列があるが、検出失敗時は SELECT に含めない → None
+        assert all(r.source is None for r in rows)
+
+    def test_列検出の想定外例外は送出される(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from alpha_visualizer.repositories import backtest_results as module
+
+        db_path = _make_db(tmp_path)
+
+        def _raise_unexpected(engine: object) -> object:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(module, "inspect", _raise_unexpected)
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        with pytest.raises(RuntimeError):
+            repo.list_results()

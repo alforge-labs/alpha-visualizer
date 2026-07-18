@@ -10,6 +10,7 @@ import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import { fmtNumber, fmtDate } from '../../lib/format'
+import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 interface Props {
   items: StrategyListItem[]
@@ -228,7 +229,7 @@ function StrategyRow({
         }}
       >
         {fmtNumber(s.latest_sharpe, { decimals: 2 })}
-        {s.latest_source === 'strategy-file' && (
+        {s.latest_source === RUN_SOURCE_STRATEGY_FILE && (
           <span
             data-testid="latest-source-badge"
             role="img"

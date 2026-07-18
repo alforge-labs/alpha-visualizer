@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { RUN_SOURCE_STRATEGY_FILE } from '../constants/runSource'
 import type { BacktestDetail } from '../api/types'
 import { useLiveAvailability } from '../hooks/useLiveAvailability'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
@@ -114,7 +115,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
   return (
     <div data-testid="backtest-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-      {data.source === 'strategy-file' && (
+      {data.source === RUN_SOURCE_STRATEGY_FILE && (
         <p
           data-testid="source-trial-note"
           role="status"
