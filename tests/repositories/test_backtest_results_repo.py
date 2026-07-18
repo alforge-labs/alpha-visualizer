@@ -325,3 +325,70 @@ class TestSourceColumn:
 
         with pytest.raises(RuntimeError):
             repo.list_results()
+
+
+class TestCarryAdjustedColumn:
+    """carry_adjusted_json（FX キャリー近似・vis#308）の読み取りテスト。
+
+    WHY: carry_adjusted_json 列も source と同じく forge 側の ALTER TABLE で
+    後付けされるため、旧 forge が書いた DB には存在しない。後付け列が複数に
+    なったので、_select_columns は「実在する後付け列の集合」で SELECT を
+    組み替えられることを固定する。
+    """
+
+    _CARRY_JSON = (
+        '{"metrics": {"total_return_pct": 12.3, "sharpe_ratio": 1.35},'
+        ' "note": "金利差近似の参考値"}'
+    )
+
+    def test_carry列があるdbで値が返る(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET carry_adjusted_json = ?"
+                " WHERE run_id = 'run_001'",
+                (self._CARRY_JSON,),
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.carry_adjusted_json == self._CARRY_JSON
+        # 他の行（UPDATE していない）は NULL → None = キャリー計上なし
+        rows = {r.run_id: r for r in repo.list_results()}
+        assert rows["run_002"].carry_adjusted_json is None
+
+    def test_carry列だけ無い現行forge_dbでも読める(self, tmp_path: Path) -> None:
+        """source あり・carry なし（--carry 永続化前の forge が書いた DB）の互換。"""
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "ALTER TABLE backtest_results DROP COLUMN carry_adjusted_json"
+            )
+            conn.execute(
+                "UPDATE backtest_results SET source = 'strategy'"
+                " WHERE run_id = 'run_001'"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.source == "strategy"  # 実在する後付け列は引き続き読める
+        assert row.carry_adjusted_json is None
+
+    def test_後付け列が両方無い旧dbでも読める(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("ALTER TABLE backtest_results DROP COLUMN source")
+            conn.execute(
+                "ALTER TABLE backtest_results DROP COLUMN carry_adjusted_json"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        rows = repo.list_results()
+        assert len(rows) == 3
+        assert all(r.source is None for r in rows)
+        assert all(r.carry_adjusted_json is None for r in rows)
+
+        latest = repo.find_latest_by_strategy_ids(["sma_cross"])
+        assert latest["sma_cross"].carry_adjusted_json is None

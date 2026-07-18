@@ -38,6 +38,10 @@ _ALL_COLUMNS: Final = (
     backtest_results.c.oos_start,
 )
 
+# forge 側の ALTER TABLE で後付けされる列（旧 forge が書いた DB には存在しない。
+# DTO のフィールド名と一致させること — 実在する列のみ SELECT に含める）
+_OPTIONAL_COLUMNS: Final = ("source", "carry_adjusted_json")
+
 
 @dataclass(frozen=True)
 class BacktestResultRow:
@@ -64,6 +68,8 @@ class BacktestResultRow:
     oos_start: str | None
     # 実行元 provenance（vis#299）。列が無い旧 DB では常に None
     source: str | None = None
+    # FX キャリー近似の {"metrics", "note"} JSON（vis#308）。列が無い DB では常に None
+    carry_adjusted_json: str | None = None
 
 
 class BacktestResultsRepository:
@@ -74,12 +80,13 @@ class BacktestResultsRepository:
         self._select_columns_cache: tuple[Any, ...] | None = None
 
     def _select_columns(self) -> tuple[Any, ...]:
-        """SELECT 対象カラムを返す（``source`` は実在するときのみ含める）。
+        """SELECT 対象カラムを返す（後付け列は実在するときのみ含める）。
 
-        ``source`` 列は forge 側の ALTER TABLE（書き込み時）で後付けされるため、
-        旧 forge が書いた DB には存在しない。visualizer は読み取り専用で ALTER
-        しない（single-writer 原則）ので、列の有無を検出して SELECT を組み替える。
-        無い場合 DTO の ``source`` は既定値 None になる。
+        ``_OPTIONAL_COLUMNS`` の列は forge 側の ALTER TABLE（書き込み時）で
+        後付けされるため、旧 forge が書いた DB には一部または全部が存在しない。
+        visualizer は読み取り専用で ALTER しない（single-writer 原則）ので、
+        列の有無を検出して SELECT を組み替える。無い列の DTO フィールドは
+        既定値 None になる。
 
         検出結果はインスタンス内キャッシュ（= Depends によりリクエスト単位）。
         forge が ALTER した直後もサーバー再起動なしで次リクエストから追従できる。
@@ -93,12 +100,15 @@ class BacktestResultsRepository:
                     for c in inspect(self._engine).get_columns("backtest_results")
                 }
             except (NoSuchTableError, OperationalError) as exc:
-                logger.debug("source 列の検出に失敗（旧 DB 相当として扱う）: %s", exc)
+                logger.debug("後付け列の検出に失敗（旧 DB 相当として扱う）: %s", exc)
                 names = set()
             self._select_columns_cache = (
-                (*_ALL_COLUMNS, backtest_results.c.source)
-                if "source" in names
-                else _ALL_COLUMNS
+                *_ALL_COLUMNS,
+                *(
+                    getattr(backtest_results.c, name)
+                    for name in _OPTIONAL_COLUMNS
+                    if name in names
+                ),
             )
         return self._select_columns_cache
 

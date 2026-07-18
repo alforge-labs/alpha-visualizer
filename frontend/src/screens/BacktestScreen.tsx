@@ -29,6 +29,7 @@ import { MAEMFEScatter } from '../components/charts/MAEMFEScatter'
 import { DrawdownDetailChart } from '../components/charts/DrawdownDetailChart'
 import { VaRChart } from '../components/charts/VaRChart'
 import { MonteCarloChart } from '../components/charts/MonteCarloChart'
+import { CarryAdjustedCard } from '../components/metrics/CarryAdjustedCard'
 import { MetricsGrid } from '../components/metrics/MetricsGrid'
 import { RegimeBreakdownCards } from '../components/metrics/RegimeBreakdownCards'
 import { SignalQualityBadge } from '../components/metrics/SignalQualityBadge'
@@ -326,6 +327,9 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
       {tab === 'metrics' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <MetricsGrid metrics={data.metrics} compact={compact} lang={lang} />
+          {data.carry_adjusted && (
+            <CarryAdjustedCard carry={data.carry_adjusted} lang={lang} />
+          )}
           <SignalQualityBadge metrics={data.metrics} lang={lang} />
         </div>
       )}
