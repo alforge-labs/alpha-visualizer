@@ -49,6 +49,11 @@ _WFO_KEYS: frozenset[str] = frozenset(
     {"window_id", "is_sharpe", "oos_sharpe", "is_start", "oos_start"}
 )
 
+# get_optimize が「通常最適化ラン」を探して遡る最大件数。all_trials_json の
+# パースは大きい JSON で高コストのため、純 WFT 行の連発時も上限で打ち切る
+# （上限内に通常ランが無ければ no_data=404 扱い）。
+_MAX_RUN_SCAN = 20
+
 
 def _is_wfo_trial(trial: dict[str, Any]) -> bool:
     return bool(_WFO_KEYS & trial.keys())
@@ -128,19 +133,24 @@ async def get_optimize(
     # 通常最適化ランを採用する。WFT 行を採用すると trial 散布図が空になり
     # best_metric が集約 OOS 値にすり替わるため（WFT 行は WFO タブが読む）。
     # 混在行（旧フォーマット）は通常 trial が抽出できるため従来どおり採用される。
+    # 走査は直近 _MAX_RUN_SCAN 件まで: all_trials_json のパースは大きい JSON で
+    # 高コストのため、WFT 連発運用でもリクエストごとのコストを一定に抑える。
     row = None
     trials: list[dict[str, Any]] = []
-    metric_name = "sharpe_ratio"
-    for candidate in rows:
-        metric_name = str(candidate.best_metric_name or "sharpe_ratio")
+    for candidate in rows[:_MAX_RUN_SCAN]:
+        candidate_metric = str(candidate.best_metric_name or "sharpe_ratio")
         all_trials: list[dict[str, Any]] | None = None
         if candidate.all_trials_json:
             try:
                 all_trials = json.loads(candidate.all_trials_json)
             except (json.JSONDecodeError, TypeError) as exc:
                 # 破損 JSON や旧フォーマット混入時は trials なしで継続する
-                logger.debug("all_trials_json のパースに失敗: %s", exc)
-        trials = _extract_trials(all_trials, metric_name)
+                logger.debug(
+                    "all_trials_json のパースに失敗 (run_id=%s): %s",
+                    candidate.run_id,
+                    exc,
+                )
+        trials = _extract_trials(all_trials, candidate_metric)
         if (
             not trials
             and all_trials
@@ -153,6 +163,8 @@ async def get_optimize(
     if row is None:
         raise NotFoundError(f"最適化結果が見つかりません: {strategy_id}")
 
+    # 採用 row から明示的に再導出する（ループ変数の残置値への暗黙依存を避ける）
+    metric_name = str(row.best_metric_name or "sharpe_ratio")
     best_metric: float | None = (
         row.best_metric_value
         if row.best_metric_value is not None and math.isfinite(row.best_metric_value)

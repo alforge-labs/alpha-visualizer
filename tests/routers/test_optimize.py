@@ -269,3 +269,45 @@ class TestOptimizeRouter:
         response = client.get("/api/optimize/grid_strategy")
 
         assert response.status_code == 404
+
+    def test_optimize_skips_multiple_consecutive_wft_rows(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """純 WFT 行が複数連続しても、さらに前の通常ランへ到達する。"""
+        client, db_path = self._setup_optimize_db(tmp_path)
+        wft_trials = json.dumps(
+            [{"window_id": 1, "is_sharpe": 1.2, "oos_sharpe": 0.9}]
+        )
+        conn = sqlite3.connect(db_path)
+        try:
+            for i, run_at in enumerate(
+                ["2026-02-01T00:00:00", "2026-03-01T00:00:00"]
+            ):
+                conn.execute(
+                    """INSERT INTO optimization_runs
+                       (run_id, strategy_id, symbol, run_at, n_trials,
+                        best_metric_name, best_metric_value, best_params_json,
+                        all_trials_json)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        f"opt_wft_{i:03d}",
+                        "grid_strategy",
+                        "AAPL",
+                        run_at,
+                        50,
+                        "oos_sharpe_ratio",
+                        1.1,
+                        "{}",
+                        wft_trials,
+                    ),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = client.get("/api/optimize/grid_strategy")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["metric_name"] == "sharpe_ratio"
+        assert len(data["trials"]) == 3
