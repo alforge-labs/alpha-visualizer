@@ -111,7 +111,7 @@ async def get_optimize(
         raise NotFoundError("バックテスト DB が見つかりません")
 
     try:
-        row = repo.get_latest_for_strategy(strategy_id)
+        rows = repo.list_runs_for_strategy(strategy_id)
     except Exception as e:
         # CWE-117 対策: ユーザー入力 strategy_id は CR/LF を除去してからログに出す
         logger.warning(
@@ -123,25 +123,41 @@ async def get_optimize(
             f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e
 
+    # 最新ランから走査し、純 WFT 行（`optimize walk-forward --save`・forge#1293。
+    # 抽出可能な trial がなく window 形式 trial のみ）はスキップして直近の
+    # 通常最適化ランを採用する。WFT 行を採用すると trial 散布図が空になり
+    # best_metric が集約 OOS 値にすり替わるため（WFT 行は WFO タブが読む）。
+    # 混在行（旧フォーマット）は通常 trial が抽出できるため従来どおり採用される。
+    row = None
+    trials: list[dict[str, Any]] = []
+    metric_name = "sharpe_ratio"
+    for candidate in rows:
+        metric_name = str(candidate.best_metric_name or "sharpe_ratio")
+        all_trials: list[dict[str, Any]] | None = None
+        if candidate.all_trials_json:
+            try:
+                all_trials = json.loads(candidate.all_trials_json)
+            except (json.JSONDecodeError, TypeError) as exc:
+                # 破損 JSON や旧フォーマット混入時は trials なしで継続する
+                logger.debug("all_trials_json のパースに失敗: %s", exc)
+        trials = _extract_trials(all_trials, metric_name)
+        if (
+            not trials
+            and all_trials
+            and any(isinstance(t, dict) and _is_wfo_trial(t) for t in all_trials)
+        ):
+            continue
+        row = candidate
+        break
+
     if row is None:
         raise NotFoundError(f"最適化結果が見つかりません: {strategy_id}")
 
-    metric_name = str(row.best_metric_name or "sharpe_ratio")
     best_metric: float | None = (
         row.best_metric_value
         if row.best_metric_value is not None and math.isfinite(row.best_metric_value)
         else None
     )
-
-    all_trials: list[dict[str, Any]] | None = None
-    if row.all_trials_json:
-        try:
-            all_trials = json.loads(row.all_trials_json)
-        except (json.JSONDecodeError, TypeError) as exc:
-            # 破損 JSON や旧フォーマット混入時は trials なしで継続する
-            logger.debug("all_trials_json のパースに失敗: %s", exc)
-
-    trials = _extract_trials(all_trials, metric_name)
 
     return {
         "strategy_id": strategy_id,

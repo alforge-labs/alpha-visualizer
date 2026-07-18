@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sqlite3
 import textwrap
@@ -200,3 +201,71 @@ class TestOptimizeRouter:
         data = response.json()
         assert len(data["trials"]) == 1
         assert "sma_fast" in data["trials"][0]["params"]
+
+    def test_optimize_skips_pure_wft_row_and_uses_previous_run(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """純 WFT 行（forge#1293 の walk-forward --save）が最新でも Optimize タブは
+        直前の通常最適化ランを表示する。
+
+        WHY: WFT 行を最新ランとして採用すると、trial 散布図が空になり
+        best_metric が集約 OOS 値にすり替わる（PR forge#1294 レビュー MEDIUM）。
+        """
+        client, db_path = self._setup_optimize_db(tmp_path)
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                """INSERT INTO optimization_runs
+                   (run_id, strategy_id, symbol, run_at, n_trials,
+                    best_metric_name, best_metric_value, best_params_json,
+                    all_trials_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "opt_wft_001",
+                    "grid_strategy",
+                    "AAPL",
+                    "2026-02-01T00:00:00",
+                    50,
+                    "oos_sharpe_ratio",
+                    1.1,
+                    "{}",
+                    json.dumps(
+                        [
+                            {
+                                "window_id": 1,
+                                "is_sharpe": 1.5,
+                                "oos_sharpe": 1.0,
+                                "oos_start": "2021-07-01",
+                            }
+                        ]
+                    ),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = client.get("/api/optimize/grid_strategy")
+
+        assert response.status_code == 200
+        data = response.json()
+        # WFT 行（best_metric=1.1・trials 空）ではなく通常ラン（1.5・3 trials）
+        assert data["metric_name"] == "sharpe_ratio"
+        assert data["best_metric"] == 1.5
+        assert len(data["trials"]) == 3
+
+    def test_optimize_only_wft_rows_is_404(self, tmp_path: pathlib.Path) -> None:
+        """純 WFT 行しかない戦略は Optimize タブでは no_data（404）になる。"""
+        wft_only = [
+            {
+                "window_id": 1,
+                "is_sharpe": 1.2,
+                "oos_sharpe": 0.9,
+                "oos_start": "2021-07-01",
+            }
+        ]
+        client, _ = self._setup_optimize_db(tmp_path, trials_json=wft_only)
+
+        response = client.get("/api/optimize/grid_strategy")
+
+        assert response.status_code == 404
