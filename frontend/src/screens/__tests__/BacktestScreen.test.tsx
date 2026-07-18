@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { MOCK_BACKTEST } from '../../mock/btData'
@@ -41,5 +41,51 @@ describe('BacktestScreen source note (issue #299)', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByTestId('source-trial-note')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * vis#308: --carry ラン（carry_adjusted あり）ではメトリクスタブに
+ * キャリー近似（金利差）カードを表示し、price-only との対比を可能にする。
+ * 無いラン（キー無し = キャリー計上なし）では表示しない。
+ */
+describe('BacktestScreen carry adjusted card (issue #308)', () => {
+  const carry = {
+    metrics: {
+      total_return_pct: 12.3,
+      cagr_pct: 9.8,
+      max_drawdown_pct: 4.5,
+      sharpe_ratio: 1.35,
+      volatility_pct: 8.2,
+    },
+    note: '金利差近似の参考値',
+  }
+
+  it('shows the carry card on the metrics tab for carry runs', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen
+          data={{ ...MOCK_BACKTEST, carry_adjusted: carry }}
+          compact={false}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByText('メトリクス'))
+    const card = screen.getByTestId('carry-adjusted-card')
+    expect(card).toBeInTheDocument()
+    expect(card).toHaveTextContent('12.30')
+    expect(card).toHaveTextContent('1.35')
+    expect(card).toHaveTextContent('金利差近似の参考値')
+  })
+
+  it('shows no carry card when the run has no carry accrual', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen data={MOCK_BACKTEST} compact={false} lang="ja" />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByText('メトリクス'))
+    expect(screen.queryByTestId('carry-adjusted-card')).not.toBeInTheDocument()
   })
 })

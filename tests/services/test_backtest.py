@@ -414,3 +414,41 @@ class TestRowToDict:
         )
         rec = bt.row_to_dict(row)
         assert rec["trades"] == legacy
+
+
+class TestCarryAdjusted:
+    """carry_adjusted_json のパースと詳細レスポンスへの透過（vis#308）。
+
+    WHY: forge の `backtest run --carry` が保存した {"metrics", "note"} を
+    Backtest 詳細で price-only と対比表示するため。無いラン（NULL）は None の
+    まま透過し、「キー有無 = キャリー計上有無」の契約をレスポンスでも保つ。
+    """
+
+    _CARRY = {
+        "metrics": {"total_return_pct": 12.3, "sharpe_ratio": 1.35},
+        "note": "金利差近似の参考値",
+    }
+
+    def test_row_to_dictがcarry_adjusted_jsonをパースする(self) -> None:
+        row = _make_row(carry_adjusted_json=json.dumps(self._CARRY, ensure_ascii=False))
+        d = bt.row_to_dict(row)
+        assert d["carry_adjusted"] == self._CARRY
+
+    def test_carry無し行はnoneで透過する(self) -> None:
+        d = bt.row_to_dict(_make_row())
+        assert d["carry_adjusted"] is None
+
+    def test_壊れたjsonはnoneにして継続する(self) -> None:
+        # 読み取り専用ビューアとして 1 行の破損で 500 にしない（trades_json と同じ扱い）
+        row = _make_row(carry_adjusted_json="{broken")
+        d = bt.row_to_dict(row)
+        assert d["carry_adjusted"] is None
+
+    def test_build_detailにcarry_adjustedが載る(self) -> None:
+        row = _make_row(carry_adjusted_json=json.dumps(self._CARRY, ensure_ascii=False))
+        detail = bt.build_detail(row)
+        assert detail["carry_adjusted"] == self._CARRY
+
+    def test_build_detailでcarry無しはnone(self) -> None:
+        detail = bt.build_detail(_make_row())
+        assert detail["carry_adjusted"] is None

@@ -379,6 +379,17 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
         except (json.JSONDecodeError, TypeError) as exc:
             logger.debug("trades_json のパースに失敗: %s", exc)
 
+    # FX キャリー近似（vis#308）: forge が保存した {"metrics", "note"} を復元する。
+    # 破損行でも読み取り専用ビューアとして 500 にしない（trades_json と同じ扱い）
+    carry_adjusted: dict[str, Any] | None = None
+    if row.carry_adjusted_json:
+        try:
+            parsed_carry = json.loads(row.carry_adjusted_json)
+            if isinstance(parsed_carry, dict):
+                carry_adjusted = parsed_carry
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.debug("carry_adjusted_json のパースに失敗: %s", exc)
+
     # DB のトップレベルカラムを metrics にマージ（元 forge との互換性のため）
     for col in ("sharpe_ratio", "total_return_pct", "cagr_pct", "sortino_ratio",
                 "calmar_ratio", "max_drawdown_pct", "total_trades", "win_rate_pct",
@@ -399,6 +410,7 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
         "total_trades": row.total_trades,
         "oos_start": row.oos_start,
         "source": row.source,
+        "carry_adjusted": carry_adjusted,
         "metrics": metrics,
         "equity_curve": equity_curve,
         "buy_hold_curve": buy_hold_curve,
@@ -469,6 +481,8 @@ def _shape_detail_from_record(record: dict[str, Any]) -> dict[str, Any]:
         "benchmark_annual_returns": benchmark_annual,
         # 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299）
         "source": record.get("source"),
+        # FX キャリー近似の {"metrics", "note"}（None = キャリー計上なし・vis#308）
+        "carry_adjusted": record.get("carry_adjusted"),
     }
     if regime_series is not None:
         result["regime_series"] = regime_series

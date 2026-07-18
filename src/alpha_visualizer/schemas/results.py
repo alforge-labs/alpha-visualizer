@@ -92,6 +92,26 @@ class Trade(BaseModel):
     mfe_pct: float = 0.0
 
 
+class CarryAdjustedMetrics(BaseModel):
+    """FX キャリー（金利差近似）込みの参考メトリクス（vis#308）。
+
+    forge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。
+    """
+
+    total_return_pct: float | None = None
+    cagr_pct: float | None = None
+    max_drawdown_pct: float | None = None
+    sharpe_ratio: float | None = None
+    volatility_pct: float | None = None
+
+
+class CarryAdjusted(BaseModel):
+    """--carry ランの carry_adjusted ブロック（vis#308）。"""
+
+    metrics: CarryAdjustedMetrics = CarryAdjustedMetrics()
+    note: str | None = None
+
+
 class BacktestDetail(BaseModel):
     """``GET /api/results/{run_id}`` 詳細レスポンス。
 
@@ -129,10 +149,13 @@ class BacktestDetail(BaseModel):
     regime_breakdown: dict[str, Any] | None = None
     # 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299）
     source: str | None = None
+    # FX キャリー近似（vis#308）。None = キャリー計上なし → JSON からキーごと除外
+    # （forge --json の「キー有無 = 計上有無」契約をレスポンスでも保つ）
+    carry_adjusted: CarryAdjusted | None = None
 
     @model_serializer(mode="wrap")
     def _serialize_with_optional_regime(self, handler):  # type: ignore[no-untyped-def]
-        """regime_series / regime_breakdown は値が None の場合 JSON から除外する。
+        """regime_series / regime_breakdown / carry_adjusted は None の場合 JSON から除外する。
 
         他のフィールド（is_metrics / oos_metrics 等）の None は既存挙動を保つため
         除外しない。``response_model_exclude_none=True`` を全体に適用すると
@@ -140,7 +163,7 @@ class BacktestDetail(BaseModel):
         フィールド単位の選択的除外を model_serializer で実現する。
         """
         result = handler(self)
-        for key in ("regime_series", "regime_breakdown"):
+        for key in ("regime_series", "regime_breakdown", "carry_adjusted"):
             if result.get(key) is None:
                 result.pop(key, None)
         return result

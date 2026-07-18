@@ -50,6 +50,10 @@ backtest_results = Table(
     # "strategy-file"（一時定義 = チューニング試行等）。旧 forge の DB には
     # 列自体が無いため、Repository 側で有無を検出して SELECT から除外する
     Column("source", Text),
+    # FX キャリー近似（forge ysakae/alpha-forge#1301・vis#308）: --carry ランの
+    # {"metrics": {...}, "note": "..."}。NULL = キャリー計上なし。source と同じく
+    # 後付け列のため Repository 側で有無を検出する
+    Column("carry_adjusted_json", Text),
 )
 
 optimization_runs = Table(

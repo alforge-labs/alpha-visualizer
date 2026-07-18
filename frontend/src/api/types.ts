@@ -28,6 +28,8 @@ export type StrategyComparison = S['StrategyComparison']
 export type OptimizationHistoryEntry = S['OptimizationHistoryEntry']
 // OHLC 時系列（#189 で backend に追加、#190 で frontend から利用開始）
 export type OhlcBar = S['OhlcBar']
+// FX キャリー近似（vis#308）
+export type CarryAdjusted = S['CarryAdjusted']
 export type HistoricalResponse = S['HistoricalResponse']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
@@ -187,6 +189,8 @@ export interface BacktestDetail {
   regime_breakdown?: RegimeBreakdown
   /** 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299） */
   source?: string | null
+  /** FX キャリー近似（キー無し = キャリー計上なし・vis#308） */
+  carry_adjusted?: CarryAdjusted | null
 }
 
 export interface StrategyRun {

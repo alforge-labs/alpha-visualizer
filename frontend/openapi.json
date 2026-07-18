@@ -1075,6 +1075,16 @@
               }
             ],
             "title": "Source"
+          },
+          "carry_adjusted": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CarryAdjusted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -1202,6 +1212,90 @@
         ],
         "title": "BacktestSummary",
         "description": "``GET /api/results`` リストの 1 件。"
+      },
+      "CarryAdjusted": {
+        "properties": {
+          "metrics": {
+            "$ref": "#/components/schemas/CarryAdjustedMetrics",
+            "default": {}
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "CarryAdjusted",
+        "description": "--carry ランの carry_adjusted ブロック（vis#308）。"
+      },
+      "CarryAdjustedMetrics": {
+        "properties": {
+          "total_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Return Pct"
+          },
+          "cagr_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr Pct"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct"
+          },
+          "sharpe_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Ratio"
+          },
+          "volatility_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volatility Pct"
+          }
+        },
+        "type": "object",
+        "title": "CarryAdjustedMetrics",
+        "description": "FX キャリー（金利差近似）込みの参考メトリクス（vis#308）。\n\nforge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。"
       },
       "ComparisonEquityCurve": {
         "properties": {

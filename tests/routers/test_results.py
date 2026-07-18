@@ -479,3 +479,91 @@ class TestRegimeSeries:
         data = response.json()
         assert "regime_series" not in data["metrics"]
         assert "regime_breakdown" not in data["metrics"]
+
+
+# ---------------------------------------------------------------------------
+# FX キャリー近似（carry_adjusted・vis#308）のパススルーテスト
+# ---------------------------------------------------------------------------
+
+_CARRY_ADJUSTED_JSON = json.dumps(
+    {
+        "metrics": {
+            "total_return_pct": 12.3,
+            "cagr_pct": 9.8,
+            "max_drawdown_pct": 4.5,
+            "sharpe_ratio": 1.35,
+            "volatility_pct": 8.2,
+        },
+        "note": "金利差近似の参考値",
+    },
+    ensure_ascii=False,
+)
+
+
+@pytest.fixture()
+def client_with_carry_db(tmp_path: pathlib.Path) -> TestClient:
+    """carry_adjusted_json あり/なしの run が 1 件ずつ入った状態のクライアント"""
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True)
+    build_backtest_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO backtest_results"
+            " (run_id, strategy_id, symbol, run_at,"
+            " total_return_pct, sharpe_ratio, max_drawdown_pct,"
+            " total_trades, metrics_json, carry_adjusted_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    "run-carry01",
+                    "usdjpy_carry",
+                    "USDJPY=X",
+                    "2026-01-01T00:00:00",
+                    10.0,
+                    1.1,
+                    -6.0,
+                    12,
+                    "{}",
+                    _CARRY_ADJUSTED_JSON,
+                ),
+                (
+                    "run-nocarry01",
+                    "usdjpy_carry",
+                    "USDJPY=X",
+                    "2026-01-02T00:00:00",
+                    9.0,
+                    1.0,
+                    -7.0,
+                    10,
+                    "{}",
+                    None,
+                ),
+            ],
+        )
+    forge_yaml = tmp_path / "forge.yaml"
+    forge_yaml.write_text(
+        "report:\n  db_filename: backtest_results.db\n"
+        "  output_path: ./data/results\n"
+    )
+    return TestClient(create_app(forge_dir=tmp_path))
+
+
+class TestCarryAdjustedPassthrough:
+    def test_carryランの詳細にcarry_adjustedが載る(
+        self, client_with_carry_db: TestClient
+    ) -> None:
+        """--carry ランの詳細 API が {metrics, note} を返す（vis#308）"""
+        response = client_with_carry_db.get("/api/results/run-carry01")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["carry_adjusted"]["metrics"]["total_return_pct"] == 12.3
+        assert data["carry_adjusted"]["metrics"]["volatility_pct"] == 8.2
+        assert data["carry_adjusted"]["note"] == "金利差近似の参考値"
+
+    def test_非carryランはキー自体が無い(
+        self, client_with_carry_db: TestClient
+    ) -> None:
+        """キー有無 = キャリー計上有無の契約（null で常設しない・vis#308）"""
+        response = client_with_carry_db.get("/api/results/run-nocarry01")
+        assert response.status_code == 200
+        assert "carry_adjusted" not in response.json()

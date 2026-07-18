@@ -517,6 +517,7 @@ export interface components {
             } | null;
             /** Source */
             source?: string | null;
+            carry_adjusted?: components["schemas"]["CarryAdjusted"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -561,6 +562,34 @@ export interface components {
             total_trades?: number | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CarryAdjusted
+         * @description --carry ランの carry_adjusted ブロック（vis#308）。
+         */
+        CarryAdjusted: {
+            /** @default {} */
+            metrics: components["schemas"]["CarryAdjustedMetrics"];
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * CarryAdjustedMetrics
+         * @description FX キャリー（金利差近似）込みの参考メトリクス（vis#308）。
+         *
+         *     forge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。
+         */
+        CarryAdjustedMetrics: {
+            /** Total Return Pct */
+            total_return_pct?: number | null;
+            /** Cagr Pct */
+            cagr_pct?: number | null;
+            /** Max Drawdown Pct */
+            max_drawdown_pct?: number | null;
+            /** Sharpe Ratio */
+            sharpe_ratio?: number | null;
+            /** Volatility Pct */
+            volatility_pct?: number | null;
         };
         /**
          * ComparisonEquityCurve
