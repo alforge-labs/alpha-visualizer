@@ -128,7 +128,12 @@ def build_argv(
         if trials is not None:
             argv += ["--trials", str(trials)]
     else:  # wft
-        argv = [forge_exe, "optimize", "walk-forward", "--strategy", strategy_id, "--json"]
+        # --save は forge#1293 で追加: WFT 結果が optimization_runs に window 形式で
+        # 保存され、WFO タブに反映される（optimize と同じ「--save 必須」の理由）
+        argv = [
+            forge_exe, "optimize", "walk-forward",
+            "--strategy", strategy_id, "--save", "--json",
+        ]
         if windows is not None:
             argv += ["--windows", str(windows)]
     return [*argv, "--", symbol]

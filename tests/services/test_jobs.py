@@ -70,11 +70,13 @@ class TestBuildArgv:
         argv = build_argv("/bin/forge", "optimize", "s1", "AAPL", None, None)
         assert "--trials" not in argv
 
-    def test_wft_includes_windows(self) -> None:
+    def test_wft_includes_save_and_windows(self) -> None:
+        # --save が無いと WFT 結果が optimization_runs に保存されず
+        # WFO タブに反映されない（forge#1293 で --save が追加された）
         argv = build_argv("/bin/forge", "wft", "s1", "AAPL", None, 7)
         assert argv == [
             "/bin/forge", "optimize", "walk-forward", "--strategy", "s1",
-            "--json", "--windows", "7", "--", "AAPL",
+            "--save", "--json", "--windows", "7", "--", "AAPL",
         ]
 
     def test_backtest_with_strategy_file_replaces_strategy_option(self) -> None:

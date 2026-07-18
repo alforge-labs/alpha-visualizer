@@ -184,8 +184,8 @@ export function JobRunnerCard({
           }}
         >
           {L(
-            'WFT の結果は DB に保存されないため、完了時にここへ要約のみ表示します。',
-            'WFT results are not persisted to the DB; a summary is shown here on completion.',
+            'WFT の結果は DB に記録され、完了時に WFO タブへ自動反映されます。',
+            'WFT results are recorded to the DB and reflected in the WFO tab on completion.',
           )}
         </p>
       )}
