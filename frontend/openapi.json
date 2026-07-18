@@ -1231,6 +1231,7 @@
             "title": "Note"
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "title": "CarryAdjusted",
         "description": "--carry ランの carry_adjusted ブロック（vis#308）。"
@@ -1293,6 +1294,7 @@
             "title": "Volatility Pct"
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "title": "CarryAdjustedMetrics",
         "description": "FX キャリー（金利差近似）込みの参考メトリクス（vis#308）。\n\nforge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。"

@@ -572,6 +572,8 @@ export interface components {
             metrics: components["schemas"]["CarryAdjustedMetrics"];
             /** Note */
             note?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * CarryAdjustedMetrics
@@ -590,6 +592,8 @@ export interface components {
             sharpe_ratio?: number | null;
             /** Volatility Pct */
             volatility_pct?: number | null;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * ComparisonEquityCurve

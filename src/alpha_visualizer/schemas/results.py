@@ -98,6 +98,8 @@ class CarryAdjustedMetrics(BaseModel):
     forge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。
     """
 
+    model_config = ConfigDict(extra="allow")
+
     total_return_pct: float | None = None
     cagr_pct: float | None = None
     max_drawdown_pct: float | None = None
@@ -107,6 +109,8 @@ class CarryAdjustedMetrics(BaseModel):
 
 class CarryAdjusted(BaseModel):
     """--carry ランの carry_adjusted ブロック（vis#308）。"""
+
+    model_config = ConfigDict(extra="allow")
 
     metrics: CarryAdjustedMetrics = CarryAdjustedMetrics()
     note: str | None = None
