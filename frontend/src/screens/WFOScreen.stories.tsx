@@ -41,3 +41,12 @@ export const NoWindows: Story = {
     lang: 'ja',
   },
 }
+
+/** 非 sharpe 指標の WFT 結果（vis#303）: ラベルが Calmar に切り替わる */
+export const GenericMetric: Story = {
+  args: {
+    data: { ...MOCK_WFO, metric_name: 'calmar_ratio' },
+    compact: false,
+    lang: 'ja',
+  },
+}

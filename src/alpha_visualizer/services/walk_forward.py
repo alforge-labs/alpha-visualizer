@@ -265,5 +265,6 @@ __all__ = [
     "interpolate_window_curve",
     "normalize_to_anchor",
     "parse_equity_curve",
+    "resolve_metric_name",
     "slice_oos_segment",
 ]
