@@ -271,6 +271,7 @@ export const MOCK_WFO: WFOResult = {
   strategy_id: 'ema_cross_aapl_v1',
   strategy_name: 'EMA Cross w/ RSI Filter',
   symbol: 'AAPL',
+  metric_name: 'sharpe_ratio',
   windows: WFO_WINDOWS,
   composite_equity: wfoComposite,
   composite_dates: wfoDates,

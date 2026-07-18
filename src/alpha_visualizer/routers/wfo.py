@@ -52,10 +52,11 @@ async def get_wfo(
 
         windows: list[dict[str, Any]] = []
         symbol = ""
+        all_trials: list[dict[str, Any]] | None = None
         for run in runs:
             if not symbol:
                 symbol = str(run.symbol or "")
-            all_trials: list[dict[str, Any]] | None = None
+            all_trials = None
             if run.all_trials_json:
                 try:
                     all_trials = json.loads(run.all_trials_json)
@@ -70,6 +71,9 @@ async def get_wfo(
             raise NotFoundError(
                 f"WFO 形式の最適化結果が見つかりません: {strategy_id}",
             )
+
+        # 採用ランの最適化指標名（非 sharpe の場合は表示ラベルを切り替える・vis#303）
+        metric_name = wfo_service.resolve_metric_name(all_trials)
 
         try:
             composite_equity, composite_dates = wfo_service.extract_composite_curve(
@@ -104,6 +108,7 @@ async def get_wfo(
         "strategy_id": strategy_id,
         "strategy_name": _resolve_strategy_name(strategies_repo, strategy_id),
         "symbol": symbol,
+        "metric_name": metric_name,
         "windows": windows,
         "composite_equity": composite_equity,
         "composite_dates": composite_dates,

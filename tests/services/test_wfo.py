@@ -241,3 +241,63 @@ class TestExtractCompositeCurve:
         ]
         _, dates = extract_composite_curve(windows, lambda _: None)
         assert dates[0] == "2024-02-01"
+
+
+class TestGenericMetricSupport:
+    """非 sharpe 指標の WFT --save 対応（vis#303）。
+
+    forge#1293 は metric が sharpe_ratio 以外のとき is_sharpe/oos_sharpe を
+    載せず、汎用キー（metric + is_metric_value/oos_metric_value）のみ保存する。
+    フォールバックが無いと WFO タブが全窓 0.0 に見える。
+    """
+
+    def test_is_metric_valueへフォールバックする(self) -> None:
+        windows = extract_windows(
+            [
+                {
+                    "window_id": 1,
+                    "metric": "calmar_ratio",
+                    "is_metric_value": 2.5,
+                    "oos_metric_value": 1.8,
+                    "oos_start": "2021-07-01",
+                }
+            ]
+        )
+        assert len(windows) == 1
+        assert windows[0]["is_sharpe"] == 2.5
+        assert windows[0]["oos_sharpe"] == 1.8
+        assert windows[0]["oos_is_ratio"] == pytest.approx(1.8 / 2.5)
+
+    def test_is_sharpeがあれば従来どおり優先する(self) -> None:
+        windows = extract_windows(
+            [
+                {
+                    "window_id": 1,
+                    "is_sharpe": 1.5,
+                    "oos_sharpe": 1.0,
+                    # 万一両方あるときも従来キーが優先（後方互換）
+                    "is_metric_value": 9.9,
+                    "oos_metric_value": 9.9,
+                }
+            ]
+        )
+        assert windows[0]["is_sharpe"] == 1.5
+        assert windows[0]["oos_sharpe"] == 1.0
+
+
+class TestResolveMetricName:
+    def test_windowのmetricキーを返す(self) -> None:
+        from alpha_visualizer.services.walk_forward import resolve_metric_name
+
+        trials = [
+            {"value": 1.0, "params": {}},  # 非 WFO trial は無視
+            {"window_id": 1, "metric": "calmar_ratio", "is_metric_value": 2.0},
+        ]
+        assert resolve_metric_name(trials) == "calmar_ratio"
+
+    def test_metricキーが無ければsharpe_ratio(self) -> None:
+        from alpha_visualizer.services.walk_forward import resolve_metric_name
+
+        assert resolve_metric_name([{"window_id": 1, "is_sharpe": 1.0}]) == "sharpe_ratio"
+        assert resolve_metric_name(None) == "sharpe_ratio"
+        assert resolve_metric_name([]) == "sharpe_ratio"

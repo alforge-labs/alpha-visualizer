@@ -41,6 +41,9 @@ class WFOResponse(BaseModel):
     strategy_id: str
     strategy_name: str = ""
     symbol: str = ""
+    # 採用ランの最適化指標名（forge#1293 の window `metric`。旧フォーマットは
+    # sharpe_ratio）。WFOWindow の is_sharpe/oos_sharpe にはこの指標の値が入る
+    metric_name: str = "sharpe_ratio"
     windows: list[WFOWindow] = []
     composite_equity: list[float] = []
     composite_dates: list[str] = []

@@ -24,6 +24,8 @@ coverage.xml
 
 # Frontend
 frontend/node_modules/
+# ルートで npx / pnpm を実行した際に生成される残骸も除外
+node_modules/
 frontend/.tsbuildinfo
 
 # Playwright artifacts

@@ -1355,6 +1355,11 @@ export interface components {
              */
             symbol: string;
             /**
+             * Metric Name
+             * @default sharpe_ratio
+             */
+            metric_name: string;
+            /**
              * Windows
              * @default []
              */
