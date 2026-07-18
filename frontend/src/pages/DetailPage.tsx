@@ -15,6 +15,7 @@ import { StrategyHero } from '../components/StrategyHero'
 import { RunLogDetails } from '../components/RunLogDetails'
 import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
 import { TuningPanel } from '../components/tuning/TuningPanel'
+import { DuplicateStrategyCard } from '../components/tuning/DuplicateStrategyCard'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
@@ -319,6 +320,14 @@ export function DetailPage() {
                       }
                       lang={lang}
                       onSaved={() => setStrategyReload((t) => t + 1)}
+                    />
+                  )}
+                  {strategyId && (
+                    <DuplicateStrategyCard
+                      key={`dup-${strategyId}`}
+                      strategyId={strategyId}
+                      lang={lang}
+                      onDuplicated={(newId) => navigate(`/detail/${newId}`)}
                     />
                   )}
                   <StrategyScreen

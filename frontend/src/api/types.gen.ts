@@ -114,6 +114,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/strategies/{strategy_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate Strategy
+         * @description 既存戦略を別 ID で複製して新規登録する（vis#301・複製ベースの新規作成）。
+         *
+         *     visualizer はファイル・DB を直接書かず、strategy_id を差し替えた一時 JSON を
+         *     ``forge strategy save``（--force **なし**）へ委譲する（single-writer 維持）。
+         *     --force を付けないため ID 衝突は forge 側でも拒否され、既存戦略は
+         *     上書きされない。事前チェックで既知の衝突は 409 で返す（レース時は forge の
+         *     拒否が 500 として表面化する）。
+         */
+        post: operations["duplicate_strategy_api_strategies__strategy_id__duplicate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ideas": {
         parameters: {
             query?: never;
@@ -573,6 +599,20 @@ export interface components {
             parameters?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** DuplicateStrategyRequest */
+        DuplicateStrategyRequest: {
+            /** New Strategy Id */
+            new_strategy_id: string;
+        };
+        /** DuplicateStrategyResponse */
+        DuplicateStrategyResponse: {
+            /** Status */
+            status: string;
+            /** Strategy Id */
+            strategy_id: string;
+            /** Log Tail */
+            log_tail?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1579,6 +1619,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SaveParametersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    duplicate_strategy_api_strategies__strategy_id__duplicate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strategy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DuplicateStrategyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateStrategyResponse"];
                 };
             };
             /** @description Validation Error */
