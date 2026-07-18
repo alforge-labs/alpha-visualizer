@@ -246,6 +246,12 @@ export interface SaveParametersResult {
   log_tail: string | null
 }
 
+export interface DuplicateStrategyResult {
+  status: string
+  strategy_id: string
+  log_tail: string | null
+}
+
 /**
  * OptimizeTrial: backend は ``pass`` キーが Python 予約語のため
  * Pydantic 明示フィールドにできず、生成型に含まれない（``extra="allow"`` 経由で透過）。

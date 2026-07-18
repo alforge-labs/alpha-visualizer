@@ -23,6 +23,7 @@ from alpha_visualizer.dependencies import (
     get_strategies_repo,
 )
 from alpha_visualizer.errors import (
+    ConflictError,
     ExternalProcessError,
     InvalidRequestError,
     NotFoundError,
@@ -48,7 +49,7 @@ from alpha_visualizer.services.forge_cli import (
     mask_home,
     resolve_forge_exe,
 )
-from alpha_visualizer.services.tuning import build_override_file
+from alpha_visualizer.services.tuning import build_duplicate_file, build_override_file
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +326,52 @@ STRATEGY_SAVE_TIMEOUT_SEC = 60
 SAVE_LOG_TAIL_MAX_LINES = 20
 
 
+def _delegate_forge_strategy_save(
+    config: ForgeConfig,
+    temp_path: pathlib.Path,
+    *,
+    force: bool,
+    timeout_message: str,
+    failure_message: str,
+) -> str | None:
+    """一時戦略 JSON を ``forge strategy save`` へ委譲し log_tail を返す。
+
+    保存系エンドポイント（parameters 書き戻し / duplicate）共通の委譲経路。
+    forge 不在・タイムアウト・非ゼロ終了は ExternalProcessError（500）として
+    送出し、``temp_path`` は全パスで削除する。
+    """
+    try:
+        forge_exe = resolve_forge_exe()
+        if forge_exe is None:
+            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+        cmd = [forge_exe, "strategy", "save", str(temp_path)]
+        if force:
+            cmd.append("--force")
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=build_forge_env(config),
+            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
+            stdin=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ExternalProcessError(timeout_message) from exc
+    finally:
+        try:
+            temp_path.unlink()
+        except OSError:
+            logger.debug("一時戦略ファイルの削除に失敗: %s", temp_path)
+
+    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
+    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
+    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
+
+    if proc.returncode != 0:
+        raise ExternalProcessError(log_tail or failure_message)
+    return log_tail
+
+
 class SaveParametersRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -366,38 +413,89 @@ def save_strategy_parameters(
         pathlib.Path(tempfile.gettempdir()),
     )
     try:
-        forge_exe = resolve_forge_exe()
-        if forge_exe is None:
-            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
         merged: dict[str, Any] = json.loads(
             override_path.read_text(encoding="utf-8")
         ).get("parameters", {})
-        proc = subprocess.run(
-            [forge_exe, "strategy", "save", str(override_path), "--force"],
-            capture_output=True,
-            text=True,
-            env=build_forge_env(config),
-            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired as exc:
+    except OSError as exc:
+        override_path.unlink(missing_ok=True)
         raise ExternalProcessError(
-            f"戦略の保存が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
-            f" / Strategy save did not finish within {STRATEGY_SAVE_TIMEOUT_SEC} seconds",
+            "一時戦略ファイルの読み取りに失敗しました"
+            " / Failed to read the temporary strategy file",
         ) from exc
-    finally:
-        try:
-            override_path.unlink()
-        except OSError:
-            logger.debug("一時戦略ファイルの削除に失敗: %s", override_path)
 
-    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
-    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
-    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
+    log_tail = _delegate_forge_strategy_save(
+        config,
+        override_path,
+        force=True,
+        timeout_message=(
+            f"戦略の保存が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
+            f" / Strategy save did not finish within {STRATEGY_SAVE_TIMEOUT_SEC} seconds"
+        ),
+        failure_message="戦略の保存に失敗しました / Strategy save failed",
+    )
+    return SaveParametersResponse(status="ok", parameters=merged, log_tail=log_tail)
 
-    if proc.returncode != 0:
-        raise ExternalProcessError(
-            log_tail or "戦略の保存に失敗しました / Strategy save failed",
+
+class DuplicateStrategyRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # 戦略 ID はファイル名にもなるため、パス区切りや先頭ドットを含む値を
+    # スキーマ検証で拒否する（パストラバーサル防止も兼ねる）
+    new_strategy_id: str = Field(
+        min_length=1,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
+    )
+
+
+class DuplicateStrategyResponse(BaseModel):
+    status: str
+    strategy_id: str
+    log_tail: str | None = None
+
+
+@router.post(
+    "/strategies/{strategy_id}/duplicate", response_model=DuplicateStrategyResponse
+)
+def duplicate_strategy(
+    strategy_id: str,
+    body: DuplicateStrategyRequest,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
+) -> DuplicateStrategyResponse:
+    """既存戦略を別 ID で複製して新規登録する（vis#301・複製ベースの新規作成）。
+
+    visualizer はファイル・DB を直接書かず、strategy_id を差し替えた一時 JSON を
+    ``forge strategy save``（--force **なし**）へ委譲する（single-writer 維持）。
+    --force を付けないため ID 衝突は forge 側でも拒否され、既存戦略は
+    上書きされない。事前チェックで既知の衝突は 409 で返す（レース時は forge の
+    拒否が 500 として表面化する）。
+    """
+    source = strategies_repo.get_strategy(strategy_id)
+    if source is None:
+        raise NotFoundError(f"strategy_id '{strategy_id}' が見つかりません")
+    if strategies_repo.get_strategy(body.new_strategy_id) is not None:
+        raise ConflictError(
+            f"strategy_id '{body.new_strategy_id}' は既に存在します"
+            f" / strategy_id '{body.new_strategy_id}' already exists",
         )
 
-    return SaveParametersResponse(status="ok", parameters=merged, log_tail=log_tail)
+    duplicate_path = build_duplicate_file(
+        source.raw_definition,
+        body.new_strategy_id,
+        pathlib.Path(tempfile.gettempdir()),
+    )
+    log_tail = _delegate_forge_strategy_save(
+        config,
+        duplicate_path,
+        force=False,
+        timeout_message=(
+            f"戦略の複製が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
+            f" / Strategy duplication did not finish within"
+            f" {STRATEGY_SAVE_TIMEOUT_SEC} seconds"
+        ),
+        failure_message="戦略の複製に失敗しました / Strategy duplication failed",
+    )
+    return DuplicateStrategyResponse(
+        status="ok", strategy_id=body.new_strategy_id, log_tail=log_tail
+    )

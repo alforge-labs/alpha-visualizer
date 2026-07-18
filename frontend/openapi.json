@@ -267,6 +267,56 @@
         }
       }
     },
+    "/api/strategies/{strategy_id}/duplicate": {
+      "post": {
+        "summary": "Duplicate Strategy",
+        "description": "既存戦略を別 ID で複製して新規登録する（vis#301・複製ベースの新規作成）。\n\nvisualizer はファイル・DB を直接書かず、strategy_id を差し替えた一時 JSON を\n``forge strategy save``（--force **なし**）へ委譲する（single-writer 維持）。\n--force を付けないため ID 衝突は forge 側でも拒否され、既存戦略は\n上書きされない。事前チェックで既知の衝突は 409 で返す（レース時は forge の\n拒否が 500 として表面化する）。",
+        "operationId": "duplicate_strategy_api_strategies__strategy_id__duplicate_post",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateStrategyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateStrategyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ideas": {
       "get": {
         "summary": "List Ideas",
@@ -1245,6 +1295,51 @@
           "symbol"
         ],
         "title": "CreateJobRequest"
+      },
+      "DuplicateStrategyRequest": {
+        "properties": {
+          "new_strategy_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "title": "New Strategy Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_strategy_id"
+        ],
+        "title": "DuplicateStrategyRequest"
+      },
+      "DuplicateStrategyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "log_tail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Tail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "strategy_id"
+        ],
+        "title": "DuplicateStrategyResponse"
       },
       "HTTPValidationError": {
         "properties": {

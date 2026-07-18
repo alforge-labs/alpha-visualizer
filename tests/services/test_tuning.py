@@ -72,3 +72,41 @@ class TestBuildOverrideFile:
         path = build_override_file(RAW, {"period": 30}, tmp_path)
         mode = pathlib.Path(path).stat().st_mode & 0o777
         assert mode == 0o600
+
+
+class TestBuildDuplicateFile:
+    """build_duplicate_file（戦略複製用の一時 JSON 生成・vis#301）のテスト。"""
+
+    def test_strategy_idだけ差し替えて他フィールドは保持する(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        from alpha_visualizer.services.tuning import build_duplicate_file
+
+        raw = json.dumps(
+            {
+                "strategy_id": "orig",
+                "name": "元戦略",
+                "parameters": {"fast": 12, "slow": 26},
+                "indicators": [{"id": "sma", "type": "SMA"}],
+            }
+        )
+        path = build_duplicate_file(raw, "orig_v2", tmp_path)
+        try:
+            definition = json.loads(path.read_text(encoding="utf-8"))
+            assert definition["strategy_id"] == "orig_v2"
+            assert definition["name"] == "元戦略"
+            assert definition["parameters"] == {"fast": 12, "slow": 26}
+            assert definition["indicators"] == [{"id": "sma", "type": "SMA"}]
+            # 共有 /tmp に置かれるため owner-only（CWE-377 対策・tune と同じ規約）
+            assert (path.stat().st_mode & 0o777) == 0o600
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_壊れた定義はInvalidRequestError(self, tmp_path: pathlib.Path) -> None:
+        from alpha_visualizer.errors import InvalidRequestError
+        from alpha_visualizer.services.tuning import build_duplicate_file
+
+        with pytest.raises(InvalidRequestError):
+            build_duplicate_file("{not json", "x_v2", tmp_path)
+        with pytest.raises(InvalidRequestError):
+            build_duplicate_file('["list"]', "x_v2", tmp_path)

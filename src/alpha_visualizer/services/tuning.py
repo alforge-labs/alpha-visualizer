@@ -22,6 +22,36 @@ from alpha_visualizer.errors import InvalidRequestError
 _SCALAR_TYPES = (str, int, float, bool)
 
 
+def _parse_definition(raw_definition: str) -> dict[str, Any]:
+    """戦略定義 JSON 文字列を dict にパースする（壊れていれば 400）。"""
+    try:
+        definition = json.loads(raw_definition)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise InvalidRequestError(
+            "戦略定義の JSON が壊れています / Strategy definition is not valid JSON",
+        ) from exc
+    if not isinstance(definition, dict):
+        raise InvalidRequestError(
+            "戦略定義の JSON が壊れています / Strategy definition is not valid JSON",
+        )
+    return definition
+
+
+def _write_private_json(
+    definition: dict[str, Any], dest_dir: pathlib.Path, prefix: str
+) -> pathlib.Path:
+    """定義 dict を owner-only の一時 JSON として書き出す。
+
+    共有 /tmp に書くため owner-only（0600）+ O_EXCL で作成する:
+    他ユーザーから戦略パラメータ（非公開資産）を読めなくする（CWE-377 対策）
+    """
+    dest = dest_dir / f"{prefix}-{uuid.uuid4().hex[:12]}.json"
+    fd = os.open(dest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(json.dumps(definition, ensure_ascii=False, indent=2))
+    return dest
+
+
 def build_override_file(
     raw_definition: str,
     parameters: dict[str, Any],
@@ -46,16 +76,7 @@ def build_override_file(
             "上書きするパラメータが指定されていません / No parameters to override",
         )
 
-    try:
-        definition = json.loads(raw_definition)
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise InvalidRequestError(
-            "戦略定義の JSON が壊れています / Strategy definition is not valid JSON",
-        ) from exc
-    if not isinstance(definition, dict):
-        raise InvalidRequestError(
-            "戦略定義の JSON が壊れています / Strategy definition is not valid JSON",
-        )
+    definition = _parse_definition(raw_definition)
 
     current = definition.get("parameters")
     if not isinstance(current, dict):
@@ -76,11 +97,23 @@ def build_override_file(
 
     merged = {**current, **parameters}
     new_definition = {**definition, "parameters": merged}
+    return _write_private_json(new_definition, dest_dir, prefix="tune")
 
-    dest = dest_dir / f"tune-{uuid.uuid4().hex[:12]}.json"
-    # 共有 /tmp に書くため owner-only（0600）+ O_EXCL で作成する:
-    # 他ユーザーから戦略パラメータ（非公開資産）を読めなくする（CWE-377 対策）
-    fd = os.open(dest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(json.dumps(new_definition, ensure_ascii=False, indent=2))
-    return dest
+
+def build_duplicate_file(
+    raw_definition: str,
+    new_strategy_id: str,
+    dest_dir: pathlib.Path,
+) -> pathlib.Path:
+    """``strategy_id`` を差し替えた複製用の一時戦略 JSON を書き出す（vis#301）。
+
+    strategy_id 以外のフィールド（name / parameters / indicators 等）は
+    元定義をそのまま保持する。登録は ``forge strategy save``（--force なし）
+    へ委譲され、ID 衝突は forge 側で拒否される。
+
+    Raises:
+        InvalidRequestError: 定義が JSON として壊れている。
+    """
+    definition = _parse_definition(raw_definition)
+    new_definition = {**definition, "strategy_id": new_strategy_id}
+    return _write_private_json(new_definition, dest_dir, prefix="dup")

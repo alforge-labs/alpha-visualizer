@@ -55,3 +55,9 @@ class TooManyJobsError(AlphaVisualizerError):
     """アクティブなジョブ数が上限に達している（流量ガード）。"""
 
     status_code = 429
+
+
+class ConflictError(AlphaVisualizerError):
+    """既存リソースと衝突するリクエスト（例: 複製先 strategy_id が既に存在）。"""
+
+    status_code = 409

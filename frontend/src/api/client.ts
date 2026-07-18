@@ -1,4 +1,4 @@
-import type { BacktestDetail, CreateJobParams, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -112,6 +112,19 @@ export const api = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parameters }),
+      },
+    ),
+
+  duplicateStrategy: (
+    strategyId: string,
+    newStrategyId: string,
+  ): Promise<DuplicateStrategyResult> =>
+    request<DuplicateStrategyResult>(
+      `/strategies/${encodeURIComponent(strategyId)}/duplicate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_strategy_id: newStrategyId }),
       },
     ),
 

@@ -81,7 +81,7 @@ GitHub アカウントを利用できない場合は [security@alforgelabs.com](
 
 - **`alpha-vis serve` はデフォルトで `127.0.0.1` のみで listen します**。`--host 0.0.0.0` を指定する場合は、外部ネットワークからのアクセス制御を必ず設定してください
 - **認証機能はありません**。`alpha-vis serve` は信頼できるネットワーク内（ローカル開発・社内ネットワーク）での使用を想定しています
-- **コマンド実行系エンドポイントがあります**。`POST /api/run`・`POST /api/jobs`・`POST /api/strategies/{id}/parameters` は PATH 上の `forge` CLI をサブプロセスとして実行します（引数はリスト形式・シェル非経由で、strategy_id / symbol は `--` 終端マーカーの後ろに positional として渡されます）。特に `POST /api/strategies/{id}/parameters` は**戦略定義を書き換えます**。非 localhost にバインドすると、到達可能な誰でもバックテスト・最適化の起動や戦略パラメータの変更ができるため、**公開バインドでの運用は推奨しません**。レスポンス・ログ中のホームディレクトリパスは `~` にマスクされます
+- **コマンド実行系エンドポイントがあります**。`POST /api/run`・`POST /api/jobs`・`POST /api/strategies/{id}/parameters`・`POST /api/strategies/{id}/duplicate` は PATH 上の `forge` CLI をサブプロセスとして実行します（引数はリスト形式・シェル非経由で、strategy_id / symbol は `--` 終端マーカーの後ろに positional として渡されます）。特に `POST /api/strategies/{id}/parameters` は**戦略定義を書き換え**、`POST /api/strategies/{id}/duplicate` は**新しい戦略を登録します**（既存 ID への上書きは `--force` を付けないため forge 側で拒否されます）。非 localhost にバインドすると、到達可能な誰でもバックテスト・最適化の起動や戦略パラメータの変更ができるため、**公開バインドでの運用は推奨しません**。レスポンス・ログ中のホームディレクトリパスは `~` にマスクされます
 - **`backtest_results.db` は SQLAlchemy 経由でパラメータ化クエリを使用** しており、API 層での SQL injection は想定されていません
 
 ご協力ありがとうございます！🛡️
