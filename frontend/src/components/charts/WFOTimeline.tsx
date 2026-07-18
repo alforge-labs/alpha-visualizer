@@ -14,13 +14,15 @@ import { parseMonth, parseMonthEnd, summarizeWfoWindows } from '../../lib/walkFo
 interface WFOTimelineProps {
   windows: WFOWindow[]
   lang: Lang
+  /** 最適化指標の表示ラベル（vis#303。省略時は従来の Sharpe） */
+  metricLabel?: string
 }
 
 const TIMELINE_MARGIN = { top: 12, right: 24, bottom: 36, left: 48 }
 const ROW_HEIGHT = 36
 const ROW_GAP = 6
 
-export function WFOTimeline({ windows, lang }: WFOTimelineProps): React.ReactElement {
+export function WFOTimeline({ windows, lang, metricLabel = 'Sharpe' }: WFOTimelineProps): React.ReactElement {
   const L = makeL(lang)
   const theme = useChartTheme()
 
@@ -36,8 +38,8 @@ export function WFOTimeline({ windows, lang }: WFOTimelineProps): React.ReactEle
   const summaryItems: ReadonlyArray<readonly [string, string, string]> = [
     [L('パス率', 'Pass rate'), `${passN}/${total}`, passRateColor],
     [L('平均 OOS/IS 比', 'Avg OOS/IS'), avgRatio, ratioColor],
-    [L('IS 平均 Sharpe', 'Avg IS Sharpe'), avgIS, theme.text],
-    [L('OOS 平均 Sharpe', 'Avg OOS Sharpe'), avgOOS, oosColor],
+    [L(`IS 平均 ${metricLabel}`, `Avg IS ${metricLabel}`), avgIS, theme.text],
+    [L(`OOS 平均 ${metricLabel}`, `Avg OOS ${metricLabel}`), avgOOS, oosColor],
   ]
 
   return (
@@ -77,7 +79,7 @@ export function WFOTimeline({ windows, lang }: WFOTimelineProps): React.ReactEle
         {({ width }) => (width > 0 ? <TimelineSection width={width} windows={windows} lang={lang} /> : null)}
       </ParentSize>
 
-      <SharpeBars windows={windows} lang={lang} />
+      <SharpeBars windows={windows} lang={lang} metricLabel={metricLabel} />
     </div>
   )
 }
@@ -248,9 +250,10 @@ function TimelineSection({ width, windows, lang }: TimelineSectionProps): React.
 interface SharpeBarsProps {
   windows: WFOWindow[]
   lang: Lang
+  metricLabel: string
 }
 
-function SharpeBars({ windows, lang }: SharpeBarsProps): React.ReactElement {
+function SharpeBars({ windows, lang, metricLabel }: SharpeBarsProps): React.ReactElement {
   const theme = useChartTheme()
   const L = makeL(lang)
 
@@ -276,7 +279,7 @@ function SharpeBars({ windows, lang }: SharpeBarsProps): React.ReactElement {
           textTransform: 'uppercase',
         }}
       >
-        {L('IS と OOS の Sharpe', 'IS vs OOS Sharpe')}
+        {L(`IS と OOS の ${metricLabel}`, `IS vs OOS ${metricLabel}`)}
       </span>
       {windows.map(w => {
         const isW = barScale(Math.max(w.is_sharpe, 0))

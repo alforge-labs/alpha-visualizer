@@ -2914,6 +2914,11 @@
             "title": "Symbol",
             "default": ""
           },
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name",
+            "default": "sharpe_ratio"
+          },
           "windows": {
             "items": {
               "$ref": "#/components/schemas/WFOWindow"

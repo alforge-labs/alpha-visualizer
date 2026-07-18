@@ -146,3 +146,78 @@ class TestWfoRouter:
         data = response.json()
         assert data["composite_equity"] == []
         assert data["composite_dates"] == []
+
+
+class TestWfoGenericMetric:
+    """非 sharpe 指標の WFT --save 対応（vis#303）。"""
+
+    def test_非sharpe指標のランでも値とmetric_nameが返る(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        build_backtest_db(db_path)
+        windows = [
+            {
+                "window_id": 1,
+                "label": "W1",
+                "is_start": "2021-01-04",
+                "oos_start": "2021-07-01",
+                "oos_end": "2021-12-31",
+                "metric": "calmar_ratio",
+                "is_metric_value": 2.5,
+                "oos_metric_value": 1.8,
+                "pass": True,
+            }
+        ]
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                """INSERT INTO optimization_runs
+                   (run_id, strategy_id, symbol, run_at, n_trials,
+                    best_metric_name, best_metric_value, best_params_json,
+                    all_trials_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "opt_calmar_wft",
+                    "calmar_strategy",
+                    "AAPL",
+                    "2026-05-01T00:00:00",
+                    50,
+                    "oos_calmar_ratio",
+                    1.8,
+                    "{}",
+                    json.dumps(windows),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  output_path: ./data/results\n  db_filename: backtest_results.db\n"
+        )
+
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/wfo/calmar_strategy")
+
+        assert response.status_code == 200
+        data = response.json()
+        # 全窓 0.0 に潰れず、汎用キーの値が is_sharpe/oos_sharpe に入る
+        assert data["metric_name"] == "calmar_ratio"
+        assert data["windows"][0]["is_sharpe"] == 2.5
+        assert data["windows"][0]["oos_sharpe"] == 1.8
+
+    def test_従来のsharpeランはmetric_nameがsharpe_ratio(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        build_backtest_db(db_path)
+        seed_wfo_windows(db_path)
+        (tmp_path / "forge.yaml").write_text(
+            "report:\n  output_path: ./data/results\n  db_filename: backtest_results.db\n"
+        )
+
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/wfo/wfo_strategy")
+
+        assert response.status_code == 200
+        assert response.json()["metric_name"] == "sharpe_ratio"

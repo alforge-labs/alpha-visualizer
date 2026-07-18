@@ -25,10 +25,43 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _window_metric_value(
+    trial: dict[str, Any], primary: str, generic: str
+) -> float:
+    """window trial の指標値を返す（sharpe キー → 汎用キーの順で解決）。
+
+    forge#1293 は metric が sharpe_ratio 以外のとき ``is_sharpe`` /
+    ``oos_sharpe`` を載せず、汎用キー（``is_metric_value`` 等）のみ保存する
+    （vis#303）。キー欠損・None は 0.0。
+    """
+    value = trial.get(primary)
+    if value is None:
+        value = trial.get(generic)
+    return float(value or 0.0)
+
+
+def resolve_metric_name(all_trials: list[dict[str, Any]] | None) -> str:
+    """WFO 形式 trial の ``metric``（最適化指標名）を返す。
+
+    forge#1293 以降の window には ``metric`` が保存される。旧フォーマットや
+    キー欠損時は従来表示と同じ ``sharpe_ratio`` にフォールバックする。
+    """
+    for trial in all_trials or []:
+        if not isinstance(trial, dict):
+            continue
+        if "window_id" not in trial and "is_sharpe" not in trial:
+            continue
+        return str(trial.get("metric") or "sharpe_ratio")
+    return "sharpe_ratio"
+
+
 def extract_windows(all_trials: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """``all_trials_json`` から WFO 形式のウィンドウ列を抽出して整形する。
 
     WFO 形式と判定する条件: ``window_id`` または ``is_sharpe`` が含まれること。
+    ``is_sharpe`` / ``oos_sharpe`` キーには、非 sharpe 指標の場合は汎用キー
+    （``is_metric_value`` / ``oos_metric_value``）の値が入る（指標名は
+    ``resolve_metric_name`` で取得し、表示側でラベルを切り替える）。
     """
     if not all_trials:
         return []
@@ -38,8 +71,8 @@ def extract_windows(all_trials: list[dict[str, Any]] | None) -> list[dict[str, A
             continue
         if "window_id" not in trial and "is_sharpe" not in trial:
             continue
-        is_sharpe = float(trial.get("is_sharpe") or 0.0)
-        oos_sharpe = float(trial.get("oos_sharpe") or 0.0)
+        is_sharpe = _window_metric_value(trial, "is_sharpe", "is_metric_value")
+        oos_sharpe = _window_metric_value(trial, "oos_sharpe", "oos_metric_value")
         is_return = float(trial.get("is_return_pct") or trial.get("is_return") or 0.0)
         oos_return = float(
             trial.get("oos_return_pct") or trial.get("oos_return") or 0.0

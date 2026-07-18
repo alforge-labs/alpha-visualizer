@@ -6,6 +6,7 @@ import { SectionHeader, SectionLabel, Tab, TabBar } from '../design/primitives'
 import { EquityChartV } from '../charts/visx/EquityChartV'
 import { WFOEquityTV } from '../charts/tv/WFOEquityTV'
 import { WFOTimeline } from '../components/charts/WFOTimeline'
+import { metricShortLabel } from '../lib/metricLabel'
 import { resolveLightweightChartsFlag } from '../constants/featureFlags'
 
 interface Props {
@@ -20,6 +21,9 @@ export function WFOScreen({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('timeline')
   const [useTv] = useState<boolean>(() => resolveLightweightChartsFlag())
   const L = makeL(lang)
+  // 非 sharpe 指標の WFT 結果は is_sharpe/oos_sharpe にその指標の値が入る
+  // ため、ラベルを metric_name に合わせて切り替える（vis#303）
+  const metricLabel = metricShortLabel(data.metric_name)
   const tabs: ReadonlyArray<readonly [Tab, string]> = [
     ['timeline', L('タイムライン', 'Timeline')],
     ['equity', L('OOS合成曲線', 'OOS Composite')],
@@ -40,7 +44,9 @@ export function WFOScreen({ data, compact, lang }: Props) {
           </Tab>
         ))}
       </TabBar>
-      {tab === 'timeline' && <WFOTimeline windows={data.windows} lang={lang} />}
+      {tab === 'timeline' && (
+        <WFOTimeline windows={data.windows} lang={lang} metricLabel={metricLabel} />
+      )}
       {tab === 'equity' && (
         <div>
           <SectionLabel>
@@ -103,7 +109,7 @@ export function WFOScreen({ data, compact, lang }: Props) {
                   {w.oos_return.toFixed(1)}%
                 </span>
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text2)' }}>
-                  Sharpe {w.oos_sharpe.toFixed(2)}
+                  {metricLabel} {w.oos_sharpe.toFixed(2)}
                 </span>
                 <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {Object.entries(w.params).map(([k, v]) => (
