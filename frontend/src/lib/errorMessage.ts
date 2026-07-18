@@ -28,3 +28,31 @@ export function normalizeErrorMessage(raw: string | null | undefined, lang: Lang
 
   return raw
 }
+
+/**
+ * ApiError の生メッセージ（"API <status>: <body>"）からサーバーの `detail`
+ * （ユーザー向け bilingual 文言）を抽出する。抽出できなければ
+ * `normalizeErrorMessage` へフォールバックする。
+ *
+ * 409（ID 衝突）のようにサーバー側 detail がそのままユーザー向け説明に
+ * なっているエンドポイント（戦略複製など）で、生 JSON の露出と定型文への
+ * 潰れ込みの両方を避けるために使う。
+ */
+export function extractApiErrorDetail(
+  raw: string | null | undefined,
+  lang: Lang,
+): string {
+  if (raw) {
+    const jsonStart = raw.indexOf('{')
+    if (jsonStart >= 0) {
+      try {
+        const detail = (JSON.parse(raw.slice(jsonStart)) as { detail?: unknown })
+          .detail
+        if (typeof detail === 'string' && detail) return detail
+      } catch {
+        // JSON でないボディは normalizeErrorMessage に委ねる
+      }
+    }
+  }
+  return normalizeErrorMessage(raw, lang)
+}

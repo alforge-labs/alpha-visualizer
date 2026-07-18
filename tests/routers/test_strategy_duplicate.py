@@ -123,4 +123,6 @@ class TestDuplicateStrategy:
                 json={"new_strategy_id": "test_strategy_v4"},
             )
         assert resp.status_code == 500
-        assert "alforgelabs.com" in resp.json()["detail"]
+        # CodeQL py/incomplete-url-substring-sanitization 対策: 部分一致でなく
+        # 末尾トークンの等価比較で funnel URL を検証する（既存テストと同規約）
+        assert resp.json()["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"

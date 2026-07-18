@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
+import { extractApiErrorDetail } from '../../lib/errorMessage'
 import { Button } from '../../design/primitives'
 
 /** バックエンド（DuplicateStrategyRequest.new_strategy_id）と同じ ID 規約 */
@@ -67,7 +68,11 @@ export function DuplicateStrategyCard({ strategyId, lang, onDuplicated }: Props)
       const result = await api.duplicateStrategy(strategyId, trimmed)
       onDuplicated(result.strategy_id)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      // 409 等はサーバーの detail がユーザー向け文言なので抽出して表示する
+      // （生 JSON の露出と定型文への潰れ込みの両方を避ける）
+      setError(
+        extractApiErrorDetail(e instanceof Error ? e.message : String(e), lang),
+      )
     } finally {
       setBusy(false)
     }

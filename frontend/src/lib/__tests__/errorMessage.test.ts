@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeErrorMessage } from '../errorMessage'
+import { extractApiErrorDetail, normalizeErrorMessage } from '../errorMessage'
 
 /**
  * issue #265: バックエンド例外が整形されずに UI へ露出していた。
@@ -39,5 +39,25 @@ describe('normalizeErrorMessage (issue #265)', () => {
     expect(normalizeErrorMessage('strategy_id が指定されていません', 'ja')).toBe(
       'strategy_id が指定されていません',
     )
+  })
+})
+
+describe('extractApiErrorDetail (issue #301)', () => {
+  it('extracts the server detail from an ApiError body', () => {
+    const raw =
+      'API 409: {"detail":"strategy_id \'x_v2\' は既に存在します / strategy_id \'x_v2\' already exists"}'
+    expect(extractApiErrorDetail(raw, 'ja')).toBe(
+      "strategy_id 'x_v2' は既に存在します / strategy_id 'x_v2' already exists",
+    )
+  })
+
+  it('falls back to normalizeErrorMessage for non-JSON bodies', () => {
+    expect(extractApiErrorDetail('API 500: oops', 'ja')).toBe(
+      'サーバーでエラーが発生しました',
+    )
+    expect(extractApiErrorDetail('Failed to fetch', 'ja')).toBe(
+      'サーバーに接続できません',
+    )
+    expect(extractApiErrorDetail(null, 'ja')).toBe('問題が発生しました')
   })
 })

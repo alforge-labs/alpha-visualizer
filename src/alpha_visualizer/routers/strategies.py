@@ -326,6 +326,52 @@ STRATEGY_SAVE_TIMEOUT_SEC = 60
 SAVE_LOG_TAIL_MAX_LINES = 20
 
 
+def _delegate_forge_strategy_save(
+    config: ForgeConfig,
+    temp_path: pathlib.Path,
+    *,
+    force: bool,
+    timeout_message: str,
+    failure_message: str,
+) -> str | None:
+    """一時戦略 JSON を ``forge strategy save`` へ委譲し log_tail を返す。
+
+    保存系エンドポイント（parameters 書き戻し / duplicate）共通の委譲経路。
+    forge 不在・タイムアウト・非ゼロ終了は ExternalProcessError（500）として
+    送出し、``temp_path`` は全パスで削除する。
+    """
+    try:
+        forge_exe = resolve_forge_exe()
+        if forge_exe is None:
+            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+        cmd = [forge_exe, "strategy", "save", str(temp_path)]
+        if force:
+            cmd.append("--force")
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=build_forge_env(config),
+            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
+            stdin=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ExternalProcessError(timeout_message) from exc
+    finally:
+        try:
+            temp_path.unlink()
+        except OSError:
+            logger.debug("一時戦略ファイルの削除に失敗: %s", temp_path)
+
+    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
+    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
+    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
+
+    if proc.returncode != 0:
+        raise ExternalProcessError(log_tail or failure_message)
+    return log_tail
+
+
 class SaveParametersRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -367,40 +413,26 @@ def save_strategy_parameters(
         pathlib.Path(tempfile.gettempdir()),
     )
     try:
-        forge_exe = resolve_forge_exe()
-        if forge_exe is None:
-            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
         merged: dict[str, Any] = json.loads(
             override_path.read_text(encoding="utf-8")
         ).get("parameters", {})
-        proc = subprocess.run(
-            [forge_exe, "strategy", "save", str(override_path), "--force"],
-            capture_output=True,
-            text=True,
-            env=build_forge_env(config),
-            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired as exc:
+    except OSError as exc:
+        override_path.unlink(missing_ok=True)
         raise ExternalProcessError(
-            f"戦略の保存が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
-            f" / Strategy save did not finish within {STRATEGY_SAVE_TIMEOUT_SEC} seconds",
+            "一時戦略ファイルの読み取りに失敗しました"
+            " / Failed to read the temporary strategy file",
         ) from exc
-    finally:
-        try:
-            override_path.unlink()
-        except OSError:
-            logger.debug("一時戦略ファイルの削除に失敗: %s", override_path)
 
-    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
-    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
-    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
-
-    if proc.returncode != 0:
-        raise ExternalProcessError(
-            log_tail or "戦略の保存に失敗しました / Strategy save failed",
-        )
-
+    log_tail = _delegate_forge_strategy_save(
+        config,
+        override_path,
+        force=True,
+        timeout_message=(
+            f"戦略の保存が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
+            f" / Strategy save did not finish within {STRATEGY_SAVE_TIMEOUT_SEC} seconds"
+        ),
+        failure_message="戦略の保存に失敗しました / Strategy save failed",
+    )
     return SaveParametersResponse(status="ok", parameters=merged, log_tail=log_tail)
 
 
@@ -453,39 +485,17 @@ def duplicate_strategy(
         body.new_strategy_id,
         pathlib.Path(tempfile.gettempdir()),
     )
-    try:
-        forge_exe = resolve_forge_exe()
-        if forge_exe is None:
-            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
-        proc = subprocess.run(
-            [forge_exe, "strategy", "save", str(duplicate_path)],
-            capture_output=True,
-            text=True,
-            env=build_forge_env(config),
-            timeout=STRATEGY_SAVE_TIMEOUT_SEC,
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise ExternalProcessError(
+    log_tail = _delegate_forge_strategy_save(
+        config,
+        duplicate_path,
+        force=False,
+        timeout_message=(
             f"戦略の複製が {STRATEGY_SAVE_TIMEOUT_SEC} 秒以内に完了しませんでした"
             f" / Strategy duplication did not finish within"
-            f" {STRATEGY_SAVE_TIMEOUT_SEC} seconds",
-        ) from exc
-    finally:
-        try:
-            duplicate_path.unlink()
-        except OSError:
-            logger.debug("一時戦略ファイルの削除に失敗: %s", duplicate_path)
-
-    output = (proc.stderr or "") + ("\n" + proc.stdout if proc.stdout else "")
-    tail_lines = output.strip().splitlines()[-SAVE_LOG_TAIL_MAX_LINES:]
-    log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
-
-    if proc.returncode != 0:
-        raise ExternalProcessError(
-            log_tail or "戦略の複製に失敗しました / Strategy duplication failed",
-        )
-
+            f" {STRATEGY_SAVE_TIMEOUT_SEC} seconds"
+        ),
+        failure_message="戦略の複製に失敗しました / Strategy duplication failed",
+    )
     return DuplicateStrategyResponse(
         status="ok", strategy_id=body.new_strategy_id, log_tail=log_tail
     )
