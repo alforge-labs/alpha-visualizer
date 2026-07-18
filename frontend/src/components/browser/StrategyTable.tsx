@@ -10,6 +10,7 @@ import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import { fmtNumber, fmtDate } from '../../lib/format'
+import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 interface Props {
   items: StrategyListItem[]
@@ -228,6 +229,23 @@ function StrategyRow({
         }}
       >
         {fmtNumber(s.latest_sharpe, { decimals: 2 })}
+        {s.latest_source === RUN_SOURCE_STRATEGY_FILE && (
+          <span
+            data-testid="latest-source-badge"
+            role="img"
+            aria-label={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            title={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            style={{ marginLeft: 4, color: 'var(--warn)', fontSize: 10 }}
+          >
+            ⚠
+          </span>
+        )}
       </td>
       <td
         style={{

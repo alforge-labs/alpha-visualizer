@@ -37,6 +37,9 @@ class StrategySummary(BaseModel):
     latest_win_rate_pct: float | None = None
     latest_total_trades: int | None = None
     last_run_at: str | None = None
+    # 最新ランの実行元 provenance（"strategy" / "strategy-file" / null=不明）。
+    # "strategy-file" は保存していないチューニング試行ラン（vis#299）
+    latest_source: str | None = None
 
 
 class StrategyComparison(BaseModel):
@@ -72,6 +75,8 @@ class StrategyResultEntry(BaseModel):
     max_drawdown_pct: float | None = None
     total_trades: int | None = None
     run_at: str | None = None
+    # 実行元 provenance（"strategy" / "strategy-file" / null=不明・vis#299）
+    source: str | None = None
 
 
 class OptimizationHistoryEntry(BaseModel):

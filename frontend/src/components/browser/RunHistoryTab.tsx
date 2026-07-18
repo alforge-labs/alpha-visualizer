@@ -2,6 +2,7 @@ import type { StrategyRun } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { fmtNumber } from '../../lib/format'
+import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 interface Props {
   runs: StrategyRun[]
@@ -32,7 +33,30 @@ export function RunHistoryTab({ runs, currentRunId, onSelectRun, lang }: Props) 
                 borderBottom: '1px solid var(--border)',
                 background: isCurrent ? 'var(--accent-bg)' : 'transparent',
               }}>
-                <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{r.run_at.slice(0, 16).replace('T', ' ')}</td>
+                <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>
+                  {r.run_at.slice(0, 16).replace('T', ' ')}
+                  {r.source === RUN_SOURCE_STRATEGY_FILE && (
+                    <span
+                      data-testid="run-source-badge"
+                      title={L(
+                        '定義ファイル直接実行のラン（保存していないパラメータでのチューニング試行など）',
+                        'Run executed from a definition file (e.g. tuning trial with unsaved parameters)',
+                      )}
+                      style={{
+                        marginLeft: 6,
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        border: '1px solid var(--warn)',
+                        color: 'var(--warn)',
+                        fontSize: 9,
+                        fontFamily: 'var(--mono)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {L('試行', 'trial')}
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding: '7px 10px', textAlign: 'right', color: r.sharpe_ratio !== null && r.sharpe_ratio >= 1 ? 'var(--success)' : 'var(--warn)', fontWeight: 700 }}>
                   {/* issue #266: 数値整形を SSoT（fmtNumber）経由へ統一 */}
                   {fmtNumber(r.sharpe_ratio, { decimals: 2 })}

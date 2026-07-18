@@ -225,3 +225,103 @@ def test_find_latest_by_strategy_ids_returns_latest(tmp_path: Path) -> None:
     # 最新は run_002
     assert result["sma_cross"].run_id == "run_002"
     assert result["sma_cross"].run_at == "2026-04-02T12:00:00"
+
+
+class TestSourceColumn:
+    """source（実行元 provenance・vis#299）の読み取りテスト。
+
+    WHY: source 列は forge 側の ALTER TABLE（書き込み時）で後付けされるため、
+    旧 forge が書いた DB には存在しない。visualizer は読み取り専用で ALTER
+    しない（single-writer 原則）ので、列の有無どちらでも読めることを固定する。
+    """
+
+    def test_source列があるdbで値が返る(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET source = 'strategy-file'"
+                " WHERE run_id = 'run_001'"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.source == "strategy-file"
+        # 他の行（UPDATE していない）は NULL → None
+        rows = {r.run_id: r for r in repo.list_results()}
+        assert rows["run_002"].source is None
+
+    def test_find_latest_by_strategy_idsでもsourceが返る(
+        self, tmp_path: Path
+    ) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET source = 'strategy-file'"
+                " WHERE run_id = 'run_002'"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        latest = repo.find_latest_by_strategy_ids(["sma_cross"])
+        # sma_cross の最新は run_002（2026-04-02）
+        assert latest["sma_cross"].source == "strategy-file"
+
+    def test_source列がない旧dbでも読めてsourceはnone(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("ALTER TABLE backtest_results DROP COLUMN source")
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        rows = repo.list_results()
+        assert len(rows) == 3
+        assert all(r.source is None for r in rows)
+
+        row = repo.get_result("run_001")
+        assert row is not None
+        assert row.source is None
+
+        latest = repo.find_latest_by_strategy_ids(["sma_cross", "ema_cross"])
+        assert latest["sma_cross"].source is None
+        assert latest["ema_cross"].source is None
+
+    def test_列検出が旧スキーマ系エラーのとき列なしへフォールバックする(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """inspect が NoSuchTableError / OperationalError のときは「列なし」扱い。
+
+        WHY: 検出失敗で 500 になるより、source なし（旧 DB 相当）として
+        読み取りを継続する方が読み取り専用ビューアとして適切。それ以外の
+        例外は Fail Loud で送出する（次テスト）。
+        """
+        from sqlalchemy.exc import NoSuchTableError
+
+        from alpha_visualizer.repositories import backtest_results as module
+
+        db_path = _make_db(tmp_path)
+
+        def _raise_no_table(engine: object) -> object:
+            raise NoSuchTableError("backtest_results")
+
+        monkeypatch.setattr(module, "inspect", _raise_no_table)
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        rows = repo.list_results()
+        assert len(rows) == 3
+        # 実 DB には source 列があるが、検出失敗時は SELECT に含めない → None
+        assert all(r.source is None for r in rows)
+
+    def test_列検出の想定外例外は送出される(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from alpha_visualizer.repositories import backtest_results as module
+
+        db_path = _make_db(tmp_path)
+
+        def _raise_unexpected(engine: object) -> object:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(module, "inspect", _raise_unexpected)
+        repo = BacktestResultsRepository(get_engine(db_path))
+
+        with pytest.raises(RuntimeError):
+            repo.list_results()

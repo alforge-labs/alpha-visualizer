@@ -1014,6 +1014,17 @@
               }
             ],
             "title": "Regime Breakdown"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
           }
         },
         "additionalProperties": true,
@@ -2485,6 +2496,17 @@
               }
             ],
             "title": "Run At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
           }
         },
         "additionalProperties": true,
@@ -2619,6 +2641,17 @@
               }
             ],
             "title": "Last Run At"
+          },
+          "latest_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Source"
           }
         },
         "additionalProperties": true,

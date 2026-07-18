@@ -46,6 +46,10 @@ backtest_results = Table(
     Column("buy_hold_curve_json", Text),
     Column("trades_json", Text),
     Column("oos_start", Text),
+    # 実行元 provenance（forge ysakae/alpha-forge#1295）: "strategy"（登録戦略）/
+    # "strategy-file"（一時定義 = チューニング試行等）。旧 forge の DB には
+    # 列自体が無いため、Repository 側で有無を検出して SELECT から除外する
+    Column("source", Text),
 )
 
 optimization_runs = Table(

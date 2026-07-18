@@ -489,6 +489,8 @@ export interface components {
             regime_breakdown?: {
                 [key: string]: unknown;
             } | null;
+            /** Source */
+            source?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1173,6 +1175,8 @@ export interface components {
             total_trades?: number | null;
             /** Run At */
             run_at?: string | null;
+            /** Source */
+            source?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1213,6 +1217,8 @@ export interface components {
             latest_total_trades?: number | null;
             /** Last Run At */
             last_run_at?: string | null;
+            /** Latest Source */
+            latest_source?: string | null;
         } & {
             [key: string]: unknown;
         };
