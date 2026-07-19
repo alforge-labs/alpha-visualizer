@@ -5,6 +5,135 @@ alpha-visualizer の全バージョン変更履歴です。
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
 
+## [0.9.0] - 2026-07-19
+
+
+### CI/CD
+
+- **deps**: bump actions/cache from 5 to 6 (#276)
+
+
+- **deps**: bump actions/checkout from 6 to 7 (#251)
+
+
+
+### その他
+
+- **deps-dev**: bump hypothesis from 6.155.2 to 6.155.7 (#252)
+
+
+- **deps**: bump fastapi from 0.137.0 to 0.138.0 (#253)
+
+
+- **deps-dev**: bump bump-my-version from 1.2.2 to 1.4.1 (#254)
+
+
+- **deps-dev**: bump pytest from 9.1.0 to 9.1.1 (#255)
+
+
+- **deps-dev**: bump ruff from 0.15.17 to 0.15.18 (#256)
+
+
+- **deps**: bump click from 8.4.1 to 8.4.2 (#279)
+
+
+- **deps-dev**: bump hypothesis from 6.155.7 to 6.156.1 (#280)
+
+
+- **deps-dev**: bump ruff from 0.15.18 to 0.15.20 (#281)
+
+
+- **deps**: bump sqlalchemy from 2.0.50 to 2.0.51 (#283)
+
+
+- **deps**: bump fastapi from 0.138.0 to 0.139.0 (#282)
+
+
+- THIRDPARTY ライセンスを v0.9.0 向けに再生成
+
+
+- バージョン 0.9.0 にバンプ
+
+
+
+### テスト
+
+- **e2e**: シェア導線（カード保存・X 共有インテント）の E2E を追加 (#290)
+
+
+- 実行系・書き込み系エンドポイントの DB モード（strategies.use_db）テストを追加 (#305)
+
+
+
+### ドキュメント
+
+- CHANGELOG を v0.8.0 に更新
+
+
+- pre-release を CI 委譲フローに刷新し audit-licenses の除外リストを現依存に同期 (#277)
+
+
+- X (@Alforge_bot) フォローバッジと project.urls を追加 (#278)
+
+
+
+### バグ修正
+
+- /api/run のレビュー第2ラウンド対応（EULA プロンプトの fail-fast 化・引数注入対策ほか） (#295)
+
+
+- ジョブ基盤のレビュー第2ラウンド対応（結果のパスマスク・shutdown 時の孤児化防止ほか） (#297)
+
+
+
+### 新機能
+
+- **cli**: serve 起動バナーに AlphaForge への送客 CTA を追加（C3） (#275)
+
+
+- **ui**: AlphaForge 送客導線を Web UI に常設し strike→forge 取込経路を明示 (#284)
+
+
+- **share**: バックテスト結果の SNS シェアカード生成機能を追加（C5 バイラルループ） (#285)
+
+
+- **share**: シェアカードを Compare / Live 画面へ展開 (#286)
+
+
+- **share**: X 共有インテントボタンと UTM 計測を追加 (#287)
+
+
+- **share**: X 共有を Compare / Live 画面へ展開し 280 字ガードを追加 (#288)
+
+
+- **browse**: 初回起動（データなし）の空状態にオンボーディング CTA を追加 (#289)
+
+
+- /api/run を堅牢化（--json run_id 直接取得・タイムアウト・timeframe 除去・実行ログ表示） (#294)
+
+
+- 非同期ジョブ基盤を追加（optimize/WFT の GUI 実行・SSE 進捗・キャンセル） (#296)
+
+
+- パラメータチューニングループ UI を追加（編集→一時実行→比較→明示保存） (#298)
+
+
+- WFT ジョブに --save を付与して WFO タブへ自動反映（forge#1293 対応） (#302)
+
+
+- Run History / Browse / Backtest タブでチューニング試行ランを区別表示 (#304)
+
+
+- 既存戦略の複製ベースの新規戦略作成を追加 (#306)
+
+
+- WFO タブを非 sharpe 指標の WFT 結果に対応 (#307)
+
+
+- Backtest 詳細に carry_adjusted（FX キャリー近似）を表示 (#309)
+
+
+
 ## [0.8.0] - 2026-06-28
 
 
