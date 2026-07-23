@@ -137,3 +137,46 @@ export const WithBenchmarkAndCutoff: Story = {
     showBenchmark: true,
   },
 }
+
+/** issue #317: レジーム背景バンド（#187 の visx 撤去で失われた表示の復元） */
+export const WithRegimeBands: Story = {
+  decorators: [withVariation('atelier')],
+  parameters: { backgrounds: { default: 'light' } },
+  args: {
+    lang: 'ja',
+    equity: shortEquity,
+    dates: shortDates,
+    drawdown: shortDrawdown,
+    isCutoffIdx: 30,
+    showRegime: true,
+    regimeSeries: {
+      dates: shortDates,
+      // 3 レジームが交互に現れる系列（バンド境界と色分けの確認用）
+      states: shortDates.map((_, i) => (i < 20 ? 0 : i < 45 ? 1 : i < 70 ? 2 : 0)),
+      n_states: 3,
+      label_names: { '0': 'Range', '1': 'Bull', '2': 'Bear' },
+    },
+  },
+}
+
+/**
+ * issue #317: palette（5 色）を超える state 数。
+ * hsl フォールバック側にも alpha が載り、帯が不透明にならないことの確認用。
+ */
+export const WithManyRegimes: Story = {
+  decorators: [withVariation('atelier')],
+  parameters: { backgrounds: { default: 'light' } },
+  args: {
+    lang: 'ja',
+    equity: shortEquity,
+    dates: shortDates,
+    drawdown: shortDrawdown,
+    isCutoffIdx: 30,
+    showRegime: true,
+    regimeSeries: {
+      dates: shortDates,
+      states: shortDates.map((_, i) => Math.floor(i / 10) % 7),
+      n_states: 7,
+    },
+  },
+}
