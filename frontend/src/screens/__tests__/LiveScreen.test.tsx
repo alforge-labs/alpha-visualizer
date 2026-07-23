@@ -119,6 +119,8 @@ describe('<LiveScreen />', () => {
 
   it('shows loading state and does not fetch detail while loading', () => {
     renderScreen({ items: [], selectedId: null, loading: true })
+    // issue #266: 素のテキストではなく共有 Loading（スケルトン）で表示する
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
     expect(screen.getByText(/読み込み中/)).toBeInTheDocument()
     expect(screen.queryByText(/ライブ実績データがまだありません/)).toBeNull()
     expect(api.getLive).not.toHaveBeenCalled()

@@ -7,7 +7,7 @@ import { CompareScreen } from '../screens/CompareScreen'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
-import { Button, Divider, ErrorBanner, Toolbar } from '../design/primitives'
+import { Button, Divider, ErrorBanner, Loading, Toolbar } from '../design/primitives'
 
 export function ComparePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
@@ -178,17 +178,7 @@ export function ComparePage(): React.ReactElement {
         </header>
         <div style={{ padding: 'var(--space-6) var(--layout-gutter)' }}>
         {compare.status === 'loading' && (
-          <div
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--fs-mono-md)',
-              color: 'var(--text3)',
-              letterSpacing: 'var(--tracking-mono)',
-              textTransform: 'uppercase',
-            }}
-          >
-            {L('読み込み中…', 'Loading…')}
-          </div>
+          <Loading label={L('読み込み中…', 'Loading…')} />
         )}
         {compare.status === 'no_data' && (
           <div

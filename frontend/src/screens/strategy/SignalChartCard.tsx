@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { StrategySignalChartTV } from '../../charts/tv/StrategySignalChartTV'
-import { Card, SectionHeader } from '../../design/primitives'
+import { Card, Loading, SectionHeader } from '../../design/primitives'
 import { useStrategyHistorical } from '../../hooks/useStrategyHistorical'
 import type { RegimeSeries, Trade } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
@@ -44,7 +44,7 @@ function SignalChartBody({ symbol, trades, regimeSeries, lang }: SignalChartCard
   const state = useStrategyHistorical(symbol, '1d')
 
   if (symbol == null || state.status === 'loading') {
-    return <Hint>{L('読み込み中…', 'Loading...')}</Hint>
+    return <Loading label={L('読み込み中…', 'Loading…')} rows={2} />
   }
   if (state.status === 'no_data') {
     return (

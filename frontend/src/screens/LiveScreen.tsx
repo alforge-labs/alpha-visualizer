@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { Link } from 'react-router-dom'
 import type { LiveListItem } from '../api/types'
-import { Chip } from '../design/primitives'
+import { Chip, Loading } from '../design/primitives'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { Theme } from '../hooks/useTheme'
@@ -114,9 +114,7 @@ export function LiveScreen({
 
       <div style={{ flex: 1, padding: 'var(--space-5) var(--space-7)' }}>
         {loading ? (
-          <div style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-            {L('読み込み中…', 'Loading…')}
-          </div>
+          <Loading label={L('読み込み中…', 'Loading…')} />
         ) : items.length === 0 ? (
           <EmptyState lang={lang} />
         ) : selectedId ? (

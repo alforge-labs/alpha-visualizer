@@ -5,7 +5,8 @@ import { useRunBacktest, useStrategyRuns } from '../../hooks/useBacktestData'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { Button, Chip, ConfirmDialog, Divider } from '../../design/primitives'
+import { Button, Chip, ConfirmDialog, Divider, Skeleton } from '../../design/primitives'
+import { SR_ONLY_STYLE } from '../../design/primitives/srOnly'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { RunLogDetails } from '../RunLogDetails'
 
@@ -207,15 +208,9 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
           {Array.isArray(sparkValues) && sparkValues.length >= 2 ? (
             <Sparkline values={sparkValues} width={300} height={108} strokeWidth={1.5} />
           ) : sparkValues === 'loading' ? (
-            <span
-              style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text3)',
-                letterSpacing: 'var(--tracking-mono)',
-              }}
-            >
-              {L('読み込み中…', 'Loading…')}
+            <span role="status" aria-live="polite" aria-busy="true">
+              <Skeleton width={300} height={108} />
+              <span style={SR_ONLY_STYLE}>{L('読み込み中…', 'Loading…')}</span>
             </span>
           ) : (
             <span
