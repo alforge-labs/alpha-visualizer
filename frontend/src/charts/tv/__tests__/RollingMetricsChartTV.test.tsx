@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => {
   const setDataMock = vi.fn()
   const applyOptionsMock = vi.fn()
   const setVisibleRangeMock = vi.fn()
+  const subscribeRangeMock = vi.fn()
+  const unsubscribeRangeMock = vi.fn()
   const removeMock = vi.fn()
   const addSeriesMock = vi.fn(() => ({
     setData: setDataMock,
@@ -19,12 +21,19 @@ const mocks = vi.hoisted(() => {
     remove: removeMock,
     addSeries: addSeriesMock,
     applyOptions: applyOptionsMock,
-    timeScale: () => ({ setVisibleRange: setVisibleRangeMock }),
+    // issue #318: 双方向 viewport sync が購読する API
+    timeScale: () => ({
+      setVisibleRange: setVisibleRangeMock,
+      subscribeVisibleTimeRangeChange: subscribeRangeMock,
+      unsubscribeVisibleTimeRangeChange: unsubscribeRangeMock,
+    }),
   }))
   return {
     setDataMock,
     applyOptionsMock,
     setVisibleRangeMock,
+    subscribeRangeMock,
+    unsubscribeRangeMock,
     removeMock,
     addSeriesMock,
     createChartMock,

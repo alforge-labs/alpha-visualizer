@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AreaSeries,
   HistogramSeries,
@@ -15,6 +15,7 @@ import { RANGES } from '../../contexts/dashboardConstants'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { useChartTheme } from '../../design/useChartTheme'
 import { useEquityViewport } from '../../hooks/useEquityViewport'
+import { useSyncedTimeRange } from '../../hooks/useSyncedTimeRange'
 import { makeL, type Lang } from '../../i18n/strings'
 import type { RegimeSeries } from '../../api/types'
 import { createRegimeBandsPrimitive, type RegimeBandsPrimitive } from './regimeBands'
@@ -71,6 +72,8 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   const theme = useChartTheme()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  // hook に渡すには再レンダーを起こす必要があるため、ref とは別に state でも保持する
+  const [chartApi, setChartApi] = useState<IChartApi | null>(null)
   const equitySeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const benchmarkSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const drawdownSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
@@ -110,6 +113,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       ...chartThemeToOptions(theme, lang),
     })
     chartRef.current = chart
+    setChartApi(chart)
 
     const equitySeries = chart.addSeries(
       AreaSeries,
@@ -134,6 +138,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       drawdownSeriesRef.current = null
       chart.remove()
       chartRef.current = null
+      setChartApi(null)
     }
     // create-once: theme / isPositive の更新は別 effect で applyOptions する。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,14 +204,16 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       benchmarkSeriesRef.current.setData(benchmarkData)
     }
     markersPluginRef.current?.setMarkers(markers)
+  }, [equityData, benchmarkData, drawdownData, markers, showBenchmark])
 
-    // viewport を equity の全範囲（slice 済み）に合わせる
+  // viewport は共有状態と双方向に同期する（issue #318）。
+  // 共有範囲が無ければ equity の全範囲（slice 済み）を表示する。
+  const fullRange = useMemo(() => {
     const first = equityData[0]?.time
     const last = equityData[equityData.length - 1]?.time
-    if (first != null && last != null) {
-      chartRef.current?.timeScale().setVisibleRange({ from: first, to: last })
-    }
-  }, [equityData, benchmarkData, drawdownData, markers, showBenchmark])
+    return first != null && last != null ? { from: first, to: last } : null
+  }, [equityData])
+  useSyncedTimeRange({ chart: chartApi, fullRange })
 
   useImperativeHandle(
     ref,
