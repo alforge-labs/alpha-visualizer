@@ -5,6 +5,42 @@ alpha-visualizer の全バージョン変更履歴です。
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
 
+## [1.0.1] - 2026-07-23
+
+
+### CI/CD
+
+- **deps**: bump actions/setup-node from 6 to 7 (#310)
+
+
+
+### その他
+
+- **charts**: lightweight-charts PoC 後の clean-up とインフラ整備 (#320)
+
+
+- **deps**: Dependabot の依存更新とセキュリティアラート 7 件を解消 (#322)
+
+
+- バージョン 1.0.1 にバンプ
+
+
+
+### ドキュメント
+
+- CHANGELOG を v1.0.0 に更新
+
+
+
+### バグ修正
+
+- **web**: EN 言語切替をナビ・チャート軸ロケール・Data table 表記に反映 (issue #315) (#316)
+
+
+- **web**: 残存していた素テキストのローディング表示 6 箇所を共有 Loading へ移行 (issue #266) (#321)
+
+
+
 ## [1.0.0] - 2026-07-21
 
 
