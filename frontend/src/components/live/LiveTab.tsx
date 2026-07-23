@@ -3,7 +3,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { ApiError, api } from '../../api/client'
 import type { LiveDetailResponse, LiveTrade } from '../../api/types'
-import { SectionLabel } from '../../design/primitives'
+import { Loading, SectionLabel } from '../../design/primitives'
 import { diffTone } from './format'
 import { fmtDiff, fmtInteger, fmtNumber } from '../../lib/format'
 import { LivePositionView } from './LivePositionView'
@@ -47,11 +47,7 @@ export function LiveTab({ strategyId, runId, lang }: Props) {
   }, [strategyId, runId])
 
   if (state.status === 'loading') {
-    return (
-      <div style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-        {L('読み込み中…', 'Loading…')}
-      </div>
-    )
+    return <Loading label={L('読み込み中…', 'Loading…')} />
   }
   if (state.status === 'no_data') {
     return (

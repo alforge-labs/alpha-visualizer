@@ -78,6 +78,12 @@ beforeEach(() => {
 })
 
 describe('<LiveTab />', () => {
+  it('shows the shared Loading skeleton while fetching (issue #266)', () => {
+    vi.mocked(api.getLive).mockReturnValue(new Promise(() => {}))
+    render(<LiveTab strategyId="sma_v1" runId="run_1" lang="ja" />)
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
+  })
+
   it('shows summary cards with positive diff when live outperforms backtest', async () => {
     vi.mocked(api.getLive).mockResolvedValue(BASE_RESPONSE)
     render(<LiveTab strategyId="strat_a" runId="bt_run_1" lang="ja" />)

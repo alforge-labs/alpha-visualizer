@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { Link } from 'react-router-dom'
 import type { IdeaItem, LinkedRun } from '../api/types'
-import { Card, Chip } from '../design/primitives'
+import { Card, Chip, Loading } from '../design/primitives'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { Theme } from '../hooks/useTheme'
@@ -195,16 +195,7 @@ export function IdeasScreen({
 
       <div style={{ flex: 1, padding: 'var(--space-6) var(--space-7)' }}>
         {loading ? (
-          <div
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--fs-mono-md)',
-              color: 'var(--text3)',
-              letterSpacing: 'var(--tracking-mono)',
-            }}
-          >
-            {L('読み込み中…', 'Loading…')}
-          </div>
+          <Loading label={L('読み込み中…', 'Loading…')} />
         ) : filtered.length === 0 ? (
           <EmptyState lang={lang} hasFilter={hasFilter} />
         ) : (
