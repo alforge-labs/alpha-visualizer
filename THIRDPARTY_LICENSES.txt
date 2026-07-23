@@ -1247,1593 +1247,285 @@ SOFTWARE.
 
 SECTION 2: FRONTEND DEPENDENCIES (Vite + React)
 ================================================================================
-Total: 397 packages
-
-  @adobe/css-tools@4.4.4
-  License: MIT
-  Repository: https://github.com/adobe/css-tools
-
-  @asamuzakjp/css-color@5.1.11
-  License: MIT
-  Repository: https://github.com/asamuzaK/cssColor
-
-  @asamuzakjp/dom-selector@7.1.1
-  License: MIT
-  Repository: https://github.com/asamuzaK/domSelector
-
-  @asamuzakjp/generational-cache@1.0.1
-  License: MIT
-  Repository: https://github.com/asamuzaK/generationalCache
-
-  @asamuzakjp/nwsapi@2.3.9
-  License: MIT
-  Repository: https://github.com/dperini/nwsapi
-
-  @babel/code-frame@7.29.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/compat-data@7.29.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/core@7.29.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/generator@7.29.1
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-compilation-targets@7.28.6
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-globals@7.28.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-module-imports@7.28.6
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-module-transforms@7.28.6
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-string-parser@7.27.1
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-validator-identifier@7.28.5
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helper-validator-option@7.27.1
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/helpers@7.29.2
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/parser@7.29.2
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/runtime@7.29.2
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/template@7.28.6
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/traverse@7.29.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @babel/types@7.29.0
-  License: MIT
-  Repository: https://github.com/babel/babel
-
-  @bramus/specificity@2.4.2
-  License: MIT
-  Repository: https://github.com/bramus/specificity
-
-  @csstools/color-helpers@6.0.2
-  License: MIT-0
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @csstools/css-calc@3.2.0
-  License: MIT
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @csstools/css-color-parser@4.1.0
-  License: MIT
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @csstools/css-parser-algorithms@4.0.0
-  License: MIT
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @csstools/css-syntax-patches-for-csstree@1.1.3
-  License: MIT-0
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @csstools/css-tokenizer@4.0.0
-  License: MIT
-  Repository: https://github.com/csstools/postcss-plugins
-
-  @esbuild/darwin-arm64@0.25.12
-  License: MIT
-  Repository: https://github.com/evanw/esbuild
-
-  @eslint-community/eslint-utils@4.9.1
-  License: MIT
-  Repository: https://github.com/eslint-community/eslint-utils
-
-  @eslint-community/regexpp@4.12.2
-  License: MIT
-  Repository: https://github.com/eslint-community/regexpp
-
-  @eslint/config-array@0.23.5
-  License: Apache-2.0
-  Repository: https://github.com/eslint/rewrite
-
-  @eslint/config-helpers@0.5.5
-  License: Apache-2.0
-  Repository: https://github.com/eslint/rewrite
-
-  @eslint/core@1.2.1
-  License: Apache-2.0
-  Repository: https://github.com/eslint/rewrite
-
-  @eslint/js@10.0.1
-  License: MIT
-  Repository: https://github.com/eslint/eslint
-
-  @eslint/object-schema@3.0.5
-  License: Apache-2.0
-  Repository: https://github.com/eslint/rewrite
-
-  @eslint/plugin-kit@0.7.1
-  License: Apache-2.0
-  Repository: https://github.com/eslint/rewrite
-
-  @exodus/bytes@1.15.0
-  License: MIT
-  Repository: https://github.com/ExodusOSS/bytes
+Total: 70 packages
 
   @fontsource/inter-tight@5.2.7
   License: OFL-1.1
-  Repository: https://github.com/fontsource/font-files
+  Homepage: https://fontsource.org/fonts/inter-tight
 
   @fontsource/jetbrains-mono@5.2.8
   License: OFL-1.1
-  Repository: https://github.com/fontsource/font-files
+  Homepage: https://fontsource.org/fonts/jetbrains-mono
 
   @fontsource/source-serif-4@5.2.9
   License: OFL-1.1
-  Repository: https://github.com/fontsource/font-files
-
-  @humanfs/core@0.19.2
-  License: Apache-2.0
-  Repository: https://github.com/humanwhocodes/humanfs
-
-  @humanfs/node@0.16.8
-  License: Apache-2.0
-  Repository: https://github.com/humanwhocodes/humanfs
-
-  @humanfs/types@0.15.0
-  License: Apache-2.0
-  Repository: https://github.com/humanwhocodes/humanfs
-
-  @humanwhocodes/module-importer@1.0.1
-  License: Apache-2.0
-  Repository: https://github.com/humanwhocodes/module-importer
-
-  @humanwhocodes/retry@0.4.3
-  License: Apache-2.0
-  Repository: https://github.com/humanwhocodes/retry
-
-  @joshwooding/vite-plugin-react-docgen-typescript@0.7.0
-  License: MIT
-  Repository: https://github.com/joshwooding/vite-plugin-react-docgen-typescript
-
-  @jridgewell/gen-mapping@0.3.13
-  License: MIT
-  Repository: https://github.com/jridgewell/sourcemaps
-
-  @jridgewell/remapping@2.3.5
-  License: MIT
-  Repository: https://github.com/jridgewell/sourcemaps
-
-  @jridgewell/resolve-uri@3.1.2
-  License: MIT
-  Repository: https://github.com/jridgewell/resolve-uri
-
-  @jridgewell/sourcemap-codec@1.5.5
-  License: MIT
-  Repository: https://github.com/jridgewell/sourcemaps
-
-  @jridgewell/trace-mapping@0.3.31
-  License: MIT
-  Repository: https://github.com/jridgewell/sourcemaps
-
-  @oxc-project/types@0.128.0
-  License: MIT
-  Repository: https://github.com/oxc-project/oxc
-
-  @playwright/test@1.59.1
-  License: Apache-2.0
-  Repository: https://github.com/microsoft/playwright
-
-  @playwright/test@1.60.0
-  License: Apache-2.0
-  Repository: https://github.com/microsoft/playwright
-
-  @redocly/ajv@8.11.2
-  License: MIT
-  Repository: https://github.com/ajv-validator/ajv
-
-  @redocly/config@0.22.0
-  License: MIT
-
-  @redocly/openapi-core@1.34.14
-  License: MIT
-  Repository: https://github.com/Redocly/redocly-cli
-
-  @rolldown/binding-darwin-arm64@1.0.0-rc.18
-  License: MIT
-  Repository: https://github.com/rolldown/rolldown
-
-  @rolldown/pluginutils@1.0.0-rc.18
-  License: MIT
-  Repository: https://github.com/rolldown/rolldown
-
-  @rolldown/pluginutils@1.0.0-rc.7
-  License: MIT
-  Repository: https://github.com/rolldown/rolldown
-
-  @rollup/pluginutils@5.3.0
-  License: MIT
-  Repository: https://github.com/rollup/plugins
-
-  @size-limit/file@12.1.0
-  License: MIT
-  Repository: https://github.com/ai/size-limit
-
-  @standard-schema/spec@1.1.0
-  License: MIT
-  Repository: https://github.com/standard-schema/standard-schema
-
-  @storybook/builder-vite@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  @storybook/csf-plugin@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  @storybook/global@5.0.0
-  License: MIT
-  Repository: https://github.com/storybookjs/global
-
-  @storybook/icons@2.0.2
-  License: MIT
-  Repository: https://github.com/storybookjs/icons
-
-  @storybook/react-dom-shim@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  @storybook/react-vite@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  @storybook/react@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  @testing-library/dom@10.4.1
-  License: MIT
-  Repository: https://github.com/testing-library/dom-testing-library
-
-  @testing-library/jest-dom@6.9.1
-  License: MIT
-  Repository: https://github.com/testing-library/jest-dom
-
-  @testing-library/react@16.3.2
-  License: MIT
-  Repository: https://github.com/testing-library/react-testing-library
-
-  @testing-library/user-event@14.6.1
-  License: MIT
-  Repository: https://github.com/testing-library/user-event
-
-  @types/aria-query@5.0.4
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/babel__core@7.20.5
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/babel__generator@7.27.0
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/babel__template@7.4.4
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/babel__traverse@7.28.0
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/chai@5.2.3
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://fontsource.org/fonts/source-serif-4
 
   @types/d3-array@3.0.3
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/d3-array@3.2.2
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-array
 
   @types/d3-color@3.1.0
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-color
 
   @types/d3-delaunay@6.0.1
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-delaunay
 
   @types/d3-format@3.0.1
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-format
 
   @types/d3-geo@3.1.0
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-geo
 
   @types/d3-interpolate@3.0.1
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-interpolate
 
   @types/d3-path@1.0.11
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-path
 
   @types/d3-scale@4.0.2
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-scale
 
   @types/d3-shape@1.3.12
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-shape
 
   @types/d3-time-format@2.1.0
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped#readme
 
   @types/d3-time@3.0.0
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/deep-eql@4.0.2
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/doctrine@0.0.9
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/esrecurse@4.3.1
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/estree@1.0.8
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-time
 
   @types/geojson@7946.0.16
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/json-schema@7.0.15
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/geojson
 
   @types/lodash@4.17.24
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/node@25.6.2
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/node@25.9.1
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/lodash
 
   @types/react-dom@19.2.3
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom
 
   @types/react@19.2.14
   License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @types/resolve@1.20.6
-  License: MIT
-  Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
-
-  @typescript-eslint/eslint-plugin@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/parser@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/project-service@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/scope-manager@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/tsconfig-utils@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/type-utils@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/types@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/typescript-estree@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/utils@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  @typescript-eslint/visitor-keys@8.59.2
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
+  Homepage: https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react
 
   @visx/axis@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/bounds@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/curve@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/event@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/gradient@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/grid@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/group@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/point@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/responsive@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/scale@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/shape@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/text@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/tooltip@3.12.0
   License: MIT
-  Repository: https://github.com/airbnb/visx
+  Homepage: https://github.com/airbnb/visx#readme
 
   @visx/vendor@3.12.0
-  License: ISC*
-  Repository: https://github.com/airbnb/visx
-
-  @vitejs/plugin-react@6.0.1
-  License: MIT
-  Repository: https://github.com/vitejs/vite-plugin-react
-
-  @vitejs/plugin-react@6.0.2
-  License: MIT
-  Repository: https://github.com/vitejs/vite-plugin-react
-
-  @vitest/expect@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/mocker@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/pretty-format@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/runner@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/snapshot@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/spy@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @vitest/utils@4.1.5
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  @webcontainer/env@1.1.1
-  License: MIT
-  Repository: https://github.com/stackblitz/webcontainer-core
-
-  acorn-jsx@5.3.2
-  License: MIT
-  Repository: https://github.com/acornjs/acorn-jsx
-
-  acorn@8.16.0
-  License: MIT
-  Repository: https://github.com/acornjs/acorn
-
-  agent-base@7.1.4
-  License: MIT
-  Repository: https://github.com/TooTallNate/proxy-agents
-
-  ajv@6.15.0
-  License: MIT
-  Repository: https://github.com/ajv-validator/ajv
-
-  ansi-colors@4.1.3
-  License: MIT
-  Repository: https://github.com/doowb/ansi-colors
-
-  ansi-regex@5.0.1
-  License: MIT
-  Repository: https://github.com/chalk/ansi-regex
-
-  ansi-styles@5.2.0
-  License: MIT
-  Repository: https://github.com/chalk/ansi-styles
-
-  argparse@2.0.1
-  License: Python-2.0
-  Repository: https://github.com/nodeca/argparse
-
-  aria-query@5.3.2
-  License: Apache-2.0
-  Repository: https://github.com/A11yance/aria-query
-
-  assertion-error@2.0.1
-  License: MIT
-  Repository: https://github.com/chaijs/assertion-error
-
-  ast-types@0.16.1
-  License: MIT
-  Repository: https://github.com/benjamn/ast-types
+  License: MIT and ISC
+  Homepage: https://github.com/airbnb/visx#readme
 
   balanced-match@0.4.2
   License: MIT
-  Repository: https://github.com/juliangruber/balanced-match
+  Homepage: https://github.com/juliangruber/balanced-match
 
   balanced-match@1.0.2
   License: MIT
-  Repository: https://github.com/juliangruber/balanced-match
-
-  balanced-match@4.0.4
-  License: MIT
-  Repository: https://github.com/juliangruber/balanced-match
-
-  baseline-browser-mapping@2.10.22
-  License: Apache-2.0
-  Repository: https://github.com/web-platform-dx/baseline-browser-mapping
-
-  bidi-js@1.0.3
-  License: MIT
-  Repository: https://github.com/lojjic/bidi-js
-
-  brace-expansion@2.1.0
-  License: MIT
-  Repository: https://github.com/juliangruber/brace-expansion
-
-  brace-expansion@5.0.5
-  License: MIT
-  Repository: https://github.com/juliangruber/brace-expansion
-
-  browserslist@4.28.2
-  License: MIT
-  Repository: https://github.com/browserslist/browserslist
-
-  bundle-name@4.1.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/bundle-name
-
-  caniuse-lite@1.0.30001791
-  License: CC-BY-4.0
-  Repository: https://github.com/browserslist/caniuse-lite
-
-  chai@6.2.2
-  License: MIT
-  Repository: https://github.com/chaijs/chai
-
-  change-case@5.4.4
-  License: MIT
-  Repository: https://github.com/blakeembrey/change-case
-
-  check-error@2.1.3
-  License: MIT
-  Repository: https://github.com/chaijs/check-error
+  Homepage: https://github.com/juliangruber/balanced-match
 
   classnames@2.5.1
   License: MIT
-  Repository: https://github.com/JedWatson/classnames
-
-  colorette@1.4.0
-  License: MIT
-  Repository: https://github.com/jorgebucaran/colorette
-
-  convert-source-map@2.0.0
-  License: MIT
-  Repository: https://github.com/thlorenz/convert-source-map
+  Homepage: https://github.com/JedWatson/classnames#readme
 
   cookie@1.1.1
   License: MIT
-  Repository: https://github.com/jshttp/cookie
-
-  cross-spawn@7.0.6
-  License: MIT
-  Repository: https://github.com/moxystudio/node-cross-spawn
-
-  css-tree@3.2.1
-  License: MIT
-  Repository: https://github.com/csstree/csstree
-
-  css.escape@1.5.1
-  License: MIT
-  Repository: https://github.com/mathiasbynens/CSS.escape
+  Homepage: https://github.com/jshttp/cookie#readme
 
   csstype@3.2.3
   License: MIT
-  Repository: https://github.com/frenic/csstype
+  Homepage: https://github.com/frenic/csstype#readme
+
+  d3-array@3.2.1
+  License: ISC
+  Homepage: https://d3js.org/d3-array/
 
   d3-array@3.2.4
   License: ISC
-  Repository: https://github.com/d3/d3-array
+  Homepage: https://d3js.org/d3-array/
 
   d3-color@3.1.0
   License: ISC
-  Repository: https://github.com/d3/d3-color
+  Homepage: https://d3js.org/d3-color/
 
   d3-delaunay@6.0.2
   License: ISC
-  Repository: https://github.com/d3/d3-delaunay
+  Homepage: https://github.com/d3/d3-delaunay
 
   d3-format@3.1.0
   License: ISC
-  Repository: https://github.com/d3/d3-format
+  Homepage: https://d3js.org/d3-format/
 
   d3-geo@3.1.0
   License: ISC
-  Repository: https://github.com/d3/d3-geo
+  Homepage: https://d3js.org/d3-geo/
 
   d3-interpolate@3.0.1
   License: ISC
-  Repository: https://github.com/d3/d3-interpolate
+  Homepage: https://d3js.org/d3-interpolate/
 
   d3-path@1.0.9
   License: BSD-3-Clause
-  Repository: https://github.com/d3/d3-path
+  Homepage: https://d3js.org/d3-path/
 
   d3-scale@4.0.2
   License: ISC
-  Repository: https://github.com/d3/d3-scale
+  Homepage: https://d3js.org/d3-scale/
 
   d3-shape@1.3.7
   License: BSD-3-Clause
-  Repository: https://github.com/d3/d3-shape
+  Homepage: https://d3js.org/d3-shape/
 
   d3-time-format@4.1.0
   License: ISC
-  Repository: https://github.com/d3/d3-time-format
+  Homepage: https://d3js.org/d3-time-format/
 
   d3-time@3.1.0
   License: ISC
-  Repository: https://github.com/d3/d3-time
-
-  data-urls@7.0.0
-  License: MIT
-  Repository: https://github.com/jsdom/data-urls
-
-  debug@4.4.3
-  License: MIT
-  Repository: https://github.com/debug-js/debug
-
-  decimal.js@10.6.0
-  License: MIT
-  Repository: https://github.com/MikeMcl/decimal.js
-
-  deep-eql@5.0.2
-  License: MIT
-  Repository: https://github.com/chaijs/deep-eql
-
-  deep-is@0.1.4
-  License: MIT
-  Repository: https://github.com/thlorenz/deep-is
-
-  default-browser-id@5.0.1
-  License: MIT
-  Repository: https://github.com/sindresorhus/default-browser-id
-
-  default-browser@5.5.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/default-browser
-
-  define-lazy-prop@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/define-lazy-prop
+  Homepage: https://d3js.org/d3-time/
 
   delaunator@5.1.0
   License: ISC
-  Repository: https://github.com/mapbox/delaunator
+  Homepage: https://github.com/mapbox/delaunator#readme
 
-  dequal@2.0.3
+  fancy-canvas@2.1.0
   License: MIT
-  Repository: https://github.com/lukeed/dequal
-
-  detect-libc@2.1.2
-  License: Apache-2.0
-  Repository: https://github.com/lovell/detect-libc
-
-  doctrine@3.0.0
-  License: Apache-2.0
-  Repository: https://github.com/eslint/doctrine
-
-  dom-accessibility-api@0.6.3
-  License: MIT
-  Repository: https://github.com/eps1lon/dom-accessibility-api
-
-  electron-to-chromium@1.5.344
-  License: ISC
-  Repository: https://github.com/Kilian/electron-to-chromium
-
-  empathic@2.0.1
-  License: MIT
-  Repository: https://github.com/lukeed/empathic
-
-  entities@8.0.0
-  License: BSD-2-Clause
-  Repository: https://github.com/fb55/entities
-
-  es-errors@1.3.0
-  License: MIT
-  Repository: https://github.com/ljharb/es-errors
-
-  es-module-lexer@2.1.0
-  License: MIT
-  Repository: https://github.com/guybedford/es-module-lexer
-
-  esbuild@0.25.12
-  License: MIT
-  Repository: https://github.com/evanw/esbuild
-
-  escalade@3.2.0
-  License: MIT
-  Repository: https://github.com/lukeed/escalade
-
-  escape-string-regexp@4.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/escape-string-regexp
-
-  eslint-plugin-react-hooks@7.1.1
-  License: MIT
-  Repository: https://github.com/facebook/react
-
-  eslint-plugin-react-refresh@0.5.2
-  License: MIT
-  Repository: https://github.com/ArnaudBarre/eslint-plugin-react-refresh
-
-  eslint-scope@9.1.2
-  License: BSD-2-Clause
-  Repository: https://github.com/eslint/js
-
-  eslint-visitor-keys@3.4.3
-  License: Apache-2.0
-  Repository: https://github.com/eslint/eslint-visitor-keys
-
-  eslint-visitor-keys@5.0.1
-  License: Apache-2.0
-  Repository: https://github.com/eslint/js
-
-  eslint@10.3.0
-  License: MIT
-  Repository: https://github.com/eslint/eslint
-
-  espree@11.2.0
-  License: BSD-2-Clause
-  Repository: https://github.com/eslint/js
-
-  esprima@4.0.1
-  License: BSD-2-Clause
-  Repository: https://github.com/jquery/esprima
-
-  esquery@1.7.0
-  License: BSD-3-Clause
-  Repository: https://github.com/estools/esquery
-
-  esrecurse@4.3.0
-  License: BSD-2-Clause
-  Repository: https://github.com/estools/esrecurse
-
-  estraverse@5.3.0
-  License: BSD-2-Clause
-  Repository: https://github.com/estools/estraverse
-
-  estree-walker@2.0.2
-  License: MIT
-  Repository: https://github.com/Rich-Harris/estree-walker
-
-  estree-walker@3.0.3
-  License: MIT
-  Repository: https://github.com/Rich-Harris/estree-walker
-
-  esutils@2.0.3
-  License: BSD-2-Clause
-  Repository: https://github.com/estools/esutils
-
-  expect-type@1.3.0
-  License: Apache-2.0
-  Repository: https://github.com/mmkal/expect-type
-
-  fast-check@4.8.0
-  License: MIT
-  Repository: https://github.com/dubzzz/fast-check
-
-  fast-deep-equal@3.1.3
-  License: MIT
-  Repository: https://github.com/epoberezkin/fast-deep-equal
-
-  fast-json-stable-stringify@2.1.0
-  License: MIT
-  Repository: https://github.com/epoberezkin/fast-json-stable-stringify
-
-  fast-levenshtein@2.0.6
-  License: MIT
-  Repository: https://github.com/hiddentao/fast-levenshtein
-
-  fdir@6.5.0
-  License: MIT
-  Repository: https://github.com/thecodrr/fdir
-
-  file-entry-cache@8.0.0
-  License: MIT
-  Repository: https://github.com/jaredwray/file-entry-cache
-
-  find-up@5.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/find-up
-
-  flat-cache@4.0.1
-  License: MIT
-  Repository: https://github.com/jaredwray/flat-cache
-
-  flatted@3.4.2
-  License: ISC
-  Repository: https://github.com/WebReflection/flatted
-
-  fsevents@2.3.2
-  License: MIT
-  Repository: https://github.com/fsevents/fsevents
-
-  fsevents@2.3.3
-  License: MIT
-  Repository: https://github.com/fsevents/fsevents
-
-  function-bind@1.1.2
-  License: MIT
-  Repository: https://github.com/Raynos/function-bind
-
-  gensync@1.0.0-beta.2
-  License: MIT
-  Repository: https://github.com/loganfsmyth/gensync
-
-  glob-parent@6.0.2
-  License: ISC
-  Repository: https://github.com/gulpjs/glob-parent
-
-  glob@13.0.6
-  License: BlueOak-1.0.0
-  Repository: https://github.com/isaacs/node-glob
-
-  globals@17.6.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/globals
-
-  hasown@2.0.3
-  License: MIT
-  Repository: https://github.com/inspect-js/hasOwn
-
-  hermes-estree@0.25.1
-  License: MIT
-  Repository: https://github.com/facebook/hermes
-
-  hermes-parser@0.25.1
-  License: MIT
-  Repository: https://github.com/facebook/hermes
-
-  html-encoding-sniffer@6.0.0
-  License: MIT
-  Repository: https://github.com/jsdom/html-encoding-sniffer
-
-  https-proxy-agent@7.0.6
-  License: MIT
-  Repository: https://github.com/TooTallNate/proxy-agents
-
-  ignore@5.3.2
-  License: MIT
-  Repository: https://github.com/kaelzhang/node-ignore
-
-  ignore@7.0.5
-  License: MIT
-  Repository: https://github.com/kaelzhang/node-ignore
-
-  imurmurhash@0.1.4
-  License: MIT
-  Repository: https://github.com/jensyt/imurmurhash-js
-
-  indent-string@4.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/indent-string
-
-  index-to-position@1.2.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/index-to-position
 
   internmap@2.0.3
   License: ISC
-  Repository: https://github.com/mbostock/internmap
-
-  is-core-module@2.16.2
-  License: MIT
-  Repository: https://github.com/inspect-js/is-core-module
-
-  is-docker@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/is-docker
-
-  is-extglob@2.1.1
-  License: MIT
-  Repository: https://github.com/jonschlinkert/is-extglob
-
-  is-glob@4.0.3
-  License: MIT
-  Repository: https://github.com/micromatch/is-glob
-
-  is-inside-container@1.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/is-inside-container
-
-  is-potential-custom-element-name@1.0.1
-  License: MIT
-  Repository: https://github.com/mathiasbynens/is-potential-custom-element-name
-
-  is-wsl@3.1.1
-  License: MIT
-  Repository: https://github.com/sindresorhus/is-wsl
-
-  isexe@2.0.0
-  License: ISC
-  Repository: https://github.com/isaacs/isexe
-
-  js-levenshtein@1.1.6
-  License: MIT
-  Repository: https://github.com/gustf/js-levenshtein
+  Homepage: https://github.com/mbostock/internmap/
 
   js-tokens@4.0.0
   License: MIT
-  Repository: https://github.com/lydell/js-tokens
-
-  js-yaml@4.1.1
-  License: MIT
-  Repository: https://github.com/nodeca/js-yaml
-
-  jsdom@29.1.1
-  License: MIT
-  Repository: https://github.com/jsdom/jsdom
-
-  jsesc@3.1.0
-  License: MIT
-  Repository: https://github.com/mathiasbynens/jsesc
-
-  json-buffer@3.0.1
-  License: MIT
-  Repository: https://github.com/dominictarr/json-buffer
-
-  json-schema-traverse@0.4.1
-  License: MIT
-  Repository: https://github.com/epoberezkin/json-schema-traverse
-
-  json-schema-traverse@1.0.0
-  License: MIT
-  Repository: https://github.com/epoberezkin/json-schema-traverse
-
-  json-stable-stringify-without-jsonify@1.0.1
-  License: MIT
-  Repository: https://github.com/samn/json-stable-stringify
-
-  json5@2.2.3
-  License: MIT
-  Repository: https://github.com/json5/json5
-
-  keyv@4.5.4
-  License: MIT
-  Repository: https://github.com/jaredwray/keyv
-
-  levn@0.4.1
-  License: MIT
-  Repository: https://github.com/gkz/levn
-
-  lightningcss-darwin-arm64@1.32.0
-  License: MPL-2.0
-  Repository: https://github.com/parcel-bundler/lightningcss
-
-  lightningcss@1.32.0
-  License: MPL-2.0
-  Repository: https://github.com/parcel-bundler/lightningcss
+  Homepage: https://github.com/lydell/js-tokens#readme
 
   lightweight-charts@5.2.0
   License: Apache-2.0
-  Repository: https://github.com/tradingview/lightweight-charts
-
-  locate-path@6.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/locate-path
+  Homepage: https://www.tradingview.com/lightweight-charts/
 
   lodash@4.18.1
   License: MIT
-  Repository: https://github.com/lodash/lodash
+  Homepage: https://lodash.com/
 
   loose-envify@1.4.0
   License: MIT
-  Repository: https://github.com/zertosh/loose-envify
-
-  loupe@3.2.1
-  License: MIT
-  Repository: https://github.com/chaijs/loupe
-
-  lru-cache@11.3.6
-  License: BlueOak-1.0.0
-  Repository: https://github.com/isaacs/node-lru-cache
-
-  lru-cache@5.1.1
-  License: ISC
-  Repository: https://github.com/isaacs/node-lru-cache
-
-  lz-string@1.5.0
-  License: MIT
-  Repository: https://github.com/pieroxy/lz-string
-
-  magic-string@0.30.21
-  License: MIT
-  Repository: https://github.com/Rich-Harris/magic-string
+  Homepage: https://github.com/zertosh/loose-envify
 
   math-expression-evaluator@1.4.0
   License: MIT
-  Repository: https://github.com/redhivesoftware/math-expression-evaluator
-
-  mdn-data@2.27.1
-  License: CC0-1.0
-  Repository: https://github.com/mdn/data
-
-  min-indent@1.0.1
-  License: MIT
-  Repository: https://github.com/thejameskyle/min-indent
-
-  minimatch@10.2.5
-  License: BlueOak-1.0.0
-  Repository: https://github.com/isaacs/minimatch
-
-  minimatch@5.1.9
-  License: ISC
-  Repository: https://github.com/isaacs/minimatch
-
-  minimist@1.2.8
-  License: MIT
-  Repository: https://github.com/minimistjs/minimist
-
-  minipass@7.1.3
-  License: BlueOak-1.0.0
-  Repository: https://github.com/isaacs/minipass
-
-  ms@2.1.3
-  License: MIT
-  Repository: https://github.com/vercel/ms
-
-  nanoid@3.3.12
-  License: MIT
-  Repository: https://github.com/ai/nanoid
-
-  natural-compare@1.4.0
-  License: MIT
-  Repository: https://github.com/litejs/natural-compare-lite
-
-  node-releases@2.0.38
-  License: MIT
-  Repository: https://github.com/chicoxyzzy/node-releases
+  Homepage: https://github.com/redhivesoftware/math-expression-evaluator#readme
 
   object-assign@4.1.1
   License: MIT
-  Repository: https://github.com/sindresorhus/object-assign
-
-  obug@2.1.1
-  License: MIT
-  Repository: https://github.com/sxzz/obug
-
-  open@10.2.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/open
-
-  openapi-typescript@7.13.0
-  License: MIT
-  Repository: https://github.com/openapi-ts/openapi-typescript
-
-  optionator@0.9.4
-  License: MIT
-  Repository: https://github.com/gkz/optionator
-
-  p-limit@3.1.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/p-limit
-
-  p-locate@5.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/p-locate
-
-  parse-json@8.3.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/parse-json
-
-  parse5@8.0.1
-  License: MIT
-  Repository: https://github.com/inikulin/parse5
-
-  path-exists@4.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/path-exists
-
-  path-key@3.1.1
-  License: MIT
-  Repository: https://github.com/sindresorhus/path-key
-
-  path-parse@1.0.7
-  License: MIT
-  Repository: https://github.com/jbgutierrez/path-parse
-
-  path-scurry@2.0.2
-  License: BlueOak-1.0.0
-  Repository: https://github.com/isaacs/path-scurry
-
-  pathe@2.0.3
-  License: MIT
-  Repository: https://github.com/unjs/pathe
-
-  pathval@2.0.1
-  License: MIT
-  Repository: https://github.com/chaijs/pathval
-
-  picocolors@1.1.1
-  License: ISC
-  Repository: https://github.com/alexeyraspopov/picocolors
-
-  picomatch@4.0.4
-  License: MIT
-  Repository: https://github.com/micromatch/picomatch
-
-  playwright-core@1.59.1
-  License: Apache-2.0
-  Repository: https://github.com/microsoft/playwright
-
-  playwright@1.59.1
-  License: Apache-2.0
-  Repository: https://github.com/microsoft/playwright
-
-  pluralize@8.0.0
-  License: MIT
-  Repository: https://github.com/blakeembrey/pluralize
-
-  postcss@8.5.14
-  License: MIT
-  Repository: https://github.com/postcss/postcss
-
-  prelude-ls@1.2.1
-  License: MIT
-  Repository: https://github.com/gkz/prelude-ls
-
-  pretty-format@27.5.1
-  License: MIT
-  Repository: https://github.com/facebook/jest
+  Homepage: https://github.com/sindresorhus/object-assign#readme
 
   prop-types@15.8.1
   License: MIT
-  Repository: https://github.com/facebook/prop-types
-
-  punycode@2.3.1
-  License: MIT
-  Repository: https://github.com/mathiasbynens/punycode.js
-
-  pure-rand@8.4.0
-  License: MIT
-  Repository: https://github.com/dubzzz/pure-rand
-
-  react-docgen-typescript@2.4.0
-  License: MIT
-  Repository: https://github.com/styleguidist/react-docgen-typescript
-
-  react-docgen@8.0.3
-  License: MIT
-  Repository: https://github.com/reactjs/react-docgen
+  Homepage: https://facebook.github.io/react/
 
   react-dom@19.2.6
   License: MIT
-  Repository: https://github.com/facebook/react
+  Homepage: https://react.dev/
 
   react-is@16.13.1
   License: MIT
-  Repository: https://github.com/facebook/react
+  Homepage: https://reactjs.org/
 
-  react-is@17.0.2
+  react-router-dom@7.17.0
   License: MIT
-  Repository: https://github.com/facebook/react
+  Homepage: https://github.com/remix-run/react-router#readme
 
-  react-router-dom@7.15.0
+  react-router@7.17.0
   License: MIT
-  Repository: https://github.com/remix-run/react-router
-
-  react-router@7.15.0
-  License: MIT
-  Repository: https://github.com/remix-run/react-router
+  Homepage: https://github.com/remix-run/react-router#readme
 
   react-use-measure@2.1.7
   License: MIT
-  Repository: https://github.com/pmndrs/react-use-measure
+  Homepage: https://github.com/pmndrs/react-use-measure
 
   react@19.2.6
   License: MIT
-  Repository: https://github.com/facebook/react
-
-  recast@0.23.11
-  License: MIT
-  Repository: https://github.com/benjamn/recast
-
-  redent@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/redent
+  Homepage: https://react.dev/
 
   reduce-css-calc@1.3.0
   License: MIT
-  Repository: https://github.com/MoOx/reduce-css-calc
+  Homepage: https://github.com/MoOx/reduce-css-calc#readme
 
   reduce-function-call@1.0.3
   License: MIT
-  Repository: https://github.com/MoOx/reduce-function-call
-
-  require-from-string@2.0.2
-  License: MIT
-  Repository: https://github.com/floatdrop/require-from-string
-
-  resolve@1.22.12
-  License: MIT
-  Repository: https://github.com/browserify/resolve
+  Homepage: https://github.com/MoOx/reduce-function-call#readme
 
   robust-predicates@3.0.3
   License: Unlicense
-  Repository: https://github.com/mourner/robust-predicates
-
-  rolldown@1.0.0-rc.18
-  License: MIT
-  Repository: https://github.com/rolldown/rolldown
-
-  run-applescript@7.1.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/run-applescript
-
-  saxes@6.0.0
-  License: ISC
-  Repository: https://github.com/lddubeau/saxes
+  Homepage: https://github.com/mourner/robust-predicates#readme
 
   scheduler@0.27.0
   License: MIT
-  Repository: https://github.com/facebook/react
-
-  semver@6.3.1
-  License: ISC
-  Repository: https://github.com/npm/node-semver
-
-  semver@7.7.4
-  License: ISC
-  Repository: https://github.com/npm/node-semver
+  Homepage: https://react.dev/
 
   set-cookie-parser@2.7.2
   License: MIT
-  Repository: https://github.com/nfriedly/set-cookie-parser
-
-  shebang-command@2.0.0
-  License: MIT
-  Repository: https://github.com/kevva/shebang-command
-
-  shebang-regex@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/shebang-regex
-
-  siginfo@2.0.0
-  License: ISC
-  Repository: https://github.com/emilbayes/siginfo
-
-  size-limit@12.1.0
-  License: MIT
-  Repository: https://github.com/ai/size-limit
-
-  source-map-js@1.2.1
-  License: BSD-3-Clause
-  Repository: https://github.com/7rulnik/source-map-js
-
-  source-map@0.6.1
-  License: BSD-3-Clause
-  Repository: https://github.com/mozilla/source-map
-
-  stackback@0.0.2
-  License: MIT
-  Repository: https://github.com/shtylman/node-stackback
-
-  std-env@4.1.0
-  License: MIT
-  Repository: https://github.com/unjs/std-env
-
-  storybook@10.3.6
-  License: MIT
-  Repository: https://github.com/storybookjs/storybook
-
-  strip-bom@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/strip-bom
-
-  strip-indent@3.0.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/strip-indent
-
-  strip-indent@4.1.1
-  License: MIT
-  Repository: https://github.com/sindresorhus/strip-indent
-
-  supports-color@10.2.2
-  License: MIT
-  Repository: https://github.com/chalk/supports-color
-
-  supports-preserve-symlinks-flag@1.0.0
-  License: MIT
-  Repository: https://github.com/inspect-js/node-supports-preserve-symlinks-flag
-
-  symbol-tree@3.2.4
-  License: MIT
-  Repository: https://github.com/jsdom/js-symbol-tree
-
-  tiny-invariant@1.3.3
-  License: MIT
-  Repository: https://github.com/alexreardon/tiny-invariant
-
-  tinybench@2.9.0
-  License: MIT
-  Repository: https://github.com/tinylibs/tinybench
-
-  tinyexec@1.1.2
-  License: MIT
-  Repository: https://github.com/tinylibs/tinyexec
-
-  tinyglobby@0.2.16
-  License: MIT
-  Repository: https://github.com/SuperchupuDev/tinyglobby
-
-  tinyrainbow@3.1.0
-  License: MIT
-  Repository: https://github.com/tinylibs/tinyrainbow
-
-  tinyspy@4.0.4
-  License: MIT
-  Repository: https://github.com/tinylibs/tinyspy
-
-  tldts-core@7.0.30
-  License: MIT
-  Repository: https://github.com/remusao/tldts
-
-  tldts@7.0.30
-  License: MIT
-  Repository: https://github.com/remusao/tldts
-
-  tough-cookie@6.0.1
-  License: BSD-3-Clause
-  Repository: https://github.com/salesforce/tough-cookie
-
-  tr46@6.0.0
-  License: MIT
-  Repository: https://github.com/jsdom/tr46
-
-  ts-api-utils@2.5.0
-  License: MIT
-  Repository: https://github.com/JoshuaKGoldberg/ts-api-utils
-
-  ts-dedent@2.2.0
-  License: MIT
-  Repository: https://github.com/tamino-martinius/node-ts-dedent
-
-  tsconfig-paths@4.2.0
-  License: MIT
-  Repository: https://github.com/dividab/tsconfig-paths
-
-  tslib@2.8.1
-  License: 0BSD
-  Repository: https://github.com/Microsoft/tslib
-
-  type-check@0.4.0
-  License: MIT
-  Repository: https://github.com/gkz/type-check
-
-  type-fest@4.41.0
-  License: (MIT OR CC0-1.0)
-  Repository: https://github.com/sindresorhus/type-fest
-
-  typescript-eslint@8.59.3
-  License: MIT
-  Repository: https://github.com/typescript-eslint/typescript-eslint
-
-  typescript@6.0.3
-  License: Apache-2.0
-  Repository: https://github.com/microsoft/TypeScript
-
-  undici-types@7.19.2
-  License: MIT
-  Repository: https://github.com/nodejs/undici
-
-  undici@7.25.0
-  License: MIT
-  Repository: https://github.com/nodejs/undici
-
-  unplugin@2.3.11
-  License: MIT
-  Repository: https://github.com/unjs/unplugin
-
-  update-browserslist-db@1.2.3
-  License: MIT
-  Repository: https://github.com/browserslist/update-db
-
-  uri-js-replace@1.0.1
-  License: MIT
-  Repository: https://github.com/andreinwald/uri-js-replace
-
-  uri-js@4.4.1
-  License: BSD-2-Clause
-  Repository: https://github.com/garycourt/uri-js
-
-  use-sync-external-store@1.6.0
-  License: MIT
-  Repository: https://github.com/facebook/react
-
-  vite@8.0.12
-  License: MIT
-  Repository: https://github.com/vitejs/vite
-
-  vitest@4.1.6
-  License: MIT
-  Repository: https://github.com/vitest-dev/vitest
-
-  w3c-xmlserializer@5.0.0
-  License: MIT
-  Repository: https://github.com/jsdom/w3c-xmlserializer
-
-  webidl-conversions@8.0.1
-  License: BSD-2-Clause
-  Repository: https://github.com/jsdom/webidl-conversions
-
-  webpack-virtual-modules@0.6.2
-  License: MIT
-  Repository: https://github.com/sysgears/webpack-virtual-modules
-
-  whatwg-mimetype@5.0.0
-  License: MIT
-  Repository: https://github.com/jsdom/whatwg-mimetype
-
-  whatwg-url@16.0.1
-  License: MIT
-  Repository: https://github.com/jsdom/whatwg-url
-
-  which@2.0.2
-  License: ISC
-  Repository: https://github.com/isaacs/node-which
-
-  why-is-node-running@2.3.0
-  License: MIT
-  Repository: https://github.com/mafintosh/why-is-node-running
-
-  word-wrap@1.2.5
-  License: MIT
-  Repository: https://github.com/jonschlinkert/word-wrap
-
-  ws@8.20.0
-  License: MIT
-  Repository: https://github.com/websockets/ws
-
-  wsl-utils@0.1.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/wsl-utils
-
-  xml-name-validator@5.0.0
-  License: Apache-2.0
-  Repository: https://github.com/jsdom/xml-name-validator
-
-  xmlchars@2.2.0
-  License: MIT
-  Repository: https://github.com/lddubeau/xmlchars
-
-  yallist@3.1.1
-  License: ISC
-  Repository: https://github.com/isaacs/yallist
-
-  yaml-ast-parser@0.0.43
-  License: Apache-2.0
-  Repository: https://github.com/mulesoft-labs/yaml-ast-parser
-
-  yargs-parser@21.1.1
-  License: ISC
-  Repository: https://github.com/yargs/yargs-parser
-
-  yocto-queue@0.1.0
-  License: MIT
-  Repository: https://github.com/sindresorhus/yocto-queue
-
-  zod-validation-error@4.0.2
-  License: MIT
-  Repository: https://github.com/causaly/zod-validation-error
-
-  zod@4.3.6
-  License: MIT
-  Repository: https://github.com/colinhacks/zod
+  Homepage: https://github.com/nfriedly/set-cookie-parser
 
 ================================================================================

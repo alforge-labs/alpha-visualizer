@@ -73,14 +73,7 @@ Step 1・Step 2 で問題がなければ以下を実行する。
    uv run pip-licenses --format=json --with-license-file --no-license-path > /tmp/py-licenses.json
    ```
 
-2. フロントエンドのライセンス情報を JSON で取得する。
-
-   ```bash
-   cd alpha-visualizer/frontend
-   npx license-checker --json --out /tmp/fe-licenses.json
-   ```
-
-3. 以下の Python スクリプトを実行して `THIRDPARTY_LICENSES.txt` を生成する。
+2. 以下の Python スクリプトを実行して SECTION 1（Python 依存）を生成する。
 
    ```python
    import json
@@ -94,13 +87,9 @@ Step 1・Step 2 で問題がなければ以下を実行する。
 
    with open("/tmp/py-licenses.json") as f:
        py_data = json.load(f)
-   with open("/tmp/fe-licenses.json") as f:
-       fe_data = json.load(f)
 
    py_pkgs = [p for p in sorted(py_data, key=lambda x: x["Name"].lower())
               if p["Name"] not in DEV_ONLY]
-   fe_pkgs = [(pkg, info) for pkg, info in sorted(fe_data.items())
-              if not pkg.startswith("frontend@")]
 
    SEP = "=" * 80
    lines = [
@@ -141,25 +130,29 @@ Step 1・Step 2 で問題がなければ以下を実行する。
                lines.append("    [... full text available at PyPI ...]")
        lines.append("")
 
+   # SECTION 2（フロントエンド依存）は scripts/generate_thirdparty_js.py が
+   # 生成する（issue #187）。ここでは置換対象の空ブロックだけ出力する。
    lines += [SEP, "", "SECTION 2: FRONTEND DEPENDENCIES (Vite + React)", SEP,
-             f"Total: {len(fe_pkgs)} packages", ""]
-   for pkg_ver, info in fe_pkgs:
-       lines += [f"  {pkg_ver}", f"  License: {info.get('licenses', '')}"]
-       repo = info.get("repository", "")
-       if repo:
-           lines.append(f"  Repository: {repo}")
-       lines.append("")
+             "Total: 0 packages", ""]
    lines.append(SEP)
 
    output = "\n".join(lines)
    with open("THIRDPARTY_LICENSES.txt", "w") as f:
        f.write(output)
-   print(f"Generated THIRDPARTY_LICENSES.txt ({len(output)} bytes, Python: {len(py_pkgs)}, Frontend: {len(fe_pkgs)})")
+   print(f"Generated THIRDPARTY_LICENSES.txt ({len(output)} bytes, Python: {len(py_pkgs)})")
    ```
 
    ```bash
    cd alpha-visualizer
    uv run python -c "<上記スクリプト>"
+   ```
+
+3. SECTION 2（フロントエンド依存）を生成スクリプトで埋める（issue #187）。
+   CI が `--check` で drift を検証しているため、依存更新時もこのスクリプトを使うこと。
+
+   ```bash
+   cd alpha-visualizer
+   uv run python scripts/generate_thirdparty_js.py
    ```
 
 4. 生成されたファイルの先頭を表示して内容を確認する。
