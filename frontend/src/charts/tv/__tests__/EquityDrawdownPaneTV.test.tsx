@@ -11,10 +11,14 @@ const mocks = vi.hoisted(() => {
   const removeMock = vi.fn()
   const removeSeriesMock = vi.fn()
   const takeScreenshotMock = vi.fn(() => globalThis.document?.createElement?.('canvas'))
+  const attachPrimitiveMock = vi.fn()
+  const detachPrimitiveMock = vi.fn()
   const addSeriesMock = vi.fn(() => ({
     setData: setDataMock,
     applyOptions: applyOptionsMock,
     setMarkers: setMarkersMock,
+    attachPrimitive: attachPrimitiveMock,
+    detachPrimitive: detachPrimitiveMock,
   }))
   const createChartMock = vi.fn(() => ({
     remove: removeMock,
@@ -36,6 +40,8 @@ const mocks = vi.hoisted(() => {
     addSeriesMock,
     createChartMock,
     createSeriesMarkersMock,
+    attachPrimitiveMock,
+    detachPrimitiveMock,
   }
 })
 
@@ -60,6 +66,8 @@ const {
   addSeriesMock,
   createChartMock,
   createSeriesMarkersMock,
+  attachPrimitiveMock,
+  detachPrimitiveMock,
 } = mocks
 
 import { EquityDrawdownPaneTV } from '../EquityDrawdownPaneTV'
@@ -75,6 +83,8 @@ beforeEach(() => {
   removeSeriesMock.mockClear()
   takeScreenshotMock.mockClear()
   createSeriesMarkersMock.mockClear()
+  attachPrimitiveMock.mockClear()
+  detachPrimitiveMock.mockClear()
 })
 
 afterEach(() => {
@@ -271,6 +281,76 @@ describe('EquityDrawdownPaneTV', () => {
       )
       expect(screen.getByText('データ表')).toBeInTheDocument()
       expect(screen.queryByText(/Data table/)).not.toBeInTheDocument()
+    })
+  })
+
+  /**
+   * issue #317: #187 の visx 撤去でレジーム背景表示が失われていた。
+   * showRegime のときだけ背景バンド primitive を attach し、凡例を出す。
+   */
+  describe('regime bands (issue #317)', () => {
+    const regimeSeries = {
+      dates: sampleDates,
+      states: sampleDates.map((_, i) => (i < 15 ? 0 : 1)),
+      n_states: 2,
+      label_names: { '0': 'Range', '1': 'Trend' },
+    }
+
+    function renderPane(props: Record<string, unknown> = {}) {
+      return render(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="ja"
+          {...props}
+        />,
+      )
+    }
+
+    it('showRegime=true で背景バンド primitive を attach する', () => {
+      renderPane({ regimeSeries, showRegime: true })
+      expect(attachPrimitiveMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('showRegime=false では attach しない', () => {
+      renderPane({ regimeSeries, showRegime: false })
+      expect(attachPrimitiveMock).not.toHaveBeenCalled()
+    })
+
+    it('regimeSeries が無ければ showRegime=true でも attach しない', () => {
+      renderPane({ showRegime: true })
+      expect(attachPrimitiveMock).not.toHaveBeenCalled()
+    })
+
+    it('showRegime を切ると detach する（バンドが残らない）', () => {
+      const { rerender } = renderPane({ regimeSeries, showRegime: true })
+      expect(detachPrimitiveMock).not.toHaveBeenCalled()
+
+      rerender(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="ja"
+          regimeSeries={regimeSeries}
+          showRegime={false}
+        />,
+      )
+      expect(detachPrimitiveMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('凡例に label_names のラベルを表示する', () => {
+      renderPane({ regimeSeries, showRegime: true })
+      expect(screen.getByText('Range')).toBeInTheDocument()
+      expect(screen.getByText('Trend')).toBeInTheDocument()
+    })
+
+    it('showRegime=false では凡例を出さない', () => {
+      renderPane({ regimeSeries, showRegime: false })
+      expect(screen.queryByText('Range')).not.toBeInTheDocument()
     })
   })
 })

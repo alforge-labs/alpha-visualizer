@@ -16,19 +16,19 @@ import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { useChartTheme } from '../../design/useChartTheme'
 import { useEquityViewport } from '../../hooks/useEquityViewport'
 import { makeL, type Lang } from '../../i18n/strings'
+import type { RegimeSeries } from '../../api/types'
+import { createRegimeBandsPrimitive, type RegimeBandsPrimitive } from './regimeBands'
 import {
   benchmarkLineOptions,
   chartThemeToOptions,
   drawdownHistogramOptions,
   equityAreaOptions,
+  hexToRgba,
 } from './theme'
 import { fromViewportPoints, makeCutoffMarkers, toHistogramData } from './data'
 
-interface RegimeSeriesInput {
-  states: number[]
-  n_states: number
-  label_names?: Record<string, string>
-}
+/** レジーム背景の不透明度。エクイティ線とドローダウンを覆い隠さない濃さに留める */
+const REGIME_BAND_ALPHA = 0.14
 
 export interface EquityDrawdownPaneTVProps {
   equity: number[]
@@ -38,10 +38,9 @@ export interface EquityDrawdownPaneTVProps {
   benchmark?: number[]
   showBenchmark?: boolean
   compact?: boolean
-  /**
-   * PoC では未対応。flag 撤去 PR で対応予定（将来 issue）。受け取って silent に無視する。
-   */
-  regimeSeries?: RegimeSeriesInput
+  /** レジーム背景バンドの元データ（issue #317） */
+  regimeSeries?: RegimeSeries | null
+  /** レジーム背景バンドを表示するか（既定 false） */
   showRegime?: boolean
   /** 時間軸ロケールと Data table 表記の切替（issue #315） */
   lang: Lang
@@ -62,6 +61,8 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     benchmark,
     showBenchmark = false,
     compact = false,
+    regimeSeries,
+    showRegime = false,
     lang,
     ref,
   } = props
@@ -74,6 +75,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   const benchmarkSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const drawdownSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
   const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
+  const regimePrimitiveRef = useRef<RegimeBandsPrimitive | null>(null)
 
   const { range, setRange, points } = useEquityViewport({ equity, dates, benchmark })
 
@@ -164,6 +166,31 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     }
   }, [showBenchmark, benchmarkData.length, theme])
 
+  // issue #317: レジーム背景バンドの attach/detach。
+  // primitive は bands をクロージャに持つため、series/表示切替/テーマが変わったら
+  // 作り直す（detach → attach）。
+  useEffect(() => {
+    const equitySeries = equitySeriesRef.current
+    if (!equitySeries) return
+
+    if (regimePrimitiveRef.current) {
+      equitySeries.detachPrimitive(regimePrimitiveRef.current)
+      regimePrimitiveRef.current = null
+    }
+    if (!showRegime || !regimeSeries) return
+
+    const primitive = createRegimeBandsPrimitive(regimeSeries, theme.series, REGIME_BAND_ALPHA)
+    equitySeries.attachPrimitive(primitive)
+    regimePrimitiveRef.current = primitive
+
+    return () => {
+      if (regimePrimitiveRef.current) {
+        equitySeries.detachPrimitive(regimePrimitiveRef.current)
+        regimePrimitiveRef.current = null
+      }
+    }
+  }, [showRegime, regimeSeries, theme.series])
+
   // データ反映
   useEffect(() => {
     equitySeriesRef.current?.setData(equityData)
@@ -201,6 +228,12 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     }),
     [],
   )
+
+  // 凡例は DOM 側に描く（canvas 内に描くとテキスト検索・SR 到達性が失われるため）
+  const regimeLegend = useMemo(() => {
+    if (!showRegime || !regimeSeries) return []
+    return createRegimeBandsPrimitive(regimeSeries, theme.series, REGIME_BAND_ALPHA).legend()
+  }, [showRegime, regimeSeries, theme.series])
 
   const height = compact ? 320 : 440
 
@@ -260,6 +293,37 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
           >
             <span style={{ color: theme.accent }}>━━ Strategy</span>
             <span>╌╌ Buy &amp; Hold</span>
+          </div>
+        )}
+        {regimeLegend.length > 0 && (
+          <div
+            data-testid="regime-legend"
+            style={{
+              marginLeft: 12,
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+            }}
+          >
+            {regimeLegend.map((e) => (
+              <span key={e.state} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    background: hexToRgba(e.color, REGIME_BAND_ALPHA * 3),
+                    border: `1px solid ${e.color}`,
+                  }}
+                />
+                {e.label}
+              </span>
+            ))}
           </div>
         )}
       </div>

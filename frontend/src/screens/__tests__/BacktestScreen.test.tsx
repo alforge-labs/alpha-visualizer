@@ -7,7 +7,9 @@ import { BacktestScreen } from '../BacktestScreen'
 // lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
 // TV チャートをスタブする（このテストの関心は source 注記バナーのみ）
 vi.mock('../../charts/tv/EquityDrawdownPaneTV', () => ({
-  EquityDrawdownPaneTV: () => <div data-testid="backtest-equity-chart-tv" />,
+  EquityDrawdownPaneTV: (props: { showRegime?: boolean }) => (
+    <div data-testid="equity-pane-stub" data-show-regime={String(!!props.showRegime)} />
+  ),
 }))
 vi.mock('../../charts/tv/RollingMetricsChartTV', () => ({
   RollingMetricsChartTV: () => <div data-testid="rolling-metrics-chart-tv" />,
@@ -89,5 +91,57 @@ describe('BacktestScreen carry adjusted card (issue #308)', () => {
     )
     fireEvent.click(screen.getByText('メトリクス'))
     expect(screen.queryByTestId('carry-adjusted-card')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #317: #187 で visx を撤去した際、レジーム表示のトグルも一緒に消えていた。
+ * regime_series を持つランでは トグルを出し、押すと表示状態が切り替わること。
+ */
+describe('BacktestScreen regime toggle (issue #317)', () => {
+  it('regime_series があるとトグルを表示し、既定で ON', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen data={MOCK_BACKTEST} compact={false} lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('button', { name: 'レジーム' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByTestId('equity-pane-stub')).toHaveAttribute(
+      'data-show-regime',
+      'true',
+    )
+  })
+
+  it('トグルを押すとレジーム表示が OFF になる', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen data={MOCK_BACKTEST} compact={false} lang="ja" />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'レジーム' }))
+    expect(screen.getByRole('button', { name: 'レジーム' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByTestId('equity-pane-stub')).toHaveAttribute(
+      'data-show-regime',
+      'false',
+    )
+  })
+
+  it('regime_series が無いランではトグルを出さない', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen
+          data={{ ...MOCK_BACKTEST, regime_series: undefined }}
+          compact={false}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('button', { name: 'レジーム' })).toBeNull()
   })
 })

@@ -41,6 +41,8 @@ type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte' 
 function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const hasRegime = !!data.regime_series
+  // issue #317: レジーム背景バンドの表示切替。regime を持つランでは既定 ON。
+  const [showRegime, setShowRegime] = useState<boolean>(hasRegime)
   // issue #265: listLive() の失敗を silent に握りつぶさず、liveError として通知する。
   const { hasLive, error: liveError } = useLiveAvailability(data.strategy_id)
   const L = makeL(lang)
@@ -147,6 +149,21 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 {L('エクイティ & ドローダウン', 'Equity & Drawdown')}
               </SectionLabel>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {hasRegime && (
+                  <button
+                    type="button"
+                    aria-pressed={showRegime}
+                    style={{
+                      ...exportBtnS,
+                      background: showRegime ? 'var(--accent-bg)' : 'var(--surface)',
+                      borderColor: showRegime ? 'var(--accent-glow)' : 'var(--border)',
+                      color: showRegime ? 'var(--accent)' : 'var(--text2)',
+                    }}
+                    onClick={() => setShowRegime((v) => !v)}
+                  >
+                    {L('レジーム', 'Regime')}
+                  </button>
+                )}
                 <button
                   type="button"
                   style={exportBtnS}
@@ -177,7 +194,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 showBenchmark={showBuyHold}
                 compact={compact}
                 regimeSeries={data.regime_series}
-                showRegime={hasRegime}
+                showRegime={showRegime}
               />
             </div>
           </div>
