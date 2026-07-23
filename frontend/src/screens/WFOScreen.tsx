@@ -3,11 +3,9 @@ import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { WFOResult } from '../api/types'
 import { SectionHeader, SectionLabel, Tab, TabBar } from '../design/primitives'
-import { EquityChartV } from '../charts/visx/EquityChartV'
 import { WFOEquityTV } from '../charts/tv/WFOEquityTV'
 import { WFOTimeline } from '../components/charts/WFOTimeline'
 import { metricShortLabel } from '../lib/metricLabel'
-import { resolveLightweightChartsFlag } from '../constants/featureFlags'
 
 interface Props {
   data: WFOResult
@@ -19,7 +17,6 @@ type Tab = 'timeline' | 'equity'
 
 export function WFOScreen({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('timeline')
-  const [useTv] = useState<boolean>(() => resolveLightweightChartsFlag())
   const L = makeL(lang)
   // 非 sharpe 指標の WFT 結果は is_sharpe/oos_sharpe にその指標の値が入る
   // ため、ラベルを metric_name に合わせて切り替える（vis#303）
@@ -55,22 +52,13 @@ export function WFOScreen({ data, compact, lang }: Props) {
               'OOS Composite Equity (stitched OOS windows)'
             )}
           </SectionLabel>
-          {useTv ? (
-            <WFOEquityTV
-              lang={lang}
-              composite_equity={data.composite_equity}
-              composite_dates={data.composite_dates}
-              windows={data.windows}
-              compact={compact}
-            />
-          ) : (
-            <EquityChartV
-              equity={data.composite_equity}
-              dates={data.composite_dates}
-              isCutoffIdx={-1}
-              compact={compact}
-            />
-          )}
+          <WFOEquityTV
+            lang={lang}
+            composite_equity={data.composite_equity}
+            composite_dates={data.composite_dates}
+            windows={data.windows}
+            compact={compact}
+          />
           <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             {data.windows.map((w) => (
               <div

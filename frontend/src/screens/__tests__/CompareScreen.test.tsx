@@ -10,10 +10,10 @@ vi.mock('../../lib/shareCard', async (importOriginal) => {
 })
 
 // lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
-// visx レンダラを強制する（このテストの関心はシェアカード導線のみ）
-vi.mock('../../constants/featureFlags', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../constants/featureFlags')>()
-  return { ...actual, resolveLightweightChartsFlag: () => false }
+// TV チャートをスタブする（このテストの関心はシェアカード導線のみ）
+vi.mock('../../charts/tv/CompareEquityTV', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../charts/tv/CompareEquityTV')>()
+  return { ...actual, CompareEquityTV: () => <div data-testid="compare-equity-tv" /> }
 })
 
 import { downloadCompareShareCard } from '../../lib/shareCard'

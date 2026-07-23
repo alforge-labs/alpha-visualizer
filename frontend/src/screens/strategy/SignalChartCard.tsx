@@ -1,7 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import { StrategySignalChartTV } from '../../charts/tv/StrategySignalChartTV'
-import { resolveLightweightChartsFlag } from '../../constants/featureFlags'
 import { Card, SectionHeader } from '../../design/primitives'
 import { useStrategyHistorical } from '../../hooks/useStrategyHistorical'
 import type { RegimeSeries, Trade } from '../../api/types'
@@ -20,7 +19,6 @@ export interface SignalChartCardProps {
  * StrategyScreen の「シグナル時系列」セクション。
  *
  * 責務:
- * - feature flag の gating（既定 ON。`?tv=0` で OFF にした場合は placeholder を表示）
  * - `useStrategyHistorical(symbol)` の loading / no_data / error / ready 分岐
  * - 空 trades のときも chart は表示し caption で「シグナルなし」と伝える
  *
@@ -29,21 +27,6 @@ export interface SignalChartCardProps {
  */
 export function SignalChartCard({ symbol, trades, regimeSeries, lang }: SignalChartCardProps) {
   const L = makeL(lang)
-  // mount 時に 1 回だけ評価。?tv= で URL を切り替えた場合はリロード前提（既存 BacktestScreen と同等）。
-  const [flagOn] = useState(() => resolveLightweightChartsFlag())
-
-  if (!flagOn) {
-    return (
-      <CardShell title={L('シグナル時系列', 'Signal Chart')}>
-        <Hint>
-          {L(
-            'シグナル時系列は TV レンダラでのみ利用できます（?tv=1 で再有効化）',
-            'Signal chart requires the TV renderer (re-enable with ?tv=1)',
-          )}
-        </Hint>
-      </CardShell>
-    )
-  }
 
   const caption = symbol
     ? `${symbol} — 1d (β)${regimeSeries ? L('  •  regime 表示中', '  •  regime on') : ''}`

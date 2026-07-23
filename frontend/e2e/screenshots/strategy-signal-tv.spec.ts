@@ -9,7 +9,7 @@ const __dirname = dirname(__filename)
 
 /**
  * issue #191 — StrategyScreen の `<SignalChartCard>` (TV candlestick + markers + priceLine)
- * を `?tv=1` で有効化して撮影。
+ * を撮影。issue #187 で feature flag を撤去したため、TV レンダラは常時有効。
  *
  * 出力先: <repo-root>/docs/screenshots/{ja,en}/strategy-signal-tv.png
  */
@@ -25,7 +25,7 @@ test.describe.serial('StrategySignalChartTV スクリーンショット', () => 
   for (const lang of ['ja', 'en'] as const) {
     test(`strategy-signal-tv (${lang})`, async ({ page }) => {
       await clearViewerSettings(page)
-      const suffix = `?tv=1${lang === 'en' ? '&lang=en' : ''}`
+      const suffix = lang === 'en' ? '?lang=en' : ''
       await page.goto(`/detail/${STRATEGY_ID}${suffix}`)
       await page.waitForLoadState('networkidle')
 

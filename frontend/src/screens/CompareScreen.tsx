@@ -1,12 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { StrategyComparison } from '../api/types'
 import { Card, Chip, Divider, SectionHeader, Stat } from '../design/primitives'
 import { CompareTable } from '../components/metrics/CompareTable'
-import { CompareEquityV } from '../charts/visx/CompareEquityV'
-import type { CompareSeries } from '../charts/visx/CompareEquityV'
-import { CompareEquityTV } from '../charts/tv/CompareEquityTV'
+import { CompareEquityTV, type CompareEquityTVSeries } from '../charts/tv/CompareEquityTV'
 import { ShareButton, ShareXButton } from '../components/ShareCardButton'
 import { selectBestSharpe } from '../lib/bestSharpe'
 import { downloadCompareShareCard } from '../lib/shareCard'
@@ -15,7 +13,6 @@ import { ReturnDistributionChart } from '../components/charts/ReturnDistribution
 import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
-import { resolveLightweightChartsFlag } from '../constants/featureFlags'
 
 interface Props {
   data: StrategyComparison[]
@@ -47,9 +44,8 @@ function sharpeTone(v: number | null | undefined): 'positive' | 'warning' | 'neg
 export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement | null {
   const L = makeL(lang)
   const theme = useChartTheme()
-  const [useTv] = useState<boolean>(() => resolveLightweightChartsFlag())
 
-  const series: CompareSeries[] = useMemo(() => {
+  const series: CompareEquityTVSeries[] = useMemo(() => {
     return data
       .filter(s => s.equity)
       .map((s, i) => ({
@@ -187,11 +183,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
           </div>
 
           {series.length > 0 ? (
-            useTv ? (
-              <CompareEquityTV series={series} height={320} lang={lang} />
-            ) : (
-              <CompareEquityV series={series} height={320} />
-            )
+            <CompareEquityTV series={series} height={320} lang={lang} />
           ) : (
             <p
               style={{

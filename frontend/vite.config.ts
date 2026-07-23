@@ -33,7 +33,8 @@ export default defineConfig({
         // が小さくなり追加 fetch も dedupe される。
         // issue #180: lightweight-charts / fancy-canvas は `tv` chunk に分離して
         // size-limit のサイズ gate を効かせる。
-        advancedChunks: {
+        // issue #187: deprecated な advancedChunks から codeSplitting へ移行。
+        codeSplitting: {
           groups: [
             {
               name: 'tv',
