@@ -11,6 +11,7 @@ import { RANGE_N } from '../../contexts/dashboardConstants'
 import { useChartTheme } from '../../design/useChartTheme'
 import { computeRollingSharpe } from '../../lib/rolling'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
+import { useSyncedTimeRange } from '../../hooks/useSyncedTimeRange'
 import { chartThemeToOptions } from './theme'
 import { makeL, type Lang } from '../../i18n/strings'
 import { toLineData } from './data'
@@ -57,6 +58,8 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  // hook に渡すには再レンダーを起こす必要があるため、ref とは別に state でも保持する
+  const [chartApi, setChartApi] = useState<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null)
 
   const sliced = useMemo(
@@ -71,6 +74,7 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
     if (!container) return
     const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme, lang) })
     chartRef.current = chart
+    setChartApi(chart)
     const series = chart.addSeries(LineSeries, {
       color: theme.accent,
       lineWidth: 2,
@@ -82,6 +86,7 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
       seriesRef.current = null
       chart.remove()
       chartRef.current = null
+      setChartApi(null)
     }
     // create-once: theme / props 変更は別 effect で applyOptions / setData する
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,12 +102,16 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
 
   useEffect(() => {
     seriesRef.current?.setData(lineData)
+  }, [lineData])
+
+  // viewport は共有状態と双方向に同期する（issue #318）。
+  // 共有範囲が無ければ系列の全範囲を表示する。
+  const fullRange = useMemo(() => {
     const first = lineData[0]?.time
     const last = lineData[lineData.length - 1]?.time
-    if (first != null && last != null) {
-      chartRef.current?.timeScale().setVisibleRange({ from: first, to: last })
-    }
+    return first != null && last != null ? { from: first, to: last } : null
   }, [lineData])
+  useSyncedTimeRange({ chart: chartApi, fullRange })
 
   const height = compact ? 200 : 240
 

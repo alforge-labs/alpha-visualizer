@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => {
   const setMarkersMock = vi.fn()
   const applyOptionsMock = vi.fn()
   const setVisibleRangeMock = vi.fn()
+  const subscribeRangeMock = vi.fn()
+  const unsubscribeRangeMock = vi.fn()
   const removeMock = vi.fn()
   const removeSeriesMock = vi.fn()
   const takeScreenshotMock = vi.fn(() => globalThis.document?.createElement?.('canvas'))
@@ -26,7 +28,12 @@ const mocks = vi.hoisted(() => {
     removeSeries: removeSeriesMock,
     applyOptions: applyOptionsMock,
     takeScreenshot: takeScreenshotMock,
-    timeScale: () => ({ setVisibleRange: setVisibleRangeMock }),
+    // issue #318: 双方向 viewport sync が購読する API
+    timeScale: () => ({
+      setVisibleRange: setVisibleRangeMock,
+      subscribeVisibleTimeRangeChange: subscribeRangeMock,
+      unsubscribeVisibleTimeRangeChange: unsubscribeRangeMock,
+    }),
   }))
   const createSeriesMarkersMock = vi.fn(() => ({ setMarkers: setMarkersMock }))
   return {
@@ -34,6 +41,8 @@ const mocks = vi.hoisted(() => {
     setMarkersMock,
     applyOptionsMock,
     setVisibleRangeMock,
+    subscribeRangeMock,
+    unsubscribeRangeMock,
     removeMock,
     removeSeriesMock,
     takeScreenshotMock,
