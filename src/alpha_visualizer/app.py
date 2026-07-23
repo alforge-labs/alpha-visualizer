@@ -156,7 +156,10 @@ def create_app(
                 continue
             allowed_files[rel] = child
 
-        @app.get("/{full_path:path}")
+        # include_in_schema=False: SPA 配信用のキャッチオールであり API ではない。
+        # fastapi 0.139.2 以降このルートが OpenAPI スキーマに載るようになったため、
+        # 生成される公開 API 型に偽のエンドポイントが混入しないよう明示的に除外する。
+        @app.get("/{full_path:path}", include_in_schema=False)
         async def spa_fallback(full_path: str) -> FileResponse:
             """SPA ルート対応: 起動時にスキャンした許可リストにあるファイルだけを
             配信し、それ以外（未知のルート・トラバーサル試行・ディレクトリ）は

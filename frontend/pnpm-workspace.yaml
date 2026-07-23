@@ -6,5 +6,11 @@ minimumReleaseAge: 4320
 # Dependabot セキュリティアラート対応: 依存元の範囲制約で自然更新できない
 # 推移的依存をパッチ版へ強制する（undici/@babel/core は自然解決済みのため対象外）
 overrides:
-  js-yaml: '>=4.2.0'
+  # 4.x 系に留める（唯一の依存元 @redocly/openapi-core が 4.x 前提のため、
+  # 5.x への major 跳躍は gen:types の回帰リスクを負うだけで対価がない）
+  js-yaml: '>=4.3.0 <5'
   esbuild: '0.28.1'
+  ws: '>=8.21.0'
+  # minimatch@5 系が引く 5.0.6 が脆弱。eslint 側の minimatch@10 は既に 5.0.7 のため
+  # 全系統を 5.0.7 以上に揃える
+  brace-expansion: '>=5.0.7'
