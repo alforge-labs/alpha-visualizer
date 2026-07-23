@@ -1492,11 +1492,11 @@ Total: 70 packages
   License: MIT
   Homepage: https://reactjs.org/
 
-  react-router-dom@7.17.0
+  react-router-dom@7.18.1
   License: MIT
   Homepage: https://github.com/remix-run/react-router#readme
 
-  react-router@7.17.0
+  react-router@7.18.1
   License: MIT
   Homepage: https://github.com/remix-run/react-router#readme
 
