@@ -62,34 +62,34 @@ const sampleDates = Array.from(
 
 describe('RollingMetricsChartTV', () => {
   it('マウント時に createChart + 1 LineSeries を生成する', () => {
-    render(<RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />)
+    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
     expect(createChartMock).toHaveBeenCalledTimes(1)
     expect(addSeriesMock).toHaveBeenCalledWith('LineSeriesDef', expect.any(Object))
     expect(addSeriesMock).toHaveBeenCalledTimes(1)
   })
 
   it('rolling Sharpe のデータを setData で渡し、viewport を反映する', () => {
-    render(<RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />)
+    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
     expect(setDataMock).toHaveBeenCalled()
     expect(setVisibleRangeMock).toHaveBeenCalled()
   })
 
   it('Window 切替ボタン (30d / 60d / 90d) を描画する', () => {
-    render(<RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />)
+    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
     expect(screen.getByRole('button', { name: '30d' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '60d' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '90d' })).toBeInTheDocument()
   })
 
   it('aria-label に window 幅と point 数が含まれる', () => {
-    render(<RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />)
+    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
     const region = screen.getByRole('group', { name: /Rolling Sharpe/ })
     expect(region.getAttribute('aria-label')).toMatch(/Rolling Sharpe \(60-day window\)/)
   })
 
   it('unmount で chart.remove() を呼ぶ', () => {
     const { unmount } = render(
-      <RollingMetricsChartTV dailyReturns={sampleReturns} dates={sampleDates} />,
+      <RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />,
     )
     unmount()
     expect(removeMock).toHaveBeenCalledTimes(1)

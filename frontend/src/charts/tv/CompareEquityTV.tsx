@@ -10,6 +10,7 @@ import {
 
 import { useChartTheme } from '../../design/useChartTheme'
 import { chartThemeToOptions } from './theme'
+import type { Lang } from '../../i18n/strings'
 import { toLineData } from './data'
 
 export interface CompareEquityTVSeries {
@@ -24,6 +25,8 @@ export interface CompareEquityTVSeries {
 export interface CompareEquityTVProps {
   series: CompareEquityTVSeries[]
   height?: number
+  /** 時間軸ロケールの切替（issue #315） */
+  lang: Lang
 }
 
 /** 各 series の最初の値で正規化し %差し引き表記に */
@@ -38,7 +41,7 @@ function makeNormalizedLineData(s: CompareEquityTVSeries): LineData[] {
 }
 
 export function CompareEquityTV(props: CompareEquityTVProps) {
-  const { series, height = 320 } = props
+  const { series, height = 320, lang } = props
   const theme = useChartTheme()
 
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -61,7 +64,7 @@ export function CompareEquityTV(props: CompareEquityTVProps) {
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme) })
+    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme, lang) })
     chartRef.current = chart
     const seriesMap = seriesMapRef.current
     return () => {
@@ -74,12 +77,12 @@ export function CompareEquityTV(props: CompareEquityTVProps) {
   }, [])
 
   useEffect(() => {
-    chartRef.current?.applyOptions(chartThemeToOptions(theme))
+    chartRef.current?.applyOptions(chartThemeToOptions(theme, lang))
     for (const entry of linesData) {
       const seriesApi = seriesMapRef.current.get(entry.id)
       seriesApi?.applyOptions({ color: entry.color })
     }
-  }, [theme, linesData])
+  }, [theme, linesData, lang])
 
   // props.series が変わるたびに reconcile: 不要 series 削除 / 新規 series 追加 / setData
   useEffect(() => {

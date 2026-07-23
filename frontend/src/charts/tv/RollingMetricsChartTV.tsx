@@ -12,6 +12,7 @@ import { useChartTheme } from '../../design/useChartTheme'
 import { computeRollingSharpe } from '../../lib/rolling'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { chartThemeToOptions } from './theme'
+import { makeL, type Lang } from '../../i18n/strings'
 import { toLineData } from './data'
 
 const WINDOWS = [30, 60, 90] as const
@@ -21,6 +22,8 @@ export interface RollingMetricsChartTVProps {
   dailyReturns: number[]
   dates: string[]
   compact?: boolean
+  /** 時間軸ロケールと Data table 表記の切替（issue #315） */
+  lang: Lang
 }
 
 function buildSlicedSeries(
@@ -46,7 +49,8 @@ function buildSlicedSeries(
 }
 
 export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
-  const { dailyReturns, dates, compact = false } = props
+  const { dailyReturns, dates, compact = false, lang } = props
+  const L = makeL(lang)
   const { selectedRange } = useDashboard()
   const theme = useChartTheme()
   const [win, setWin] = useState<WindowOption>(60)
@@ -65,7 +69,7 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme) })
+    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme, lang) })
     chartRef.current = chart
     const series = chart.addSeries(LineSeries, {
       color: theme.accent,
@@ -87,9 +91,9 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
     const chart = chartRef.current
     const series = seriesRef.current
     if (!chart || !series) return
-    chart.applyOptions(chartThemeToOptions(theme))
+    chart.applyOptions(chartThemeToOptions(theme, lang))
     series.applyOptions({ color: theme.accent })
-  }, [theme])
+  }, [theme, lang])
 
   useEffect(() => {
     seriesRef.current?.setData(lineData)
@@ -140,7 +144,7 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
       <div ref={containerRef} style={{ width: '100%', height }} />
 
       <ChartDataTable
-        label="Data table / データ表"
+        label={L('データ表', 'Data table')}
         caption={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
         columns={['Date', 'Rolling Sharpe']}
         rows={lineData.map((d) => [String(d.time), d.value.toFixed(2)])}

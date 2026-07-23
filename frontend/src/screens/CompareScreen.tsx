@@ -188,7 +188,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
 
           {series.length > 0 ? (
             useTv ? (
-              <CompareEquityTV series={series} height={320} />
+              <CompareEquityTV series={series} height={320} lang={lang} />
             ) : (
               <CompareEquityV series={series} height={320} />
             )

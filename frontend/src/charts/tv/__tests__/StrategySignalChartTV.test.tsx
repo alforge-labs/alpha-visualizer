@@ -108,14 +108,14 @@ function trade(overrides: Partial<Trade>): Trade {
 
 describe('StrategySignalChartTV', () => {
   it('マウント時に createChart + CandlestickSeries + markers plugin を生成する', () => {
-    render(<StrategySignalChartTV bars={sampleBars} trades={[]} />)
+    render(<StrategySignalChartTV lang="ja" bars={sampleBars} trades={[]} />)
     expect(createChartMock).toHaveBeenCalledTimes(1)
     expect(addSeriesMock).toHaveBeenCalledWith('CandlestickSeriesDef', expect.any(Object), 0)
     expect(createSeriesMarkersMock).toHaveBeenCalledTimes(1)
   })
 
   it('OHLC データを CandlestickData 形式で setData に渡す', () => {
-    render(<StrategySignalChartTV bars={sampleBars} trades={[]} />)
+    render(<StrategySignalChartTV lang="ja" bars={sampleBars} trades={[]} />)
     expect(setDataMock).toHaveBeenCalled()
     const data = setDataMock.mock.calls[0]?.[0]
     expect(Array.isArray(data)).toBe(true)
@@ -131,6 +131,7 @@ describe('StrategySignalChartTV', () => {
   it('trades 配列から markers を計算して setMarkers に渡す', () => {
     render(
       <StrategySignalChartTV
+        lang="ja"
         bars={sampleBars}
         trades={[trade({}), trade({ id: 1, entry_date: '2025-01-05', exit_date: '2025-01-09' })]}
       />,
@@ -143,7 +144,7 @@ describe('StrategySignalChartTV', () => {
 
   it('focus trade に entry / sl / tp priceLine を createPriceLine で作る', () => {
     render(
-      <StrategySignalChartTV bars={sampleBars} trades={[trade({ sl_price: 99, tp_price: 110 })]} />,
+      <StrategySignalChartTV lang="ja" bars={sampleBars} trades={[trade({ sl_price: 99, tp_price: 110 })]} />,
     )
     // entry + sl + tp の 3 本
     expect(createPriceLineMock).toHaveBeenCalledTimes(3)
@@ -153,13 +154,14 @@ describe('StrategySignalChartTV', () => {
 
   it('trades 変更で removePriceLine → createPriceLine で priceLine を更新する', () => {
     const { rerender } = render(
-      <StrategySignalChartTV bars={sampleBars} trades={[trade({ sl_price: 99, tp_price: 110 })]} />,
+      <StrategySignalChartTV lang="ja" bars={sampleBars} trades={[trade({ sl_price: 99, tp_price: 110 })]} />,
     )
     createPriceLineMock.mockClear()
     removePriceLineMock.mockClear()
 
     rerender(
       <StrategySignalChartTV
+        lang="ja"
         bars={sampleBars}
         trades={[trade({ id: 99, sl_price: 95, tp_price: 115 })]}
       />,
@@ -170,12 +172,12 @@ describe('StrategySignalChartTV', () => {
   })
 
   it('trades が空でも priceLine は 0 本（focus trade が null）', () => {
-    render(<StrategySignalChartTV bars={sampleBars} trades={[]} />)
+    render(<StrategySignalChartTV lang="ja" bars={sampleBars} trades={[]} />)
     expect(createPriceLineMock).not.toHaveBeenCalled()
   })
 
   it('unmount で chart.remove() を 1 回呼ぶ', () => {
-    const { unmount } = render(<StrategySignalChartTV bars={sampleBars} trades={[]} />)
+    const { unmount } = render(<StrategySignalChartTV lang="ja" bars={sampleBars} trades={[]} />)
     expect(removeMock).not.toHaveBeenCalled()
     unmount()
     expect(removeMock).toHaveBeenCalledTimes(1)
@@ -183,7 +185,7 @@ describe('StrategySignalChartTV', () => {
 
   it('aria-label にバー数とトレード数が含まれる', () => {
     const { getByTestId } = render(
-      <StrategySignalChartTV bars={sampleBars} trades={[trade({})]} />,
+      <StrategySignalChartTV lang="ja" bars={sampleBars} trades={[trade({})]} />,
     )
     const el = getByTestId('strategy-signal-chart-tv').closest('figure')
     expect(el?.getAttribute('aria-label')).toContain('10 bars')
@@ -192,7 +194,7 @@ describe('StrategySignalChartTV', () => {
 
   it('OHLC データテーブルを代替として描画する (issue #262)', () => {
     const { getByRole, getAllByRole } = render(
-      <StrategySignalChartTV bars={sampleBars} trades={[]} />,
+      <StrategySignalChartTV lang="ja" bars={sampleBars} trades={[]} />,
     )
     expect(getByRole('columnheader', { name: 'Open' })).toBeInTheDocument()
     expect(getByRole('columnheader', { name: 'Close' })).toBeInTheDocument()
@@ -208,6 +210,7 @@ describe('StrategySignalChartTV', () => {
     }
     render(
       <StrategySignalChartTV
+        lang="ja"
         bars={sampleBars}
         trades={[trade({})]}
         regimeSeries={regimeSeries}
@@ -228,6 +231,7 @@ describe('StrategySignalChartTV', () => {
     }
     render(
       <StrategySignalChartTV
+        lang="ja"
         bars={sampleBars}
         trades={[trade({})]}
         regimeSeries={regimeSeries}
@@ -248,6 +252,7 @@ describe('StrategySignalChartTV', () => {
     }
     const { getByTestId } = render(
       <StrategySignalChartTV
+        lang="ja"
         bars={sampleBars}
         trades={[]}
         regimeSeries={regimeSeries}

@@ -99,6 +99,7 @@ describe('WFOEquityTV', () => {
   it('createChart + AreaSeries + マーカープラグインを生成する', () => {
     render(
       <WFOEquityTV
+        lang="ja"
         composite_equity={composite_equity}
         composite_dates={composite_dates}
         windows={windows}
@@ -112,6 +113,7 @@ describe('WFOEquityTV', () => {
   it('equity データと window マーカーを setData / setMarkers で渡す', () => {
     render(
       <WFOEquityTV
+        lang="ja"
         composite_equity={composite_equity}
         composite_dates={composite_dates}
         windows={windows}
@@ -127,6 +129,7 @@ describe('WFOEquityTV', () => {
   it('aria-label に points / windows 数が含まれる', () => {
     render(
       <WFOEquityTV
+        lang="ja"
         composite_equity={composite_equity}
         composite_dates={composite_dates}
         windows={windows}
@@ -139,6 +142,7 @@ describe('WFOEquityTV', () => {
   it('unmount で chart.remove() を呼ぶ', () => {
     const { unmount } = render(
       <WFOEquityTV
+        lang="ja"
         composite_equity={composite_equity}
         composite_dates={composite_dates}
         windows={windows}

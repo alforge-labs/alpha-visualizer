@@ -69,13 +69,13 @@ const makeSeries = (id: string, base: number, isBaseline = false): CompareEquity
 describe('CompareEquityTV', () => {
   it('series 件数ぶん LineSeries を生成する', () => {
     const series = [makeSeries('a', 100, true), makeSeries('b', 90), makeSeries('c', 95)]
-    render(<CompareEquityTV series={series} />)
+    render(<CompareEquityTV series={series} lang="ja" />)
     expect(addSeriesMock).toHaveBeenCalledTimes(3)
   })
 
   it('凡例にすべての series ラベルが表示される', () => {
     const series = [makeSeries('a', 100, true), makeSeries('b', 90)]
-    render(<CompareEquityTV series={series} />)
+    render(<CompareEquityTV series={series} lang="ja" />)
     expect(screen.getByText('Strategy a')).toBeInTheDocument()
     expect(screen.getByText('Strategy b')).toBeInTheDocument()
     expect(screen.getByText('Base')).toBeInTheDocument()
@@ -83,22 +83,22 @@ describe('CompareEquityTV', () => {
 
   it('series を 1 件減らすと removeSeries が呼ばれる', () => {
     const series = [makeSeries('a', 100), makeSeries('b', 90)]
-    const { rerender } = render(<CompareEquityTV series={series} />)
+    const { rerender } = render(<CompareEquityTV series={series} lang="ja" />)
     expect(addSeriesMock).toHaveBeenCalledTimes(2)
     removeSeriesMock.mockClear()
-    rerender(<CompareEquityTV series={[makeSeries('a', 100)]} />)
+    rerender(<CompareEquityTV series={[makeSeries('a', 100)]} lang="ja" />)
     expect(removeSeriesMock).toHaveBeenCalledTimes(1)
   })
 
   it('aria-label に series 件数が入る', () => {
     const series = [makeSeries('a', 100), makeSeries('b', 90), makeSeries('c', 95)]
-    render(<CompareEquityTV series={series} />)
+    render(<CompareEquityTV series={series} lang="ja" />)
     const region = screen.getByRole('group')
     expect(region.getAttribute('aria-label')).toMatch(/3 strategies/)
   })
 
   it('unmount で chart.remove() を呼ぶ', () => {
-    const { unmount } = render(<CompareEquityTV series={[makeSeries('a', 100)]} />)
+    const { unmount } = render(<CompareEquityTV series={[makeSeries('a', 100)]} lang="ja" />)
     unmount()
     expect(removeMock).toHaveBeenCalledTimes(1)
   })

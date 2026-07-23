@@ -16,6 +16,7 @@ import {
 } from 'lightweight-charts'
 
 import type { ChartTheme } from '../../design/useChartTheme'
+import type { Lang } from '../../i18n/strings'
 
 /**
  * Trade marker / priceLine の色トークン。
@@ -49,8 +50,13 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
-export function chartThemeToOptions(theme: ChartTheme): DeepPartial<ChartOptions> {
+export function chartThemeToOptions(theme: ChartTheme, lang: Lang): DeepPartial<ChartOptions> {
   return {
+    // issue #315: 未指定だと navigator.language に従い、アプリの言語切替に
+    // 時間軸の目盛（「2021年」「6月」等）が追従しない。
+    localization: {
+      locale: lang === 'ja' ? 'ja-JP' : 'en-US',
+    },
     layout: {
       background: { type: ColorType.Solid, color: theme.bg },
       textColor: theme.text2,

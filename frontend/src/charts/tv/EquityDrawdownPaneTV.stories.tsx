@@ -80,6 +80,7 @@ export const AtelierShort: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
   args: {
+    lang: 'ja',
     equity: shortEquity,
     dates: shortDates,
     drawdown: shortDrawdown,
@@ -91,6 +92,7 @@ export const AtelierLong: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
   args: {
+    lang: 'ja',
     equity: longEquity,
     dates: longDates,
     drawdown: longDrawdown,
@@ -102,6 +104,7 @@ export const LabShort: Story = {
   decorators: [withVariation('lab')],
   parameters: { backgrounds: { default: 'app-bg' } },
   args: {
+    lang: 'ja',
     equity: shortEquity,
     dates: shortDates,
     drawdown: shortDrawdown,
@@ -113,6 +116,7 @@ export const LabLong: Story = {
   decorators: [withVariation('lab')],
   parameters: { backgrounds: { default: 'app-bg' } },
   args: {
+    lang: 'ja',
     equity: longEquity,
     dates: longDates,
     drawdown: longDrawdown,
@@ -124,6 +128,7 @@ export const WithBenchmarkAndCutoff: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
   args: {
+    lang: 'ja',
     equity: shortEquity,
     dates: shortDates,
     drawdown: shortDrawdown,

@@ -103,7 +103,7 @@ const closedTrades: Trade[] = [
 
 export const AtelierClosedTrades: Story = {
   decorators: [withVariation('atelier')],
-  args: { bars: closedBars, trades: closedTrades },
+  args: { lang: 'ja', bars: closedBars, trades: closedTrades },
 }
 
 // ===== 2. LabOpenTrade =====
@@ -132,7 +132,7 @@ const openTrades: Trade[] = [
 
 export const LabOpenTrade: Story = {
   decorators: [withVariation('lab')],
-  args: { bars: openBars, trades: openTrades },
+  args: { lang: 'ja', bars: openBars, trades: openTrades },
 }
 
 // ===== 3. SLHit =====
@@ -157,7 +157,7 @@ const slHitTrades: Trade[] = [
 
 export const SLHit: Story = {
   decorators: [withVariation('atelier')],
-  args: { bars: slHitBars, trades: slHitTrades },
+  args: { lang: 'ja', bars: slHitBars, trades: slHitTrades },
 }
 
 // ===== 4. TPHit =====
@@ -182,7 +182,7 @@ const tpHitTrades: Trade[] = [
 
 export const TPHit: Story = {
   decorators: [withVariation('lab')],
-  args: { bars: tpHitBars, trades: tpHitTrades },
+  args: { lang: 'ja', bars: tpHitBars, trades: tpHitTrades },
 }
 
 // ===== 5. DenseMarkers =====
@@ -211,7 +211,7 @@ const denseTrades: Trade[] = Array.from({ length: 25 }, (_, i) => {
 
 export const DenseMarkers: Story = {
   decorators: [withVariation('atelier')],
-  args: { bars: denseBars, trades: denseTrades },
+  args: { lang: 'ja', bars: denseBars, trades: denseTrades },
 }
 
 // ===== 6. WithRegime =====
@@ -235,6 +235,7 @@ const regimeSeriesData = {
 export const WithRegime: Story = {
   decorators: [withVariation('atelier')],
   args: {
+    lang: 'ja',
     bars: regimeBars,
     trades: regimeTrades,
     regimeSeries: regimeSeriesData,

@@ -20,4 +20,18 @@ test.describe('i18n スモーク', () => {
     await switchLanguage(page, 'ja')
     await expect(page.getByText('戦略ブラウザ').first()).toBeVisible()
   })
+
+  test('言語切替がグローバルナビにも反映される (issue #315)', async ({ page }) => {
+    await gotoBrowse(page)
+
+    // 初期は ja のナビ
+    const navJa = page.getByRole('navigation', { name: 'メインナビゲーション' })
+    await expect(navJa.getByText('ブラウズ')).toBeVisible()
+
+    // EN に切替: Page 側のトグル操作が RootLayout 配下のナビへ同期される
+    await switchLanguage(page, 'en')
+    const navEn = page.getByRole('navigation', { name: 'Main navigation' })
+    await expect(navEn.getByText('Browse')).toBeVisible()
+    await expect(navEn.getByText('ブラウズ')).not.toBeVisible()
+  })
 })

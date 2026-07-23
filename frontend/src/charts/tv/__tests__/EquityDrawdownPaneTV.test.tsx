@@ -92,6 +92,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('マウント時に createChart と 2 系列 (equity + drawdown) を生成する', () => {
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -108,6 +109,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('equity / drawdown データを setData で渡す', () => {
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -132,6 +134,7 @@ describe('EquityDrawdownPaneTV', () => {
     const benchmark = sampleEquity.map((v) => v * 1.05)
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -146,6 +149,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('IS/OOS マーカーを cutoff 位置に setMarkers する', () => {
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -161,6 +165,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('timeScale().setVisibleRange を呼んで viewport を反映する', () => {
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -177,6 +182,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('unmount で chart.remove() を呼ぶ', () => {
     const { unmount } = render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -191,6 +197,7 @@ describe('EquityDrawdownPaneTV', () => {
   it('aria-label を含む role=img 要素を描画する', () => {
     render(
       <EquityDrawdownPaneTV
+        lang="ja"
         equity={sampleEquity}
         dates={sampleDates}
         drawdown={sampleDrawdown}
@@ -199,5 +206,71 @@ describe('EquityDrawdownPaneTV', () => {
     )
     const region = screen.getByRole('group', { name: /Equity and drawdown chart/ })
     expect(region.getAttribute('aria-label')).toMatch(/Equity and drawdown chart/)
+  })
+
+  /**
+   * issue #315: EN 切替後もチャート時間軸が日本語（「2021年」等）のまま残り、
+   * Data table ラベルが常に日英併記になる。lang prop で locale と表記を切り替える。
+   */
+  describe('lang (issue #315)', () => {
+    it("lang='en' のとき createChart に locale en-US を渡す", () => {
+      render(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="en"
+        />,
+      )
+      const options = (createChartMock.mock.calls[0] as unknown[])?.[1] as {
+        localization?: { locale?: string }
+      }
+      expect(options?.localization?.locale).toBe('en-US')
+    })
+
+    it("lang='ja' のとき createChart に locale ja-JP を渡す", () => {
+      render(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="ja"
+        />,
+      )
+      const options = (createChartMock.mock.calls[0] as unknown[])?.[1] as {
+        localization?: { locale?: string }
+      }
+      expect(options?.localization?.locale).toBe('ja-JP')
+    })
+
+    it("lang='en' のとき Data table ラベルは英語のみ", () => {
+      render(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="en"
+        />,
+      )
+      expect(screen.getByText('Data table')).toBeInTheDocument()
+      expect(screen.queryByText(/データ表/)).not.toBeInTheDocument()
+    })
+
+    it("lang='ja' のとき Data table ラベルは日本語のみ", () => {
+      render(
+        <EquityDrawdownPaneTV
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          lang="ja"
+        />,
+      )
+      expect(screen.getByText('データ表')).toBeInTheDocument()
+      expect(screen.queryByText(/Data table/)).not.toBeInTheDocument()
+    })
   })
 })

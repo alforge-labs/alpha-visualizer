@@ -213,6 +213,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
               <div data-testid="backtest-equity-chart-tv">
                 <EquityDrawdownPaneTV
                   ref={tvHandleRef}
+                  lang={lang}
                   equity={data.equity.values}
                   dates={data.equity.dates}
                   drawdown={data.drawdown}
@@ -366,6 +367,7 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
             <SectionLabel>{L('ローリング Sharpe', 'Rolling Sharpe')}</SectionLabel>
             {useTv ? (
               <RollingMetricsChartTV
+                lang={lang}
                 dailyReturns={data.daily_returns}
                 dates={data.equity.dates}
                 compact={compact}

@@ -113,6 +113,7 @@ export function CorrelationHeatmap({
         meta={meta}
         symbols={symbols}
         symbolMismatchLabel={L(' · 銘柄が異なる', ' · symbol mismatch')}
+        dataTableLabel={L('データ表', 'Data table')}
       />
     </Card>
   )

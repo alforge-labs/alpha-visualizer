@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { useViewerSettings } from '../useTheme'
+import { resetViewerSettingsStoreForTest, useViewerSettings } from '../useTheme'
 
 const STORAGE_KEY = 'alphaforge.viewer.settings.v1'
 
@@ -34,6 +34,8 @@ beforeEach(() => {
   // <html> dataset もリセット
   delete document.documentElement.dataset.theme
   delete document.documentElement.dataset.variation
+  // 共有ストアを破棄し、テストごとに storage / URL から再初期化させる（issue #315）
+  resetViewerSettingsStoreForTest()
 })
 
 afterEach(() => {
