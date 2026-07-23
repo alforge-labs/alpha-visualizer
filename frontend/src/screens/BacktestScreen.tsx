@@ -9,19 +9,11 @@ import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
 import { buildEquityCsv, downloadCsv } from '../lib/csv'
 import { exportSvgAsPng } from '../lib/exportPng'
-import { EquityChartV } from '../charts/visx/EquityChartV'
-import { DrawdownChartV } from '../charts/visx/DrawdownChartV'
 import {
   EquityDrawdownPaneTV,
   type EquityDrawdownPaneTVHandle,
 } from '../charts/tv/EquityDrawdownPaneTV'
-import {
-  resolveLightweightChartsFlag,
-  setLightweightChartsFlag,
-  shouldShowRendererToggle,
-} from '../constants/featureFlags'
 import { MonthlyHeatmapV } from '../charts/visx/MonthlyHeatmapV'
-import { RollingMetricsChart } from '../components/charts/RollingMetricsChart'
 import { RollingMetricsChartTV } from '../charts/tv/RollingMetricsChartTV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
@@ -49,26 +41,13 @@ type Tab = 'overview' | 'metrics' | 'performance' | 'trades' | 'risk' | 'monte' 
 function BacktestScreenInner({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const hasRegime = !!data.regime_series
-  const [showRegime, setShowRegime] = useState<boolean>(hasRegime)
   // issue #265: listLive() の失敗を silent に握りつぶさず、liveError として通知する。
   const { hasLive, error: liveError } = useLiveAvailability(data.strategy_id)
-  const [useTv, setUseTv] = useState<boolean>(() => resolveLightweightChartsFlag())
-  const showRendererToggle = shouldShowRendererToggle()
   const L = makeL(lang)
   const chartTheme = useChartTheme()
 
-  const equityRef = useRef<HTMLDivElement>(null)
-  const drawdownRef = useRef<HTMLDivElement>(null)
   const heatmapRef = useRef<HTMLDivElement>(null)
   const tvHandleRef = useRef<EquityDrawdownPaneTVHandle>(null)
-
-  const toggleTvRenderer = () => {
-    setUseTv((prev) => {
-      const next = !prev
-      setLightweightChartsFlag(next)
-      return next
-    })
-  }
 
   const exportChartPng = (
     ref: React.RefObject<HTMLDivElement | null>,
@@ -162,166 +141,46 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
       {tab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {useTv ? (
-            <div>
-              <div style={sectionHeaderS}>
-                <SectionLabel>
-                  {L('エクイティ & ドローダウン', 'Equity & Drawdown')}
-                </SectionLabel>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {/* issue #231: TV が既定レンダラになったため、開発時のみバッジを表示（本番露出を防ぐ） */}
-                  {showRendererToggle && (
-                    <>
-                      <span
-                        data-testid="renderer-mode"
-                        style={{
-                          fontFamily: 'var(--mono)',
-                          fontSize: 10,
-                          letterSpacing: '0.08em',
-                          color: 'var(--accent)',
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          background: 'var(--accent-bg)',
-                          border: '1px solid var(--accent-glow)',
-                        }}
-                      >
-                        tv
-                      </span>
-                      <button type="button" style={exportBtnS} onClick={toggleTvRenderer}>
-                        {L('visx に戻す', 'Switch to visx')}
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    style={exportBtnS}
-                    onClick={() => downloadCsv('equity.csv', buildEquityCsv(data.equity, data.drawdown, data.daily_returns))}
-                  >
-                    CSV
-                  </button>
-                  <button
-                    type="button"
-                    style={exportBtnS}
-                    onClick={() => tvHandleRef.current?.exportPng('equity_drawdown.png')}
-                  >
-                    PNG
-                  </button>
-                  <ShareCardButton data={data} lang={lang} theme={chartTheme} />
-                  <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
-                </div>
-              </div>
-              <div data-testid="backtest-equity-chart-tv">
-                <EquityDrawdownPaneTV
-                  ref={tvHandleRef}
-                  lang={lang}
-                  equity={data.equity.values}
-                  dates={data.equity.dates}
-                  drawdown={data.drawdown}
-                  isCutoffIdx={data.is_cutoff.index}
-                  benchmark={showBuyHold ? data.buy_hold_equity : undefined}
-                  showBenchmark={showBuyHold}
-                  compact={compact}
-                  regimeSeries={data.regime_series}
-                  showRegime={showRegime}
-                />
+          <div>
+            <div style={sectionHeaderS}>
+              <SectionLabel>
+                {L('エクイティ & ドローダウン', 'Equity & Drawdown')}
+              </SectionLabel>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  style={exportBtnS}
+                  onClick={() => downloadCsv('equity.csv', buildEquityCsv(data.equity, data.drawdown, data.daily_returns))}
+                >
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  style={exportBtnS}
+                  onClick={() => tvHandleRef.current?.exportPng('equity_drawdown.png')}
+                >
+                  PNG
+                </button>
+                <ShareCardButton data={data} lang={lang} theme={chartTheme} />
+                <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
               </div>
             </div>
-          ) : (
-            <>
-              <div>
-                <div style={sectionHeaderS}>
-                  <SectionLabel>{L('エクイティ vs Buy&Hold', 'Equity vs Buy & Hold')}</SectionLabel>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    {showRendererToggle && (
-                      <>
-                        <span
-                          data-testid="renderer-mode"
-                          style={{
-                            fontFamily: 'var(--mono)',
-                            fontSize: 10,
-                            letterSpacing: '0.08em',
-                            color: 'var(--text3)',
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: 'var(--surface)',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          visx
-                        </span>
-                        <button type="button" style={exportBtnS} onClick={toggleTvRenderer}>
-                          {L('TV β を試す', 'Try TV β')}
-                        </button>
-                      </>
-                    )}
-                    {hasRegime && (
-                      <button
-                        type="button"
-                        aria-pressed={showRegime}
-                        style={{
-                          ...exportBtnS,
-                          background: showRegime ? 'var(--accent-bg)' : 'var(--surface)',
-                          borderColor: showRegime ? 'var(--accent-glow)' : 'var(--border)',
-                          color: showRegime ? 'var(--accent)' : 'var(--text2)',
-                        }}
-                        onClick={() => setShowRegime((v) => !v)}
-                      >
-                        {L('レジーム', 'Regime')}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      style={exportBtnS}
-                      onClick={() => downloadCsv('equity.csv', buildEquityCsv(data.equity, data.drawdown, data.daily_returns))}
-                    >
-                      CSV
-                    </button>
-                    <button
-                      type="button"
-                      style={exportBtnS}
-                      onClick={() => exportChartPng(equityRef, 'equity.png')}
-                    >
-                      PNG
-                    </button>
-                    <ShareCardButton data={data} lang={lang} theme={chartTheme} />
-                    <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
-                  </div>
-                </div>
-                <div ref={equityRef} data-testid="backtest-equity-chart">
-                  <EquityChartV
-                    equity={data.equity.values}
-                    dates={data.equity.dates}
-                    isCutoffIdx={data.is_cutoff.index}
-                    benchmark={showBuyHold ? data.buy_hold_equity : undefined}
-                    showBenchmark={showBuyHold}
-                    compact={compact}
-                    regimeSeries={data.regime_series}
-                    showRegime={showRegime}
-                  />
-                </div>
-              </div>
-              <div>
-                <div style={sectionHeaderS}>
-                  <SectionLabel>{L('ドローダウン', 'Drawdown')}</SectionLabel>
-                  <button
-                    type="button"
-                    style={exportBtnS}
-                    onClick={() => exportChartPng(drawdownRef, 'drawdown.png')}
-                  >
-                    PNG
-                  </button>
-                </div>
-                <div ref={drawdownRef}>
-                  <DrawdownChartV
-                    dd={data.drawdown}
-                    dates={data.equity.dates}
-                    isCutoffIdx={data.is_cutoff.index}
-                    compact={compact}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+            <div data-testid="backtest-equity-chart-tv">
+              <EquityDrawdownPaneTV
+                ref={tvHandleRef}
+                lang={lang}
+                equity={data.equity.values}
+                dates={data.equity.dates}
+                drawdown={data.drawdown}
+                isCutoffIdx={data.is_cutoff.index}
+                benchmark={showBuyHold ? data.buy_hold_equity : undefined}
+                showBenchmark={showBuyHold}
+                compact={compact}
+                regimeSeries={data.regime_series}
+                showRegime={hasRegime}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -365,20 +224,12 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           </div>
           <div>
             <SectionLabel>{L('ローリング Sharpe', 'Rolling Sharpe')}</SectionLabel>
-            {useTv ? (
-              <RollingMetricsChartTV
-                lang={lang}
-                dailyReturns={data.daily_returns}
-                dates={data.equity.dates}
-                compact={compact}
-              />
-            ) : (
-              <RollingMetricsChart
-                dailyReturns={data.daily_returns}
-                dates={data.equity.dates}
-                compact={compact}
-              />
-            )}
+            <RollingMetricsChartTV
+              lang={lang}
+              dailyReturns={data.daily_returns}
+              dates={data.equity.dates}
+              compact={compact}
+            />
           </div>
           <div>
             <SectionLabel>{L('リターン分布', 'Return Distribution')}</SectionLabel>

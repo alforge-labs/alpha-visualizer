@@ -2,7 +2,7 @@ import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import type { BacktestDetail, BacktestMetrics } from '../api/types'
 import { SectionHeader, SectionLabel } from '../design/primitives'
-import { EquityChartV } from '../charts/visx/EquityChartV'
+import { EquityDrawdownPaneTV } from '../charts/tv/EquityDrawdownPaneTV'
 import { ISOOSMetrics } from '../components/metrics/ISOOSMetrics'
 
 interface Props {
@@ -124,11 +124,13 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
 
       <div style={{ marginBottom: 20 }}>
         <SectionLabel>
-          {L('エクイティカーブ (IS/OOS境界線付き)', 'Equity Curve with IS/OOS Boundary')}
+          {L('エクイティ & ドローダウン (IS/OOS境界線付き)', 'Equity & Drawdown with IS/OOS Boundary')}
         </SectionLabel>
-        <EquityChartV
+        <EquityDrawdownPaneTV
+          lang={lang}
           equity={data.equity.values}
           dates={data.equity.dates}
+          drawdown={data.drawdown}
           isCutoffIdx={data.is_cutoff.index}
           compact={compact}
         />

@@ -64,6 +64,12 @@ jobs:
       - name: Bundle size check (size-limit)
         run: pnpm run size
 
+      # issue #187: THIRDPARTY_LICENSES.txt の SECTION 2（frontend prod 依存）が
+      # 依存更新に追従しているかを検証する。乖離時は生成スクリプトの再実行を促す。
+      - name: THIRDPARTY licenses drift check (SECTION 2)
+        working-directory: .
+        run: python3 scripts/generate_thirdparty_js.py --check
+
   # issue #225: wheel / sdist に frontend の static/ が同梱されることを PR 時点で検証する。
   # （static/ は .gitignore 管理のため hatchling の既定挙動では除外される。
   #   pyproject の force-include 設定が欠落・破損していないかをここで検出する）

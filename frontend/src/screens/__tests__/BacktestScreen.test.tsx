@@ -5,11 +5,13 @@ import { MOCK_BACKTEST } from '../../mock/btData'
 import { BacktestScreen } from '../BacktestScreen'
 
 // lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
-// visx レンダラを強制する（このテストの関心は source 注記バナーのみ）
-vi.mock('../../constants/featureFlags', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../constants/featureFlags')>()
-  return { ...actual, resolveLightweightChartsFlag: () => false }
-})
+// TV チャートをスタブする（このテストの関心は source 注記バナーのみ）
+vi.mock('../../charts/tv/EquityDrawdownPaneTV', () => ({
+  EquityDrawdownPaneTV: () => <div data-testid="backtest-equity-chart-tv" />,
+}))
+vi.mock('../../charts/tv/RollingMetricsChartTV', () => ({
+  RollingMetricsChartTV: () => <div data-testid="rolling-metrics-chart-tv" />,
+}))
 
 // listLive のネットワークアクセスを避ける（バナーの検証に live 情報は不要）
 vi.mock('../../hooks/useLiveAvailability', () => ({

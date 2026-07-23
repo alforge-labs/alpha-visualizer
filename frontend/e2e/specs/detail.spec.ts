@@ -36,11 +36,4 @@ test.describe('Detail スモーク', () => {
     await page.getByRole('tab', { name: /最適化|Optimize/ }).click()
     await expect(page.getByTestId('optimize-screen')).toBeVisible()
   })
-
-  test('?tv=0 で visx レンダラに fallback できる', async ({ page }) => {
-    // issue #231: TV 既定化後も visx を opt-out 経路として維持していることの回帰確認
-    await page.goto('/detail/sma_cross?tv=0')
-    await expect(page.getByTestId('backtest-equity-chart')).toBeVisible()
-    await expect(page.getByTestId('backtest-equity-chart-tv')).not.toBeVisible()
-  })
 })
