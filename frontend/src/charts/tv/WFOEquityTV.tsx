@@ -12,6 +12,7 @@ import {
 
 import { useChartTheme } from '../../design/useChartTheme'
 import type { WFOWindow } from '../../api/types'
+import type { Lang } from '../../i18n/strings'
 import { chartThemeToOptions, equityAreaOptions } from './theme'
 import { dateStringToTime, toLineData } from './data'
 
@@ -23,6 +24,8 @@ export interface WFOEquityTVProps {
   /** ウィンドウ境界 marker 用 (`oos_start` を境界位置として利用) */
   windows: WFOWindow[]
   compact?: boolean
+  /** 時間軸ロケールの切替（issue #315） */
+  lang: Lang
 }
 
 function makeWindowMarkers(
@@ -50,7 +53,7 @@ function makeWindowMarkers(
 }
 
 export function WFOEquityTV(props: WFOEquityTVProps) {
-  const { composite_equity, composite_dates, windows, compact = false } = props
+  const { composite_equity, composite_dates, windows, compact = false, lang } = props
   const theme = useChartTheme()
 
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -77,7 +80,7 @@ export function WFOEquityTV(props: WFOEquityTVProps) {
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme) })
+    const chart = createChart(container, { autoSize: true, ...chartThemeToOptions(theme, lang) })
     chartRef.current = chart
     const series = chart.addSeries(AreaSeries, equityAreaOptions(theme, isPositive))
     seriesRef.current = series
@@ -96,9 +99,9 @@ export function WFOEquityTV(props: WFOEquityTVProps) {
     const chart = chartRef.current
     const series = seriesRef.current
     if (!chart || !series) return
-    chart.applyOptions(chartThemeToOptions(theme))
+    chart.applyOptions(chartThemeToOptions(theme, lang))
     series.applyOptions(equityAreaOptions(theme, isPositive))
-  }, [theme, isPositive])
+  }, [theme, isPositive, lang])
 
   useEffect(() => {
     seriesRef.current?.setData(equityData)

@@ -14,6 +14,7 @@ import type { OhlcBar, RegimeSeries, Trade } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { compareTime, toCandlestickData } from './data'
+import { makeL, type Lang } from '../../i18n/strings'
 import {
   candlestickOptions,
   chartThemeToOptions,
@@ -37,6 +38,8 @@ export interface StrategySignalChartTVProps {
   /** regime markers を表示するか（既定 false） */
   showRegime?: boolean
   compact?: boolean
+  /** 時間軸ロケールと Data table 表記の切替（issue #315） */
+  lang: Lang
   ref?: React.Ref<StrategySignalChartTVHandle>
 }
 
@@ -46,7 +49,8 @@ export interface StrategySignalChartTVHandle {
 }
 
 export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
-  const { bars, trades, regimeSeries, showRegime = false, compact = false, ref } = props
+  const { bars, trades, regimeSeries, showRegime = false, compact = false, lang, ref } = props
+  const L = makeL(lang)
 
   const theme = useChartTheme()
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -78,7 +82,7 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
     if (!container) return
     const chart = createChart(container, {
       autoSize: true,
-      ...chartThemeToOptions(theme),
+      ...chartThemeToOptions(theme, lang),
     })
     chartRef.current = chart
 
@@ -105,9 +109,9 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
     const chart = chartRef.current
     const candleSeries = candleSeriesRef.current
     if (!chart || !candleSeries) return
-    chart.applyOptions(chartThemeToOptions(theme))
+    chart.applyOptions(chartThemeToOptions(theme, lang))
     candleSeries.applyOptions(candlestickOptions(theme))
-  }, [theme])
+  }, [theme, lang])
 
   // OHLC data と markers の反映。viewport を bars の全範囲に合わせる。
   useEffect(() => {
@@ -172,7 +176,7 @@ export function StrategySignalChartTV(props: StrategySignalChartTVProps) {
       <div ref={containerRef} data-testid="strategy-signal-chart-tv" style={{ width: '100%', height }} />
 
       <ChartDataTable
-        label="Data table / データ表"
+        label={L('データ表', 'Data table')}
         caption={`OHLC bars, ${candlestickData.length} bars, ${trades.length} trades`}
         columns={['Date', 'Open', 'High', 'Low', 'Close']}
         rows={candlestickData.map((d) => [

@@ -61,11 +61,11 @@ const dates = generateDates(500)
 export const Atelier: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
-  args: { dailyReturns, dates },
+  args: { lang: 'ja', dailyReturns, dates },
 }
 
 export const Lab: Story = {
   decorators: [withVariation('lab')],
   parameters: { backgrounds: { default: 'app-bg' } },
-  args: { dailyReturns, dates },
+  args: { lang: 'ja', dailyReturns, dates },
 }

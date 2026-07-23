@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import type { Lang } from '../i18n/strings'
 
 export type Theme = 'dark' | 'light'
@@ -69,8 +69,73 @@ function readStorage(): Partial<ViewerSettings> {
   }
 }
 
-export function useViewerSettings() {
-  const initial = useMemo(() => {
+// ===== モジュールレベル共有ストア（issue #315） =====
+// 以前はフックごとに独立した useState を持っていたため、Page 側の LangToggle で
+// 言語を切り替えても RootLayout（AppNav）側の別インスタンスに反映されなかった。
+// useSyncExternalStore で全呼び出し元が単一の状態を購読する。
+
+interface ViewerSettingsStore {
+  settings: ViewerSettings
+  // ユーザーが theme を明示選択したか。明示している間は OS 追従しない（issue #266）。
+  themeExplicit: boolean
+}
+
+let store: ViewerSettingsStore | null = null
+const listeners = new Set<() => void>()
+let unsubscribeOsTheme: (() => void) | null = null
+
+function persist(s: ViewerSettingsStore): void {
+  if (typeof window === 'undefined') return
+  try {
+    // issue #266: 明示選択していない間は theme を保存しない。
+    // 保存してしまうと再読込時に「明示あり」と誤認し、OS 追従が止まるため。
+    const toStore: Record<string, unknown> = {
+      density: s.settings.density,
+      variation: s.settings.variation,
+      lang: s.settings.lang,
+    }
+    if (s.themeExplicit) toStore.theme = s.settings.theme
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
+  } catch {
+    // storage may be disabled (private mode etc.) — ignore silently
+  }
+}
+
+/**
+ * variation / theme を <html data-*> に、lang を <html lang> に同期する。
+ * data-variation は tokens.css の切替トリガー、lang は SR の読み上げ言語判定（issue #261）。
+ */
+function syncDocument(settings: ViewerSettings): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.variation = settings.variation
+  document.documentElement.dataset.theme = settings.theme
+  document.documentElement.lang = settings.lang
+}
+
+function setStore(next: ViewerSettingsStore): void {
+  store = next
+  persist(next)
+  syncDocument(next.settings)
+  for (const cb of listeners) cb()
+}
+
+// issue #266: OS のカラースキーム変更を購読し、ユーザー明示設定が無い場合のみ追従する。
+function subscribeOsTheme(): void {
+  if (typeof window === 'undefined' || !window.matchMedia) return
+  const mql = window.matchMedia('(prefers-color-scheme: dark)')
+  const onChange = (e: MediaQueryListEvent): void => {
+    if (store == null || store.themeExplicit) return
+    setStore({
+      ...store,
+      settings: { ...store.settings, theme: e.matches ? 'dark' : 'light' },
+    })
+  }
+  mql.addEventListener('change', onChange)
+  unsubscribeOsTheme = () => mql.removeEventListener('change', onChange)
+}
+
+function getStore(): ViewerSettingsStore {
+  if (store == null) {
     const stored = readStorage()
     const url = readUrlOverrides()
     const settings: ViewerSettings = {
@@ -80,64 +145,50 @@ export function useViewerSettings() {
       ...url,
     }
     // theme を storage か URL で明示していたら「ユーザー明示設定あり」とみなす（issue #266）
-    const themeExplicit = 'theme' in stored || 'theme' in url
-    return { settings, themeExplicit }
-  }, [])
-  const [settings, setSettings] = useState<ViewerSettings>(initial.settings)
-  // ユーザーが theme を明示選択したか。明示している間は OS 追従しない（issue #266）。
-  const themeExplicitRef = useRef<boolean>(initial.themeExplicit)
+    store = { settings, themeExplicit: 'theme' in stored || 'theme' in url }
+    persist(store)
+    syncDocument(store.settings)
+    subscribeOsTheme()
+  }
+  return store
+}
 
-  useEffect(() => {
-    try {
-      // issue #266: 明示選択していない間は theme を保存しない。
-      // 保存してしまうと再読込時に「明示あり」と誤認し、OS 追従が止まるため。
-      const toStore: Record<string, unknown> = {
-        density: settings.density,
-        variation: settings.variation,
-        lang: settings.lang,
-      }
-      if (themeExplicitRef.current) toStore.theme = settings.theme
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
-    } catch {
-      // storage may be disabled (private mode etc.) — ignore silently
-    }
-  }, [settings])
+function getSnapshot(): ViewerSettings {
+  return getStore().settings
+}
 
-  // issue #266: OS のカラースキーム変更を購読し、ユーザー明示設定が無い場合のみ追従する。
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return
-    const mql = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = (e: MediaQueryListEvent): void => {
-      if (themeExplicitRef.current) return
-      setSettings((prev) => ({ ...prev, theme: e.matches ? 'dark' : 'light' }))
-    }
-    mql.addEventListener('change', onChange)
-    return () => mql.removeEventListener('change', onChange)
-  }, [])
+function subscribe(cb: () => void): () => void {
+  getStore()
+  listeners.add(cb)
+  return () => {
+    listeners.delete(cb)
+  }
+}
 
-  // variation を <html data-variation> に同期し、tokens.css の切替トリガーにする
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    document.documentElement.dataset.variation = settings.variation
-  }, [settings.variation])
-
-  // theme を <html data-theme> に同期する
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    document.documentElement.dataset.theme = settings.theme
-  }, [settings.theme])
-
-  // lang を <html lang> に同期し、SR の読み上げ言語・翻訳/検索の言語判定を正す（issue #261）
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    document.documentElement.lang = settings.lang
-  }, [settings.lang])
-
-  const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
+function updateSetting<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]): void {
+  const current = getStore()
+  setStore({
+    settings: { ...current.settings, [key]: value },
     // theme を明示更新したら以降は OS 追従を止める（issue #266）
-    if (key === 'theme') themeExplicitRef.current = true
-    setSettings((prev) => ({ ...prev, [key]: value }))
-  }, [])
+    themeExplicit: key === 'theme' ? true : current.themeExplicit,
+  })
+}
 
+/**
+ * テスト専用: モジュールレベルの共有状態を破棄し、次のアクセスで
+ * localStorage / URL から再初期化させる。プロダクションコードでは使用しない。
+ */
+export function resetViewerSettingsStoreForTest(): void {
+  store = null
+  listeners.clear()
+  unsubscribeOsTheme?.()
+  unsubscribeOsTheme = null
+}
+
+export function useViewerSettings() {
+  const settings = useSyncExternalStore(subscribe, getSnapshot)
+  const update = useCallback(<K extends keyof ViewerSettings>(key: K, value: ViewerSettings[K]) => {
+    updateSetting(key, value)
+  }, [])
   return { settings, update } as const
 }

@@ -98,11 +98,11 @@ type Story = StoryObj<typeof WFOEquityTV>
 export const Atelier: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
-  args: { composite_equity: equity, composite_dates: dates, windows },
+  args: { lang: 'ja', composite_equity: equity, composite_dates: dates, windows },
 }
 
 export const Lab: Story = {
   decorators: [withVariation('lab')],
   parameters: { backgrounds: { default: 'app-bg' } },
-  args: { composite_equity: equity, composite_dates: dates, windows },
+  args: { lang: 'ja', composite_equity: equity, composite_dates: dates, windows },
 }

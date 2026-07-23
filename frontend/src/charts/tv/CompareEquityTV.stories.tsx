@@ -85,17 +85,17 @@ type Story = StoryObj<typeof CompareEquityTV>
 export const ThreeStrategies: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
-  args: { series },
+  args: { lang: 'ja', series },
 }
 
 export const Lab: Story = {
   decorators: [withVariation('lab')],
   parameters: { backgrounds: { default: 'app-bg' } },
-  args: { series },
+  args: { lang: 'ja', series },
 }
 
 export const Single: Story = {
   decorators: [withVariation('atelier')],
   parameters: { backgrounds: { default: 'light' } },
-  args: { series: [series[0]!] },
+  args: { lang: 'ja', series: [series[0]!] },
 }

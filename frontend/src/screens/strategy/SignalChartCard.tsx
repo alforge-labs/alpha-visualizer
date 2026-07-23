@@ -81,6 +81,7 @@ function SignalChartBody({ symbol, trades, regimeSeries, lang }: SignalChartCard
   return (
     <>
       <StrategySignalChartTV
+        lang={lang}
         bars={state.data.bars}
         trades={trades}
         regimeSeries={regimeSeries}

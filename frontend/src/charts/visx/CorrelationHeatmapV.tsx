@@ -25,6 +25,11 @@ export interface CorrelationHeatmapVProps {
    * Container 側で i18n 済みの文字列を渡す（既定: 英語の汎用表現）。
    */
   symbolMismatchLabel?: string
+  /**
+   * Data table（<details> の <summary>）のラベル。
+   * Container 側で i18n 済みの文字列を渡す（issue #315）。
+   */
+  dataTableLabel?: string
 }
 
 interface Hover {
@@ -73,6 +78,7 @@ function Inner({
   meta,
   symbols,
   symbolMismatchLabel,
+  dataTableLabel = 'Data table / データ表',
   width,
   height,
 }: CorrelationHeatmapVProps & { width: number }) {
@@ -217,7 +223,7 @@ function Inner({
       </svg>
 
       <ChartDataTable
-        label="Data table / データ表"
+        label={dataTableLabel}
         caption={`Correlation matrix, ${n} strategies`}
         columns={['Strategy', ...labels]}
         rows={labels.map((rl, i) => [

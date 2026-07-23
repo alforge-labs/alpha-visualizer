@@ -15,6 +15,7 @@ import { RANGES } from '../../contexts/dashboardConstants'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { useChartTheme } from '../../design/useChartTheme'
 import { useEquityViewport } from '../../hooks/useEquityViewport'
+import { makeL, type Lang } from '../../i18n/strings'
 import {
   benchmarkLineOptions,
   chartThemeToOptions,
@@ -42,6 +43,8 @@ export interface EquityDrawdownPaneTVProps {
    */
   regimeSeries?: RegimeSeriesInput
   showRegime?: boolean
+  /** 時間軸ロケールと Data table 表記の切替（issue #315） */
+  lang: Lang
   ref?: React.Ref<EquityDrawdownPaneTVHandle>
 }
 
@@ -59,9 +62,11 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     benchmark,
     showBenchmark = false,
     compact = false,
+    lang,
     ref,
   } = props
 
+  const L = makeL(lang)
   const theme = useChartTheme()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -100,7 +105,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     if (!container) return
     const chart = createChart(container, {
       autoSize: true,
-      ...chartThemeToOptions(theme),
+      ...chartThemeToOptions(theme, lang),
     })
     chartRef.current = chart
 
@@ -132,19 +137,19 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // テーマ変更で chart / series の見た目だけ更新（再マウントしない）。
+  // テーマ / 言語変更で chart / series の見た目だけ更新（再マウントしない）。
   useEffect(() => {
     const chart = chartRef.current
     const equitySeries = equitySeriesRef.current
     const drawdownSeries = drawdownSeriesRef.current
     if (!chart || !equitySeries || !drawdownSeries) return
-    chart.applyOptions(chartThemeToOptions(theme))
+    chart.applyOptions(chartThemeToOptions(theme, lang))
     equitySeries.applyOptions(equityAreaOptions(theme, isPositive))
     drawdownSeries.applyOptions(drawdownHistogramOptions(theme))
     if (benchmarkSeriesRef.current) {
       benchmarkSeriesRef.current.applyOptions(benchmarkLineOptions(theme))
     }
-  }, [theme, isPositive])
+  }, [theme, isPositive, lang])
 
   // showBenchmark の切替: 必要な時に series を生やし、不要時は破棄する。
   useEffect(() => {
@@ -264,7 +269,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       <div ref={containerRef} style={{ width: '100%', height }} />
 
       <ChartDataTable
-        label="Data table / データ表"
+        label={L('データ表', 'Data table')}
         caption={`Equity and drawdown, ${equity.length} points`}
         columns={['Date', 'Equity', 'DD %']}
         rows={dates.map((d, i) => [

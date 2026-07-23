@@ -51,7 +51,7 @@ describe('hexToRgba', () => {
 
 describe('chartThemeToOptions', () => {
   it('テーマの主要トークンを ChartOptions にマップする', () => {
-    const opts = chartThemeToOptions(sampleTheme)
+    const opts = chartThemeToOptions(sampleTheme, 'ja')
     expect(opts.layout?.background).toMatchObject({ color: '#ffffff' })
     expect(opts.layout?.textColor).toBe('#444444')
     expect(opts.layout?.fontFamily).toBe('JetBrains Mono')
@@ -59,6 +59,22 @@ describe('chartThemeToOptions', () => {
     expect(opts.crosshair?.vertLine?.color).toBe('#bbbbbb')
     expect(opts.timeScale?.borderColor).toBe('#dddddd')
     expect(opts.rightPriceScale?.borderColor).toBe('#dddddd')
+  })
+})
+
+/**
+ * issue #315: locale を指定しないと lightweight-charts は navigator.language に従い、
+ * アプリの言語切替（JA → EN）に時間軸の目盛（「2021年」「6月」等）が追従しない。
+ */
+describe('chartThemeToOptions — localization (issue #315)', () => {
+  it("lang='ja' のとき locale ja-JP を設定する", () => {
+    const opts = chartThemeToOptions(sampleTheme, 'ja')
+    expect(opts.localization?.locale).toBe('ja-JP')
+  })
+
+  it("lang='en' のとき locale en-US を設定する", () => {
+    const opts = chartThemeToOptions(sampleTheme, 'en')
+    expect(opts.localization?.locale).toBe('en-US')
   })
 })
 

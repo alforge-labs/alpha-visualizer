@@ -57,6 +57,7 @@ export function WFOScreen({ data, compact, lang }: Props) {
           </SectionLabel>
           {useTv ? (
             <WFOEquityTV
+              lang={lang}
               composite_equity={data.composite_equity}
               composite_dates={data.composite_dates}
               windows={data.windows}

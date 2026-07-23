@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
-import { useViewerSettings } from '../useTheme'
+import { beforeEach, describe, it, expect } from 'vitest'
+import { resetViewerSettingsStoreForTest, useViewerSettings } from '../useTheme'
 
 /**
  * issue #261: 言語を切り替えても <html lang> が "ja" 固定で、SR が英語テキストを
@@ -16,6 +16,12 @@ function Harness() {
     </div>
   )
 }
+
+beforeEach(() => {
+  window.history.replaceState({}, '', '/')
+  // 共有ストアを破棄し、テストごとに再初期化させる（issue #315）
+  resetViewerSettingsStoreForTest()
+})
 
 describe('useViewerSettings <html lang> sync (issue #261)', () => {
   it('syncs document.documentElement.lang to the selected language', () => {
