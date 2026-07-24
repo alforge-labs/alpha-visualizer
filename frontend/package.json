@@ -25,7 +25,9 @@
     "e2e:samples": "playwright test --config=playwright.samples.config.ts",
     "screenshots": "playwright test --config=playwright.screenshots.config.ts",
     "size": "size-limit",
-    "size:why": "size-limit --why"
+    "size:why": "size-limit --why",
+    "test:visual": "playwright test --config=playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots"
   },
   "dependencies": {
     "@fontsource/inter-tight": "^5.2.7",

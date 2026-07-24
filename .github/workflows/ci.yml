@@ -313,6 +313,83 @@ jobs:
           path: frontend/test-results/
           retention-days: 14
 
+  # issue #319: TV チャート（Canvas）のビジュアル回帰。
+  # ベースライン画像は OS 依存のため linux 版だけをコミットし、このジョブが唯一の
+  # 正となる比較環境。意図した見た目変更のときは、失敗時にアップロードされる
+  # visual-snapshots アーティファクトから新ベースラインを取得してコミットする
+  # （手順は frontend/e2e/visual/README.md）。
+  visual-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.19"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install pnpm dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers (cold)
+        working-directory: frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        working-directory: frontend
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Run visual regression tests
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: pnpm run test:visual
+
+      # ベースライン未コミット時は Playwright が実画像を書き出して失敗する。
+      # その画像をそのまま新ベースラインとして取得できるようにする。
+      - name: Upload snapshots (for baseline bootstrap / diff review)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-snapshots
+          path: |
+            frontend/e2e/visual/__snapshots__/
+            frontend/test-results/
+          retention-days: 14
+
   e2e-samples:
     runs-on: ubuntu-latest
     timeout-minutes: 20
