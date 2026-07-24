@@ -36,6 +36,7 @@ test.describe('TV チャートのビジュアル回帰 (issue #319)', () => {
     await page.waitForLoadState('networkidle')
     const chart = page.getByTestId('backtest-equity-chart-tv')
     await chart.waitFor({ state: 'visible' })
+    await page.mouse.move(0, 0)
     // Canvas の初期描画完了を待つ（lightweight-charts は rAF で描く）
     await page.waitForTimeout(600)
     await expect(chart).toHaveScreenshot('equity-drawdown-tv.png', SNAPSHOT_OPTIONS)
@@ -51,6 +52,9 @@ test.describe('TV チャートのビジュアル回帰 (issue #319)', () => {
 
     const chart = page.getByTestId('strategy-signal-chart-tv')
     await chart.waitFor({ state: 'visible' })
+    // タブをクリックした位置にマウスが残るとクロスヘア（点線+価格ラベル）が
+    // 写り込み、レイアウトが少しずれるだけで差分になる。撮影前に退避させる
+    await page.mouse.move(0, 0)
     await page.waitForTimeout(600)
     await expect(chart).toHaveScreenshot('strategy-signal-tv.png', SNAPSHOT_OPTIONS)
   })
