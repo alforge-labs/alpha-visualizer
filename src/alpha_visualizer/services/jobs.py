@@ -75,6 +75,8 @@ def _signal_process_tree(proc: asyncio.subprocess.Process, *, force: bool) -> No
             os.killpg(pgid, signal.SIGKILL if force else signal.SIGTERM)
             return
         except (ProcessLookupError, PermissionError):
+            # プロセスグループが既に消えている / 権限が無い場合は、
+            # 下の単体 kill にフォールバックする（意図的に握り潰す）
             pass
     try:
         if force:
@@ -82,6 +84,8 @@ def _signal_process_tree(proc: asyncio.subprocess.Process, *, force: bool) -> No
         else:
             proc.terminate()
     except ProcessLookupError:
+        # 単体 kill の時点で既に終了済み。目的（終了させること）は
+        # 達成されているため何もしない
         pass
 
 
@@ -602,6 +606,8 @@ class JobManager:
                 try:
                     await pump_task
                 except asyncio.CancelledError:
+                    # 自分で cancel() したタスクを await した際の想定内の送出。
+                    # 呼び出し元は cancel されていないので伝播させない
                     pass
 
         if timed_out:

@@ -70,10 +70,11 @@ describe('useSyncedTimeRange', () => {
   it('ユーザー操作の可視範囲を debounce して共有状態へ書き戻す', () => {
     const stub = makeChart()
     const { result } = renderHook(
-      () => ({
-        dash: useDashboard(),
-        _: useSyncedTimeRange({ chart: stub.chart, fullRange: FULL }),
-      }),
+      () => {
+        const dash = useDashboard()
+        useSyncedTimeRange({ chart: stub.chart, fullRange: FULL })
+        return { dash }
+      },
       { wrapper },
     )
     // 自分の初期適用によるエコーを消化させる
@@ -96,10 +97,11 @@ describe('useSyncedTimeRange', () => {
   it('連続したパン操作は最後の 1 回だけ書き戻す（debounce）', () => {
     const stub = makeChart()
     const { result } = renderHook(
-      () => ({
-        dash: useDashboard(),
-        _: useSyncedTimeRange({ chart: stub.chart, fullRange: FULL }),
-      }),
+      () => {
+        const dash = useDashboard()
+        useSyncedTimeRange({ chart: stub.chart, fullRange: FULL })
+        return { dash }
+      },
       { wrapper },
     )
     act(() => {
@@ -118,10 +120,11 @@ describe('useSyncedTimeRange', () => {
   it('自分が適用した範囲のエコーは書き戻さない（無限ループ防止）', () => {
     const stub = makeChart()
     const { result } = renderHook(
-      () => ({
-        dash: useDashboard(),
-        _: useSyncedTimeRange({ chart: stub.chart, fullRange: FULL }),
-      }),
+      () => {
+        const dash = useDashboard()
+        useSyncedTimeRange({ chart: stub.chart, fullRange: FULL })
+        return { dash }
+      },
       { wrapper },
     )
     // 初期適用の直後にライブラリがエコーを返すケース
@@ -135,10 +138,11 @@ describe('useSyncedTimeRange', () => {
   it('null（範囲不定）のイベントは無視する', () => {
     const stub = makeChart()
     const { result } = renderHook(
-      () => ({
-        dash: useDashboard(),
-        _: useSyncedTimeRange({ chart: stub.chart, fullRange: FULL }),
-      }),
+      () => {
+        const dash = useDashboard()
+        useSyncedTimeRange({ chart: stub.chart, fullRange: FULL })
+        return { dash }
+      },
       { wrapper },
     )
     act(() => {
@@ -154,10 +158,11 @@ describe('useSyncedTimeRange', () => {
   it('共有状態が外部から変わったらチャートへ適用する（他チャート/タブからの同期）', () => {
     const stub = makeChart()
     const { result } = renderHook(
-      () => ({
-        dash: useDashboard(),
-        _: useSyncedTimeRange({ chart: stub.chart, fullRange: FULL }),
-      }),
+      () => {
+        const dash = useDashboard()
+        useSyncedTimeRange({ chart: stub.chart, fullRange: FULL })
+        return { dash }
+      },
       { wrapper },
     )
     stub.setVisibleRange.mockClear()
