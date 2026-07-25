@@ -136,7 +136,9 @@ export function LivePositionsTable({
                 <td data-testid="cash-value" style={{ ...TD_BASE, fontWeight: 600 }}>
                   {fmtNumber(cash)}
                 </td>
-                <td style={TD_BASE}>{fmtPercent(cashWeightPct)}</td>
+                <td data-testid="cash-weight-value" style={TD_BASE}>
+                  {fmtPercent(cashWeightPct)}
+                </td>
                 <td style={TD_BASE}>{DASH}</td>
               </tr>
               <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border-strong)' }}>

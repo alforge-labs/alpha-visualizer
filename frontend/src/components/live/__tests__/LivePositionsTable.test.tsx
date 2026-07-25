@@ -92,19 +92,24 @@ describe('LivePositionsTable', () => {
     // WHY: design doc は「資産の約90%が現金」という実態を構成比で可視化する
     // ことを目的に挙げている。銘柄の構成比だけでは、残り(=現金比率)は
     // 読み手が暗算する必要があり目的を満たさない。
+    //
+    // レビュー指摘: 現金行には qty/avg_cost/last_price/pnl の 4 つの DASH
+    // セルが常に存在するため、行全体の textContent を見るアサーションは
+    // 構成比セル自体の値と無関係に通ってしまう（cash-weight-value 導入前は
+    // guard を `?? 0` に壊しても全テストが緑のままになるタウトロジーだった）。
+    // 構成比セル単体を data-testid で切り出して検証する。
     render(
       <LivePositionsTable positions={POSITIONS} cash={898032} totalValue={994492} lang="ja" />,
     )
-    const cashRow = screen.getByTestId('cash-value').closest('tr')
-    expect(cashRow).not.toBeNull()
     // 898032 / 994492 * 100 ≈ 90.30%
-    expect(cashRow!.textContent).toContain('90.3')
+    expect(screen.getByTestId('cash-weight-value').textContent).toContain('90.3')
   })
 
   it('totalValue が 0 のときは現金の構成比を em dash にする（0 除算を隠さない）', () => {
+    // レビュー指摘: 上と同じ理由で、行全体ではなく構成比セル単体を見る。
     render(<LivePositionsTable positions={[]} cash={0} totalValue={0} lang="ja" />)
-    const cashRow = screen.getByTestId('cash-value').closest('tr')
-    expect(cashRow).not.toBeNull()
-    expect(cashRow!.textContent).toContain('—')
+    const weightCell = screen.getByTestId('cash-weight-value')
+    expect(weightCell.textContent).toContain('—')
+    expect(weightCell.textContent).not.toMatch(/\d/)
   })
 })
