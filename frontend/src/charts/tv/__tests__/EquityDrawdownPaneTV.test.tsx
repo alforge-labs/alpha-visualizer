@@ -411,8 +411,10 @@ describe('EquityDrawdownPaneTV', () => {
           ]}
         />,
       )
+      // addSeriesMock は実装 `() => ({...})` の引数 0 個から呼び出しタプル型が `[]` と
+      // 推論される（244行目付近と同様の罠）。実際には可変長引数で呼ばれるため unknown[] にキャストする。
       const lineSeriesCalls = addSeriesMock.mock.calls.filter(
-        (args) => args[0] === 'LineSeriesDef',
+        (args) => (args as unknown[])[0] === 'LineSeriesDef',
       )
       // showBenchmark は false のままなので、2 件とも overlays 由来
       expect(lineSeriesCalls).toHaveLength(2)

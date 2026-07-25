@@ -75,6 +75,9 @@ describe('fromViewportPoints', () => {
     date: new Date(date),
     value,
     benchmark,
+    // overlays 未指定時の実挙動（useEquityViewport.ts）に合わせて空配列にする。
+    // このテストでは overlayCount=0 で呼ぶため中身は参照されない。
+    overlayValues: [],
     origIdx: i,
   })
 
