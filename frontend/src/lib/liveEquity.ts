@@ -5,7 +5,13 @@
  * docs/superpowers/specs/2026-07-25-live-equity-rich-design.md に固定。
  */
 
-/** ピークからの下方乖離（decimal・負値）を各時点で返す。 */
+/**
+ * ピークからの下方乖離（decimal・負値）を各時点で返す。
+ *
+ * 累積ピークが 0 以下（口座価値としては異常値）の間は 0 を返す。
+ * 負のピークで割ると符号が反転し、実際は下落しているのに
+ * 正のドローダウン（例: +300%）という無意味な値になってしまうため。
+ */
 export function toDrawdown(values: readonly number[]): number[] {
   let peak = -Infinity
   return values.map((v) => {
@@ -20,7 +26,12 @@ export function currentDrawdown(values: readonly number[]): number {
   return dd.length > 0 ? (dd[dd.length - 1] ?? 0) : 0
 }
 
-/** 最大値のインデックス。同値なら最初のものを返す。 */
+/**
+ * 最大値のインデックス。同値なら最初のものを返す。
+ *
+ * 空配列を渡すと（存在しない要素を指す）0 を返す。
+ * 呼び出し側で空配列を先にガードすること。
+ */
 export function peakIndex(values: readonly number[]): number {
   let best = 0
   for (let i = 1; i < values.length; i += 1) {
@@ -29,7 +40,12 @@ export function peakIndex(values: readonly number[]): number {
   return best
 }
 
-/** 直近 2 点の変化率（decimal）。2 点未満は null。 */
+/**
+ * 直近 2 点の変化率（decimal）。2 点未満は null。
+ *
+ * 直前の値が 0 の場合も null を返す。`Infinity` / `NaN` が
+ * そのまま UI まで伝播するのを防ぐため。
+ */
 export function dayChangePct(values: readonly number[]): number | null {
   if (values.length < 2) return null
   const prev = values[values.length - 2]
