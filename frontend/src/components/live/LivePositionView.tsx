@@ -52,6 +52,9 @@ function metricDiff(live: number | null | undefined, bt: number | null | undefin
  * それを盲信せず、長さが `equity` と一致しない場合はここで弾いて overlay を
  * 積まない（インデックスがずれた比較線を黙って描くよりは、比較線自体を
  * 非表示にする方が安全なため）。
+ *
+ * 弾いた場合は `console.warn` で契約違反の痕跡を残す。黙って捨てるだけでは
+ * 本番でバックエンドの契約が崩れたときに気付く手段が無くなる。
  */
 function buildOverlay(
   label: string,
@@ -60,7 +63,13 @@ function buildOverlay(
 ): EquityOverlay | null {
   if (!series || series.length === 0) return null
   const values = series.map(([, v]) => v)
-  if (values.length !== equityLength) return null
+  if (values.length !== equityLength) {
+    console.warn(
+      `[LivePositionView] overlay "${label}" の長さが equity と一致しないため非表示にします ` +
+        `(equity: ${equityLength} 件, overlay: ${values.length} 件)`,
+    )
+    return null
+  }
   return { label, values }
 }
 

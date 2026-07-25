@@ -1,14 +1,27 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LiveSummary } from '../../../api/types'
+import type { EquityDrawdownPaneTVProps } from '../../../charts/tv/EquityDrawdownPaneTV'
+import { toDrawdown } from '../../../lib/liveEquity'
 import { LivePositionView } from '../LivePositionView'
 
-// lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
-// TV チャートをスタブする（このファイルの関心は KPI・建玉テーブル・シェア導線であり、チャート内部ではない）
+// lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、TV チャートをスタブする。
+// ただし props を握りつぶす zero-prop stub では「チャートに何が渡ったか」を一切検証できない
+// ため、実際に渡された props を module-scoped 変数へキャプチャする（vi.mock はホイストされる
+// ので、キャプチャ先も vi.hoisted で用意する）。
+const equityPaneProps = vi.hoisted(() => ({ current: null as EquityDrawdownPaneTVProps | null }))
+
 vi.mock('../../../charts/tv/EquityDrawdownPaneTV', () => ({
-  EquityDrawdownPaneTV: () => <div data-testid="equity-pane-stub" />,
+  EquityDrawdownPaneTV: (props: EquityDrawdownPaneTVProps) => {
+    equityPaneProps.current = props
+    return <div data-testid="equity-pane-stub" />
+  },
 }))
+
+beforeEach(() => {
+  equityPaneProps.current = null
+})
 
 vi.mock('../../../lib/shareCard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../lib/shareCard')>()
@@ -73,6 +86,10 @@ describe('<LivePositionView /> share card', () => {
  *
  * ベンチマーク・backtest 比較・建玉を持たない旧 DB 応答でもクラッシュせず、
  * 存在するデータ（KPI・equity/drawdown チャート）だけを描画することを保証する。
+ *
+ * `equityPaneProps`（キャプチャ mock）経由でチャートへ実際に渡された props を
+ * 検証することで、「JSX が例外を投げない」以上の保証（`equity`/`dates` が
+ * 入れ替わっていないか、`overlays` が本当に空か）まで固定する。
  */
 describe('<LivePositionView /> assembly (Task 13)', () => {
   it('ベンチマーク・建玉が無い旧 DB 応答でもクラッシュせず描画する', () => {
@@ -96,9 +113,19 @@ describe('<LivePositionView /> assembly (Task 13)', () => {
     render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
     expect(screen.getByTestId('kpi-current-value')).toBeInTheDocument()
     expect(screen.queryByTestId('kpi-excess-index')).not.toBeInTheDocument()
+
+    // equity/dates の取り違えが無いこと、drawdown が equity と同じ長さで
+    // 計算されていること、overlays が空配列であること（ダッシュ埋めでなく本当に空）を固定する。
+    const props = equityPaneProps.current
+    expect(props).not.toBeNull()
+    expect(props?.equity).toEqual([1_000_000, 995_000])
+    expect(props?.dates).toEqual(['2026-06-04T00:00:00', '2026-06-05T00:00:00'])
+    expect(props?.drawdown).toHaveLength(2)
+    expect(props?.drawdown).toEqual(toDrawdown([1_000_000, 995_000]))
+    expect(props?.overlays).toEqual([])
   })
 
-  it('ベンチマークがあれば overlays 付きでチャートを描画する', () => {
+  it('ベンチマークがあれば overlays に指数系列を equity と同じインデックスで積む', () => {
     const summary = {
       strategy_id: 'pf_1',
       kind: 'position' as const,
@@ -130,5 +157,50 @@ describe('<LivePositionView /> assembly (Task 13)', () => {
     render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
     expect(screen.getByTestId('kpi-excess-index')).toBeInTheDocument()
     expect(screen.getByRole('table')).toBeInTheDocument()
+
+    const overlays = equityPaneProps.current?.overlays ?? []
+    expect(overlays).toHaveLength(1)
+    expect(overlays[0]?.label).toBe('指数（Buy & Hold）')
+    expect(overlays[0]?.values).toEqual([1_000_000, 1_020_000])
+  })
+
+  it('overlay の長さが equity と食い違う系列は除外し、一致する系列だけ積む（console.warn で警告）', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: { total_return_pct: -0.5 },
+      equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 995_000],
+        ['2026-06-06T00:00:00', 990_000],
+      ] as [string, number][],
+      // equity より 1 点短い（契約違反を模擬）→ 除外されるべき
+      benchmark_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_020_000],
+      ] as [string, number][],
+      // equity と同じ長さ → 採用されるべき
+      backtest_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_010_000],
+        ['2026-06-06T00:00:00', 1_015_000],
+      ] as [string, number][],
+      receipts_count: 78,
+    }
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+
+    const overlays = equityPaneProps.current?.overlays ?? []
+    expect(overlays).toHaveLength(1)
+    expect(overlays[0]?.label).toBe('バックテスト')
+    expect(overlays[0]?.values).toEqual([1_000_000, 1_010_000, 1_015_000])
+
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    const warning = String(warnSpy.mock.calls[0]?.[0])
+    expect(warning).toContain('指数（Buy & Hold）')
+    expect(warning).toContain('3')
+    expect(warning).toContain('2')
+
+    warnSpy.mockRestore()
   })
 })
