@@ -116,6 +116,27 @@ export function benchmarkLineOptions(theme: ChartTheme): LineSeriesPartialOption
   }
 }
 
+/**
+ * 比較用オーバーレイ系列（`EquityOverlay`）の LineSeries オプション。
+ * `color` 未指定時は `theme.series`（light/dark 両対応の 5 色パレット）から
+ * `index` に応じて割り当て、複数系列でも視認しやすい色を確保する。
+ */
+export function overlayLineOptions(
+  theme: ChartTheme,
+  index: number,
+  color?: string,
+  dashed = false,
+): LineSeriesPartialOptions {
+  const resolvedColor = color ?? theme.series[index % theme.series.length] ?? theme.text3
+  return {
+    color: resolvedColor,
+    lineWidth: 1,
+    lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid,
+    priceLineVisible: false,
+    lastValueVisible: false,
+  }
+}
+
 export function drawdownHistogramOptions(theme: ChartTheme): HistogramSeriesPartialOptions {
   return {
     color: hexToRgba(theme.danger, 0.65),

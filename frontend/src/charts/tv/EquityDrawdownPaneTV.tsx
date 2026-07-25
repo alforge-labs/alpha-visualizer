@@ -25,11 +25,24 @@ import {
   drawdownHistogramOptions,
   equityAreaOptions,
   hexToRgba,
+  overlayLineOptions,
 } from './theme'
 import { fromViewportPoints, makeCutoffMarkers, toHistogramData } from './data'
 
 /** レジーム背景の不透明度。エクイティ線とドローダウンを覆い隠さない濃さに留める */
 const REGIME_BAND_ALPHA = 0.14
+
+/**
+ * equity と並走させる比較用オーバーレイ系列（例: 別ベンチマーク・BT併走曲線）。
+ * 既存の `benchmark` / `showBenchmark` とは独立した多系列比較機能（複数同時表示可）。
+ */
+export interface EquityOverlay {
+  label: string
+  values: number[]
+  color?: string
+  /** 破線で描くか（既定 false） */
+  dashed?: boolean
+}
 
 export interface EquityDrawdownPaneTVProps {
   equity: number[]
@@ -38,6 +51,8 @@ export interface EquityDrawdownPaneTVProps {
   isCutoffIdx: number
   benchmark?: number[]
   showBenchmark?: boolean
+  /** equity と並走する追加比較系列（issue の多系列比較・任意本数） */
+  overlays?: EquityOverlay[]
   compact?: boolean
   /** レジーム背景バンドの元データ（issue #317） */
   regimeSeries?: RegimeSeries | null
@@ -61,6 +76,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     isCutoffIdx,
     benchmark,
     showBenchmark = false,
+    overlays,
     compact = false,
     regimeSeries,
     showRegime = false,
@@ -79,8 +95,10 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   const drawdownSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
   const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   const regimePrimitiveRef = useRef<RegimeBandsPrimitive | null>(null)
+  // overlays は本数・並び順が変わり得るため label をキーにした Map で差分管理する
+  const overlaySeriesRef = useRef<Map<string, ISeriesApi<'Line'>>>(new Map())
 
-  const { range, setRange, points } = useEquityViewport({ equity, dates, benchmark })
+  const { range, setRange, points } = useEquityViewport({ equity, dates, benchmark, overlays })
 
   const isPositive = useMemo(() => {
     if (points.length < 2) return true
@@ -89,8 +107,10 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     return last >= first
   }, [points])
 
-  const { equityData, benchmarkData, drawdownData, markers } = useMemo(() => {
-    const conv = fromViewportPoints(points)
+  const overlayCount = overlays?.length ?? 0
+
+  const { equityData, benchmarkData, overlayData, drawdownData, markers } = useMemo(() => {
+    const conv = fromViewportPoints(points, overlayCount)
     const ddSlicedDates = points.map((p) => p.date.toISOString().slice(0, 10))
     const ddSlicedValues = points.map((p) => drawdown[p.origIdx] ?? 0)
     const drawdownDataLocal = toHistogramData(ddSlicedDates, ddSlicedValues)
@@ -99,15 +119,20 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     return {
       equityData: conv.equity,
       benchmarkData: conv.benchmark,
+      // overlays[j] の LineData 列。points と同じ origIdx で切り出し済み（useEquityViewport 側）
+      overlayData: conv.overlays,
       drawdownData: drawdownDataLocal,
       markers: markersLocal,
     }
-  }, [points, drawdown, isCutoffIdx, theme.text2])
+  }, [points, drawdown, isCutoffIdx, theme.text2, overlayCount])
 
   // チャートのライフサイクル管理。マウント時に一度だけ create / remove。
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
+    // cleanup 実行時点の ref.current 参照ではなく、mount 時点のインスタンスを閉じ込めておく
+    // （react-hooks/exhaustive-deps 対策。overlaySeriesRef.current 自体を差し替えることはない）
+    const overlayMap = overlaySeriesRef.current
     const chart = createChart(container, {
       autoSize: true,
       ...chartThemeToOptions(theme, lang),
@@ -136,6 +161,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       equitySeriesRef.current = null
       benchmarkSeriesRef.current = null
       drawdownSeriesRef.current = null
+      overlayMap.clear()
       chart.remove()
       chartRef.current = null
       setChartApi(null)
@@ -171,6 +197,34 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     }
   }, [showBenchmark, benchmarkData.length, theme])
 
+  // overlays の系列生成/破棄。label をキーに差分更新し、不要になった系列は
+  // chart.removeSeries() で明示破棄する（lightweight-charts は放置するとリークする）。
+  // theme 変更時は色/スタイルの再適用も兼ねる。
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const map = overlaySeriesRef.current
+    const wanted = overlays ?? []
+    const wantedLabels = new Set(wanted.map((o) => o.label))
+
+    for (const [label, series] of map) {
+      if (!wantedLabels.has(label)) {
+        chart.removeSeries(series)
+        map.delete(label)
+      }
+    }
+
+    wanted.forEach((overlay, i) => {
+      const options = overlayLineOptions(theme, i, overlay.color, overlay.dashed)
+      const existing = map.get(overlay.label)
+      if (existing) {
+        existing.applyOptions(options)
+      } else {
+        map.set(overlay.label, chart.addSeries(LineSeries, options, 0))
+      }
+    })
+  }, [overlays, theme])
+
   // issue #317: レジーム背景バンドの attach/detach。
   // primitive は bands をクロージャに持つため、series/表示切替/テーマが変わったら
   // 作り直す（detach → attach）。
@@ -203,8 +257,13 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     if (showBenchmark && benchmarkSeriesRef.current) {
       benchmarkSeriesRef.current.setData(benchmarkData)
     }
+    // overlayData は props.overlays と同じ並び順（fromViewportPoints(points, overlayCount)）
+    const wantedOverlays = overlays ?? []
+    wantedOverlays.forEach((overlay, i) => {
+      overlaySeriesRef.current.get(overlay.label)?.setData(overlayData[i] ?? [])
+    })
     markersPluginRef.current?.setMarkers(markers)
-  }, [equityData, benchmarkData, drawdownData, markers, showBenchmark])
+  }, [equityData, benchmarkData, overlayData, overlays, drawdownData, markers, showBenchmark])
 
   // viewport は共有状態と双方向に同期する（issue #318）。
   // 共有範囲が無ければ equity の全範囲（slice 済み）を表示する。
@@ -342,11 +401,12 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       <ChartDataTable
         label={L('データ表', 'Data table')}
         caption={`Equity and drawdown, ${equity.length} points`}
-        columns={['Date', 'Equity', 'DD %']}
+        columns={['Date', 'Equity', 'DD %', ...(overlays ?? []).map((o) => o.label)]}
         rows={dates.map((d, i) => [
           d,
           Math.round(equity[i] ?? 0).toLocaleString(),
           `${(drawdown[i] ?? 0).toFixed(1)}%`,
+          ...(overlays ?? []).map((o) => Math.round(o.values[i] ?? 0).toLocaleString()),
         ])}
       />
     </div>

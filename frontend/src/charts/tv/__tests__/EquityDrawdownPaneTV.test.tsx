@@ -362,4 +362,107 @@ describe('EquityDrawdownPaneTV', () => {
       expect(screen.queryByText('Range')).not.toBeInTheDocument()
     })
   })
+
+  describe('overlays (多系列比較)', () => {
+    it('overlays を渡すと系列が追加される（既存 benchmark とは独立）', () => {
+      const dates = ['2026-01-05', '2026-01-06', '2026-01-07']
+      const { container } = render(
+        <EquityDrawdownPaneTV
+          equity={[100, 110, 105]}
+          dates={dates}
+          drawdown={[0, 0, -0.045]}
+          isCutoffIdx={0}
+          overlays={[
+            { label: 'QQQ', values: [100, 104, 108] },
+            { label: 'BT', values: [100, 108, 106] },
+          ]}
+          lang="ja"
+        />,
+      )
+      // a11y データ表に overlay の列見出しが出る
+      expect(container.textContent).toContain('QQQ')
+      expect(container.textContent).toContain('BT')
+    })
+
+    it('overlays 未指定なら従来どおり描画される（後方互換）', () => {
+      const { container } = render(
+        <EquityDrawdownPaneTV
+          equity={[100, 110]}
+          dates={['2026-01-05', '2026-01-06']}
+          drawdown={[0, 0]}
+          isCutoffIdx={0}
+          lang="ja"
+        />,
+      )
+      expect(container).toBeTruthy()
+    })
+
+    it('overlays の各要素ごとに LineSeries を追加する', () => {
+      render(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[
+            { label: 'QQQ', values: sampleEquity.map((v) => v * 1.02) },
+            { label: 'BT', values: sampleEquity.map((v) => v * 0.98), dashed: true },
+          ]}
+        />,
+      )
+      const lineSeriesCalls = addSeriesMock.mock.calls.filter(
+        (args) => args[0] === 'LineSeriesDef',
+      )
+      // showBenchmark は false のままなので、2 件とも overlays 由来
+      expect(lineSeriesCalls).toHaveLength(2)
+    })
+
+    it('overlays が減ると不要になった系列を removeSeries で破棄する（リーク防止）', () => {
+      const { rerender } = render(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[
+            { label: 'QQQ', values: sampleEquity },
+            { label: 'BT', values: sampleEquity },
+          ]}
+        />,
+      )
+      expect(removeSeriesMock).not.toHaveBeenCalled()
+
+      rerender(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[{ label: 'QQQ', values: sampleEquity }]}
+        />,
+      )
+      expect(removeSeriesMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('overlays の setData には対応する values の系列データが渡る', () => {
+      render(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[{ label: 'QQQ', values: sampleEquity.map((v) => v * 2) }]}
+        />,
+      )
+      const overlaySetDataCall = setDataMock.mock.calls.find((args) => {
+        const data = args[0] as Array<{ value: number }>
+        return Array.isArray(data) && data[0]?.value === sampleEquity[0]! * 2
+      })
+      expect(overlaySetDataCall).toBeDefined()
+    })
+  })
 })
