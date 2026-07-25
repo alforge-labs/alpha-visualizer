@@ -34,6 +34,27 @@ class LivePeriod(BaseModel):
     end: str
 
 
+class LivePosition(BaseModel):
+    """建玉スナップショットの 1 銘柄（``live_position_summaries.positions_json``）。
+
+    ``unrealized_pnl`` / ``unrealized_pnl_pct`` は cost basis が解決できない
+    ポジションで alpha-forge が ``null`` を書き込むため nullable にしてある。
+    0 に丸めると「含み損益ゼロ」と区別できなくなるため、Never coerce to 0。
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    ticker: str
+    sub_strategy_id: str | None = None
+    qty: float = 0.0
+    avg_cost: float = 0.0
+    last_price: float = 0.0
+    market_value: float = 0.0
+    weight_pct: float = 0.0
+    unrealized_pnl: float | None = None
+    unrealized_pnl_pct: float | None = None
+
+
 class LiveTrade(BaseModel):
     """live trades JSON を正規化した 1 件。"""
 

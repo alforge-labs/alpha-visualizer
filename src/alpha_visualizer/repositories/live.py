@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Engine, select
@@ -50,6 +51,47 @@ def _parse_json(raw: Any, default: Any) -> Any:
         except json.JSONDecodeError:
             return default
     return default
+
+
+def _to_utc_iso(ts: str) -> str:
+    """タイムスタンプ文字列を UTC 明示（aware）の ISO 文字列に正規化する。
+
+    alpha-forge は forge#1332 以降 equity 系列に ``+00:00`` 付きの ISO 文字列を
+    書き込むが、変更前に書かれた既存行は naive な文字列（オフセット無し）の
+    まま DB に残り続ける。フロント（``charts/tv/data.ts`` の
+    ``dateStringToTime``）は ``T`` を含む文字列を ``new Date()`` でパースする
+    ため、naive な文字列は閲覧者のローカルタイムとして解釈されてしまい、
+    JST 環境では新旧の行で描画日が最大 1 日ずれる。読み取り時にここで aware
+    化しておくことで、書き込み時期によらず一貫した挙動にする。
+    """
+    try:
+        dt = datetime.fromisoformat(ts)
+    except (TypeError, ValueError):
+        return ts
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.isoformat()
+
+
+def _normalize_equity_series(raw: Any) -> list[Any]:
+    """equity 系列（``[[iso_string, value], ...]``）の各タイムスタンプを正規化する。
+
+    ``equity`` / ``benchmark_equity`` / ``backtest_equity`` の 3 系列すべてに
+    同じ規約が適用されるため、共通関数として切り出す。
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[Any] = []
+    for item in raw:
+        if (
+            isinstance(item, (list, tuple))
+            and len(item) == 2
+            and isinstance(item[0], str)
+        ):
+            out.append([_to_utc_iso(item[0]), item[1]])
+        else:
+            out.append(item)
+    return out
 
 
 class LiveDataRepository:
@@ -83,8 +125,14 @@ class LiveDataRepository:
         """SELECT を実行して全行返す。engine 不在 / テーブル未作成なら空リスト。
 
         live を一度も使っていない DB には live_* テーブルが無いため、その
-        ``no such table`` のみ空扱いにする。DB 破損・ロック競合・ストレージ枯渇
-        など他の ``OperationalError`` は握り潰さず再送出する（Fail Loud）。
+        ``no such table`` は空扱いにする。加えて、alpha-forge が
+        ``ALTER TABLE ... ADD COLUMN`` で列を後付けする方式（forge#1332）を
+        採っているため、DB を一度も開いていない環境では列自体が無く
+        ``no such column`` になり得る。列追加は alpha-forge 側の責務であり
+        本リポジトリはフォールバッククエリを組まず、同様に空扱いにするだけに
+        留める（500 を返さず「実績なし」表示にする）。DB 破損・ロック競合・
+        ストレージ枯渇など他の ``OperationalError`` は握り潰さず再送出する
+        （Fail Loud）。
         """
         if self._engine is None:
             return []
@@ -92,8 +140,9 @@ class LiveDataRepository:
             with self._engine.connect() as conn:
                 return conn.execute(stmt).all()
         except OperationalError as exc:
-            if "no such table" in str(exc).lower():
-                logger.debug("live テーブル未作成のため空として扱う: %s", exc)
+            msg = str(exc).lower()
+            if "no such table" in msg or "no such column" in msg:
+                logger.debug("live テーブル未作成/列未追加のため空として扱う: %s", exc)
                 return []
             raise
 
@@ -185,7 +234,14 @@ class LiveDataRepository:
         """``live_position_summaries`` の 1 行を辞書で返す。無ければ ``None``。
 
         ``metrics_json`` / ``backtest_metrics_json`` / ``equity_json`` /
-        ``sub_strategies_json`` をパースして展開する。
+        ``sub_strategies_json`` / ``benchmark_equity_json`` /
+        ``backtest_equity_json`` / ``positions_json`` をパースして展開する。
+        ``equity`` / ``benchmark_equity`` / ``backtest_equity`` の 3 系列は
+        タイムスタンプを UTC aware に正規化してから返す（``_to_utc_iso`` 参照）。
+
+        列自体が無い旧 DB（alpha-forge が一度も開いていない DB）に対しては
+        ``_fetch_all`` が ``no such column`` を空扱いにするため、この行に
+        到達する時点で全列が揃っている前提でよい。
         """
         rows = self._fetch_all(
             select(live_position_summaries).where(
@@ -199,10 +255,17 @@ class LiveDataRepository:
             "portfolio_id": m["portfolio_id"],
             "metrics": _parse_json(m["metrics_json"], {}),
             "backtest_metrics": _parse_json(m["backtest_metrics_json"], None),
-            "equity": _parse_json(m["equity_json"], []),
+            "equity": _normalize_equity_series(_parse_json(m["equity_json"], [])),
             "receipts_count": m["receipts_count"],
             "sub_strategies": _parse_json(m["sub_strategies_json"], []),
             "updated_at": m["updated_at"],
+            "benchmark_equity": _normalize_equity_series(
+                _parse_json(m["benchmark_equity_json"], [])
+            ),
+            "backtest_equity": _normalize_equity_series(
+                _parse_json(m["backtest_equity_json"], [])
+            ),
+            "positions": _parse_json(m["positions_json"], []),
         }
 
     # ------------------------------------------------------------------

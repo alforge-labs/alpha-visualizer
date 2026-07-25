@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from alpha_visualizer.schemas.ideas import Idea
+from alpha_visualizer.schemas.live import LivePosition
 from alpha_visualizer.schemas.optimize import OptimizeResult, OptimizeTrial
 from alpha_visualizer.schemas.results import BacktestSummary
 from alpha_visualizer.schemas.strategies import (
@@ -293,3 +294,41 @@ def test_historical_response_volume_optional() -> None:
         {"time": "2025-01-02", "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5}
     )
     assert bar.volume is None
+
+
+# --- LivePosition ----------------------------------------------------------
+
+
+def test_live_position_requires_ticker() -> None:
+    with pytest.raises(ValidationError):
+        LivePosition.model_validate({})
+
+
+def test_live_position_allows_null_unrealized_pnl() -> None:
+    """avg_cost が解決できないポジションでは unrealized_pnl(_pct) が null になる。
+
+    WHY: 0.0 に丸めると「含み損益ゼロ」と区別が付かなくなる（Task 2 の裁定）。
+    None を落とさずそのまま透過することが本テストの主張。
+    """
+    pos = LivePosition.model_validate(
+        {
+            "ticker": "US.TQQQ",
+            "qty": 10.0,
+            "avg_cost": 0.0,
+            "last_price": 55.0,
+            "market_value": 550.0,
+            "weight_pct": 0.55,
+            "unrealized_pnl": None,
+            "unrealized_pnl_pct": None,
+        }
+    )
+    assert pos.unrealized_pnl is None
+    assert pos.unrealized_pnl_pct is None
+
+
+def test_live_position_defaults_omitted_optional_fields() -> None:
+    pos = LivePosition.model_validate({"ticker": "US.TQQQ"})
+    assert pos.sub_strategy_id is None
+    assert pos.qty == 0.0
+    assert pos.unrealized_pnl is None
+    assert pos.unrealized_pnl_pct is None

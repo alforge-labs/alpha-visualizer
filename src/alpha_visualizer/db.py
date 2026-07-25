@@ -136,6 +136,11 @@ live_position_summaries = Table(
     Column("receipts_count", Integer, nullable=False, default=0),
     Column("sub_strategies_json", Text, nullable=False, default="[]"),
     Column("updated_at", Text, nullable=False),
+    # ベンチマーク・BT 併走・建玉スナップショット（alpha-forge #1332）: 旧 DB には
+    # 列自体が無いため、Repository 側で `no such column` を検知して空扱いにする
+    Column("benchmark_equity_json", Text),
+    Column("backtest_equity_json", Text),
+    Column("positions_json", Text),
 )
 
 

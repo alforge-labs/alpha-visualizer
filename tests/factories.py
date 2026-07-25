@@ -409,8 +409,16 @@ def seed_live_position_summary(
     receipts_count: int = 0,
     sub_strategies: list | None = None,
     updated_at: str = "2026-05-01T00:00:00",
+    benchmark_equity: list | None = None,
+    backtest_equity: list | None = None,
+    positions: list | None = None,
 ) -> None:
-    """``live_position_summaries`` に 1 行 insert する（combine portfolio）。"""
+    """``live_position_summaries`` に 1 行 insert する（combine portfolio）。
+
+    ``benchmark_equity`` / ``backtest_equity`` / ``positions`` は forge#1332 の
+    後付け列。未指定時は ``None``（NULL）で insert する（空リストではなく
+    「未計算」を表す既定値）。
+    """
     _create_schema(db_path)
     values = {
         "portfolio_id": portfolio_id,
@@ -422,6 +430,13 @@ def seed_live_position_summary(
         "receipts_count": receipts_count,
         "sub_strategies_json": json.dumps(sub_strategies or []),
         "updated_at": updated_at,
+        "benchmark_equity_json": (
+            json.dumps(benchmark_equity) if benchmark_equity is not None else None
+        ),
+        "backtest_equity_json": (
+            json.dumps(backtest_equity) if backtest_equity is not None else None
+        ),
+        "positions_json": json.dumps(positions) if positions is not None else None,
     }
     engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
@@ -429,6 +444,51 @@ def seed_live_position_summary(
             conn.execute(live_position_summaries.insert().values(**values))
     finally:
         engine.dispose()
+
+
+def seed_old_schema_live_position_summary(
+    db_path: pathlib.Path,
+    portfolio_id: str,
+    *,
+    metrics: dict,
+    updated_at: str = "2026-05-01T00:00:00",
+) -> None:
+    """forge#1332 の列追加（``benchmark_equity_json`` 等）前の 7 列スキーマで
+    ``live_position_summaries`` を再現する。
+
+    ``db.py`` の ``metadata`` は現行（10 列）スキーマを持つため使わず、素の
+    ``CREATE TABLE`` で意図的に旧スキーマを再現する。alpha-forge が一度も
+    ``ALTER TABLE`` を実行していない DB（本ツールがまだ開いたことのない
+    旧 DB）を模したテスト専用ヘルパー。
+    """
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE live_position_summaries (
+                portfolio_id TEXT PRIMARY KEY,
+                metrics_json TEXT NOT NULL,
+                backtest_metrics_json TEXT,
+                equity_json TEXT NOT NULL DEFAULT '[]',
+                receipts_count INTEGER NOT NULL DEFAULT 0,
+                sub_strategies_json TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO live_position_summaries (
+                portfolio_id, metrics_json, backtest_metrics_json,
+                equity_json, receipts_count, sub_strategies_json, updated_at
+            ) VALUES (?, ?, NULL, '[]', 0, '[]', ?)
+            """,
+            (portfolio_id, json.dumps(metrics), updated_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def seed_backtest_with_trades(

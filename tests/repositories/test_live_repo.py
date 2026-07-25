@@ -21,6 +21,7 @@ from tests.factories import (
     seed_live_position_summary,
     seed_live_summary,
     seed_live_trades,
+    seed_old_schema_live_position_summary,
 )
 
 
@@ -222,7 +223,8 @@ def test_load_position_summary_parses_json_fields(tmp_path: Path) -> None:
     assert pos["portfolio_id"] == "combo"
     assert pos["metrics"] == {"sharpe_ratio": 1.4}
     assert pos["backtest_metrics"] == {"sharpe_ratio": 1.2}
-    assert pos["equity"] == [["2026-04-01T00:00:00", 100.0]]
+    # naive なタイムスタンプ（forge#1332 以前の書式）は UTC aware に正規化される。
+    assert pos["equity"] == [["2026-04-01T00:00:00+00:00", 100.0]]
     assert pos["receipts_count"] == 3
     assert pos["sub_strategies"] == ["a", "b"]
 
@@ -242,6 +244,94 @@ def test_load_position_summary_backtest_metrics_none_when_absent(
     pos = _repo(db_path).load_position_summary("combo")
     assert pos is not None
     assert pos["backtest_metrics"] is None
+
+
+# ----------------------------------------------------------------------
+# load_position_summary: 新列（ベンチマーク・BT 併走・建玉、forge#1332）
+# ----------------------------------------------------------------------
+def test_load_position_summary_parses_new_columns(tmp_path: Path) -> None:
+    """新列（ベンチマーク・BT・建玉）がパースされる。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "cb_v1",
+        metrics={"sharpe_ratio": 1.4},
+        benchmark_equity=[["2026-01-05T00:00:00+00:00", 100000.0]],
+        backtest_equity=[["2026-01-05T00:00:00+00:00", 99500.0]],
+        positions=[
+            {
+                "ticker": "US.TQQQ",
+                "sub_strategy_id": "sub_a",
+                "qty": 10.0,
+                "avg_cost": 50.0,
+                "last_price": 55.0,
+                "market_value": 550.0,
+                "weight_pct": 0.55,
+                "unrealized_pnl": 50.0,
+                "unrealized_pnl_pct": 10.0,
+            }
+        ],
+    )
+    out = _repo(db_path).load_position_summary("cb_v1")
+    assert out is not None
+    assert out["benchmark_equity"] == [["2026-01-05T00:00:00+00:00", 100000.0]]
+    assert out["backtest_equity"] == [["2026-01-05T00:00:00+00:00", 99500.0]]
+    assert out["positions"][0]["ticker"] == "US.TQQQ"
+
+
+def test_load_position_summary_new_columns_default_to_empty(tmp_path: Path) -> None:
+    """新列を指定せず insert した行（現行スキーマ・NULL）は空リストで返る。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_v2", metrics={})
+    out = _repo(db_path).load_position_summary("cb_v2")
+    assert out is not None
+    assert out["benchmark_equity"] == []
+    assert out["backtest_equity"] == []
+    assert out["positions"] == []
+
+
+def test_load_position_summary_tolerates_old_schema(tmp_path: Path) -> None:
+    """新列を持たない旧 DB でも例外にせず None として返す。
+
+    WHY: 列を追加した以上、既存 DB を読む経路が必ず存在する。ここで
+    落ちると Live ページ全体が 500 になる。人間裁定（progress.md）により
+    フォールバッククエリは実装せず、``no such column`` は ``no such table``
+    と同様に空扱い（＝この行は「見つからない」扱い）にするだけに留める。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_old_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    out = _repo(db_path).load_position_summary("cb_v1")
+    assert out is None
+
+
+def test_load_position_summary_normalizes_naive_equity_timestamps(
+    tmp_path: Path,
+) -> None:
+    """naive なタイムスタンプ（UTC オフセット無し）は aware に正規化される。
+
+    WHY: alpha-forge は forge#1332 以降 equity 系列に ``+00:00`` を書き込むが、
+    変更前に書かれた既存行は naive 文字列のまま DB に残り得る（同一テーブル
+    内で新旧が混在する）。フロントの ``dateStringToTime`` は naive 文字列を
+    閲覧者のローカル時刻としてパースしてしまうため、正規化しないと JST 環境
+    で描画日が最大 1 日ずれる。``equity`` / ``benchmark_equity`` /
+    ``backtest_equity`` の 3 系列すべてで正規化されることを検証する。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "combo",
+        metrics={},
+        equity=[["2026-06-04T00:00:00", 100000.0]],
+        benchmark_equity=[["2026-06-04T00:00:00+00:00", 99000.0]],
+        backtest_equity=[["2026-06-04T00:00:00", 101000.0]],
+    )
+    pos = _repo(db_path).load_position_summary("combo")
+    assert pos is not None
+    assert pos["equity"] == [["2026-06-04T00:00:00+00:00", 100000.0]]
+    assert pos["benchmark_equity"] == [["2026-06-04T00:00:00+00:00", 99000.0]]
+    assert pos["backtest_equity"] == [["2026-06-04T00:00:00+00:00", 101000.0]]
 
 
 # ----------------------------------------------------------------------

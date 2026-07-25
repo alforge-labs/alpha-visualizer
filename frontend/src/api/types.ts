@@ -410,6 +410,24 @@ export interface LivePositionMetrics {
   volatility_pct?: number | null
 }
 
+/**
+ * 建玉スナップショットの 1 銘柄（``live_position_summaries.positions_json``）。
+ *
+ * ``unrealized_pnl`` / ``unrealized_pnl_pct`` は cost basis が解決できない
+ * ポジションで backend が ``null`` を返すため nullable。0 に丸めない。
+ */
+export interface LivePosition {
+  ticker: string
+  sub_strategy_id?: string | null
+  qty: number
+  avg_cost: number
+  last_price: number
+  market_value: number
+  weight_pct: number
+  unrealized_pnl: number | null
+  unrealized_pnl_pct: number | null
+}
+
 /** LiveSummary: backend 側は ``LiveSection.summary: dict[str, unknown]`` のため手書き。 */
 export interface LiveSummary {
   strategy_id: string
@@ -434,6 +452,13 @@ export interface LiveSummary {
   backtest_metrics?: LivePositionMetrics | null
   /** ``[[ISO 日時, equity 値], ...]`` の日次系列 */
   equity?: [string, number][]
+  /** 指数 buy&hold を initial_capital 基準に正規化した系列 */
+  benchmark_equity?: [string, number][]
+  /** backtest combine を initial_capital 基準に正規化した系列 */
+  backtest_equity?: [string, number][]
+  positions?: LivePosition[]
+  cash?: number
+  total_value?: number
   receipts_count?: number | null
   sub_strategies?: string[]
   updated_at?: string | null
