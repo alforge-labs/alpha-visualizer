@@ -64,6 +64,12 @@ export function LivePositionsTable({
 }: Props): ReactElement {
   const L = makeL(lang)
   const positionsSubtotal = positions.reduce((sum, p) => sum + p.market_value, 0)
+  // 現金の構成比 = 現金 / 合計。design doc の「現状は資産の約 90% が現金」を
+  // 可視化する目的の列なので、現金行だけ dash のままにしない。
+  // totalValue が 0（または未初期化）のときは fmtPercent が
+  // Number.isFinite チェックで自動的に dash にフォールバックするが、
+  // 意図を明示するためガードも明示的に書く。
+  const cashWeightPct = totalValue > 0 ? (cash / totalValue) * 100 : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -116,7 +122,9 @@ export function LivePositionsTable({
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
-                <td style={{ ...TD_BASE, fontWeight: 600 }}>{fmtNumber(positionsSubtotal)}</td>
+                <td data-testid="positions-subtotal-value" style={{ ...TD_BASE, fontWeight: 600 }}>
+                  {fmtNumber(positionsSubtotal)}
+                </td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
               </tr>
@@ -125,8 +133,10 @@ export function LivePositionsTable({
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
-                <td style={{ ...TD_BASE, fontWeight: 600 }}>{fmtNumber(cash)}</td>
-                <td style={TD_BASE}>{DASH}</td>
+                <td data-testid="cash-value" style={{ ...TD_BASE, fontWeight: 600 }}>
+                  {fmtNumber(cash)}
+                </td>
+                <td style={TD_BASE}>{fmtPercent(cashWeightPct)}</td>
                 <td style={TD_BASE}>{DASH}</td>
               </tr>
               <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border-strong)' }}>
@@ -134,7 +144,9 @@ export function LivePositionsTable({
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
-                <td style={{ ...TD_BASE, fontWeight: 700 }}>{fmtNumber(totalValue)}</td>
+                <td data-testid="total-value" style={{ ...TD_BASE, fontWeight: 700 }}>
+                  {fmtNumber(totalValue)}
+                </td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
               </tr>
