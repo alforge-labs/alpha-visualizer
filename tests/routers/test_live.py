@@ -382,6 +382,9 @@ class TestLiveRouter:
                     "unrealized_pnl_pct": 10.0,
                 }
             ],
+            # 現金比率の高い口座（~90%）を模した実値（forge#1335・DB→API 貫通確認用）
+            cash=898032.059,
+            total_value=994492.308450684,
         )
         client = TestClient(create_app(forge_dir=tmp_path))
         response = client.get("/api/live/combo_rich")
@@ -392,12 +395,10 @@ class TestLiveRouter:
         ]
         assert summary["backtest_equity"] == [["2026-04-01T00:00:00+00:00", 99500.0]]
         assert summary["positions"][0]["ticker"] == "US.TQQQ"
-        # cash / total_value は alpha-forge 側の commands/live.py がまだ
-        # PositionLiveSummary に渡していない（DB へ永続化されていない）
-        # ため、常に欠損 → 0.0 のデフォルト経路を通る。ここでは「キーが
-        # 必ず存在し、欠損時は 0.0 になる」契約を検証する。
-        assert summary["cash"] == 0.0
-        assert summary["total_value"] == 0.0
+        # cash / total_value（forge#1335）は DB → Repository → services →
+        # API を貫通してもシードした実値のまま欠落・0 化しないことを検証する。
+        assert summary["cash"] == 898032.059
+        assert summary["total_value"] == 994492.308450684
 
     def test_get_live_position_summary_without_new_columns_defaults_empty(
         self, tmp_path: pathlib.Path

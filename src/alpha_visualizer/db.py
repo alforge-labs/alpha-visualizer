@@ -141,6 +141,11 @@ live_position_summaries = Table(
     Column("benchmark_equity_json", Text),
     Column("backtest_equity_json", Text),
     Column("positions_json", Text),
+    # 口座キャッシュ残高・評価額合計（alpha-forge #1335）: 上記と同じく旧 DB
+    # には列自体が無いため、Repository 側の `no such column` fail-closed 対象に
+    # 加わる。NULL（#1335 未移行の行）は Repository 側で 0.0 にフォールバックする
+    Column("cash", REAL),
+    Column("total_value", REAL),
 )
 
 

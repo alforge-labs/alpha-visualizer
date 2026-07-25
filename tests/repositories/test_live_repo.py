@@ -22,6 +22,7 @@ from tests.factories import (
     seed_live_summary,
     seed_live_trades,
     seed_old_schema_live_position_summary,
+    seed_pre_cash_schema_live_position_summary,
 )
 
 
@@ -290,6 +291,41 @@ def test_load_position_summary_new_columns_default_to_empty(tmp_path: Path) -> N
     assert out["positions"] == []
 
 
+# ----------------------------------------------------------------------
+# load_position_summary: cash / total_value（forge#1335）
+# ----------------------------------------------------------------------
+def test_load_position_summary_parses_cash_and_total_value(tmp_path: Path) -> None:
+    """cash / total_value（forge#1335）が seed した実数値のまま返る。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "cb_cash",
+        metrics={"sharpe_ratio": 1.4},
+        cash=898032.059,
+        total_value=994492.308450684,
+    )
+    out = _repo(db_path).load_position_summary("cb_cash")
+    assert out is not None
+    assert out["cash"] == 898032.059
+    assert out["total_value"] == 994492.308450684
+
+
+def test_load_position_summary_cash_and_total_value_default_to_zero(
+    tmp_path: Path,
+) -> None:
+    """cash / total_value 未指定（NULL）の行は 0.0 にフォールバックする。
+
+    forge#1335 より前に書き込まれた行は列こそ揃っていても値が NULL の
+    ままなので、None を返さず 0.0 に丸めてフロントの数値演算を壊さない。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_null_cash", metrics={})
+    out = _repo(db_path).load_position_summary("cb_null_cash")
+    assert out is not None
+    assert out["cash"] == 0.0
+    assert out["total_value"] == 0.0
+
+
 def test_load_position_summary_tolerates_old_schema(tmp_path: Path) -> None:
     """新列を持たない旧 DB でも例外にせず None として返す。
 
@@ -321,6 +357,26 @@ def test_list_and_load_position_summary_agree_on_old_schema(
     """
     db_path = tmp_path / "data" / "results" / "backtest_results.db"
     seed_old_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == []
+    assert repo.load_position_summary("cb_v1") is None
+
+
+def test_list_and_load_position_summary_agree_on_pre_cash_schema(
+    tmp_path: Path,
+) -> None:
+    """#1334 まで移行済み・#1335（cash/total_value）は未移行の DB でも
+    一覧・詳細が一致して fail-closed になる。
+
+    WHY: db.py の Table 定義に cash/total_value を追加したことで、
+    ``no such column`` fail-closed の対象列が forge#1332 の境界から
+    forge#1335 の境界まで広がった。この境界でも「一覧に出るのに詳細が
+    404 になる壊れたリンク」を再発させないことを保証する回帰ガード。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_pre_cash_schema_live_position_summary(
         db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
     )
     repo = _repo(db_path)

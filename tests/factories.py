@@ -412,11 +412,14 @@ def seed_live_position_summary(
     benchmark_equity: list | None = None,
     backtest_equity: list | None = None,
     positions: list | None = None,
+    cash: float | None = None,
+    total_value: float | None = None,
 ) -> None:
     """``live_position_summaries`` に 1 行 insert する（combine portfolio）。
 
     ``benchmark_equity`` / ``backtest_equity`` / ``positions`` は forge#1332 の
-    後付け列。未指定時は ``None``（NULL）で insert する（空リストではなく
+    後付け列。``cash`` / ``total_value`` は forge#1335 の後付け列。いずれも
+    未指定時は ``None``（NULL）で insert する（空リスト・0.0 ではなく
     「未計算」を表す既定値）。
     """
     _create_schema(db_path)
@@ -437,6 +440,8 @@ def seed_live_position_summary(
             json.dumps(backtest_equity) if backtest_equity is not None else None
         ),
         "positions_json": json.dumps(positions) if positions is not None else None,
+        "cash": cash,
+        "total_value": total_value,
     }
     engine = create_engine(f"sqlite:///{db_path}", future=True)
     try:
@@ -483,6 +488,55 @@ def seed_old_schema_live_position_summary(
                 portfolio_id, metrics_json, backtest_metrics_json,
                 equity_json, receipts_count, sub_strategies_json, updated_at
             ) VALUES (?, ?, NULL, '[]', 0, '[]', ?)
+            """,
+            (portfolio_id, json.dumps(metrics), updated_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def seed_pre_cash_schema_live_position_summary(
+    db_path: pathlib.Path,
+    portfolio_id: str,
+    *,
+    metrics: dict,
+    updated_at: str = "2026-05-01T00:00:00",
+) -> None:
+    """alpha-forge #1334 まで移行済み・#1335（``cash`` / ``total_value``）は
+    未移行の 10 列スキーマで ``live_position_summaries`` を再現する。
+
+    ``db.py`` の ``metadata`` は現行（12 列）スキーマを持つため使わず、素の
+    ``CREATE TABLE`` で #1334 時点のスキーマを再現する。cash/total_value 列
+    追加により fail-closed（``no such column`` を空扱いにする）対象列が
+    広がったことの回帰ガード用テスト専用ヘルパー。
+    """
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE live_position_summaries (
+                portfolio_id TEXT PRIMARY KEY,
+                metrics_json TEXT NOT NULL,
+                backtest_metrics_json TEXT,
+                equity_json TEXT NOT NULL DEFAULT '[]',
+                receipts_count INTEGER NOT NULL DEFAULT 0,
+                sub_strategies_json TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL,
+                benchmark_equity_json TEXT,
+                backtest_equity_json TEXT,
+                positions_json TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO live_position_summaries (
+                portfolio_id, metrics_json, backtest_metrics_json,
+                equity_json, receipts_count, sub_strategies_json, updated_at,
+                benchmark_equity_json, backtest_equity_json, positions_json
+            ) VALUES (?, ?, NULL, '[]', 0, '[]', ?, NULL, NULL, NULL)
             """,
             (portfolio_id, json.dumps(metrics), updated_at),
         )

@@ -162,7 +162,8 @@ class LiveDataRepository:
         意図的に ``portfolio_id`` 列だけに絞らず、``load_position_summary``
         と同じ全列（``select(live_position_summaries)``）を SELECT する。
         列だけを絞ると、新旧スキーマの境界に位置する列（forge#1332 の
-        ``benchmark_equity_json`` 等）を意識しない限り、一覧側だけが成功して
+        ``benchmark_equity_json`` 等、forge#1335 の ``cash`` / ``total_value``
+        等）を意識しない限り、一覧側だけが成功して
         詳細側だけが ``no such column`` で落ちる非対称が生まれる —
         一覧には出るのに詳細を開くと 404 になる「壊れたリンク」状態になり、
         既存の ``metrics`` / ``equity`` / ``sub_strategies`` すら読めなくなる
@@ -254,13 +255,19 @@ class LiveDataRepository:
 
         ``metrics_json`` / ``backtest_metrics_json`` / ``equity_json`` /
         ``sub_strategies_json`` / ``benchmark_equity_json`` /
-        ``backtest_equity_json`` / ``positions_json`` をパースして展開する。
-        ``equity`` / ``benchmark_equity`` / ``backtest_equity`` の 3 系列は
-        タイムスタンプを UTC aware に正規化してから返す（``_to_utc_iso`` 参照）。
+        ``backtest_equity_json`` / ``positions_json`` をパースして展開し、
+        ``cash`` / ``total_value``（forge#1335・口座キャッシュ残高と評価額
+        合計）をそのまま返す。``equity`` / ``benchmark_equity`` /
+        ``backtest_equity`` の 3 系列はタイムスタンプを UTC aware に正規化
+        してから返す（``_to_utc_iso`` 参照）。
 
-        列自体が無い旧 DB（alpha-forge が一度も開いていない DB）に対しては
-        ``_fetch_all`` が ``no such column`` を空扱いにするため、この行に
-        到達する時点で全列が揃っている前提でよい。
+        列自体が無い旧 DB（alpha-forge が一度も開いていない DB、または
+        forge#1335 より前の ``ALTER TABLE`` までしか移行していない DB）に
+        対しては ``_fetch_all`` が ``no such column`` を空扱いにするため、
+        この行に到達する時点で全列が揃っている前提でよい。ただし
+        ``cash`` / ``total_value`` は列こそ揃っていても forge#1335 以前に
+        書き込まれた行では値が ``NULL`` のままなので、``0.0`` にフォール
+        バックする（None を返してフロントの数値演算を壊さないため）。
         """
         rows = self._fetch_all(
             select(live_position_summaries).where(
@@ -285,6 +292,8 @@ class LiveDataRepository:
                 _parse_json(m["backtest_equity_json"], [])
             ),
             "positions": _parse_json(m["positions_json"], []),
+            "cash": m["cash"] or 0.0,
+            "total_value": m["total_value"] or 0.0,
         }
 
     # ------------------------------------------------------------------
