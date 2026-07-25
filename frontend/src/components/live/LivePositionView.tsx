@@ -1,16 +1,18 @@
 import type { ReactElement } from 'react'
-import { ParentSize } from '@visx/responsive'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { LivePositionMetrics, LiveSummary } from '../../api/types'
 import { SectionLabel } from '../../design/primitives'
 import { useChartTheme } from '../../design/useChartTheme'
-import { Sparkline } from '../../charts/visx/Sparkline'
+import { EquityDrawdownPaneTV, type EquityOverlay } from '../../charts/tv/EquityDrawdownPaneTV'
+import { toDrawdown } from '../../lib/liveEquity'
 import { diffTone } from './format'
 import { fmtDiff, fmtNumber } from '../../lib/format'
 import { downloadLiveShareCard } from '../../lib/shareCard'
 import { buildLiveShareTweetText, openXIntent } from '../../lib/shareTweet'
 import { ShareButton, ShareXButton } from '../ShareCardButton'
+import { LiveKpiRow } from './LiveKpiRow'
+import { LivePositionsTable } from './LivePositionsTable'
 import { SummaryCard } from './SummaryCard'
 
 interface Props {
@@ -42,11 +44,38 @@ function metricDiff(live: number | null | undefined, bt: number | null | undefin
 }
 
 /**
+ * `benchmark_equity` / `backtest_equity` から比較オーバーレイを組み立てる。
+ *
+ * `EquityDrawdownPaneTV` / `useEquityViewport` は overlay の値を equity と
+ * **同じインデックス**でスライスする（`sliceByRange` が `values[start + i]` で
+ * 参照する）。バックエンドは同一日付インデックスで 3 系列を返す契約だが、
+ * それを盲信せず、長さが `equity` と一致しない場合はここで弾いて overlay を
+ * 積まない（インデックスがずれた比較線を黙って描くよりは、比較線自体を
+ * 非表示にする方が安全なため）。
+ */
+function buildOverlay(
+  label: string,
+  series: [string, number][] | undefined,
+  equityLength: number,
+): EquityOverlay | null {
+  if (!series || series.length === 0) return null
+  const values = series.map(([, v]) => v)
+  if (values.length !== equityLength) return null
+  return { label, values }
+}
+
+/**
  * position ベース combine portfolio のライブ実績表示（#221）。
  *
  * trade 単位の実績を持たない portfolio（``live_position_summaries`` 由来、
- * ``summary.kind === 'position'``）向けに、equity 由来メトリクスと
- * backtest combine 比較・equity sparkline を描画する。
+ * ``summary.kind === 'position'``）向けに、KPI 行・equity/drawdown チャート
+ * （指数・バックテスト比較オーバーレイ付き）・既存の指標カード群・建玉
+ * テーブルを組み立てる（Live equity リッチ化 Task 13）。
+ *
+ * 旧 DB 応答（`benchmark_equity` / `backtest_equity` / `positions` が
+ * `undefined`）でもクラッシュせず、KPI 行とチャートのみで描画できることが
+ * 最重要要件。存在しない系列を 0 やダッシュで埋めるのではなく、対応する
+ * UI ブロックごと省略する。
  */
 export function LivePositionView({ summary, warnings, lang }: Props): ReactElement {
   const L = makeL(lang)
@@ -54,7 +83,15 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
   const metrics = summary.metrics ?? {}
   const bt = summary.backtest_metrics ?? null
   const equity = summary.equity ?? []
-  const equityValues = equity.map(([, v]) => v)
+  const dates = equity.map(([d]) => d)
+  const values = equity.map(([, v]) => v)
+  const drawdown = toDrawdown(values)
+  const positions = summary.positions ?? []
+
+  const overlays: EquityOverlay[] = [
+    buildOverlay(L('指数（Buy & Hold）', 'Index (Buy & Hold)'), summary.benchmark_equity, values.length),
+    buildOverlay(L('バックテスト', 'Backtest'), summary.backtest_equity, values.length),
+  ].filter((o): o is EquityOverlay => o != null)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -85,34 +122,16 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
           </div>
         </div>
         <MetaLine summary={summary} warnings={warnings} lang={lang} />
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 12,
-            marginTop: 8,
-          }}
-        >
-          {METRICS.map((m) => {
-            const live = metrics[m.key]
-            const diff = metricDiff(live, bt?.[m.key])
-            return (
-              <SummaryCard
-                key={m.key}
-                testId="live-position-card"
-                label={L(m.jaLabel, m.enLabel)}
-                value={fmtNumber(live ?? null, m.suffix ? { suffix: m.suffix } : undefined)}
-                diff={fmtDiff(diff, m.suffix)}
-                diffTone={diffTone(m.invert && diff != null ? -diff : diff)}
-                backtest={fmtNumber(bt?.[m.key] ?? null, m.suffix ? { suffix: m.suffix } : undefined)}
-                lang={lang}
-              />
-            )
-          })}
-        </div>
       </div>
 
-      {equityValues.length > 1 && (
+      <LiveKpiRow
+        equity={equity}
+        benchmarkEquity={summary.benchmark_equity}
+        backtestEquity={summary.backtest_equity}
+        lang={lang}
+      />
+
+      {values.length > 0 && (
         <div data-testid="live-position-equity">
           <SectionLabel>{L('ライブ equity', 'Live equity')}</SectionLabel>
           <div
@@ -124,26 +143,50 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
               marginTop: 8,
             }}
           >
-            <ParentSize>
-              {({ width }) =>
-                width > 0 ? <Sparkline values={equityValues} width={width} height={140} /> : null
-              }
-            </ParentSize>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontFamily: 'var(--mono)',
-                fontSize: '0.78rem',
-                color: 'var(--text3)',
-                marginTop: 4,
-              }}
-            >
-              <span>{equity[0]?.[0]?.slice(0, 10)}</span>
-              <span>{equity[equity.length - 1]?.[0]?.slice(0, 10)}</span>
-            </div>
+            <EquityDrawdownPaneTV
+              equity={values}
+              dates={dates}
+              drawdown={drawdown}
+              isCutoffIdx={0}
+              overlays={overlays}
+              lang={lang}
+            />
           </div>
         </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {METRICS.map((m) => {
+          const live = metrics[m.key]
+          const diff = metricDiff(live, bt?.[m.key])
+          return (
+            <SummaryCard
+              key={m.key}
+              testId="live-position-card"
+              label={L(m.jaLabel, m.enLabel)}
+              value={fmtNumber(live ?? null, m.suffix ? { suffix: m.suffix } : undefined)}
+              diff={fmtDiff(diff, m.suffix)}
+              diffTone={diffTone(m.invert && diff != null ? -diff : diff)}
+              backtest={fmtNumber(bt?.[m.key] ?? null, m.suffix ? { suffix: m.suffix } : undefined)}
+              lang={lang}
+            />
+          )
+        })}
+      </div>
+
+      {positions.length > 0 && (
+        <LivePositionsTable
+          positions={positions}
+          cash={summary.cash ?? 0}
+          totalValue={summary.total_value ?? 0}
+          lang={lang}
+        />
       )}
     </div>
   )

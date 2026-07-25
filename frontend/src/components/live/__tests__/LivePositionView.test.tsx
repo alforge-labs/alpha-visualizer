@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { LiveSummary } from '../../../api/types'
 import { LivePositionView } from '../LivePositionView'
 
+// lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
+// TV チャートをスタブする（このファイルの関心は KPI・建玉テーブル・シェア導線であり、チャート内部ではない）
+vi.mock('../../../charts/tv/EquityDrawdownPaneTV', () => ({
+  EquityDrawdownPaneTV: () => <div data-testid="equity-pane-stub" />,
+}))
+
 vi.mock('../../../lib/shareCard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../lib/shareCard')>()
   return { ...actual, downloadLiveShareCard: vi.fn() }
@@ -59,5 +65,70 @@ describe('<LivePositionView /> share card', () => {
     expect(url).toContain('https://x.com/intent/post?text=')
     expect(url).toContain(encodeURIComponent('beat_qqq_hedged_v1'))
     openSpy.mockRestore()
+  })
+})
+
+/**
+ * 組み立て（Task 13）: KPI 行・比較チャート・建玉テーブルの後方互換。
+ *
+ * ベンチマーク・backtest 比較・建玉を持たない旧 DB 応答でもクラッシュせず、
+ * 存在するデータ（KPI・equity/drawdown チャート）だけを描画することを保証する。
+ */
+describe('<LivePositionView /> assembly (Task 13)', () => {
+  it('ベンチマーク・建玉が無い旧 DB 応答でもクラッシュせず描画する', () => {
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: {
+        total_return_pct: -0.5,
+        cagr_pct: -3,
+        sharpe_ratio: -2,
+        max_drawdown_pct: 0.7,
+        volatility_pct: 1.3,
+      },
+      equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 995_000],
+      ] as [string, number][],
+      receipts_count: 78,
+      // benchmark_equity / backtest_equity / positions は未定義（旧 DB）
+    }
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+    expect(screen.getByTestId('kpi-current-value')).toBeInTheDocument()
+    expect(screen.queryByTestId('kpi-excess-index')).not.toBeInTheDocument()
+  })
+
+  it('ベンチマークがあれば overlays 付きでチャートを描画する', () => {
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: { total_return_pct: -0.5 },
+      equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 995_000],
+      ] as [string, number][],
+      benchmark_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_020_000],
+      ] as [string, number][],
+      positions: [
+        {
+          ticker: 'US.GLD',
+          qty: 90,
+          avg_cost: 396.64,
+          last_price: 371.9,
+          market_value: 33471,
+          weight_pct: 3.4,
+          unrealized_pnl: -2227,
+          unrealized_pnl_pct: -6.2,
+        },
+      ],
+      cash: 961_021,
+      total_value: 994_492,
+      receipts_count: 78,
+    }
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+    expect(screen.getByTestId('kpi-excess-index')).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
   })
 })
