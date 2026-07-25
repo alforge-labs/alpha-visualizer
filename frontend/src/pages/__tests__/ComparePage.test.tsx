@@ -49,3 +49,46 @@ describe('ComparePage error retry (issue #265)', () => {
     await waitFor(() => expect(api.compareStrategies).toHaveBeenCalledTimes(2))
   })
 })
+
+/**
+ * issue #327: ナビの「比較」は ids なしの /compare へ遷移するため、
+ * 本番ビルドでは永久に「読み込み中…」が表示されていた。
+ *
+ * 原因は useFetchByKey が key=null のとき
+ *   IS_DEV && mockFallback ? mock : { status: 'loading' }
+ * を返す設計で、PROD では IS_DEV が false に静的置換されて
+ * loading に落ちること。開発サーバーでは mock にフォールバックするため
+ * 露見しなかった。
+ *
+ * 未選択は「読み込み中」でも「エラー」でもなく、戦略を選ばせる状態。
+ * ページ側で ids 空を明示的に扱い、fetch も発行しないことを検証する。
+ */
+describe('ComparePage empty selection (issue #327)', () => {
+  it('shows guidance instead of a loading spinner when no ids are selected', async () => {
+    render(
+      <MemoryRouter initialEntries={['/compare']}>
+        <ComparePage />
+      </MemoryRouter>,
+    )
+
+    // 未選択で fetch を投げない（key が無いので投げようがない＝回帰の番人）
+    expect(api.compareStrategies).not.toHaveBeenCalled()
+    // 「読み込み中…」で固まらない
+    expect(screen.queryByText('読み込み中…')).not.toBeInTheDocument()
+    // 戦略を選ぶ導線が出ている
+    const cta = await screen.findByTestId('compare-empty')
+    expect(cta).toBeInTheDocument()
+    expect(within(cta).getByRole('button')).toBeInTheDocument()
+  })
+
+  it('does not show the empty state once ids are present', async () => {
+    vi.mocked(api.compareStrategies).mockResolvedValue([])
+    render(
+      <MemoryRouter initialEntries={['/compare?ids=a,b']}>
+        <ComparePage />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.compareStrategies).toHaveBeenCalled())
+    expect(screen.queryByTestId('compare-empty')).not.toBeInTheDocument()
+  })
+})

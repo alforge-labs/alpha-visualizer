@@ -177,10 +177,46 @@ export function ComparePage(): React.ReactElement {
           </p>
         </header>
         <div style={{ padding: 'var(--space-6) var(--layout-gutter)' }}>
-        {compare.status === 'loading' && (
+        {/*
+          issue #327: 未選択（ids 空）は「読み込み中」でも「エラー」でもなく、
+          戦略を選ばせる状態。useFetchByKey は key=null のとき PROD で
+          { status: 'loading' } を返す（DEV だけ mock にフォールバックする）ため、
+          ページ側で先に分岐しないとナビの「比較」から来たときに
+          永久ローディングになる。
+        */}
+        {ids.length === 0 && (
+          <div
+            data-testid="compare-empty"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 16,
+              padding: '12px 16px',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-md)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              {L(
+                'まだ戦略が選ばれていません。一覧から 2 つ以上の戦略を選ぶと比較できます。',
+                'No strategies selected yet. Pick two or more from the list to compare them.',
+              )}
+            </div>
+            <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+              {L('戦略を選ぶ', 'Choose strategies')}
+            </Button>
+          </div>
+        )}
+        {ids.length > 0 && compare.status === 'loading' && (
           <Loading label={L('読み込み中…', 'Loading…')} />
         )}
-        {compare.status === 'no_data' && (
+        {ids.length > 0 && compare.status === 'no_data' && (
           <div
             style={{
               fontFamily: 'var(--mono)',
@@ -196,7 +232,7 @@ export function ComparePage(): React.ReactElement {
             )}
           </div>
         )}
-        {compare.status === 'error' && (
+        {ids.length > 0 && compare.status === 'error' && (
           <ErrorBanner
             message={normalizeErrorMessage(compare.error, lang)}
             title={compare.error}
@@ -204,7 +240,7 @@ export function ComparePage(): React.ReactElement {
             onRetry={() => setReloadToken((t) => t + 1)}
           />
         )}
-        {compare.status === 'ready' && (
+        {ids.length > 0 && compare.status === 'ready' && (
           <CompareScreen data={compare.data} lang={lang} symbol={symbol} />
         )}
         </div>
