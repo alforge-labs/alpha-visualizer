@@ -178,6 +178,16 @@ def position_detail(portfolio_id: str, pos: dict[str, Any]) -> dict[str, Any]:
     trade 単位ではないため ``trades`` 空・``period``/``backtest``/``diff`` は
     ``None``。live metrics・equity 系列・``--compare`` 時の backtest metrics は
     ``live.summary`` に載せてフロントへ渡す（``summary`` は柔軟な dict）。
+
+    ``benchmark_equity`` / ``backtest_equity`` / ``positions`` / ``cash`` /
+    ``total_value`` は forge#1332 で追加された比較系列・建玉・現金情報。
+    以前はここで明示的に列挙していなかったため、Repository がパースし
+    フロントが描画できる状態でも、この whitelist で握り潰されて API
+    応答に載らないという統合ギャップがあった（issue #221 の task-14）。
+    ``cash`` / ``total_value`` は数値のため、リストと同じ ``or []`` では
+    なく ``or 0.0`` で欠損時を埋める（フロント側も ``summary.cash ?? 0``
+    で 0 を既定値としており、ここで揃えておくことで欠損時の意味が
+    「未計算 = 0」に統一される）。
     """
     summary: dict[str, Any] = {
         "strategy_id": portfolio_id,
@@ -189,6 +199,11 @@ def position_detail(portfolio_id: str, pos: dict[str, Any]) -> dict[str, Any]:
         "receipts_count": pos.get("receipts_count"),
         "sub_strategies": pos.get("sub_strategies") or [],
         "updated_at": pos.get("updated_at"),
+        "benchmark_equity": pos.get("benchmark_equity") or [],
+        "backtest_equity": pos.get("backtest_equity") or [],
+        "positions": pos.get("positions") or [],
+        "cash": pos.get("cash") or 0.0,
+        "total_value": pos.get("total_value") or 0.0,
     }
     return {
         "strategy_id": portfolio_id,
