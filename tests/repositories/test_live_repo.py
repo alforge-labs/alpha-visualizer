@@ -306,6 +306,45 @@ def test_load_position_summary_tolerates_old_schema(tmp_path: Path) -> None:
     assert out is None
 
 
+def test_list_and_load_position_summary_agree_on_old_schema(
+    tmp_path: Path,
+) -> None:
+    """一覧 (list_position_portfolio_ids) と詳細 (load_position_summary) は
+    旧スキーマ DB に対して必ず一致する（レビュー指摘の壊れたリンク修正）。
+
+    WHY: 修正前は list 側が ``portfolio_id`` 1 列だけを SELECT しており旧
+    スキーマでも成功していたため、Live 一覧には portfolio が出るのに詳細を
+    開くと load 側が ``no such column`` → None → 404 になる「壊れたリンク」
+    が生じていた。alpha-visualizer は alpha-forge と独立に PyPI 配布される
+    ため、旧 DB に新しい visualizer をぶつけるバージョンスキューは通常運用
+    であり、ここで両者が一致することは回帰してはならない。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_old_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == []
+    assert repo.load_position_summary("cb_v1") is None
+
+
+def test_list_and_load_position_summary_agree_on_migrated_schema(
+    tmp_path: Path,
+) -> None:
+    """移行済み（現行 10 列）スキーマでは一覧・詳細とも通常どおり機能する。
+
+    WHY: 旧スキーマの fail-closed 化が通常ケースまで巻き込んで機能を丸ごと
+    無効化していないことを保証する回帰ガード。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_v1", metrics={"sharpe_ratio": 1.4})
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == ["cb_v1"]
+    out = repo.load_position_summary("cb_v1")
+    assert out is not None
+    assert out["portfolio_id"] == "cb_v1"
+
+
 def test_load_position_summary_normalizes_naive_equity_timestamps(
     tmp_path: Path,
 ) -> None:

@@ -157,9 +157,28 @@ class LiveDataRepository:
         return [r.strategy_id for r in rows]
 
     def list_position_portfolio_ids(self) -> list[str]:
-        """``live_position_summaries`` の portfolio_id をソート済みで返す（combine）。"""
+        """``live_position_summaries`` の portfolio_id をソート済みで返す（combine）。
+
+        意図的に ``portfolio_id`` 列だけに絞らず、``load_position_summary``
+        と同じ全列（``select(live_position_summaries)``）を SELECT する。
+        列だけを絞ると、新旧スキーマの境界に位置する列（forge#1332 の
+        ``benchmark_equity_json`` 等）を意識しない限り、一覧側だけが成功して
+        詳細側だけが ``no such column`` で落ちる非対称が生まれる —
+        一覧には出るのに詳細を開くと 404 になる「壊れたリンク」状態になり、
+        既存の ``metrics`` / ``equity`` / ``sub_strategies`` すら読めなくなる
+        （human 裁定・レビュー指摘）。同じ列集合を SELECT しておけば、
+        将来また列が追加されても一覧と詳細は必ず同じ条件で
+        ``no such column`` を起こすため、この非対称が再発しない。
+
+        alpha-forge が一度も ``ALTER TABLE`` していない旧 DB では、この
+        SELECT も ``_fetch_all`` の ``no such column`` 耐性で空リストになる
+        （= 一覧から丸ごと消える）。フォールバッククエリは組まず、
+        position ベースの実績を一時的に「無し」として隠すだけに留める。
+        `alpha-forge live replay` を一度実行すれば ALTER TABLE が走り、
+        以降は通常どおり一覧・詳細とも復元される。
+        """
         rows = self._fetch_all(
-            select(live_position_summaries.c.portfolio_id).order_by(
+            select(live_position_summaries).order_by(
                 live_position_summaries.c.portfolio_id
             )
         )
