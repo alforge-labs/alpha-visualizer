@@ -33,6 +33,10 @@ export async function gotoCompare(page: Page, ids: readonly string[]): Promise<v
   await page.goto(`/compare?ids=${ids.join(',')}`)
 }
 
+export async function gotoLive(page: Page): Promise<void> {
+  await page.goto('/live')
+}
+
 /**
  * 言語切替ボタンをクリックする。LangToggle の各ボタンは role="radio" で
  * aria-label に「日本語」「English」が付与されている。

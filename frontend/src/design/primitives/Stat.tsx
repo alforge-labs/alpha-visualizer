@@ -21,6 +21,8 @@ interface StatProps {
   /** 値の右寄せ */
   align?: 'left' | 'right'
   style?: CSSProperties
+  /** テストから掴むための data-testid。呼び出し側が包む div を不要にする */
+  testId?: string
 }
 
 const VALUE_FONT_SIZE: Record<NonNullable<StatProps['size']>, string> = {
@@ -43,6 +45,7 @@ export function Stat({
   size = 'md',
   align = 'left',
   style,
+  testId,
 }: StatProps) {
   const valueText = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
   const subText = typeof sub === 'string' || typeof sub === 'number' ? String(sub) : ''
@@ -55,6 +58,7 @@ export function Stat({
     <div
       role="group"
       aria-label={ariaLabel}
+      data-testid={testId}
       style={{
         display: 'flex',
         flexDirection: 'column',

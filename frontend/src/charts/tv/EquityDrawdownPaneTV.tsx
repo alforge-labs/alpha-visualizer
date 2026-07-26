@@ -207,6 +207,21 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     const wanted = overlays ?? []
     const wantedLabels = new Set(wanted.map((o) => o.label))
 
+    if (wantedLabels.size !== wanted.length) {
+      // label は系列 Map のキーなので、重複すると後勝ちで 1 本に潰れる。
+      // 系列長不一致を drop するときと同様、黙って消さずに知らせる。
+      const seen = new Set<string>()
+      const dupes = wanted.map((o) => o.label).filter((l) => {
+        if (seen.has(l)) return true
+        seen.add(l)
+        return false
+      })
+      console.warn(
+        `EquityDrawdownPaneTV: overlays のラベルが重複しています（${[...new Set(dupes)].join(', ')}）。` +
+          '同じラベルの系列は 1 本に統合されます。ラベルは系列の識別子なので一意にしてください。',
+      )
+    }
+
     for (const [label, series] of map) {
       if (!wantedLabels.has(label)) {
         chart.removeSeries(series)
@@ -214,8 +229,17 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       }
     }
 
-    wanted.forEach((overlay, i) => {
-      const options = overlayLineOptions(theme, i, overlay.color, overlay.dashed)
+    // 色は配列位置ではなく**ラベル**で決める。配列位置で決めると、ラベルは
+    // そのままで並び順だけ変わったときに系列の色が入れ替わり、線の色で系列を
+    // 識別している画面では同じものが別物に見える。ソート済みユニークラベルの
+    // 位置を使うことで、並び替えに対して安定させる。
+    const colorIndexByLabel = new Map(
+      [...wantedLabels].sort().map((label, idx) => [label, idx]),
+    )
+
+    wanted.forEach((overlay) => {
+      const colorIndex = colorIndexByLabel.get(overlay.label) ?? 0
+      const options = overlayLineOptions(theme, colorIndex, overlay.color, overlay.dashed)
       const existing = map.get(overlay.label)
       if (existing) {
         existing.applyOptions(options)

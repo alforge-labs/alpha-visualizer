@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from alpha_visualizer.db import (  # noqa: E402
     backtest_results,
+    live_position_summaries,
     metadata,
     optimization_runs,
 )
@@ -46,6 +47,11 @@ HISTORICAL_PARQUET = HISTORICAL_DIR / "SPY_1d.parquet"
 PERIOD_START = date(2024, 1, 2)
 PERIOD_DAYS = 60
 INITIAL_EQUITY = 100_000.0
+
+# Live（ペーパー運用実績）の期間。backtest 期間より短いのは実運用と同じ
+# （バックテストは数年、運用は開始してから数週間〜数ヶ月）。
+LIVE_START = date(2024, 3, 1)
+LIVE_DAYS = 24
 
 
 def _business_dates(start: date, n: int) -> list[date]:
@@ -456,11 +462,125 @@ def _build_wfo_optimization_row(strategy_id: str, run_at: str) -> dict[str, obje
     }
 
 
+def _live_series(*, drift: float, volatility: float, seed: int) -> list[tuple[str, float]]:
+    """live 期間の equity 系列を決定論的に作る（先頭 = INITIAL_EQUITY）。
+
+    3 系列（Live / 指数 B&H / BT combine）はいずれも live 開始時点を
+    ``initial_capital`` に正規化した状態で保存されるので、fixture でも先頭を揃える。
+    """
+    rng = random.Random(seed)  # noqa: S311 — テストデータ生成用、暗号用途ではない
+    value = INITIAL_EQUITY
+    out: list[tuple[str, float]] = []
+    for d in _business_dates(LIVE_START, LIVE_DAYS):
+        out.append((f"{d.isoformat()}T00:00:00+00:00", round(value, 2)))
+        value *= 1.0 + drift + rng.gauss(0.0, volatility)
+    return out
+
+
+def _live_metrics(series: list[tuple[str, float]]) -> dict[str, float]:
+    """equity 系列から Live 指標カードの 5 値を導出する。
+
+    手打ちしないのは、KPI 行（equity 系列の先頭・最終値から算出）と指標カード
+    （``metrics_json``）が同じ系列を出所とするため。手打ちすると「累計損益
+    +2,111.8」の隣に「トータルリターン -0.550%」が並ぶような、実データでは
+    起こらない矛盾がスクリーンショットに写る（初回撮影で実際に発生した）。
+    """
+    values = [v for _, v in series]
+    total_return_pct = (values[-1] - values[0]) / values[0] * 100.0
+    daily = [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, len(values))]
+    mean = sum(daily) / len(daily)
+    variance = sum((r - mean) ** 2 for r in daily) / len(daily)
+    std = math.sqrt(variance) if variance > 0 else 1e-9
+    peak = values[0]
+    max_dd = 0.0
+    for v in values:
+        peak = max(peak, v)
+        max_dd = min(max_dd, (v - peak) / peak * 100.0)
+    return {
+        "total_return_pct": round(total_return_pct, 4),
+        "cagr_pct": round(((values[-1] / values[0]) ** (252.0 / len(values)) - 1.0) * 100.0, 4),
+        "sharpe_ratio": round((mean / std) * math.sqrt(252), 4),
+        "max_drawdown_pct": round(max_dd, 4),
+        "volatility_pct": round(std * math.sqrt(252) * 100.0, 4),
+    }
+
+
+def _build_live_position_row() -> dict[str, object]:
+    """Live ページ（position ベース combine portfolio）用の 1 行。
+
+    Live 画面が「投資家が最初に知りたいこと」に答えられているかは、数字が実際に
+    入った状態でしか確認できない。ベンチマーク・BT の比較 2 系列と、現金比率が
+    読める建玉スナップショットを入れる。
+
+    建玉の 1 つは **取得単価が解決できず含み損益が null** のケースにしている。
+    テーブルはここを `—` で描く仕様で、桁数の異なる実数と `—` が混在したときの
+    レイアウトも撮影・回帰の対象に含めるため。
+
+    金額は手打ちせず equity 系列の最終値から導出する。KPI の「現在評価額」は
+    equity 最終値を、建玉テーブルの「合計」は ``total_value`` を使うため、
+    手打ちすると両者が食い違う。
+    """
+    live = _live_series(drift=-0.0001, volatility=0.006, seed=21)
+    benchmark = _live_series(drift=-0.0016, volatility=0.009, seed=22)
+    backtest = _live_series(drift=-0.0019, volatility=0.008, seed=23)
+
+    # total_value は equity 最終値と一致させる（KPI とテーブルの整合）。
+    total_value = float(live[-1][1])
+
+    # (ticker, qty, avg_cost, last_price)。avg_cost=None は取得単価が解決できず
+    # 含み損益が null で届く建玉。
+    holdings: list[tuple[str, float, float | None, float]] = [
+        ("US.TQQQ", 120.0, 62.35, 60.18),
+        ("US.GLD", 18.0, 241.9, 248.05),
+        ("US.TLT", 5.0, None, 86.42),
+    ]
+    positions: list[dict[str, object]] = []
+    for ticker, qty, avg_cost, last_price in holdings:
+        mv = round(qty * last_price, 2)
+        positions.append(
+            {
+                "ticker": ticker,
+                "qty": qty,
+                # 取得単価不明でも avg_cost は 0.0 で届く（alpha-forge PR #1334）。
+                # 「不明」は損益側が None であることで区別される。
+                "avg_cost": 0.0 if avg_cost is None else avg_cost,
+                "last_price": last_price,
+                "market_value": mv,
+                "weight_pct": round(mv / total_value * 100.0, 2),
+                "unrealized_pnl": (
+                    None if avg_cost is None else round(qty * (last_price - avg_cost), 2)
+                ),
+                "unrealized_pnl_pct": (
+                    None
+                    if avg_cost is None
+                    else round((last_price - avg_cost) / avg_cost * 100.0, 2)
+                ),
+            }
+        )
+    market_value = round(sum(float(p["market_value"]) for p in positions), 2)
+    return {
+        "portfolio_id": "beat_index_hedged",
+        "metrics_json": json.dumps(_live_metrics(live), ensure_ascii=False),
+        "backtest_metrics_json": json.dumps(_live_metrics(backtest), ensure_ascii=False),
+        "equity_json": json.dumps(live, ensure_ascii=False),
+        "benchmark_equity_json": json.dumps(benchmark, ensure_ascii=False),
+        "backtest_equity_json": json.dumps(backtest, ensure_ascii=False),
+        "positions_json": json.dumps(positions, ensure_ascii=False),
+        "cash": round(total_value - market_value, 2),
+        "total_value": total_value,
+        "receipts_count": 22,
+        "sub_strategies_json": json.dumps(["tqqq_v1", "gld_v1", "tlt_v1"], ensure_ascii=False),
+        "updated_at": "2024-04-03T22:35:00+00:00",
+    }
+
+
 def _write_db() -> None:
     if DB_PATH.exists():
         DB_PATH.unlink()
     engine = create_engine(f"sqlite:///{DB_PATH}", future=True)
-    metadata.create_all(engine, tables=[backtest_results, optimization_runs])
+    metadata.create_all(
+        engine, tables=[backtest_results, optimization_runs, live_position_summaries]
+    )
     rows = [
         _build_backtest_row("sma_cross", seed=1, drift=0.0008, volatility=0.012, run_at="2024-04-01T10:00:00"),
         _build_backtest_row("rsi_reversal", seed=2, drift=0.0006, volatility=0.014, run_at="2024-04-02T10:00:00"),
@@ -473,6 +593,7 @@ def _write_db() -> None:
     with engine.begin() as conn:
         conn.execute(insert(backtest_results), rows)
         conn.execute(insert(optimization_runs), opt_rows)
+        conn.execute(insert(live_position_summaries), [_build_live_position_row()])
 
 
 def main() -> None:

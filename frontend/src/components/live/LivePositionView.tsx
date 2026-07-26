@@ -120,7 +120,11 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
   ].filter((o): o is EquityOverlay => o != null)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    // testId は撮影・ビジュアル回帰のクロップ対象（strategy-screen / optimize-screen と同じ役割）。
+    <div
+      data-testid="live-position-view"
+      style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+    >
       <div>
         <div
           style={{
