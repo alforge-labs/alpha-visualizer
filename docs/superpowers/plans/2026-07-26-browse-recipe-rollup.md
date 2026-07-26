@@ -21,7 +21,8 @@
 - ミューテーション禁止。配列のソートは `[...arr].sort(...)` のようにコピーしてから行う。
 - 実効銘柄の判定は `lib/recipes.ts` の `effectiveSymbol` に一本化し、`item.symbol` を直接読む箇所を残さない。
 - `??` と `||` を取り違えないこと。実効銘柄のフォールバックは空文字列も次候補へ流す必要があるため `||` を使う。
-- UI に視覚的変更を入れたら `docs/screenshots/{ja,en}/` を再撮影する（`pnpm run screenshots`）。
+- `docs/screenshots/{ja,en}/` の再撮影は **Task 7 で一度だけ**行う。Task 2〜5 はいずれも視覚を変えるが、途中で撮り直しても次のタスクで無効になるため、各タスクでは撮影しない（撮影漏れではない）。
+- **すべてのコミットで `pnpm run build`（`tsc -b && vite build`）が通ること。** ビルド不能な中間コミットを作らない。
 - Python 側 `db.py` のスキーマは変更しない。したがって `samples/build_samples.py` の再生成は不要。
 - 各タスクの完了時にコミットする。コミットメッセージは Conventional Commits（`feat:` / `refactor:` / `test:` / `docs:`）。
 
@@ -52,13 +53,17 @@
 | # | 内容 | 依存 |
 |---|---|---|
 | 1 | `lib/recipes.ts` — ロールアップの純関数 | — |
-| 2 | `useStrategyList` — パイプラインと `include_unrun` | 1 |
-| 3 | `StrategyRow.tsx` — 1 行 44px 化と `strategy_id` 表示 | — |
-| 4 | `RecipeRow.tsx` と `StrategyTable` のレシピ行描画・展開 | 1,2,3 |
-| 5 | `StrategyTableFooter.tsx` — 件数開示 | 2,4 |
-| 6 | クローム圧縮（ヒーロー・アトラス折り畳み・チップ折り畳み・未実行トグル） | 1,2 |
-| 7 | E2E fixture 拡張と E2E テスト | 4,5,6 |
-| 8 | 実データ検証・スクリーンショット再撮影・最終ゲート | 7 |
+| 2 | `StrategyRow.tsx` — 1 行 44px 化と `strategy_id` 表示 | 1 |
+| 3 | レシピのパイプラインと表の描画（`useStrategyList` + `RecipeRow` + `StrategyTable`） | 1,2 |
+| 4 | `StrategyTableFooter.tsx` — 件数開示 | 3 |
+| 5 | クローム圧縮（ヒーロー・アトラス折り畳み・チップ折り畳み・未実行トグル） | 1,3 |
+| 6 | E2E fixture 拡張と E2E テスト | 4,5 |
+| 7 | 実データ検証・スクリーンショット再撮影・最終ゲート | 6 |
+
+**Task 3 が大きいのは意図的。** `StrategyGroup.items` を `Recipe[]` に変える型変更は、
+`StrategyTable` が追随するまで `pnpm run build` を通せない。hook 側と表側を別タスクに
+分けるとビルド不能なコミットが 1 つ履歴に残るため、型変更とその消費側を同じコミットに
+入れる。**この計画のすべてのコミットで `pnpm run build` が通る。**
 
 ---
 
@@ -511,472 +516,7 @@ Expected: 対応するテストが FAIL し、他は PASS のまま
 
 ---
 
-### Task 2: `useStrategyList` — パイプラインと `include_unrun`
-
-**Files:**
-- Modify: `frontend/src/hooks/useStrategyList.ts`
-- Test: `frontend/src/hooks/__tests__/useStrategyList.test.tsx`
-
-**Interfaces:**
-- Consumes: Task 1 の `Recipe` / `buildRecipes` / `effectiveSymbol`
-- Produces: `StrategyListState` に次を追加。`StrategyGroup.items` の型が `StrategyListItem[]` から `Recipe[]` へ変わる。
-  - `recipes: Recipe[]` — 絞り込み・未実行除外・ソート済み
-  - `recipeTotal: number` — 全戦略から作ったレシピ数（フィルタ非依存の分母）
-  - `hiddenUnrunRecipeCount: number` — 未実行トグルで隠れているレシピ数
-  - `includeUnrun: boolean`
-  - `groups: StrategyGroup[]`（`items: Recipe[]`）
-
-- [ ] **Step 1: 失敗するテストを書く**
-
-`frontend/src/hooks/__tests__/useStrategyList.test.tsx` の末尾に追記する。
-
-既存ファイルのハーネスをそのまま使う。次の 3 点を守ること。
-
-1. 戦略の注入は `vi.mocked(api.listStrategies).mockResolvedValue(...)` で行う。`beforeEach` で `SAMPLE` が入るので、別データを使うテストでは冒頭で上書きする
-2. レンダリングは既存の `renderWithUrl(initialUrl)` を使う（新しいヘルパを作らない）
-3. hook の値は **`result.current.list.X`** で読む（`result.current.X` ではない。`useHarness` が `{ list, search }` を返している）
-4. `StrategyListItem` のリテラルは既存 `SAMPLE` と同じく必要なフィールドのみ書く（`tags` と `target_symbols` は必須）
-
-```tsx
-describe('useStrategyList — レシピ・ロールアップ', () => {
-  // 同名 3 件（2 件実行済み・1 件未実行）＋ 全 variant 未実行のレシピ 1 件
-  const ROLLUP: StrategyListItem[] = [
-    { strategy_id: 'amd_v1', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.5, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
-    { strategy_id: 'amd_v2', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.9, last_run_at: '2026-01-02T00:00:00', tags: [], target_symbols: [] },
-    { strategy_id: 'amd_v3', name: 'AMD EMA ST', symbol: null, timeframe: '1d', tags: [], target_symbols: ['AMD'] },
-    { strategy_id: 'idle_v1', name: 'Idle Recipe', symbol: null, timeframe: '1d', tags: [], target_symbols: ['SPY'] },
-  ]
-
-  beforeEach(() => {
-    vi.mocked(api.listStrategies).mockResolvedValue(ROLLUP)
-  })
-
-  it('未実行のみのレシピを既定で除外し、隠した件数を数える', async () => {
-    const { result } = renderWithUrl('/browse')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    expect(result.current.list.recipes).toHaveLength(1)
-    expect(result.current.list.recipes[0].name).toBe('AMD EMA ST')
-    expect(result.current.list.recipes[0].variantCount).toBe(3)
-    expect(result.current.list.recipes[0].runCount).toBe(2)
-    expect(result.current.list.recipeTotal).toBe(2)
-    expect(result.current.list.hiddenUnrunRecipeCount).toBe(1)
-    expect(result.current.list.includeUnrun).toBe(false)
-  })
-
-  it('include_unrun=1 で未実行のみのレシピも出す', async () => {
-    const { result } = renderWithUrl('/browse?include_unrun=1')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    expect(result.current.list.recipes).toHaveLength(2)
-    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
-    expect(result.current.list.includeUnrun).toBe(true)
-  })
-
-  it('銘柄フィルタが定義のみで判明する銘柄にも効く', async () => {
-    // idle_v1 は symbol=null / target_symbols=['SPY']。実効銘柄で絞り込まない
-    // 実装だとチップには SPY が出るのに選ぶと 0 件になる。
-    const { result } = renderWithUrl('/browse?symbol=SPY&include_unrun=1')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    expect(result.current.list.recipes).toHaveLength(1)
-    expect(result.current.list.recipes[0].name).toBe('Idle Recipe')
-  })
-
-  it('銘柄の選択肢を実効銘柄から作る', async () => {
-    const { result } = renderWithUrl('/browse')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    // amd_v3 と idle_v1 は symbol=null。定義側を見ないと AMD だけになる
-    expect(result.current.list.symbols).toEqual(['AMD', 'SPY'])
-  })
-
-  it('レシピを best の指標でソートする', async () => {
-    vi.mocked(api.listStrategies).mockResolvedValue([
-      { strategy_id: 'lo', name: 'Low', symbol: 'SPY', timeframe: '1d', latest_sharpe: 0.3, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
-      { strategy_id: 'hi', name: 'High', symbol: 'QQQ', timeframe: '1d', latest_sharpe: 1.8, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
-    ])
-    const { result } = renderWithUrl('/browse?sort=latest_sharpe&dir=desc')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    expect(result.current.list.recipes.map(r => r.name)).toEqual(['High', 'Low'])
-  })
-
-  it('groups はレシピを束ねる', async () => {
-    const { result } = renderWithUrl('/browse?group=symbol&include_unrun=1')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    const labels = result.current.list.groups.map(g => g.label).sort()
-    expect(labels).toEqual(['AMD', 'SPY'])
-    for (const g of result.current.list.groups) {
-      expect(g.aggregate.count).toBe(g.items.length)
-    }
-  })
-
-  it('隠した未実行レシピ数は絞り込み後の集合から数える', async () => {
-    // ?symbol=AMD だと AMD レシピ（実行済み）だけが残り、未実行のみの
-    // Idle Recipe は絞り込みで既に落ちている。これを「トグルで隠した 1 件」と
-    // 報告してはならない。全体から数える実装だと 1 になって落ちる。
-    const { result } = renderWithUrl('/browse?symbol=AMD')
-    await waitFor(() => expect(result.current.list.loading).toBe(false))
-
-    expect(result.current.list.recipes).toHaveLength(1)
-    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
-  })
-})
-```
-
-既存の `SAMPLE`（`Alpha` / `Bravo` / `Charlie`）はすべて別名・別銘柄・別時間軸なので、ロールアップ後も 3 レシピになる。既存テストは `sortKey` / `groupBy` / `selectedId` / `compareIds` / URL 往復しか見ておらず `filtered` も `groups` も参照していないため、そのまま通る。
-
-`filtered` は Task 4 で消費者がいなくなるが、このタスクの時点では `BrowseScreen` がまだ使っているので残す（Task 4 で削除する）。
-
-- [ ] **Step 2: テストが失敗することを確認する**
-
-Run: `cd frontend && pnpm vitest run src/hooks/__tests__/useStrategyList.test.tsx`
-Expected: FAIL — `result.current.recipes` が `undefined`
-
-- [ ] **Step 3: 実効銘柄を絞り込みと選択肢に適用する**
-
-`frontend/src/hooks/useStrategyList.ts` を編集する。冒頭に import を追加する。
-
-```ts
-import { buildRecipes, effectiveSymbol, type Recipe } from '../lib/recipes'
-```
-
-`useStrategyData` の `symbols` を実効銘柄ベースに変える。
-
-```ts
-  const symbols = useMemo(
-    () => [...new Set(all.map(effectiveSymbol).filter((s): s is string => Boolean(s)))].sort(),
-    [all],
-  )
-```
-
-`useFiltering` の銘柄参照を 2 箇所とも実効銘柄に変える。
-
-```ts
-function useFiltering(
-  all: StrategyListItem[],
-  q: string,
-  symbolFilter: string[],
-  tfFilter: string[],
-  sharpeMin: number,
-  ddMax: number,
-): StrategyListItem[] {
-  return useMemo(() => {
-    const needle = q.toLowerCase()
-    return all.filter(s => {
-      // 銘柄は実効銘柄で判定する。item.symbol だけを見ると、定義のみで
-      // 銘柄が判明している戦略はチップに出るのに選ぶと 0 件になる。
-      const symbol = effectiveSymbol(s) ?? ''
-      if (q && !s.name.toLowerCase().includes(needle) && !symbol.toLowerCase().includes(needle)) return false
-      if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) return false
-      if (tfFilter.length > 0 && !tfFilter.includes(s.timeframe ?? '')) return false
-      if (!isNaN(sharpeMin) && numVal(s.latest_sharpe) < sharpeMin) return false
-      if (!isNaN(ddMax) && Math.abs(numVal(s.latest_max_drawdown_pct)) > ddMax) return false
-      return true
-    })
-  }, [all, q, symbolFilter, tfFilter, sharpeMin, ddMax])
-}
-```
-
-- [ ] **Step 4: レシピのソートとグループ化に差し替える**
-
-同ファイルの `useSortedItems` を `useSortedRecipes` に置き換える。`SortKey` はこのファイルで定義されているのでここに置く（`lib/recipes.ts` へ移すと循環 import になる）。
-
-```ts
-/** レシピを best の指標で並べる。best が無いレシピは常に末尾に沈む。 */
-function useSortedRecipes(
-  recipes: Recipe[],
-  sortKey: SortKey,
-  sortDir: SortDir,
-): Recipe[] {
-  return useMemo(() => {
-    return [...recipes].sort((a, b) => {
-      let va: number | string
-      let vb: number | string
-      if (sortKey === 'name') {
-        va = a.name
-        vb = b.name
-      } else if (sortKey === 'last_run_at') {
-        va = a.best?.last_run_at ?? ''
-        vb = b.best?.last_run_at ?? ''
-      } else {
-        va = numVal(a.best?.[sortKey] as number | null | undefined)
-        vb = numVal(b.best?.[sortKey] as number | null | undefined)
-      }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1
-      if (va > vb) return sortDir === 'asc' ? 1 : -1
-      return 0
-    })
-  }, [recipes, sortKey, sortDir])
-}
-```
-
-`numVal` は `null` のみを受ける現在の実装を `undefined` も受けるように広げる。
-
-```ts
-function numVal(v: number | null | undefined): number {
-  return v ?? -Infinity
-}
-```
-
-`aggregate` と `buildGroups` をレシピ向けに変える。
-
-```ts
-function aggregate(recipes: Recipe[]): GroupAggregate {
-  let bestSharpe: number | null = null
-  let worstDd: number | null = null
-  for (const r of recipes) {
-    const sharpe = r.best?.latest_sharpe
-    if (sharpe != null) {
-      bestSharpe = bestSharpe == null ? sharpe : Math.max(bestSharpe, sharpe)
-    }
-    const dd = r.best?.latest_max_drawdown_pct
-    if (dd != null) {
-      worstDd = worstDd == null ? dd : Math.min(worstDd, dd)
-    }
-  }
-  return { count: recipes.length, bestSharpe, worstDrawdownPct: worstDd }
-}
-
-function buildGroups(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
-  if (groupBy === 'none') {
-    if (recipes.length === 0) return []
-    return [{ key: 'all', label: 'all', rank: 0, items: recipes, aggregate: aggregate(recipes) }]
-  }
-
-  if (groupBy === 'tier') {
-    const buckets: Record<TierKey, Recipe[]> = {
-      strong: [], moderate: [], weak: [], no_data: [],
-    }
-    for (const r of recipes) {
-      buckets[sharpeTierKey(r.best?.latest_sharpe)].push(r)
-    }
-    const out: StrategyGroup[] = []
-    for (const tierKey of Object.keys(buckets) as TierKey[]) {
-      const tierItems = buckets[tierKey]
-      if (tierItems.length === 0) continue
-      out.push({
-        key: `tier:${tierKey}`,
-        label: TIER_LABEL[tierKey],
-        rank: TIER_RANK[tierKey],
-        items: tierItems,
-        aggregate: aggregate(tierItems),
-      })
-    }
-    return out.sort((a, b) => a.rank - b.rank)
-  }
-
-  // groupBy: 'symbol' | 'tf'
-  const keyOf = (r: Recipe): string =>
-    groupBy === 'symbol' ? (r.symbol ?? '') : (r.timeframe ?? '')
-
-  const map = new Map<string, Recipe[]>()
-  for (const r of recipes) {
-    const k = keyOf(r)
-    const arr = map.get(k)
-    if (arr) arr.push(r)
-    else map.set(k, [r])
-  }
-  const out: StrategyGroup[] = []
-  for (const [k, groupItems] of map.entries()) {
-    const isUnassigned = !k
-    out.push({
-      key: `${groupBy}:${k || '_unassigned'}`,
-      label: isUnassigned ? 'Unassigned' : k,
-      rank: isUnassigned ? Number.POSITIVE_INFINITY : 0,
-      items: groupItems,
-      aggregate: aggregate(groupItems),
-    })
-  }
-  return out.sort((a, b) => {
-    if (a.rank !== b.rank) return a.rank - b.rank
-    if (a.aggregate.count !== b.aggregate.count) return b.aggregate.count - a.aggregate.count
-    return a.label.localeCompare(b.label)
-  })
-}
-```
-
-`StrategyGroup` の型を変える。
-
-```ts
-export interface StrategyGroup {
-  key: string
-  label: string
-  rank: number
-  items: Recipe[]
-  aggregate: GroupAggregate
-}
-```
-
-`sharpeTierKey` の引数を `number | null | undefined` に広げる。
-
-```ts
-function sharpeTierKey(v: number | null | undefined): TierKey {
-  if (v == null) return 'no_data'
-  if (v >= 1.5) return 'strong'
-  if (v >= 1.0) return 'moderate'
-  return 'weak'
-}
-```
-
-- [ ] **Step 5: `include_unrun` とパイプラインを組む**
-
-`VALID_GROUP_BY` の下に URL 変換を追加する。
-
-```ts
-function toIncludeUnrun(v: string | null): boolean {
-  return v === '1'
-}
-```
-
-`StrategyListState` に追加する。
-
-```ts
-export interface StrategyListState {
-  all: StrategyListItem[]
-  filtered: StrategyListItem[]
-  /** 絞り込み・未実行除外・ソートを通したレシピ（表の描画対象） */
-  recipes: Recipe[]
-  /** 全戦略から作ったレシピ数。フィルタに依らない分母 */
-  recipeTotal: number
-  /** 未実行トグルで隠れているレシピ数。includeUnrun が true なら 0 */
-  hiddenUnrunRecipeCount: number
-  includeUnrun: boolean
-  groups: StrategyGroup[]
-  loading: boolean
-  error: string | null
-  sortKey: SortKey
-  sortDir: SortDir
-  setSort: (key: SortKey) => void
-  groupBy: GroupBy
-  setGroupBy: (g: GroupBy) => void
-  symbols: string[]
-  timeframes: string[]
-  selectedId: string | null
-  setSelectedId: (id: string | null) => void
-  compareIds: string[]
-  toggleCompareId: (id: string) => void
-  removeCompareId: (id: string) => void
-  clearCompareIds: () => void
-}
-```
-
-`useStrategyList` 本体を組み替える。
-
-```ts
-export function useStrategyList(): StrategyListState {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const { all, loading, error, symbols, timeframes } = useStrategyData()
-
-  const sortKey = toSortKey(searchParams.get('sort'))
-  const sortDir = toSortDir(searchParams.get('dir'))
-  const groupBy = toGroupBy(searchParams.get('group'))
-  const includeUnrun = toIncludeUnrun(searchParams.get('include_unrun'))
-  const q = searchParams.get('q') ?? ''
-  const symbolFilter = useMemo(
-    () => (searchParams.get('symbol') ?? '').split(',').filter(Boolean),
-    [searchParams],
-  )
-  const tfFilter = useMemo(
-    () => (searchParams.get('tf') ?? '').split(',').filter(Boolean),
-    [searchParams],
-  )
-  const sharpeMin = parseFloat(searchParams.get('sharpe_min') ?? '')
-  const ddMax = parseFloat(searchParams.get('dd_max') ?? '')
-
-  const filtered = useFiltering(all, q, symbolFilter, tfFilter, sharpeMin, ddMax)
-
-  // 絞り込み後の戦略をレシピへ畳む。未実行トグルはこのあとに効かせる。
-  const filteredRecipes = useMemo(() => buildRecipes(filtered), [filtered])
-
-  // 「隠した件数」は絞り込み後の集合に対して数える。全体から数えると、
-  // フィルタで既に落ちているレシピまで「トグルで隠した」と報告してしまう。
-  const unrunOnlyCount = useMemo(
-    () => filteredRecipes.filter(r => r.runCount === 0).length,
-    [filteredRecipes],
-  )
-  const visibleRecipes = useMemo(
-    () => (includeUnrun ? filteredRecipes : filteredRecipes.filter(r => r.runCount > 0)),
-    [filteredRecipes, includeUnrun],
-  )
-
-  const recipes = useSortedRecipes(visibleRecipes, sortKey, sortDir)
-  const groups = useGrouping(recipes, groupBy)
-
-  // 分母はフィルタに依らない全体のレシピ数
-  const recipeTotal = useMemo(() => buildRecipes(all).length, [all])
-  ...
-```
-
-戻り値に追加する。
-
-```ts
-  return {
-    all, filtered, recipes, recipeTotal,
-    hiddenUnrunRecipeCount: includeUnrun ? 0 : unrunOnlyCount,
-    includeUnrun,
-    groups, loading, error,
-    sortKey, sortDir, setSort,
-    groupBy, setGroupBy,
-    symbols, timeframes,
-    selectedId, setSelectedId,
-    ...compare,
-  }
-```
-
-`useGrouping` の引数型を `Recipe[]` に変える。
-
-```ts
-function useGrouping(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
-  return useMemo(() => buildGroups(recipes, groupBy), [recipes, groupBy])
-}
-```
-
-- [ ] **Step 6: テストが通ることを確認する**
-
-Run: `cd frontend && pnpm vitest run src/hooks/__tests__/useStrategyList.test.tsx`
-Expected: PASS（既存分 + 新規 6 件）
-
-この時点で `StrategyTable` はまだ `items` を受けているため型エラーが出る。Task 4 で解消するので、`pnpm run build` はここでは通らなくてよい。ただし `useStrategyList.ts` 自体に型エラーが無いことを確認する。
-
-Run: `cd frontend && pnpm vitest run` を実行し、`useStrategyList` 以外の既存テストで壊れたものを一覧化する。壊れているのが `StrategyTable.test.tsx` と `BrowseScreen` 関連だけであることを確認する（それ以外が壊れていれば波及範囲を読み違えているので止まって調べる）。
-
-- [ ] **Step 7: コミット**
-
-```bash
-git add frontend/src/hooks/useStrategyList.ts frontend/src/hooks/__tests__/useStrategyList.test.tsx
-git commit -m "feat(browse): 戦略一覧をレシピ単位のパイプラインに組み替え
-
-絞り込み → ロールアップ → 未実行除外 → ソート → グループ化の順に流す。
-ソートは best の指標で行い、best を持たないレシピは末尾へ沈む。
-
-銘柄の判定を実効銘柄に統一した。選択肢の生成だけ実効銘柄にして絞り込みを
-item.symbol のまま残すと、定義のみで銘柄が判明している戦略はチップに出る
-のに選ぶと 0 件になる。
-
-隠した未実行レシピ数は絞り込み後の集合に対して数える。全体から数えると
-フィルタで既に落ちている分まで「トグルで隠した」と報告してしまう。"
-```
-
-- [ ] **Step 8: ablation でテストの判別力を確認する**
-
-| 退行のさせ方 | 落ちるべきテスト |
-|---|---|
-| `useFiltering` の銘柄判定を `s.symbol ?? ''` に戻す | 「銘柄フィルタが定義のみで判明する銘柄にも効く」 |
-| `symbols` の生成を `all.map(s => s.symbol)` に戻す | 「銘柄の選択肢を実効銘柄から作る」 |
-| `unrunOnlyCount` の集合を `filteredRecipes` から `buildRecipes(all)` に変える | 「隠した未実行レシピ数は絞り込み後の集合から数える」 |
-| `useSortedRecipes` の指標参照を `a.best?.[sortKey]` から `a.variants[0][sortKey]` に変える | 「レシピを best の指標でソートする」 |
-
-Run（各退行ごとに）: `cd frontend && pnpm vitest run src/hooks/__tests__/useStrategyList.test.tsx`
-Expected: 対応するテストが FAIL
-
-確認後 `git checkout -- frontend/src/hooks/useStrategyList.ts` で戻し、`git status` がクリーンであることを確かめる。
-
----
-
-### Task 3: `StrategyRow.tsx` — 1 行 44px 化と `strategy_id` 表示
+### Task 2: `StrategyRow.tsx` — 1 行 44px 化と `strategy_id` 表示
 
 **Files:**
 - Create: `frontend/src/components/browser/StrategyRow.tsx`
@@ -1004,7 +544,7 @@ Expected: 対応するテストが FAIL
   export const TD_BASE: CSSProperties
   export function sharpeTone(v: number | null | undefined): string
   ```
-  `TD_BASE` と `sharpeTone` は `RecipeRow`（Task 4）と `StrategyTable` が共有するため export する。
+  `TD_BASE` と `sharpeTone` は `RecipeRow`（Task 3）と `StrategyTable` が共有するため export する。
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -1361,14 +901,14 @@ Expected: PASS（5 件）
 - [ ] **Step 6: 既存の StrategyTable テストが壊れていないことを確認する**
 
 Run: `cd frontend && pnpm vitest run src/components/browser/__tests__/StrategyTable.test.tsx`
-Expected: PASS（空状態の 2 件。Task 3 では props を変えていないため通るはず）
+Expected: PASS（空状態の 2 件。このタスクでは props を変えていないため通る）
 
 - [ ] **Step 7: Lint**
 
 Run: `cd frontend && pnpm run lint`
 Expected: exit 0
 
-`pnpm run build` は Task 2 の型変更が未解消なのでまだ通らない。Task 4 で通す。
+`pnpm run build` もこの時点で通る。props の型は変えていないため。Task 3 で `recipes` を受けるように変える。
 
 - [ ] **Step 8: コミット**
 
@@ -1390,17 +930,33 @@ strategy_id を表示するようにした。実データには完全同名が 1
 
 ---
 
-### Task 4: `RecipeRow.tsx` と `StrategyTable` のレシピ行描画・展開
+### Task 3: レシピのパイプラインと表の描画
+
+`useStrategyList` の型変更とその追随（`RecipeRow` / `StrategyTable` / `BrowseScreen`）を
+1 タスクにまとめる。`StrategyGroup.items` を `Recipe[]` に変える変更は、`StrategyTable`
+が追随するまで `pnpm run build` を通せない。分けるとビルド不能なコミットが履歴に残るため、
+型変更とその消費側を同じコミットに入れる。
 
 **Files:**
+- Modify: `frontend/src/hooks/useStrategyList.ts`
 - Create: `frontend/src/components/browser/RecipeRow.tsx`
 - Modify: `frontend/src/components/browser/StrategyTable.tsx`
-- Modify: `frontend/src/screens/BrowseScreen.tsx`（`StrategyTable` へ渡す props の差し替えのみ）
-- Modify: `frontend/src/components/browser/__tests__/StrategyTable.test.tsx`（props 変更に追随）
+- Modify: `frontend/src/screens/BrowseScreen.tsx`
+- Test: `frontend/src/hooks/__tests__/useStrategyList.test.tsx`
 - Test: `frontend/src/components/browser/__tests__/RecipeRow.test.tsx`（新規）
+- Test: `frontend/src/components/browser/__tests__/StrategyTable.test.tsx`（props 変更に追随）
 
 **Interfaces:**
-- Consumes: Task 1 の `Recipe`、Task 3 の `StrategyRow` / `TD_BASE` / `sharpeTone`、Task 2 の `StrategyGroup`（`items: Recipe[]`）
+- Consumes: Task 1 の `Recipe` / `buildRecipes` / `effectiveSymbol`
+- Produces: `StrategyListState` に次を追加。`StrategyGroup.items` の型が `StrategyListItem[]` から `Recipe[]` へ変わる。
+  - `recipes: Recipe[]` — 絞り込み・未実行除外・ソート済み
+  - `recipeTotal: number` — 全戦略から作ったレシピ数（フィルタ非依存の分母）
+  - `hiddenUnrunRecipeCount: number` — 未実行トグルで隠れているレシピ数
+  - `includeUnrun: boolean`
+  - `groups: StrategyGroup[]`（`items: Recipe[]`）
+
+**Interfaces:**
+- Consumes: Task 1 の `Recipe` / `buildRecipes` / `effectiveSymbol`、Task 2 の `StrategyRow` / `TD_BASE` / `sharpeTone`
 - Produces:
   ```ts
   export interface RecipeRowProps {
@@ -1420,6 +976,414 @@ strategy_id を表示するようにした。実データには完全同名が 1
   `StrategyTable` の props は `items: StrategyListItem[]` / `total: number` から `recipes: Recipe[]` / `strategyTotal: number` へ変わる。`groups?: StrategyGroup[]` は型が変わるだけで名前は同じ。
 
 - [ ] **Step 1: 失敗するテストを書く**
+
+`frontend/src/hooks/__tests__/useStrategyList.test.tsx` の末尾に追記する。
+
+既存ファイルのハーネスをそのまま使う。次の 3 点を守ること。
+
+1. 戦略の注入は `vi.mocked(api.listStrategies).mockResolvedValue(...)` で行う。`beforeEach` で `SAMPLE` が入るので、別データを使うテストでは冒頭で上書きする
+2. レンダリングは既存の `renderWithUrl(initialUrl)` を使う（新しいヘルパを作らない）
+3. hook の値は **`result.current.list.X`** で読む（`result.current.X` ではない。`useHarness` が `{ list, search }` を返している）
+4. `StrategyListItem` のリテラルは既存 `SAMPLE` と同じく必要なフィールドのみ書く（`tags` と `target_symbols` は必須）
+
+```tsx
+describe('useStrategyList — レシピ・ロールアップ', () => {
+  // 同名 3 件（2 件実行済み・1 件未実行）＋ 全 variant 未実行のレシピ 1 件
+  const ROLLUP: StrategyListItem[] = [
+    { strategy_id: 'amd_v1', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.5, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+    { strategy_id: 'amd_v2', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.9, last_run_at: '2026-01-02T00:00:00', tags: [], target_symbols: [] },
+    { strategy_id: 'amd_v3', name: 'AMD EMA ST', symbol: null, timeframe: '1d', tags: [], target_symbols: ['AMD'] },
+    { strategy_id: 'idle_v1', name: 'Idle Recipe', symbol: null, timeframe: '1d', tags: [], target_symbols: ['SPY'] },
+  ]
+
+  beforeEach(() => {
+    vi.mocked(api.listStrategies).mockResolvedValue(ROLLUP)
+  })
+
+  it('未実行のみのレシピを既定で除外し、隠した件数を数える', async () => {
+    const { result } = renderWithUrl('/browse')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.recipes[0].name).toBe('AMD EMA ST')
+    expect(result.current.list.recipes[0].variantCount).toBe(3)
+    expect(result.current.list.recipes[0].runCount).toBe(2)
+    expect(result.current.list.recipeTotal).toBe(2)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(1)
+    expect(result.current.list.includeUnrun).toBe(false)
+  })
+
+  it('include_unrun=1 で未実行のみのレシピも出す', async () => {
+    const { result } = renderWithUrl('/browse?include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(2)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
+    expect(result.current.list.includeUnrun).toBe(true)
+  })
+
+  it('銘柄フィルタが定義のみで判明する銘柄にも効く', async () => {
+    // idle_v1 は symbol=null / target_symbols=['SPY']。実効銘柄で絞り込まない
+    // 実装だとチップには SPY が出るのに選ぶと 0 件になる。
+    const { result } = renderWithUrl('/browse?symbol=SPY&include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.recipes[0].name).toBe('Idle Recipe')
+  })
+
+  it('銘柄の選択肢を実効銘柄から作る', async () => {
+    const { result } = renderWithUrl('/browse')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    // amd_v3 と idle_v1 は symbol=null。定義側を見ないと AMD だけになる
+    expect(result.current.list.symbols).toEqual(['AMD', 'SPY'])
+  })
+
+  it('レシピを best の指標でソートする', async () => {
+    vi.mocked(api.listStrategies).mockResolvedValue([
+      { strategy_id: 'lo', name: 'Low', symbol: 'SPY', timeframe: '1d', latest_sharpe: 0.3, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+      { strategy_id: 'hi', name: 'High', symbol: 'QQQ', timeframe: '1d', latest_sharpe: 1.8, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+    ])
+    const { result } = renderWithUrl('/browse?sort=latest_sharpe&dir=desc')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes.map(r => r.name)).toEqual(['High', 'Low'])
+  })
+
+  it('groups はレシピを束ねる', async () => {
+    const { result } = renderWithUrl('/browse?group=symbol&include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    const labels = result.current.list.groups.map(g => g.label).sort()
+    expect(labels).toEqual(['AMD', 'SPY'])
+    for (const g of result.current.list.groups) {
+      expect(g.aggregate.count).toBe(g.items.length)
+    }
+  })
+
+  it('隠した未実行レシピ数は絞り込み後の集合から数える', async () => {
+    // ?symbol=AMD だと AMD レシピ（実行済み）だけが残り、未実行のみの
+    // Idle Recipe は絞り込みで既に落ちている。これを「トグルで隠した 1 件」と
+    // 報告してはならない。全体から数える実装だと 1 になって落ちる。
+    const { result } = renderWithUrl('/browse?symbol=AMD')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
+  })
+})
+```
+
+既存の `SAMPLE`（`Alpha` / `Bravo` / `Charlie`）はすべて別名・別銘柄・別時間軸なので、ロールアップ後も 3 レシピになる。既存テストは `sortKey` / `groupBy` / `selectedId` / `compareIds` / URL 往復しか見ておらず `filtered` も `groups` も参照していないため、そのまま通る。
+
+`filtered` はこのタスクの後半（Step 14）で消費者がいなくなるので、そこで削除する。Step 5 の時点では `BrowseScreen` がまだ使っているため残す。
+
+- [ ] **Step 2: テストが失敗することを確認する**
+
+Run: `cd frontend && pnpm vitest run src/hooks/__tests__/useStrategyList.test.tsx`
+Expected: FAIL — `result.current.recipes` が `undefined`
+
+- [ ] **Step 3: 実効銘柄を絞り込みと選択肢に適用する**
+
+`frontend/src/hooks/useStrategyList.ts` を編集する。冒頭に import を追加する。
+
+```ts
+import { buildRecipes, effectiveSymbol, type Recipe } from '../lib/recipes'
+```
+
+`useStrategyData` の `symbols` を実効銘柄ベースに変える。
+
+```ts
+  const symbols = useMemo(
+    () => [...new Set(all.map(effectiveSymbol).filter((s): s is string => Boolean(s)))].sort(),
+    [all],
+  )
+```
+
+`useFiltering` の銘柄参照を 2 箇所とも実効銘柄に変える。
+
+```ts
+function useFiltering(
+  all: StrategyListItem[],
+  q: string,
+  symbolFilter: string[],
+  tfFilter: string[],
+  sharpeMin: number,
+  ddMax: number,
+): StrategyListItem[] {
+  return useMemo(() => {
+    const needle = q.toLowerCase()
+    return all.filter(s => {
+      // 銘柄は実効銘柄で判定する。item.symbol だけを見ると、定義のみで
+      // 銘柄が判明している戦略はチップに出るのに選ぶと 0 件になる。
+      const symbol = effectiveSymbol(s) ?? ''
+      if (q && !s.name.toLowerCase().includes(needle) && !symbol.toLowerCase().includes(needle)) return false
+      if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) return false
+      if (tfFilter.length > 0 && !tfFilter.includes(s.timeframe ?? '')) return false
+      if (!isNaN(sharpeMin) && numVal(s.latest_sharpe) < sharpeMin) return false
+      if (!isNaN(ddMax) && Math.abs(numVal(s.latest_max_drawdown_pct)) > ddMax) return false
+      return true
+    })
+  }, [all, q, symbolFilter, tfFilter, sharpeMin, ddMax])
+}
+```
+
+- [ ] **Step 4: レシピのソートとグループ化に差し替える**
+
+同ファイルの `useSortedItems` を `useSortedRecipes` に置き換える。`SortKey` はこのファイルで定義されているのでここに置く（`lib/recipes.ts` へ移すと循環 import になる）。
+
+```ts
+/** レシピを best の指標で並べる。best が無いレシピは常に末尾に沈む。 */
+function useSortedRecipes(
+  recipes: Recipe[],
+  sortKey: SortKey,
+  sortDir: SortDir,
+): Recipe[] {
+  return useMemo(() => {
+    return [...recipes].sort((a, b) => {
+      let va: number | string
+      let vb: number | string
+      if (sortKey === 'name') {
+        va = a.name
+        vb = b.name
+      } else if (sortKey === 'last_run_at') {
+        va = a.best?.last_run_at ?? ''
+        vb = b.best?.last_run_at ?? ''
+      } else {
+        va = numVal(a.best?.[sortKey] as number | null | undefined)
+        vb = numVal(b.best?.[sortKey] as number | null | undefined)
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [recipes, sortKey, sortDir])
+}
+```
+
+`numVal` は `null` のみを受ける現在の実装を `undefined` も受けるように広げる。
+
+```ts
+function numVal(v: number | null | undefined): number {
+  return v ?? -Infinity
+}
+```
+
+`aggregate` と `buildGroups` をレシピ向けに変える。
+
+```ts
+function aggregate(recipes: Recipe[]): GroupAggregate {
+  let bestSharpe: number | null = null
+  let worstDd: number | null = null
+  for (const r of recipes) {
+    const sharpe = r.best?.latest_sharpe
+    if (sharpe != null) {
+      bestSharpe = bestSharpe == null ? sharpe : Math.max(bestSharpe, sharpe)
+    }
+    const dd = r.best?.latest_max_drawdown_pct
+    if (dd != null) {
+      worstDd = worstDd == null ? dd : Math.min(worstDd, dd)
+    }
+  }
+  return { count: recipes.length, bestSharpe, worstDrawdownPct: worstDd }
+}
+
+function buildGroups(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
+  if (groupBy === 'none') {
+    if (recipes.length === 0) return []
+    return [{ key: 'all', label: 'all', rank: 0, items: recipes, aggregate: aggregate(recipes) }]
+  }
+
+  if (groupBy === 'tier') {
+    const buckets: Record<TierKey, Recipe[]> = {
+      strong: [], moderate: [], weak: [], no_data: [],
+    }
+    for (const r of recipes) {
+      buckets[sharpeTierKey(r.best?.latest_sharpe)].push(r)
+    }
+    const out: StrategyGroup[] = []
+    for (const tierKey of Object.keys(buckets) as TierKey[]) {
+      const tierItems = buckets[tierKey]
+      if (tierItems.length === 0) continue
+      out.push({
+        key: `tier:${tierKey}`,
+        label: TIER_LABEL[tierKey],
+        rank: TIER_RANK[tierKey],
+        items: tierItems,
+        aggregate: aggregate(tierItems),
+      })
+    }
+    return out.sort((a, b) => a.rank - b.rank)
+  }
+
+  // groupBy: 'symbol' | 'tf'
+  const keyOf = (r: Recipe): string =>
+    groupBy === 'symbol' ? (r.symbol ?? '') : (r.timeframe ?? '')
+
+  const map = new Map<string, Recipe[]>()
+  for (const r of recipes) {
+    const k = keyOf(r)
+    const arr = map.get(k)
+    if (arr) arr.push(r)
+    else map.set(k, [r])
+  }
+  const out: StrategyGroup[] = []
+  for (const [k, groupItems] of map.entries()) {
+    const isUnassigned = !k
+    out.push({
+      key: `${groupBy}:${k || '_unassigned'}`,
+      label: isUnassigned ? 'Unassigned' : k,
+      rank: isUnassigned ? Number.POSITIVE_INFINITY : 0,
+      items: groupItems,
+      aggregate: aggregate(groupItems),
+    })
+  }
+  return out.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.aggregate.count !== b.aggregate.count) return b.aggregate.count - a.aggregate.count
+    return a.label.localeCompare(b.label)
+  })
+}
+```
+
+`StrategyGroup` の型を変える。
+
+```ts
+export interface StrategyGroup {
+  key: string
+  label: string
+  rank: number
+  items: Recipe[]
+  aggregate: GroupAggregate
+}
+```
+
+`sharpeTierKey` の引数を `number | null | undefined` に広げる。
+
+```ts
+function sharpeTierKey(v: number | null | undefined): TierKey {
+  if (v == null) return 'no_data'
+  if (v >= 1.5) return 'strong'
+  if (v >= 1.0) return 'moderate'
+  return 'weak'
+}
+```
+
+- [ ] **Step 5: `include_unrun` とパイプラインを組む**
+
+`VALID_GROUP_BY` の下に URL 変換を追加する。
+
+```ts
+function toIncludeUnrun(v: string | null): boolean {
+  return v === '1'
+}
+```
+
+`StrategyListState` に追加する。
+
+```ts
+export interface StrategyListState {
+  all: StrategyListItem[]
+  filtered: StrategyListItem[]
+  /** 絞り込み・未実行除外・ソートを通したレシピ（表の描画対象） */
+  recipes: Recipe[]
+  /** 全戦略から作ったレシピ数。フィルタに依らない分母 */
+  recipeTotal: number
+  /** 未実行トグルで隠れているレシピ数。includeUnrun が true なら 0 */
+  hiddenUnrunRecipeCount: number
+  includeUnrun: boolean
+  groups: StrategyGroup[]
+  loading: boolean
+  error: string | null
+  sortKey: SortKey
+  sortDir: SortDir
+  setSort: (key: SortKey) => void
+  groupBy: GroupBy
+  setGroupBy: (g: GroupBy) => void
+  symbols: string[]
+  timeframes: string[]
+  selectedId: string | null
+  setSelectedId: (id: string | null) => void
+  compareIds: string[]
+  toggleCompareId: (id: string) => void
+  removeCompareId: (id: string) => void
+  clearCompareIds: () => void
+}
+```
+
+`useStrategyList` 本体を組み替える。
+
+```ts
+export function useStrategyList(): StrategyListState {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { all, loading, error, symbols, timeframes } = useStrategyData()
+
+  const sortKey = toSortKey(searchParams.get('sort'))
+  const sortDir = toSortDir(searchParams.get('dir'))
+  const groupBy = toGroupBy(searchParams.get('group'))
+  const includeUnrun = toIncludeUnrun(searchParams.get('include_unrun'))
+  const q = searchParams.get('q') ?? ''
+  const symbolFilter = useMemo(
+    () => (searchParams.get('symbol') ?? '').split(',').filter(Boolean),
+    [searchParams],
+  )
+  const tfFilter = useMemo(
+    () => (searchParams.get('tf') ?? '').split(',').filter(Boolean),
+    [searchParams],
+  )
+  const sharpeMin = parseFloat(searchParams.get('sharpe_min') ?? '')
+  const ddMax = parseFloat(searchParams.get('dd_max') ?? '')
+
+  const filtered = useFiltering(all, q, symbolFilter, tfFilter, sharpeMin, ddMax)
+
+  // 絞り込み後の戦略をレシピへ畳む。未実行トグルはこのあとに効かせる。
+  const filteredRecipes = useMemo(() => buildRecipes(filtered), [filtered])
+
+  // 「隠した件数」は絞り込み後の集合に対して数える。全体から数えると、
+  // フィルタで既に落ちているレシピまで「トグルで隠した」と報告してしまう。
+  const unrunOnlyCount = useMemo(
+    () => filteredRecipes.filter(r => r.runCount === 0).length,
+    [filteredRecipes],
+  )
+  const visibleRecipes = useMemo(
+    () => (includeUnrun ? filteredRecipes : filteredRecipes.filter(r => r.runCount > 0)),
+    [filteredRecipes, includeUnrun],
+  )
+
+  const recipes = useSortedRecipes(visibleRecipes, sortKey, sortDir)
+  const groups = useGrouping(recipes, groupBy)
+
+  // 分母はフィルタに依らない全体のレシピ数
+  const recipeTotal = useMemo(() => buildRecipes(all).length, [all])
+  ...
+```
+
+戻り値に追加する。
+
+```ts
+  return {
+    all, filtered, recipes, recipeTotal,
+    hiddenUnrunRecipeCount: includeUnrun ? 0 : unrunOnlyCount,
+    includeUnrun,
+    groups, loading, error,
+    sortKey, sortDir, setSort,
+    groupBy, setGroupBy,
+    symbols, timeframes,
+    selectedId, setSelectedId,
+    ...compare,
+  }
+```
+
+`useGrouping` の引数型を `Recipe[]` に変える。
+
+```ts
+function useGrouping(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
+  return useMemo(() => buildGroups(recipes, groupBy), [recipes, groupBy])
+}
+```
+
+- [ ] **Step 6: 失敗するテストを書く**
 
 `frontend/src/components/browser/__tests__/RecipeRow.test.tsx` を新規作成する。
 
@@ -1549,12 +1513,12 @@ describe('<RecipeRow />', () => {
 })
 ```
 
-- [ ] **Step 2: テストが失敗することを確認する**
+- [ ] **Step 7: テストが失敗することを確認する**
 
 Run: `cd frontend && pnpm vitest run src/components/browser/__tests__/RecipeRow.test.tsx`
 Expected: FAIL — `Failed to resolve import "../RecipeRow"`
 
-- [ ] **Step 3: `RecipeRow.tsx` を実装する**
+- [ ] **Step 8: `RecipeRow.tsx` を実装する**
 
 ```tsx
 import { useState } from 'react'
@@ -1767,12 +1731,12 @@ export function RecipeRow({
 
 `fmtNumber` は `number | null | undefined` を受ける既存実装なので `best?.latest_sharpe` をそのまま渡してよい。渡せない場合は `?? null` を付ける。
 
-- [ ] **Step 4: テストが通ることを確認する**
+- [ ] **Step 9: テストが通ることを確認する**
 
 Run: `cd frontend && pnpm vitest run src/components/browser/__tests__/RecipeRow.test.tsx`
 Expected: PASS（8 件）
 
-- [ ] **Step 5: `StrategyTable` をレシピ対応にする**
+- [ ] **Step 10: `StrategyTable` をレシピ対応にする**
 
 `StrategyTable.tsx` の props と描画を差し替える。
 
@@ -1790,7 +1754,7 @@ interface Props {
   onToggleCompare: (id: string) => void
   lang: Lang
   groups?: StrategyGroup[]
-  /** フッタに出す件数（Task 5 で追加） */
+  /** フッタに出す件数（Task 4 で `StrategyTableFooter` が使う） */
   recipeTotal: number
   hiddenUnrunRecipeCount: number
 }
@@ -1882,7 +1846,7 @@ interface Props {
 
 `colSpan={COL_COUNT}` は列数が 9 のまま変わらないので触らない。オンボーディング CTA の文言・URL・`utm_medium=empty_state` も変更しない（`StrategyTable.test.tsx` がこれらを固定している）。
 
-既存フッタ（`${items.length}件 / 全${total}件`）は Task 5 で `StrategyTableFooter` に置き換える。このタスクでは件数だけ差し替えた暫定表示にしておく。
+既存フッタ（`${items.length}件 / 全${total}件`）は Task 4 で `StrategyTableFooter` に置き換える。このタスクでは件数だけ差し替えた暫定表示にしておく。
 
 ```tsx
       <div
@@ -1902,7 +1866,7 @@ interface Props {
       </div>
 ```
 
-- [ ] **Step 6: `BrowseScreen` の props を差し替える**
+- [ ] **Step 11: `BrowseScreen` の props を差し替える**
 
 ```tsx
           <StrategyTable
@@ -1922,7 +1886,7 @@ interface Props {
           />
 ```
 
-- [ ] **Step 7: 既存の StrategyTable テストを props 変更に追随させる**
+- [ ] **Step 12: 既存の StrategyTable テストを props 変更に追随させる**
 
 `StrategyTable.test.tsx` の `renderTable` を書き換える。テストの意図（空状態の 2 分岐）は変えない。
 
@@ -1951,7 +1915,7 @@ function renderTable(strategyTotal: number) {
 
 既存ファイルが `MemoryRouter` で包んでいなければ包む（`Link` を含むため必要）。
 
-- [ ] **Step 8: 展開の統合テストを追記する**
+- [ ] **Step 13: 展開の統合テストを追記する**
 
 まず Step 7 で書いた `renderTable` を recipes も受けられるように一般化する。
 
@@ -2008,9 +1972,9 @@ import userEvent from '@testing-library/user-event'
 import { buildRecipes, type Recipe } from '../../../lib/recipes'
 ```
 
-`mkItem` は Task 3 のテストと同じ形のファクトリをこのファイルにも置く。`@testing-library/user-event` は既に devDependencies にあり（`^14.6.1`）、`TabBar` / `ConfirmDialog` / `OverflowMenu` など 8 ファイルで使われているので、新しい依存は不要。
+`mkItem` は Task 2 のテストと同じ形のファクトリをこのファイルにも置く。`@testing-library/user-event` は既に devDependencies にあり（`^14.6.1`）、`TabBar` / `ConfirmDialog` / `OverflowMenu` など 8 ファイルで使われているので、新しい依存は不要。
 
-- [ ] **Step 9: 消費者のいなくなった `filtered` を落とす**
+- [ ] **Step 14: 消費者のいなくなった `filtered` を落とす**
 
 `StrategyTable` が `recipes` を受けるようになった時点で、`list.filtered` の消費者はゼロになる（`Heroline` と `SymbolAtlas` は `list.all` を受けており、`IdeasPage` の `list.filtered` は別 hook のもの）。公開された未使用フィールドを残さない。
 
@@ -2032,48 +1996,68 @@ import { buildRecipes, type Recipe } from '../../../lib/recipes'
 
 SP2 のカバレッジモードで絞り込み後の戦略集合が必要になったら 1 行で戻せる。使う当てが無いうちは公開しない。
 
-- [ ] **Step 10: 全テストと型チェック**
+- [ ] **Step 15: 全テストと型チェック**
 
 Run: `cd frontend && pnpm vitest run && pnpm run lint && pnpm run build`
-Expected: すべて exit 0。ここで初めて `pnpm run build` が通る（Task 2 の型変更が解消される）
+Expected: すべて exit 0
 
-`Heroline` と `SymbolAtlas` は `items: StrategyListItem[]` を受け続けるので変更不要。型エラーが出たらそこを確認する。
+型変更と追随が同じタスク内で完結するので、ここでビルドが通らなければ何かを取りこぼしている。
+`Heroline` と `SymbolAtlas` は `items: StrategyListItem[]` を受け続けるので変更不要。
 
-- [ ] **Step 11: コミット**
+- [ ] **Step 16: コミット**
 
 ```bash
-git add frontend/src/components/browser/RecipeRow.tsx \
+git add frontend/src/hooks/useStrategyList.ts \
+        frontend/src/hooks/__tests__/useStrategyList.test.tsx \
+        frontend/src/components/browser/RecipeRow.tsx \
         frontend/src/components/browser/StrategyTable.tsx \
         frontend/src/components/browser/__tests__/RecipeRow.test.tsx \
         frontend/src/components/browser/__tests__/StrategyTable.test.tsx \
         frontend/src/screens/BrowseScreen.tsx
-git commit -m "feat(browse): 表をレシピ単位で描画し展開で個別戦略を出す
+git commit -m "feat(browse): 戦略一覧をレシピ単位に畳んで表に描く
+
+絞り込み → ロールアップ → 未実行除外 → ソート → グループ化の順に流す。
+ソートは best の指標で行い、best を持たないレシピは末尾へ沈む。
 
 同名 15 件が 1 行に畳まれ、展開トグルで strategy_id 付きの子行が出る。
 
 行に出す指標は best 1 件から取る。列ごとに最大を取ると実在しない戦略の
 成績を合成表示することになるため、テストで固定した。
 
-比較チェックボックスは best を選ぶショートカット。全 variant 未実行の
-レシピは指標が無く比較しても意味が無いので disabled にした。"
+銘柄の判定を実効銘柄に統一した。選択肢の生成だけ実効銘柄にして絞り込みを
+item.symbol のまま残すと、定義のみで銘柄が判明している戦略はチップに出る
+のに選ぶと 0 件になる。
+
+隠した未実行レシピ数は絞り込み後の集合に対して数える。全体から数えると
+フィルタで既に落ちている分まで「トグルで隠した」と報告してしまう。
+
+StrategyGroup.items の型変更と StrategyTable の追随を同じコミットに入れて
+いる。分けるとビルド不能な中間コミットが履歴に残る。"
 ```
 
-- [ ] **Step 12: ablation でテストの判別力を確認する**
+- [ ] **Step 17: ablation でテストの判別力を確認する**
+
+コミット済みなので安全に壊せる。1 つずつ入れて対応するテストが落ちることを確認し、
+毎回 `git checkout -- <該当ファイル>` で戻す。
 
 | 退行のさせ方 | 落ちるべきテスト |
 |---|---|
+| `useFiltering` の銘柄判定を `s.symbol ?? ''` に戻す | 「銘柄フィルタが定義のみで判明する銘柄にも効く」 |
+| `symbols` の生成を `all.map(s => s.symbol)` に戻す | 「銘柄の選択肢を実効銘柄から作る」 |
+| `unrunOnlyCount` の集合を `filteredRecipes` から `buildRecipes(all)` に変える | 「隠した未実行レシピ数は絞り込み後の集合から数える」 |
+| `useSortedRecipes` の指標参照を `a.best?.[sortKey]` から `a.variants[0][sortKey]` に変える | 「レシピを best の指標でソートする」 |
 | `RecipeRow` のリターン列を `Math.max(...recipe.variants.map(v => v.latest_return_pct ?? -Infinity))` に変える | 「指標は best 1 件の値で、列ごとの最大を混ぜない」 |
 | `expandable` を `recipe.variantCount >= 1` に変える | 「試行が 1 件だけなら展開トグルを出さない」 |
 | 比較チェックボックスの `disabled` から `best == null` を外す | 「全 variant が未実行なら比較チェックボックスを無効にする」 |
 
-Run（各退行ごとに）: `cd frontend && pnpm vitest run src/components/browser/__tests__/RecipeRow.test.tsx`
-Expected: 対応するテストが FAIL
+Run（各退行ごとに）: `cd frontend && pnpm vitest run src/hooks/__tests__/useStrategyList.test.tsx src/components/browser/__tests__/RecipeRow.test.tsx`
+Expected: 対応するテストが FAIL し、他は PASS のまま
 
-確認後 `git checkout -- frontend/src/components/browser/RecipeRow.tsx` で戻し、`git status` がクリーンであることを確かめる。
+7 つ確認したら `git status` で作業ツリーがクリーン（退行が残っていない）ことを確かめる。
 
 ---
 
-### Task 5: `StrategyTableFooter.tsx` — 件数開示
+### Task 4: `StrategyTableFooter.tsx` — 件数開示
 
 **Files:**
 - Create: `frontend/src/components/browser/StrategyTableFooter.tsx`
@@ -2081,7 +2065,7 @@ Expected: 対応するテストが FAIL
 - Test: `frontend/src/components/browser/__tests__/StrategyTableFooter.test.tsx`（新規）
 
 **Interfaces:**
-- Consumes: Task 2 の `recipeTotal` / `hiddenUnrunRecipeCount`
+- Consumes: Task 3 の `recipeTotal` / `hiddenUnrunRecipeCount`
 - Produces:
   ```ts
   export interface StrategyTableFooterProps {
@@ -2254,7 +2238,7 @@ git commit -m "feat(browse): 表示件数と除外した未実行レシピ数を
 
 ---
 
-### Task 6: クローム圧縮
+### Task 5: クローム圧縮
 
 **Files:**
 - Create: `frontend/src/components/browser/CollapsibleSection.tsx`
@@ -2636,14 +2620,14 @@ git commit -m "feat(browse): 表に到達するまでのクロームを圧縮
 
 ---
 
-### Task 7: E2E fixture 拡張と E2E テスト
+### Task 6: E2E fixture 拡張と E2E テスト
 
 **Files:**
 - Modify: `tests/fixtures/build_e2e_fixture.py`
 - Modify: `frontend/e2e/specs/browse.spec.ts`
 
 **Interfaces:**
-- Consumes: Task 4 / 5 / 6 の UI
+- Consumes: Task 3 / 4 / 5 の UI
 - Produces: 拡張された `frontend/e2e/fixtures/forge/`（`data/strategies/*.json` と `data/results/backtest_results.db`）
 
 現行 fixture は 3 戦略（`sma_cross` / `rsi_reversal` / `momo_breakout`、すべて `target_symbols: ["SPY"]` / `1d`）でロールアップを検証できない。次を追加する。
@@ -2918,14 +2902,14 @@ E2E で展開・件数開示・未実行トグル・同名別銘柄の分離・�
 
 ---
 
-### Task 8: 実データ検証・スクリーンショット再撮影・最終ゲート
+### Task 7: 実データ検証・スクリーンショット再撮影・最終ゲート
 
 **Files:**
 - Modify: `docs/screenshots/ja/browse.png`
 - Modify: `docs/screenshots/en/browse.png`
 
 **Interfaces:**
-- Consumes: Task 1〜7 のすべて
+- Consumes: Task 1〜6 のすべて
 
 - [ ] **Step 1: 実データでサーバーを起動する**
 
@@ -3045,7 +3029,7 @@ git commit -m "docs: ブラウズ画面のスクリーンショットを再撮�
 
 本文はファイルに書いてから渡す（インラインの `--body` はバックティックが壊れる）。
 
-次の本文を雛形として使う。`（実測）` の箇所だけを Task 8 Step 2 の計測結果で置き換える。それ以外はそのまま使える。
+次の本文を雛形として使う。`（実測）` の箇所だけを Task 7 Step 2 の計測結果で置き換える。それ以外はそのまま使える。
 
 ```bash
 cat > /tmp/pr-body.md <<'BODY'
@@ -3140,13 +3124,13 @@ gh pr create --title "feat(browse): ブラウズ画面をレシピ単位に畳�
 
 | # | 条件 | 確認方法 |
 |---|---|---|
-| 1 | 実データでページ全高 < 8,000px | Task 8 Step 2 |
-| 2 | 実データで表の 1 行目 < 700px | Task 8 Step 2 |
-| 3 | 同名 15 件が 1 行に畳まれ展開で個別 ID が出る | Task 8 Step 3 |
-| 4 | レシピ行の指標が best 1 件の値である | Task 1 / Task 4 の単体テスト＋ablation |
-| 5 | 隠した未実行レシピ数が常に表示される | Task 5 の単体テスト＋Task 7 の E2E |
-| 6 | 実効銘柄が不明な戦略が 23 件（334 件から減る） | Task 8 Step 4 |
-| 7 | 既存機能（比較・スライドパネル・ソート・グループ・レンズ）が回帰しない | Task 7 の E2E＋Task 8 Step 3 |
-| 8 | `uv run pytest tests/ -q` / `uv run ruff check src/ tests/` | Task 8 Step 7 |
-| 9 | `pnpm vitest run` / `pnpm run lint` / `pnpm run build` / `pnpm run e2e` | Task 8 Step 7 |
-| 10 | `docs/screenshots/{ja,en}/browse.png` が再撮影されている | Task 8 Step 6 |
+| 1 | 実データでページ全高 < 8,000px | Task 7 Step 2 |
+| 2 | 実データで表の 1 行目 < 700px | Task 7 Step 2 |
+| 3 | 同名 15 件が 1 行に畳まれ展開で個別 ID が出る | Task 7 Step 3 |
+| 4 | レシピ行の指標が best 1 件の値である | Task 1 / Task 3 の単体テスト＋ablation |
+| 5 | 隠した未実行レシピ数が常に表示される | Task 4 の単体テスト＋Task 6 の E2E |
+| 6 | 実効銘柄が不明な戦略が 23 件（334 件から減る） | Task 7 Step 4 |
+| 7 | 既存機能（比較・スライドパネル・ソート・グループ・レンズ）が回帰しない | Task 6 の E2E＋Task 7 Step 3 |
+| 8 | `uv run pytest tests/ -q` / `uv run ruff check src/ tests/` | Task 7 Step 7 |
+| 9 | `pnpm vitest run` / `pnpm run lint` / `pnpm run build` / `pnpm run e2e` | Task 7 Step 7 |
+| 10 | `docs/screenshots/{ja,en}/browse.png` が再撮影されている | Task 7 Step 6 |
