@@ -133,4 +133,25 @@ describe('<RecipeRow />', () => {
     const link = screen.getByRole('link', { name: /AMD EMA/ })
     expect(link.getAttribute('href')).toBe(`/detail/${recipe.variants[0]?.strategy_id}`)
   })
+
+  /**
+   * vis#299: best がチューニング試行（保存していないパラメータ）由来のとき、
+   * Browse 一覧の latest 指標がすり替わったことに気づけるようマーカーを出す。
+   * レシピ行の指標はすべて best 由来なので、バッジも best の latest_source に従う。
+   */
+  it('best がチューニング試行ならバッジを出す', () => {
+    const recipe = firstRecipe([
+      mkItem({ strategy_id: 'v1', latest_sharpe: 1.2, last_run_at: '2026-01-01T00:00:00', latest_source: 'strategy-file' }),
+    ])
+    renderRecipe(recipe)
+    expect(screen.getByTestId('latest-source-badge')).toBeInTheDocument()
+  })
+
+  it('best が通常のランならバッジを出さない', () => {
+    const recipe = firstRecipe([
+      mkItem({ strategy_id: 'v1', latest_sharpe: 1.2, last_run_at: '2026-01-01T00:00:00', latest_source: 'strategy' }),
+    ])
+    renderRecipe(recipe)
+    expect(screen.queryByTestId('latest-source-badge')).not.toBeInTheDocument()
+  })
 })

@@ -8,6 +8,7 @@ import { Sparkline } from '../../charts/visx/Sparkline'
 import { fmtNumber, fmtDate } from '../../lib/format'
 import { COMPARE_MAX } from '../../hooks/useStrategyList'
 import { TD_BASE, sharpeTone } from './StrategyRow'
+import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 export interface RecipeRowProps {
   recipe: Recipe
@@ -168,6 +169,23 @@ export function RecipeRow({
       </td>
       <td style={{ ...TD_BASE, color: sharpeTone(best?.latest_sharpe), fontWeight: 700, fontSize: '1rem' }}>
         {fmtNumber(best?.latest_sharpe, { decimals: 2 })}
+        {best?.latest_source === RUN_SOURCE_STRATEGY_FILE && (
+          <span
+            data-testid="latest-source-badge"
+            role="img"
+            aria-label={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            title={L(
+              '最新ランはチューニング試行（保存していないパラメータ）です',
+              'Latest run is a tuning trial with unsaved parameters',
+            )}
+            style={{ marginLeft: 4, color: 'var(--warn)', fontSize: 10 }}
+          >
+            ⚠
+          </span>
+        )}
       </td>
       <td
         style={{
