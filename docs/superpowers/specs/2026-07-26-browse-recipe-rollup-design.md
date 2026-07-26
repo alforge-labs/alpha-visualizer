@@ -131,6 +131,18 @@ components/browser/StrategyTable.tsx（分割）
 
 この修正の副次的効果として、銘柄フィルタの選択肢が 35 → 46 に増える。
 
+**実効銘柄はロールアップキーだけでなく、銘柄を扱うすべての箇所に一貫して適用しなければならない。** 選択肢の生成だけを実効銘柄にして絞り込み側を `item.symbol` のまま残すと、定義のみで判明している 11 銘柄はチップに出るのに選ぶと 0 件になる。適用先は次のとおり。
+
+| 箇所 | 現状 | 修正後 |
+|---|---|---|
+| 銘柄チップの選択肢（`useStrategyList.symbols`） | `item.symbol` | 実効銘柄 |
+| 銘柄フィルタの絞り込み（`useFiltering`） | `item.symbol` | 実効銘柄 |
+| 検索語のマッチ（`useFiltering` の `q`） | `item.symbol` | 実効銘柄 |
+| グループ化（`buildGroups` の `symbol`） | `item.symbol` | レシピの実効銘柄 |
+| ヒーローの銘柄数（`Heroline`） | `item.symbol` | 実効銘柄 |
+| 銘柄アトラス（`useSymbolStats`） | `item.symbol` | 実効銘柄 |
+| 行の銘柄チップ表示 | `item.symbol` | 実効銘柄 |
+
 ### best variant の選択
 
 ```
@@ -233,12 +245,16 @@ best = variants の中で latest_sharpe が最大のもの（null は候補外�
 | `frontend/src/lib/recipes.ts` | **新規**。`buildRecipes` / `effectiveSymbol` / `pickBestVariant` の純関数 |
 | `frontend/src/lib/__tests__/recipes.test.ts` | **新規**。ロールアップの単体テスト |
 | `frontend/src/hooks/useStrategyList.ts` | `recipes` と `includeUnrun` を state に追加 |
-| `frontend/src/components/browser/StrategyTable.tsx` | 601 行。レシピ行・variant 子行・44px 化。**行コンポーネントを別ファイルへ分割**（現状に追加すると 800 行を超える） |
-| `frontend/src/components/browser/RecipeRow.tsx` | **新規**（`StrategyTable.tsx` からの分割） |
-| `frontend/src/components/browser/VariantRow.tsx` | **新規**（同上） |
+| `frontend/src/components/browser/StrategyTable.tsx` | 601 行。レシピ行・子行・44px 化。**行コンポーネントを別ファイルへ分割**（現状に追加すると 800 行を超える） |
+| `frontend/src/components/browser/StrategyRow.tsx` | **新規**。`StrategyTable.tsx` の既存 `StrategyRow` を切り出して 1 行 44px 化。展開時の子行としても使う（単一戦略を描画する役割は同じなので `VariantRow` へ改名はしない） |
+| `frontend/src/components/browser/RecipeRow.tsx` | **新規**。折り畳み時のレシピ 1 行 |
+| `frontend/src/components/browser/StrategyTableFooter.tsx` | **新規**。表示/除外件数の開示 |
+| `frontend/src/components/browser/CollapsibleSection.tsx` | **新規**。銘柄アトラスと銘柄チップの両方で使う折り畳み。自前で開閉 state を持つ（`screens/` は `useState` を持てないため — `frontend/CLAUDE.md` / ADR-0001） |
 | `frontend/src/screens/BrowseScreen.tsx` | ヒーロー圧縮、銘柄アトラス折り畳み |
 | `frontend/src/components/browser/FilterBar.tsx` | 銘柄チップ折り畳み、未実行トグル |
-| `frontend/src/components/browser/Heroline.tsx` | 横一列レイアウトへ |
+| `frontend/src/components/browser/SavedViews.tsx` | `FILTER_KEYS` に `include_unrun` を追加（レンズ切替で未実行トグルが残るとレンズの active 判定が壊れる） |
+| `frontend/src/components/browser/Heroline.tsx` | 横一列レイアウトへ。銘柄数を実効銘柄で数える |
+| `frontend/src/hooks/useSymbolStats.ts` | 銘柄の判定を実効銘柄に統一（アトラスの銘柄数とフィルタの選択肢数が食い違わないようにする） |
 | `tests/fixtures/build_e2e_fixture.py` | 多 variant レシピ・未実行戦略を含む行を追加 |
 | `frontend/e2e/specs/browse.spec.ts` | ロールアップ・展開・件数開示の E2E |
 | `docs/screenshots/{ja,en}/browse.png` | 再撮影 |
