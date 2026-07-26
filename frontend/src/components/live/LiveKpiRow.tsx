@@ -71,60 +71,54 @@ export function LiveKpiRow({
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
-      <div data-testid="kpi-current-value">
-        <Stat
-          size="lg"
-          label={L('現在評価額', 'Current Value')}
-          value={fmtNumber(last)}
-          sub={dayChange != null ? `${L('前日比', 'Day change')} ${fmtDiff(dayChange * 100, '%')}` : undefined}
-          tone={statTone(diffTone(dayChange))}
-        />
-      </div>
-      <div data-testid="kpi-total-pnl">
-        <Stat
-          size="lg"
-          label={L('累計損益', 'Total P&L')}
-          value={fmtDiff(totalPnl)}
-          sub={fmtDiff(totalPct * 100, '%')}
-          tone={statTone(diffTone(totalPnl))}
-        />
-      </div>
-      <div data-testid="kpi-current-dd">
-        <Stat
-          size="lg"
-          label={L('現在DD', 'Current DD')}
-          value={fmtNumber(dd * 100, { suffix: '%' })}
-          sub={L(`ピークから ${daysSincePeak}日`, `${daysSincePeak}d since peak`)}
-          tone={statTone(diffTone(dd))}
-        />
-      </div>
-      <div data-testid="kpi-period">
-        <Stat
-          size="lg"
-          label={L('計測期間', 'Period')}
-          value={L(`${periodDays}日`, `${periodDays}d`)}
-          sub={dates[0]?.slice(0, 10)}
-        />
-      </div>
+      <Stat
+        testId="kpi-current-value"
+        size="lg"
+        label={L('現在評価額', 'Current Value')}
+        value={fmtNumber(last)}
+        sub={dayChange != null ? `${L('前日比', 'Day change')} ${fmtDiff(dayChange * 100, '%')}` : undefined}
+        tone={statTone(diffTone(dayChange))}
+      />
+      <Stat
+        testId="kpi-total-pnl"
+        size="lg"
+        label={L('累計損益', 'Total P&L')}
+        value={fmtDiff(totalPnl)}
+        sub={fmtDiff(totalPct * 100, '%')}
+        tone={statTone(diffTone(totalPnl))}
+      />
+      <Stat
+        testId="kpi-current-dd"
+        size="lg"
+        label={L('現在DD', 'Current DD')}
+        value={fmtNumber(dd * 100, { suffix: '%' })}
+        sub={L(`ピークから ${daysSincePeak}日`, `${daysSincePeak}d since peak`)}
+        tone={statTone(diffTone(dd))}
+      />
+      <Stat
+        testId="kpi-period"
+        size="lg"
+        label={L('計測期間', 'Period')}
+        value={L(`${periodDays}日`, `${periodDays}d`)}
+        sub={dates[0]?.slice(0, 10)}
+      />
       {excessIndex != null && (
-        <div data-testid="kpi-excess-index">
-          <Stat
-            size="lg"
-            label={L('超過リターン vs 指数', 'Excess vs Index')}
-            value={fmtDiff(excessIndex, 'pt')}
-            tone={statTone(diffTone(excessIndex))}
-          />
-        </div>
+        <Stat
+          testId="kpi-excess-index"
+          size="lg"
+          label={L('超過リターン vs 指数', 'Excess vs Index')}
+          value={fmtDiff(excessIndex, 'pt')}
+          tone={statTone(diffTone(excessIndex))}
+        />
       )}
       {excessBacktest != null && (
-        <div data-testid="kpi-excess-backtest">
-          <Stat
-            size="lg"
-            label={L('超過リターン vs BT', 'Excess vs Backtest')}
-            value={fmtDiff(excessBacktest, 'pt')}
-            tone={statTone(diffTone(excessBacktest))}
-          />
-        </div>
+        <Stat
+          testId="kpi-excess-backtest"
+          size="lg"
+          label={L('超過リターン vs BT', 'Excess vs Backtest')}
+          value={fmtDiff(excessBacktest, 'pt')}
+          tone={statTone(diffTone(excessBacktest))}
+        />
       )}
     </div>
   )

@@ -6,6 +6,7 @@ tolerant 挙動（live テーブル未作成 DB / engine=None）を検証する�
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
@@ -427,6 +428,40 @@ def test_load_position_summary_normalizes_naive_equity_timestamps(
     assert pos["equity"] == [["2026-06-04T00:00:00+00:00", 100000.0]]
     assert pos["benchmark_equity"] == [["2026-06-04T00:00:00+00:00", 99000.0]]
     assert pos["backtest_equity"] == [["2026-06-04T00:00:00+00:00", 101000.0]]
+
+
+def test_naive_timestamps_keep_wall_clock_under_non_utc_tz(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """非 UTC のタイムゾーンでも naive の壁時計をずらさない。
+
+    WHY: 正規化は「naive に UTC のラベルを貼る」（``replace(tzinfo=UTC)``）で
+    あって「ローカル時刻として解釈して変換する」（``astimezone(UTC)``）では
+    ない。後者へ退行すると、alpha-forge が UTC のつもりで書いた naive 文字列が
+    閲覧サーバのローカル時刻とみなされ、JST なら 9 時間巻き戻って前日になる。
+
+    ところが `TZ=UTC` の runner では両者が同一結果になるため、既存の正規化
+    テストはこの退行を検出できない（local == UTC で astimezone が no-op）。
+    ここでは TZ を明示的に非 UTC に固定して、runner のタイムゾーンに依存せず
+    退行を捕まえられるようにする。
+    """
+    monkeypatch.setenv("TZ", "Asia/Tokyo")
+    time.tzset()
+    try:
+        db_path = _db_with_live(tmp_path)
+        seed_live_position_summary(
+            db_path,
+            "combo",
+            metrics={},
+            equity=[["2026-06-04T00:00:00", 100000.0]],
+        )
+        pos = _repo(db_path).load_position_summary("combo")
+        assert pos is not None
+        # astimezone(UTC) に退行すると "2026-06-03T15:00:00+00:00" になる
+        assert pos["equity"] == [["2026-06-04T00:00:00+00:00", 100000.0]]
+    finally:
+        monkeypatch.undo()
+        time.tzset()
 
 
 # ----------------------------------------------------------------------

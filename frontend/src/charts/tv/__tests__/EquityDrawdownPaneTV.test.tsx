@@ -427,6 +427,95 @@ describe('EquityDrawdownPaneTV', () => {
       expect(lineSeriesCalls).toHaveLength(2)
     })
 
+    it('overlays の色はラベルで決まり、並び替えても入れ替わらない', () => {
+      // WHY: 色を配列位置で決めると、ラベルはそのままで並び順だけ変えたときに
+      // 系列の色が入れ替わる。線の色で系列を識別する画面では、同じものが別物に
+      // 見える（あるいは逆）という致命的な誤読になる。Live は固定 2 件なので
+      // 現状は到達しないが、overlay を動的に増減させる画面を作った瞬間に露出する。
+      const props = {
+        lang: 'ja' as const,
+        equity: sampleEquity,
+        dates: sampleDates,
+        drawdown: sampleDrawdown,
+        isCutoffIdx: 15,
+      }
+      const qqq = { label: 'QQQ', values: sampleEquity }
+      const bt = { label: 'BT', values: sampleEquity }
+
+      const { rerender } = render(<EquityDrawdownPaneTV {...props} overlays={[qqq, bt]} />)
+
+      // 初回は addSeries が overlays の順（QQQ, BT）で呼ばれる
+      const initialColors = addSeriesMock.mock.calls
+        .filter((args) => (args as unknown[])[0] === 'LineSeriesDef')
+        .map((args) => ((args as unknown[])[1] as { color?: string }).color)
+      expect(initialColors).toHaveLength(2)
+      const [qqqColor, btColor] = initialColors
+
+      applyOptionsMock.mockClear()
+      // ラベルはそのまま、並び順だけ入れ替える（系列は再生成されず applyOptions になる）
+      rerender(<EquityDrawdownPaneTV {...props} overlays={[bt, qqq]} />)
+
+      // overlayLineOptions が付ける固有の形（lastValueVisible:false かつ lineStyle あり）で絞る
+      const reappliedColors = applyOptionsMock.mock.calls
+        .map((args) => (args as unknown[])[0] as Record<string, unknown>)
+        .filter((o) => o && o.lastValueVisible === false && 'lineStyle' in o)
+        .map((o) => o.color as string)
+
+      // 適用順は新しい配列順（BT, QQQ）。色がラベル基準なら BT は BT の色のまま。
+      expect(reappliedColors[0]).toBe(btColor)
+      expect(reappliedColors[1]).toBe(qqqColor)
+    })
+
+    it('overlays に重複ラベルがあると警告する（無言で 1 本に潰さない）', () => {
+      // WHY: 内部の Map は label をキーにするため、同じ label を 2 つ渡すと
+      // 後勝ちで 1 本だけ描画され、もう 1 本は警告もなく消える。系列長不一致は
+      // console.warn を出す設計にしてあるので、同じく「黙って消える」ここも揃える。
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      render(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[
+            { label: 'QQQ', values: sampleEquity },
+            { label: 'QQQ', values: sampleEquity.map((v) => v * 2) },
+          ]}
+        />,
+      )
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('QQQ'))
+      warn.mockRestore()
+    })
+
+    it('overlays あり → undefined でも系列を破棄する（リーク防止）', () => {
+      // WHY: 「2 件 → 1 件」は既存テストがあるが、「あり → undefined」は
+      // 未カバーだった。undefined は `overlays ?? []` を経由する別の入力で、
+      // ここで破棄し損ねると chart インスタンスに系列が残り続ける。
+      const { rerender } = render(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+          overlays={[{ label: 'QQQ', values: sampleEquity }]}
+        />,
+      )
+      expect(removeSeriesMock).not.toHaveBeenCalled()
+
+      rerender(
+        <EquityDrawdownPaneTV
+          lang="ja"
+          equity={sampleEquity}
+          dates={sampleDates}
+          drawdown={sampleDrawdown}
+          isCutoffIdx={15}
+        />,
+      )
+      expect(removeSeriesMock).toHaveBeenCalledTimes(1)
+    })
+
     it('overlays が減ると不要になった系列を removeSeries で破棄する（リーク防止）', () => {
       const { rerender } = render(
         <EquityDrawdownPaneTV
