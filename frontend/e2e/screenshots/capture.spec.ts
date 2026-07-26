@@ -7,6 +7,7 @@ import {
   gotoBrowse,
   gotoCompare,
   gotoDetail,
+  gotoLive,
   switchLanguage,
   type Lang,
 } from '../helpers/locators'
@@ -196,6 +197,15 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
           page.getByTestId('correlation-heatmap-card').locator('..'),
           240,
         )
+      })
+
+      // live: KPI 行＋ベンチマーク比較チャート＋建玉テーブル
+      // （fixture の建玉には含み損益 null の行が含まれ、`—` と実数が混在した
+      //  ときのレイアウトも撮影対象に入る）
+      test('live', async ({ page }) => {
+        await gotoLive(page)
+        await setLang(page, lang)
+        await captureElement(page, lang, 'live', page.getByTestId('live-position-view'), 600)
       })
 
       // ideas: 既存どおりページ全体（README 未掲載）
