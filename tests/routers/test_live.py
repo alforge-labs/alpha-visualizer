@@ -344,3 +344,123 @@ class TestLiveRouter:
         assert body["backtest"] is None
         assert body["diff"] is None
         assert any("position" in w for w in body["warnings"])
+
+    def test_get_live_position_summary_includes_equity_comparison_fields(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """DB → Repository → services.position_detail → API を貫通する統合テスト。
+
+        issue #221 (task-14) の統合ギャップ回帰テスト: benchmark_equity /
+        backtest_equity / positions は Repository が正しくパースし、React
+        コンポーネントも props さえ受け取れば正しく描画できることは単体
+        テストで検証済みだった。しかし ``services/live.py::position_detail``
+        が明示的な key whitelist で summary dict を組み立てており、そこに
+        この 3 フィールド（と cash / total_value）が列挙されていなかった
+        ため、各層の単体テストは全て green のまま、実機の
+        ``GET /api/live/{portfolio_id}`` からはこれらが丸ごと消えていた
+        （excess-return KPI・建玉テーブルが描画されない不具合）。単体テスト
+        だけでは検知できず、DB シードから HTTP レスポンスまでを 1 本で
+        通すテストが必要だった。
+        """
+        db_path = _db_path(tmp_path)
+        seed_live_position_summary(
+            db_path,
+            "combo_rich",
+            metrics={"sharpe_ratio": 1.4},
+            benchmark_equity=[["2026-04-01T00:00:00+00:00", 100000.0]],
+            backtest_equity=[["2026-04-01T00:00:00+00:00", 99500.0]],
+            positions=[
+                {
+                    "ticker": "US.TQQQ",
+                    "sub_strategy_id": "sub_a",
+                    "qty": 10.0,
+                    "avg_cost": 50.0,
+                    "last_price": 55.0,
+                    "market_value": 550.0,
+                    "weight_pct": 0.55,
+                    "unrealized_pnl": 50.0,
+                    "unrealized_pnl_pct": 10.0,
+                }
+            ],
+            # 現金比率の高い口座（~90%）を模した実値（forge#1335・DB→API 貫通確認用）
+            cash=898032.059,
+            total_value=994492.308450684,
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/live/combo_rich")
+        assert response.status_code == 200
+        summary = response.json()["live"]["summary"]
+        assert summary["benchmark_equity"] == [
+            ["2026-04-01T00:00:00+00:00", 100000.0]
+        ]
+        assert summary["backtest_equity"] == [["2026-04-01T00:00:00+00:00", 99500.0]]
+        assert summary["positions"][0]["ticker"] == "US.TQQQ"
+        # cash / total_value（forge#1335）は DB → Repository → services →
+        # API を貫通してもシードした実値のまま欠落・0 化しないことを検証する。
+        assert summary["cash"] == 898032.059
+        assert summary["total_value"] == 994492.308450684
+
+    def test_get_live_position_summary_null_pnl_survives_round_trip(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """建玉の unrealized_pnl / unrealized_pnl_pct が null のまま
+        DB → Repository → services.position_detail → API を貫通することを保証する。
+
+        WHY: 「cost basis が解決できないポジションは 0 でなく null を返す」
+        という設計判断（`schemas/live.py::LivePosition` docstring 参照）は
+        フロント（`LivePositionsTable.test.tsx`）でのみ固定されており、
+        実際に DB 行から HTTP レスポンスまでを貫通する経路には検証が無かった。
+        `services/live.py::position_detail` が将来 `.get("unrealized_pnl") or 0`
+        のような書き換えをしても、この経路にテストが無ければ 0 への
+        意図しない丸めが検知されないまま本番に出てしまう。
+        """
+        db_path = _db_path(tmp_path)
+        seed_live_position_summary(
+            db_path,
+            "combo_null_pnl",
+            metrics={"sharpe_ratio": 1.0},
+            positions=[
+                {
+                    "ticker": "US.UNKNOWN",
+                    "qty": 10.0,
+                    "avg_cost": 100.0,
+                    "last_price": 105.0,
+                    "market_value": 1050.0,
+                    "weight_pct": 1.0,
+                    "unrealized_pnl": None,
+                    "unrealized_pnl_pct": None,
+                }
+            ],
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/live/combo_null_pnl")
+        assert response.status_code == 200
+        position = response.json()["live"]["summary"]["positions"][0]
+        assert position["unrealized_pnl"] is None
+        assert position["unrealized_pnl_pct"] is None
+
+    def test_get_live_position_summary_without_new_columns_defaults_empty(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """新列 (forge#1332) が NULL の行（旧 DB 相当）でも 200 + 空デフォルト。
+
+        ``--benchmark`` 未使用のまま保存された既存行や、ALTER TABLE 直後で
+        まだ新しい ``live replay`` が走っていない行を再現する。欠損値が
+        ``None`` のままフロントへ渡ると `.map()` 等でクラッシュし得るため、
+        ここで空リスト / 0.0 に丸められることを検証する。
+        """
+        db_path = _db_path(tmp_path)
+        seed_live_position_summary(
+            db_path,
+            "combo_old",
+            metrics={"sharpe_ratio": 1.0},
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/live/combo_old")
+        assert response.status_code == 200
+        summary = response.json()["live"]["summary"]
+        assert summary["benchmark_equity"] == []
+        assert summary["backtest_equity"] == []
+        assert summary["positions"] == []
+        assert summary["cash"] == 0.0
+        assert summary["total_value"] == 0.0

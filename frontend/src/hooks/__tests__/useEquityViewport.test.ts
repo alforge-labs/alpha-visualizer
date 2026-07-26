@@ -56,4 +56,50 @@ describe('sliceByRange', () => {
       expect(last.origIdx).toBe(result.startIdx + result.points.length - 1)
     }
   })
+
+  /**
+   * overlays（比較用の追加系列）は「equity と同じ縦の並びで比較できる」ことが機能の
+   * 存在意義そのもの。origIdx に対して独立にスライスしてしまうと range 切替時に
+   * ズレるため、常に `origIdx` と一致することを直接検証する（discriminating）。
+   * 値を origIdx * 10 にしておくことで、"先頭から詰めて slice しただけ"の
+   * 誤実装（ローカル idx = origIdx - startIdx で詰まる）でも確実に食い違う値になる。
+   */
+  it('overlays は range を切り替えても equity と同じインデックス（origIdx）で対応する', () => {
+    const n = 600
+    const equity = Array.from({ length: n }, (_, i) => 100 + i)
+    const dates = Array.from({ length: n }, () => '2024-01-01')
+    const overlayValues = Array.from({ length: n }, (_, i) => i * 10)
+    const input = { equity, dates, overlays: [{ label: 'QQQ', values: overlayValues }] }
+
+    for (const range of ['1M', '3M', '1Y', 'ALL'] as const) {
+      const result = sliceByRange(input, range)
+      expect(result.points.length).toBeGreaterThan(0)
+      for (const p of result.points) {
+        expect(p.overlayValues).toHaveLength(1)
+        expect(p.overlayValues[0]).toBe(p.origIdx * 10)
+      }
+    }
+  })
+
+  it('overlays 未指定なら overlayValues は空配列', () => {
+    const equity = [100, 110]
+    const dates = ['2024-01-01', '2024-01-02']
+    const result = sliceByRange({ equity, dates }, 'ALL')
+
+    expect(result.points[0]?.overlayValues).toEqual([])
+    expect(result.points[1]?.overlayValues).toEqual([])
+  })
+
+  it('overlays が複数あれば points 各要素に順序どおり並ぶ', () => {
+    const equity = [100, 110, 120]
+    const dates = ['2024-01-01', '2024-01-02', '2024-01-03']
+    const overlays = [
+      { label: 'A', values: [1, 2, 3] },
+      { label: 'B', values: [10, 20, 30] },
+    ]
+    const result = sliceByRange({ equity, dates, overlays }, 'ALL')
+
+    expect(result.points[0]?.overlayValues).toEqual([1, 10])
+    expect(result.points[2]?.overlayValues).toEqual([3, 30])
+  })
 })

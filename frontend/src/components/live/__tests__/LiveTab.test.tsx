@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { LiveDetailResponse } from '../../../api/types'
 import { LiveTab } from '../LiveTab'
 
+// lightweight-charts は jsdom で rAF 内の未処理例外を投げるため、
+// TV チャートをスタブする（このテストの関心は KPI・テーブル側であり、チャート内部ではない）
+vi.mock('../../../charts/tv/EquityDrawdownPaneTV', () => ({
+  EquityDrawdownPaneTV: () => <div data-testid="equity-pane-stub" />,
+}))
+
 vi.mock('../../../api/client', () => ({
   api: {
     getLive: vi.fn(),

@@ -136,6 +136,16 @@ live_position_summaries = Table(
     Column("receipts_count", Integer, nullable=False, default=0),
     Column("sub_strategies_json", Text, nullable=False, default="[]"),
     Column("updated_at", Text, nullable=False),
+    # ベンチマーク・BT 併走・建玉スナップショット（alpha-forge #1332）: 旧 DB には
+    # 列自体が無いため、Repository 側で `no such column` を検知して空扱いにする
+    Column("benchmark_equity_json", Text),
+    Column("backtest_equity_json", Text),
+    Column("positions_json", Text),
+    # 口座キャッシュ残高・評価額合計（alpha-forge #1335）: 上記と同じく旧 DB
+    # には列自体が無いため、Repository 側の `no such column` fail-closed 対象に
+    # 加わる。NULL（#1335 未移行の行）は Repository 側で 0.0 にフォールバックする
+    Column("cash", REAL),
+    Column("total_value", REAL),
 )
 
 

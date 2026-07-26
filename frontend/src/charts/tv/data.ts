@@ -108,14 +108,24 @@ export function toHistogramData(dates: string[], values: number[]): HistogramDat
 export interface FromViewportPointsResult {
   equity: LineData[]
   benchmark: LineData[]
+  /** overlays[j] に対応する LineData 列。`overlayCount` の順序を保つ（呼び出し側の overlays 配列と対応） */
+  overlays: LineData[][]
   /** points[i] の origIdx 配列 — cutoff マーカー位置の決定に使用 */
   origIndices: number[]
 }
 
-export function fromViewportPoints(points: EquityViewportPoint[]): FromViewportPointsResult {
+/**
+ * @param overlayCount 生成する overlay 列数。`points` が空でも呼び出し側の overlays 数に
+ *   合わせた空配列の列を返せるよう、points から推測せず明示的に受け取る。
+ */
+export function fromViewportPoints(
+  points: EquityViewportPoint[],
+  overlayCount = 0,
+): FromViewportPointsResult {
   const equity: LineData[] = []
   const benchmark: LineData[] = []
   const origIndices: number[] = []
+  const overlays: LineData[][] = Array.from({ length: overlayCount }, () => [])
   for (const p of points) {
     const time = dateStringToTime(p.date.toISOString().slice(0, 10))
     if (time == null) continue
@@ -123,9 +133,15 @@ export function fromViewportPoints(points: EquityViewportPoint[]): FromViewportP
     if (p.benchmark != null && Number.isFinite(p.benchmark)) {
       benchmark.push({ time, value: p.benchmark })
     }
+    for (let j = 0; j < overlayCount; j++) {
+      const v = p.overlayValues[j]
+      if (v != null && Number.isFinite(v)) {
+        overlays[j]?.push({ time, value: v })
+      }
+    }
     origIndices.push(p.origIdx)
   }
-  return { equity, benchmark, origIndices }
+  return { equity, benchmark, overlays, origIndices }
 }
 
 /**

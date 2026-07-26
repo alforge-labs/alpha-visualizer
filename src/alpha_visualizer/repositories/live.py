@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Engine, select
@@ -50,6 +51,47 @@ def _parse_json(raw: Any, default: Any) -> Any:
         except json.JSONDecodeError:
             return default
     return default
+
+
+def _to_utc_iso(ts: str) -> str:
+    """タイムスタンプ文字列を UTC 明示（aware）の ISO 文字列に正規化する。
+
+    alpha-forge は forge#1332 以降 equity 系列に ``+00:00`` 付きの ISO 文字列を
+    書き込むが、変更前に書かれた既存行は naive な文字列（オフセット無し）の
+    まま DB に残り続ける。フロント（``charts/tv/data.ts`` の
+    ``dateStringToTime``）は ``T`` を含む文字列を ``new Date()`` でパースする
+    ため、naive な文字列は閲覧者のローカルタイムとして解釈されてしまい、
+    JST 環境では新旧の行で描画日が最大 1 日ずれる。読み取り時にここで aware
+    化しておくことで、書き込み時期によらず一貫した挙動にする。
+    """
+    try:
+        dt = datetime.fromisoformat(ts)
+    except (TypeError, ValueError):
+        return ts
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.isoformat()
+
+
+def _normalize_equity_series(raw: Any) -> list[Any]:
+    """equity 系列（``[[iso_string, value], ...]``）の各タイムスタンプを正規化する。
+
+    ``equity`` / ``benchmark_equity`` / ``backtest_equity`` の 3 系列すべてに
+    同じ規約が適用されるため、共通関数として切り出す。
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[Any] = []
+    for item in raw:
+        if (
+            isinstance(item, (list, tuple))
+            and len(item) == 2
+            and isinstance(item[0], str)
+        ):
+            out.append([_to_utc_iso(item[0]), item[1]])
+        else:
+            out.append(item)
+    return out
 
 
 class LiveDataRepository:
@@ -83,8 +125,21 @@ class LiveDataRepository:
         """SELECT を実行して全行返す。engine 不在 / テーブル未作成なら空リスト。
 
         live を一度も使っていない DB には live_* テーブルが無いため、その
-        ``no such table`` のみ空扱いにする。DB 破損・ロック競合・ストレージ枯渇
-        など他の ``OperationalError`` は握り潰さず再送出する（Fail Loud）。
+        ``no such table`` は空扱いにする（live を使ったことが無いだけで
+        異常ではないため ``debug`` レベル）。
+
+        加えて、alpha-forge が ``ALTER TABLE ... ADD COLUMN`` で列を後付けする
+        方式（forge#1332）を採っているため、DB を一度も開いていない環境では
+        列自体が無く ``no such column`` になり得る。こちらは意味が異なる:
+        ``no such table`` は「live を使ったことが無い」だが、``no such column``
+        は「データは存在するのに読めていない」（combine portfolio がまるごと
+        `/live` から消える）。運用者が気付けるよう ``warning`` レベルで、
+        `alpha-forge live replay` を一度実行すれば ``ALTER TABLE`` が走り
+        復元される旨をメッセージに含める。列追加自体は alpha-forge 側の
+        責務であり、本リポジトリはフォールバッククエリを組まず、いずれも
+        500 を返さず空扱いにするだけに留める。DB 破損・ロック競合・
+        ストレージ枯渇など他の ``OperationalError`` は握り潰さず再送出する
+        （Fail Loud）。
         """
         if self._engine is None:
             return []
@@ -92,8 +147,16 @@ class LiveDataRepository:
             with self._engine.connect() as conn:
                 return conn.execute(stmt).all()
         except OperationalError as exc:
-            if "no such table" in str(exc).lower():
+            msg = str(exc).lower()
+            if "no such table" in msg:
                 logger.debug("live テーブル未作成のため空として扱う: %s", exc)
+                return []
+            if "no such column" in msg:
+                logger.warning(
+                    "live テーブルに列が未追加のためデータを非表示にしています: %s "
+                    "— `alpha-forge live replay` を一度実行すると ALTER TABLE が走り復元されます。",
+                    exc,
+                )
                 return []
             raise
 
@@ -108,9 +171,29 @@ class LiveDataRepository:
         return [r.strategy_id for r in rows]
 
     def list_position_portfolio_ids(self) -> list[str]:
-        """``live_position_summaries`` の portfolio_id をソート済みで返す（combine）。"""
+        """``live_position_summaries`` の portfolio_id をソート済みで返す（combine）。
+
+        意図的に ``portfolio_id`` 列だけに絞らず、``load_position_summary``
+        と同じ全列（``select(live_position_summaries)``）を SELECT する。
+        列だけを絞ると、新旧スキーマの境界に位置する列（forge#1332 の
+        ``benchmark_equity_json`` 等、forge#1335 の ``cash`` / ``total_value``
+        等）を意識しない限り、一覧側だけが成功して
+        詳細側だけが ``no such column`` で落ちる非対称が生まれる —
+        一覧には出るのに詳細を開くと 404 になる「壊れたリンク」状態になり、
+        既存の ``metrics`` / ``equity`` / ``sub_strategies`` すら読めなくなる
+        （human 裁定・レビュー指摘）。同じ列集合を SELECT しておけば、
+        将来また列が追加されても一覧と詳細は必ず同じ条件で
+        ``no such column`` を起こすため、この非対称が再発しない。
+
+        alpha-forge が一度も ``ALTER TABLE`` していない旧 DB では、この
+        SELECT も ``_fetch_all`` の ``no such column`` 耐性で空リストになる
+        （= 一覧から丸ごと消える）。フォールバッククエリは組まず、
+        position ベースの実績を一時的に「無し」として隠すだけに留める。
+        `alpha-forge live replay` を一度実行すれば ALTER TABLE が走り、
+        以降は通常どおり一覧・詳細とも復元される。
+        """
         rows = self._fetch_all(
-            select(live_position_summaries.c.portfolio_id).order_by(
+            select(live_position_summaries).order_by(
                 live_position_summaries.c.portfolio_id
             )
         )
@@ -185,7 +268,20 @@ class LiveDataRepository:
         """``live_position_summaries`` の 1 行を辞書で返す。無ければ ``None``。
 
         ``metrics_json`` / ``backtest_metrics_json`` / ``equity_json`` /
-        ``sub_strategies_json`` をパースして展開する。
+        ``sub_strategies_json`` / ``benchmark_equity_json`` /
+        ``backtest_equity_json`` / ``positions_json`` をパースして展開し、
+        ``cash`` / ``total_value``（forge#1335・口座キャッシュ残高と評価額
+        合計）をそのまま返す。``equity`` / ``benchmark_equity`` /
+        ``backtest_equity`` の 3 系列はタイムスタンプを UTC aware に正規化
+        してから返す（``_to_utc_iso`` 参照）。
+
+        列自体が無い旧 DB（alpha-forge が一度も開いていない DB、または
+        forge#1335 より前の ``ALTER TABLE`` までしか移行していない DB）に
+        対しては ``_fetch_all`` が ``no such column`` を空扱いにするため、
+        この行に到達する時点で全列が揃っている前提でよい。ただし
+        ``cash`` / ``total_value`` は列こそ揃っていても forge#1335 以前に
+        書き込まれた行では値が ``NULL`` のままなので、``0.0`` にフォール
+        バックする（None を返してフロントの数値演算を壊さないため）。
         """
         rows = self._fetch_all(
             select(live_position_summaries).where(
@@ -199,10 +295,19 @@ class LiveDataRepository:
             "portfolio_id": m["portfolio_id"],
             "metrics": _parse_json(m["metrics_json"], {}),
             "backtest_metrics": _parse_json(m["backtest_metrics_json"], None),
-            "equity": _parse_json(m["equity_json"], []),
+            "equity": _normalize_equity_series(_parse_json(m["equity_json"], [])),
             "receipts_count": m["receipts_count"],
             "sub_strategies": _parse_json(m["sub_strategies_json"], []),
             "updated_at": m["updated_at"],
+            "benchmark_equity": _normalize_equity_series(
+                _parse_json(m["benchmark_equity_json"], [])
+            ),
+            "backtest_equity": _normalize_equity_series(
+                _parse_json(m["backtest_equity_json"], [])
+            ),
+            "positions": _parse_json(m["positions_json"], []),
+            "cash": m["cash"] or 0.0,
+            "total_value": m["total_value"] or 0.0,
         }
 
     # ------------------------------------------------------------------

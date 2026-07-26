@@ -21,6 +21,8 @@ from tests.factories import (
     seed_live_position_summary,
     seed_live_summary,
     seed_live_trades,
+    seed_old_schema_live_position_summary,
+    seed_pre_cash_schema_live_position_summary,
 )
 
 
@@ -222,7 +224,8 @@ def test_load_position_summary_parses_json_fields(tmp_path: Path) -> None:
     assert pos["portfolio_id"] == "combo"
     assert pos["metrics"] == {"sharpe_ratio": 1.4}
     assert pos["backtest_metrics"] == {"sharpe_ratio": 1.2}
-    assert pos["equity"] == [["2026-04-01T00:00:00", 100.0]]
+    # naive なタイムスタンプ（forge#1332 以前の書式）は UTC aware に正規化される。
+    assert pos["equity"] == [["2026-04-01T00:00:00+00:00", 100.0]]
     assert pos["receipts_count"] == 3
     assert pos["sub_strategies"] == ["a", "b"]
 
@@ -242,6 +245,188 @@ def test_load_position_summary_backtest_metrics_none_when_absent(
     pos = _repo(db_path).load_position_summary("combo")
     assert pos is not None
     assert pos["backtest_metrics"] is None
+
+
+# ----------------------------------------------------------------------
+# load_position_summary: 新列（ベンチマーク・BT 併走・建玉、forge#1332）
+# ----------------------------------------------------------------------
+def test_load_position_summary_parses_new_columns(tmp_path: Path) -> None:
+    """新列（ベンチマーク・BT・建玉）がパースされる。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "cb_v1",
+        metrics={"sharpe_ratio": 1.4},
+        benchmark_equity=[["2026-01-05T00:00:00+00:00", 100000.0]],
+        backtest_equity=[["2026-01-05T00:00:00+00:00", 99500.0]],
+        positions=[
+            {
+                "ticker": "US.TQQQ",
+                "sub_strategy_id": "sub_a",
+                "qty": 10.0,
+                "avg_cost": 50.0,
+                "last_price": 55.0,
+                "market_value": 550.0,
+                "weight_pct": 0.55,
+                "unrealized_pnl": 50.0,
+                "unrealized_pnl_pct": 10.0,
+            }
+        ],
+    )
+    out = _repo(db_path).load_position_summary("cb_v1")
+    assert out is not None
+    assert out["benchmark_equity"] == [["2026-01-05T00:00:00+00:00", 100000.0]]
+    assert out["backtest_equity"] == [["2026-01-05T00:00:00+00:00", 99500.0]]
+    assert out["positions"][0]["ticker"] == "US.TQQQ"
+
+
+def test_load_position_summary_new_columns_default_to_empty(tmp_path: Path) -> None:
+    """新列を指定せず insert した行（現行スキーマ・NULL）は空リストで返る。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_v2", metrics={})
+    out = _repo(db_path).load_position_summary("cb_v2")
+    assert out is not None
+    assert out["benchmark_equity"] == []
+    assert out["backtest_equity"] == []
+    assert out["positions"] == []
+
+
+# ----------------------------------------------------------------------
+# load_position_summary: cash / total_value（forge#1335）
+# ----------------------------------------------------------------------
+def test_load_position_summary_parses_cash_and_total_value(tmp_path: Path) -> None:
+    """cash / total_value（forge#1335）が seed した実数値のまま返る。"""
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "cb_cash",
+        metrics={"sharpe_ratio": 1.4},
+        cash=898032.059,
+        total_value=994492.308450684,
+    )
+    out = _repo(db_path).load_position_summary("cb_cash")
+    assert out is not None
+    assert out["cash"] == 898032.059
+    assert out["total_value"] == 994492.308450684
+
+
+def test_load_position_summary_cash_and_total_value_default_to_zero(
+    tmp_path: Path,
+) -> None:
+    """cash / total_value 未指定（NULL）の行は 0.0 にフォールバックする。
+
+    forge#1335 より前に書き込まれた行は列こそ揃っていても値が NULL の
+    ままなので、None を返さず 0.0 に丸めてフロントの数値演算を壊さない。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_null_cash", metrics={})
+    out = _repo(db_path).load_position_summary("cb_null_cash")
+    assert out is not None
+    assert out["cash"] == 0.0
+    assert out["total_value"] == 0.0
+
+
+def test_load_position_summary_tolerates_old_schema(tmp_path: Path) -> None:
+    """新列を持たない旧 DB でも例外にせず None として返す。
+
+    WHY: 列を追加した以上、既存 DB を読む経路が必ず存在する。ここで
+    落ちると Live ページ全体が 500 になる。人間裁定（progress.md）により
+    フォールバッククエリは実装せず、``no such column`` は ``no such table``
+    と同様に空扱い（＝この行は「見つからない」扱い）にするだけに留める。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_old_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    out = _repo(db_path).load_position_summary("cb_v1")
+    assert out is None
+
+
+def test_list_and_load_position_summary_agree_on_old_schema(
+    tmp_path: Path,
+) -> None:
+    """一覧 (list_position_portfolio_ids) と詳細 (load_position_summary) は
+    旧スキーマ DB に対して必ず一致する（レビュー指摘の壊れたリンク修正）。
+
+    WHY: 修正前は list 側が ``portfolio_id`` 1 列だけを SELECT しており旧
+    スキーマでも成功していたため、Live 一覧には portfolio が出るのに詳細を
+    開くと load 側が ``no such column`` → None → 404 になる「壊れたリンク」
+    が生じていた。alpha-visualizer は alpha-forge と独立に PyPI 配布される
+    ため、旧 DB に新しい visualizer をぶつけるバージョンスキューは通常運用
+    であり、ここで両者が一致することは回帰してはならない。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_old_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == []
+    assert repo.load_position_summary("cb_v1") is None
+
+
+def test_list_and_load_position_summary_agree_on_pre_cash_schema(
+    tmp_path: Path,
+) -> None:
+    """#1334 まで移行済み・#1335（cash/total_value）は未移行の DB でも
+    一覧・詳細が一致して fail-closed になる。
+
+    WHY: db.py の Table 定義に cash/total_value を追加したことで、
+    ``no such column`` fail-closed の対象列が forge#1332 の境界から
+    forge#1335 の境界まで広がった。この境界でも「一覧に出るのに詳細が
+    404 になる壊れたリンク」を再発させないことを保証する回帰ガード。
+    """
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    seed_pre_cash_schema_live_position_summary(
+        db_path, "cb_v1", metrics={"sharpe_ratio": 1.0}
+    )
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == []
+    assert repo.load_position_summary("cb_v1") is None
+
+
+def test_list_and_load_position_summary_agree_on_migrated_schema(
+    tmp_path: Path,
+) -> None:
+    """移行済み（現行 12 列）スキーマでは一覧・詳細とも通常どおり機能する。
+
+    WHY: 旧スキーマの fail-closed 化が通常ケースまで巻き込んで機能を丸ごと
+    無効化していないことを保証する回帰ガード。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(db_path, "cb_v1", metrics={"sharpe_ratio": 1.4})
+    repo = _repo(db_path)
+    assert repo.list_position_portfolio_ids() == ["cb_v1"]
+    out = repo.load_position_summary("cb_v1")
+    assert out is not None
+    assert out["portfolio_id"] == "cb_v1"
+
+
+def test_load_position_summary_normalizes_naive_equity_timestamps(
+    tmp_path: Path,
+) -> None:
+    """naive なタイムスタンプ（UTC オフセット無し）は aware に正規化される。
+
+    WHY: alpha-forge は forge#1332 以降 equity 系列に ``+00:00`` を書き込むが、
+    変更前に書かれた既存行は naive 文字列のまま DB に残り得る（同一テーブル
+    内で新旧が混在する）。フロントの ``dateStringToTime`` は naive 文字列を
+    閲覧者のローカル時刻としてパースしてしまうため、正規化しないと JST 環境
+    で描画日が最大 1 日ずれる。``equity`` / ``benchmark_equity`` /
+    ``backtest_equity`` の 3 系列すべてで正規化されることを検証する。
+    """
+    db_path = _db_with_live(tmp_path)
+    seed_live_position_summary(
+        db_path,
+        "combo",
+        metrics={},
+        equity=[["2026-06-04T00:00:00", 100000.0]],
+        benchmark_equity=[["2026-06-04T00:00:00+00:00", 99000.0]],
+        backtest_equity=[["2026-06-04T00:00:00", 101000.0]],
+    )
+    pos = _repo(db_path).load_position_summary("combo")
+    assert pos is not None
+    assert pos["equity"] == [["2026-06-04T00:00:00+00:00", 100000.0]]
+    assert pos["benchmark_equity"] == [["2026-06-04T00:00:00+00:00", 99000.0]]
+    assert pos["backtest_equity"] == [["2026-06-04T00:00:00+00:00", 101000.0]]
 
 
 # ----------------------------------------------------------------------
