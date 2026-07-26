@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import type { StrategyListItem } from '../../api/types'
 import { COMPARE_MAX, type SortKey, type SortDir, type StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { Chip } from '../../design/primitives'
 import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
-import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
-import { fmtNumber, fmtDate } from '../../lib/format'
-import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
+import { fmtNumber } from '../../lib/format'
+import { StrategyRow, TD_BASE, sharpeTone } from './StrategyRow'
 
 interface Props {
   items: StrategyListItem[]
@@ -29,13 +26,6 @@ interface Props {
 const HOVER_DELAY_MS = 220
 const COL_COUNT = 9
 
-function sharpeTone(v: number | null | undefined): string {
-  if (v == null) return 'var(--text3)'
-  if (v >= 1.5) return 'var(--success)'
-  if (v >= 1.0) return 'var(--warn)'
-  return 'var(--danger)'
-}
-
 const TH_BASE: CSSProperties = {
   fontFamily: 'var(--sans)',
   fontSize: 'var(--fs-caption)',
@@ -53,15 +43,6 @@ const TH_BASE: CSSProperties = {
   position: 'sticky',
   top: 0,
   zIndex: 2,
-}
-
-const TD_BASE: CSSProperties = {
-  fontFamily: 'var(--mono)',
-  fontSize: 'var(--fs-mono-md)',
-  padding: '14px 12px',
-  textAlign: 'right',
-  borderBottom: '1px solid var(--border)',
-  letterSpacing: 'var(--tracking-mono)',
 }
 
 interface SortThProps {
@@ -89,211 +70,6 @@ function SortTh({ col, label, align = 'right', width, sortKey, sortDir, onSort, 
       className={className}
       baseStyle={{ ...TH_BASE, color: active ? 'var(--text2)' : 'var(--text3)' }}
     />
-  )
-}
-
-interface RowProps extends Pick<Props, 'onSelect' | 'onToggleCompare' | 'lang'> {
-  s: StrategyListItem
-  selected: boolean
-  inCompare: boolean
-  maxCompareReached: boolean
-  onHover: (id: string | null) => void
-  sparkValues: number[] | 'loading' | 'empty' | undefined
-}
-
-function StrategyRow({
-  s,
-  selected,
-  inCompare,
-  maxCompareReached,
-  onSelect,
-  onToggleCompare,
-  onHover,
-  sparkValues,
-  lang,
-}: RowProps) {
-  const L = makeL(lang)
-  const [isHovered, setHovered] = useState(false)
-
-  const handleEnter = (): void => {
-    setHovered(true)
-    onHover(s.strategy_id)
-  }
-
-  const handleLeave = (): void => {
-    setHovered(false)
-    onHover(null)
-  }
-
-  const trBackground = selected
-    ? 'var(--accent-bg)'
-    : isHovered
-      ? 'var(--surface-2)'
-      : 'transparent'
-
-  const sparkRendered =
-    Array.isArray(sparkValues) && sparkValues.length >= 2 ? (
-      <Sparkline values={sparkValues} width={120} height={26} />
-    ) : sparkValues === 'loading' ? (
-      <div
-        style={{
-          width: 120,
-          height: 26,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--fs-mono-sm)',
-          color: 'var(--text3)',
-        }}
-      >
-        ···
-      </div>
-    ) : null
-
-  return (
-    <tr
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-      onClick={() => onSelect(s.strategy_id)}
-      title={L('クリックでプレビュー', 'Click to preview')}
-      style={{
-        background: trBackground,
-        borderLeft: selected ? '2px solid var(--accent)' : '2px solid transparent',
-        transition: 'background var(--motion-fast)',
-        cursor: 'pointer',
-      }}
-    >
-      <td
-        style={{ ...TD_BASE, textAlign: 'center', padding: '10px 4px', width: 36 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={inCompare}
-          disabled={maxCompareReached}
-          aria-label={L(
-            `${s.name} を比較に追加`,
-            `Add ${s.name} to compare`,
-          )}
-          onChange={() => onToggleCompare(s.strategy_id)}
-          style={{
-            cursor: maxCompareReached ? 'not-allowed' : 'pointer',
-            accentColor: 'var(--accent)',
-          }}
-        />
-      </td>
-      <td style={{ ...TD_BASE, textAlign: 'left' }}>
-        <Link
-          to={`/detail/${s.strategy_id}`}
-          title={L('フル詳細を開く', 'Open full detail')}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            display: 'inline-block',
-            fontFamily: 'var(--serif)',
-            fontSize: '1.0625rem',
-            fontWeight: 600,
-            color: 'var(--text)',
-            letterSpacing: '-0.005em',
-            lineHeight: 1.2,
-            textDecoration: 'none',
-            transition: 'color var(--motion-fast)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text)' }}
-        >
-          {s.name}
-        </Link>
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-          {s.symbol ? <Chip>{s.symbol}</Chip> : null}
-          {s.timeframe ? <Chip>{s.timeframe}</Chip> : null}
-          {!s.symbol && !s.timeframe && (
-            <span
-              style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text3)',
-              }}
-            >
-              {L('未割当', 'unassigned')}
-            </span>
-          )}
-        </div>
-      </td>
-      <td
-        style={{
-          ...TD_BASE,
-          color: sharpeTone(s.latest_sharpe),
-          fontWeight: 700,
-          fontSize: '1rem',
-        }}
-      >
-        {fmtNumber(s.latest_sharpe, { decimals: 2 })}
-        {s.latest_source === RUN_SOURCE_STRATEGY_FILE && (
-          <span
-            data-testid="latest-source-badge"
-            role="img"
-            aria-label={L(
-              '最新ランはチューニング試行（保存していないパラメータ）です',
-              'Latest run is a tuning trial with unsaved parameters',
-            )}
-            title={L(
-              '最新ランはチューニング試行（保存していないパラメータ）です',
-              'Latest run is a tuning trial with unsaved parameters',
-            )}
-            style={{ marginLeft: 4, color: 'var(--warn)', fontSize: 10 }}
-          >
-            ⚠
-          </span>
-        )}
-      </td>
-      <td
-        style={{
-          ...TD_BASE,
-          color:
-            s.latest_return_pct == null
-              ? 'var(--text3)'
-              : s.latest_return_pct >= 0
-                ? 'var(--success)'
-                : 'var(--danger)',
-        }}
-      >
-        {fmtNumber(s.latest_return_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
-        {fmtNumber(s.latest_max_drawdown_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmtNumber(s.latest_profit_factor, { decimals: 2 })}
-      </td>
-      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmtNumber(s.latest_win_rate_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{
-          ...TD_BASE,
-          color: 'var(--text3)',
-          fontSize: 'var(--fs-mono-sm)',
-          textAlign: 'right',
-        }}
-      >
-        {fmtDate(s.last_run_at)}
-      </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{
-          ...TD_BASE,
-          padding: '10px 12px',
-          width: 132,
-          textAlign: 'right',
-        }}
-      >
-        <div style={{ display: 'inline-flex', justifyContent: 'flex-end', minHeight: 26 }}>
-          {sparkRendered}
-        </div>
-      </td>
-    </tr>
   )
 }
 
