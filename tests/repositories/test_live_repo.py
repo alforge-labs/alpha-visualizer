@@ -387,7 +387,7 @@ def test_list_and_load_position_summary_agree_on_pre_cash_schema(
 def test_list_and_load_position_summary_agree_on_migrated_schema(
     tmp_path: Path,
 ) -> None:
-    """移行済み（現行 10 列）スキーマでは一覧・詳細とも通常どおり機能する。
+    """移行済み（現行 12 列）スキーマでは一覧・詳細とも通常どおり機能する。
 
     WHY: 旧スキーマの fail-closed 化が通常ケースまで巻き込んで機能を丸ごと
     無効化していないことを保証する回帰ガード。

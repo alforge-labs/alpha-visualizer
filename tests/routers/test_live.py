@@ -400,6 +400,45 @@ class TestLiveRouter:
         assert summary["cash"] == 898032.059
         assert summary["total_value"] == 994492.308450684
 
+    def test_get_live_position_summary_null_pnl_survives_round_trip(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """建玉の unrealized_pnl / unrealized_pnl_pct が null のまま
+        DB → Repository → services.position_detail → API を貫通することを保証する。
+
+        WHY: 「cost basis が解決できないポジションは 0 でなく null を返す」
+        という設計判断（`schemas/live.py::LivePosition` docstring 参照）は
+        フロント（`LivePositionsTable.test.tsx`）でのみ固定されており、
+        実際に DB 行から HTTP レスポンスまでを貫通する経路には検証が無かった。
+        `services/live.py::position_detail` が将来 `.get("unrealized_pnl") or 0`
+        のような書き換えをしても、この経路にテストが無ければ 0 への
+        意図しない丸めが検知されないまま本番に出てしまう。
+        """
+        db_path = _db_path(tmp_path)
+        seed_live_position_summary(
+            db_path,
+            "combo_null_pnl",
+            metrics={"sharpe_ratio": 1.0},
+            positions=[
+                {
+                    "ticker": "US.UNKNOWN",
+                    "qty": 10.0,
+                    "avg_cost": 100.0,
+                    "last_price": 105.0,
+                    "market_value": 1050.0,
+                    "weight_pct": 1.0,
+                    "unrealized_pnl": None,
+                    "unrealized_pnl_pct": None,
+                }
+            ],
+        )
+        client = TestClient(create_app(forge_dir=tmp_path))
+        response = client.get("/api/live/combo_null_pnl")
+        assert response.status_code == 200
+        position = response.json()["live"]["summary"]["positions"][0]
+        assert position["unrealized_pnl"] is None
+        assert position["unrealized_pnl_pct"] is None
+
     def test_get_live_position_summary_without_new_columns_defaults_empty(
         self, tmp_path: pathlib.Path
     ) -> None:

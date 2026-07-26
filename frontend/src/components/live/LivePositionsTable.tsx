@@ -3,6 +3,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { LivePosition } from '../../api/types'
 import { Card } from '../../design/primitives'
+import { SR_ONLY_STYLE } from '../../design/primitives/srOnly'
 import { fmtDiff, fmtNumber, fmtPercent } from '../../lib/format'
 import { diffTone, toneColor } from './format'
 
@@ -55,6 +56,13 @@ const DASH = '—'
  *
  * これらの数値はブローカー口座の直接照会ではなく、イベントログの再構築値
  * （replay）であるため、`positions-caveat` で必ずその旨を明示する。
+ *
+ * `cash` / `total_value`（forge#1335）が未移行の行では repository が
+ * `NULL → 0.0` にフォールバックするため、建玉を持つ行で `totalValue` が
+ * 0 のまま渡ってくることがある（Finding 3）。この場合に 現金 / 合計 の
+ * セルを ``0`` と表示すると、建玉合計（実数）の隣に「実在しない 0」が並び、
+ * 2 つの「口座の価値」が矛盾して見える。`unrealized_pnl` と同じ判断
+ * （0 で埋めず、不明は不明のまま dash にする）をここにも適用する。
  */
 export function LivePositionsTable({
   positions,
@@ -64,6 +72,9 @@ export function LivePositionsTable({
 }: Props): ReactElement {
   const L = makeL(lang)
   const positionsSubtotal = positions.reduce((sum, p) => sum + p.market_value, 0)
+  // 建玉はあるのに totalValue <= 0 は「未移行 DB の NULL→0.0 フォールバック」を
+  // 示す異常値であり、真に価値ゼロの口座ではない。現金・合計は不明として dash にする。
+  const isTotalValueUnknown = totalValue <= 0 && positions.length > 0
   // 現金の構成比 = 現金 / 合計。design doc の「現状は資産の約 90% が現金」を
   // 可視化する目的の列なので、現金行だけ dash のままにしない。
   // totalValue が 0（または未初期化）のときは fmtPercent が
@@ -76,17 +87,26 @@ export function LivePositionsTable({
       <Card pad={false} style={{ overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <caption style={SR_ONLY_STYLE}>
+              {L(
+                '現在の建玉一覧。銘柄・数量・平均取得単価・現在値・評価額・構成比・含み損益と、建玉合計／現金／合計の集計行を含む。',
+                'Current holdings: ticker, quantity, average cost, last price, value, weight, and unrealized P&L, followed by positions subtotal / cash / total rows.',
+              )}
+            </caption>
             <thead style={{ background: 'var(--surface-2)' }}>
               <tr>
-                <th style={{ ...TH_BASE, textAlign: 'left', paddingLeft: 20, fontFamily: 'var(--serif)' }}>
+                <th
+                  scope="col"
+                  style={{ ...TH_BASE, textAlign: 'left', paddingLeft: 20, fontFamily: 'var(--serif)' }}
+                >
                   {L('銘柄', 'Ticker')}
                 </th>
-                <th style={TH_BASE}>{L('数量', 'Qty')}</th>
-                <th style={TH_BASE}>{L('平均取得', 'Avg Cost')}</th>
-                <th style={TH_BASE}>{L('現在値', 'Last')}</th>
-                <th style={TH_BASE}>{L('評価額', 'Value')}</th>
-                <th style={TH_BASE}>{L('構成比', 'Weight')}</th>
-                <th style={TH_BASE}>{L('含み損益（額・%）', 'Unrealized P&L (amt / %)')}</th>
+                <th scope="col" style={TH_BASE}>{L('数量', 'Qty')}</th>
+                <th scope="col" style={TH_BASE}>{L('平均取得', 'Avg Cost')}</th>
+                <th scope="col" style={TH_BASE}>{L('現在値', 'Last')}</th>
+                <th scope="col" style={TH_BASE}>{L('評価額', 'Value')}</th>
+                <th scope="col" style={TH_BASE}>{L('構成比', 'Weight')}</th>
+                <th scope="col" style={TH_BASE}>{L('含み損益（額・%）', 'Unrealized P&L (amt / %)')}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +154,7 @@ export function LivePositionsTable({
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td data-testid="cash-value" style={{ ...TD_BASE, fontWeight: 600 }}>
-                  {fmtNumber(cash)}
+                  {isTotalValueUnknown ? DASH : fmtNumber(cash)}
                 </td>
                 <td data-testid="cash-weight-value" style={TD_BASE}>
                   {fmtPercent(cashWeightPct)}
@@ -147,7 +167,7 @@ export function LivePositionsTable({
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td data-testid="total-value" style={{ ...TD_BASE, fontWeight: 700 }}>
-                  {fmtNumber(totalValue)}
+                  {isTotalValueUnknown ? DASH : fmtNumber(totalValue)}
                 </td>
                 <td style={TD_BASE}>{DASH}</td>
                 <td style={TD_BASE}>{DASH}</td>

@@ -385,7 +385,12 @@ describe('EquityDrawdownPaneTV', () => {
     })
 
     it('overlays 未指定なら従来どおり描画される（後方互換）', () => {
-      const { container } = render(
+      // WHY(Finding 5): `expect(container).toBeTruthy()` は render() が例外を
+      // 投げない限り常に真になる無意味な assertion だった（container は
+      // 常に truthy）。後方互換の実質は「pane が描画されること」と
+      // 「overlay 列が a11y データ表に漏れ出さないこと」であるため、
+      // それを直接検証する。
+      render(
         <EquityDrawdownPaneTV
           equity={[100, 110]}
           dates={['2026-01-05', '2026-01-06']}
@@ -394,7 +399,9 @@ describe('EquityDrawdownPaneTV', () => {
           lang="ja"
         />,
       )
-      expect(container).toBeTruthy()
+      expect(screen.getByTestId('equity-drawdown-pane-tv')).toBeInTheDocument()
+      const headers = screen.getAllByRole('columnheader').map((th) => th.textContent)
+      expect(headers).toEqual(['Date', 'Equity', 'DD %'])
     })
 
     it('overlays の各要素ごとに LineSeries を追加する', () => {

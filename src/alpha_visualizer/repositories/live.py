@@ -125,12 +125,19 @@ class LiveDataRepository:
         """SELECT を実行して全行返す。engine 不在 / テーブル未作成なら空リスト。
 
         live を一度も使っていない DB には live_* テーブルが無いため、その
-        ``no such table`` は空扱いにする。加えて、alpha-forge が
-        ``ALTER TABLE ... ADD COLUMN`` で列を後付けする方式（forge#1332）を
-        採っているため、DB を一度も開いていない環境では列自体が無く
-        ``no such column`` になり得る。列追加は alpha-forge 側の責務であり
-        本リポジトリはフォールバッククエリを組まず、同様に空扱いにするだけに
-        留める（500 を返さず「実績なし」表示にする）。DB 破損・ロック競合・
+        ``no such table`` は空扱いにする（live を使ったことが無いだけで
+        異常ではないため ``debug`` レベル）。
+
+        加えて、alpha-forge が ``ALTER TABLE ... ADD COLUMN`` で列を後付けする
+        方式（forge#1332）を採っているため、DB を一度も開いていない環境では
+        列自体が無く ``no such column`` になり得る。こちらは意味が異なる:
+        ``no such table`` は「live を使ったことが無い」だが、``no such column``
+        は「データは存在するのに読めていない」（combine portfolio がまるごと
+        `/live` から消える）。運用者が気付けるよう ``warning`` レベルで、
+        `alpha-forge live replay` を一度実行すれば ``ALTER TABLE`` が走り
+        復元される旨をメッセージに含める。列追加自体は alpha-forge 側の
+        責務であり、本リポジトリはフォールバッククエリを組まず、いずれも
+        500 を返さず空扱いにするだけに留める。DB 破損・ロック競合・
         ストレージ枯渇など他の ``OperationalError`` は握り潰さず再送出する
         （Fail Loud）。
         """
@@ -141,8 +148,15 @@ class LiveDataRepository:
                 return conn.execute(stmt).all()
         except OperationalError as exc:
             msg = str(exc).lower()
-            if "no such table" in msg or "no such column" in msg:
-                logger.debug("live テーブル未作成/列未追加のため空として扱う: %s", exc)
+            if "no such table" in msg:
+                logger.debug("live テーブル未作成のため空として扱う: %s", exc)
+                return []
+            if "no such column" in msg:
+                logger.warning(
+                    "live テーブルに列が未追加のためデータを非表示にしています: %s "
+                    "— `alpha-forge live replay` を一度実行すると ALTER TABLE が走り復元されます。",
+                    exc,
+                )
                 return []
             raise
 

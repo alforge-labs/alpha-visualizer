@@ -44,33 +44,44 @@ function metricDiff(live: number | null | undefined, bt: number | null | undefin
 }
 
 /**
- * `benchmark_equity` / `backtest_equity` から比較オーバーレイを組み立てる。
+ * `benchmark_equity` / `backtest_equity` の許容判定（Finding 1 対応）。
  *
  * `EquityDrawdownPaneTV` / `useEquityViewport` は overlay の値を equity と
  * **同じインデックス**でスライスする（`sliceByRange` が `values[start + i]` で
  * 参照する）。バックエンドは同一日付インデックスで 3 系列を返す契約だが、
- * それを盲信せず、長さが `equity` と一致しない場合はここで弾いて overlay を
- * 積まない（インデックスがずれた比較線を黙って描くよりは、比較線自体を
- * 非表示にする方が安全なため）。
+ * それを盲信せず、長さが `equity` と一致しない場合はここで弾く。
+ *
+ * この判定結果は overlay（チャート）と KPI 行（超過リターン）の**両方**が
+ * 共有する唯一の判定にする。チャートには「インデックスがずれた比較線を
+ * 黙って描くよりは非表示の方が安全」という理由で弾いておきながら、同じ
+ * 系列を KPI 側の数値計算にだけ生で流すと、チャートには出ない指数が
+ * 「超過リターン vs 指数」という見出しの実数として画面に表示されてしまう
+ * （表示するには信頼できないが見出し数値にするには信頼できる、という
+ * 矛盾）。判定を 1 箇所にまとめ、弾かれた系列は KPI にも渡さない。
  *
  * 弾いた場合は `console.warn` で契約違反の痕跡を残す。黙って捨てるだけでは
  * 本番でバックエンドの契約が崩れたときに気付く手段が無くなる。
  */
-function buildOverlay(
+function admitComparisonSeries(
   label: string,
   series: [string, number][] | undefined,
   equityLength: number,
-): EquityOverlay | null {
+): [string, number][] | null {
   if (!series || series.length === 0) return null
-  const values = series.map(([, v]) => v)
-  if (values.length !== equityLength) {
+  if (series.length !== equityLength) {
     console.warn(
       `[LivePositionView] overlay "${label}" の長さが equity と一致しないため非表示にします ` +
-        `(equity: ${equityLength} 件, overlay: ${values.length} 件)`,
+        `(equity: ${equityLength} 件, overlay: ${series.length} 件)`,
     )
     return null
   }
-  return { label, values }
+  return series
+}
+
+/** 許容済み系列（`admitComparisonSeries` 通過後）を overlay 形式に変換する。 */
+function toOverlay(label: string, series: [string, number][] | null): EquityOverlay | null {
+  if (!series) return null
+  return { label, values: series.map(([, v]) => v) }
 }
 
 /**
@@ -97,9 +108,15 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
   const drawdown = toDrawdown(values)
   const positions = summary.positions ?? []
 
+  const benchmarkLabel = L('指数（Buy & Hold）', 'Index (Buy & Hold)')
+  const backtestLabel = L('バックテスト', 'Backtest')
+  // チャートと KPI 行、両方の入力をここで一度だけ判定する（Finding 1）。
+  const acceptedBenchmark = admitComparisonSeries(benchmarkLabel, summary.benchmark_equity, values.length)
+  const acceptedBacktest = admitComparisonSeries(backtestLabel, summary.backtest_equity, values.length)
+
   const overlays: EquityOverlay[] = [
-    buildOverlay(L('指数（Buy & Hold）', 'Index (Buy & Hold)'), summary.benchmark_equity, values.length),
-    buildOverlay(L('バックテスト', 'Backtest'), summary.backtest_equity, values.length),
+    toOverlay(benchmarkLabel, acceptedBenchmark),
+    toOverlay(backtestLabel, acceptedBacktest),
   ].filter((o): o is EquityOverlay => o != null)
 
   return (
@@ -135,8 +152,8 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
 
       <LiveKpiRow
         equity={equity}
-        benchmarkEquity={summary.benchmark_equity}
-        backtestEquity={summary.backtest_equity}
+        benchmarkEquity={acceptedBenchmark ?? undefined}
+        backtestEquity={acceptedBacktest ?? undefined}
         lang={lang}
       />
 

@@ -164,6 +164,46 @@ describe('<LivePositionView /> assembly (Task 13)', () => {
     expect(overlays[0]?.values).toEqual([1_000_000, 1_020_000])
   })
 
+  it('overlay で除外された系列は KPI の超過リターンにも使われない（Finding 1: チャートと KPI の判定を統一）', () => {
+    // WHY: buildOverlay がチャート描画を弾く系列を、KPI 行（超過リターン）が
+    // 生の summary.benchmark_equity / backtest_equity をそのまま受け取って
+    // 描画してしまうと、「チャートには出ない指数」が「超過リターン vs 指数」
+    // という見出し数値としては表示される、という矛盾した状態になる。
+    // LivePositionView は許容済みの系列だけを LiveKpiRow に渡す契約を検証する。
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: { total_return_pct: -0.5 },
+      equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 995_000],
+        ['2026-06-06T00:00:00', 990_000],
+      ] as [string, number][],
+      // equity より 1 点短い（契約違反を模擬）→ overlay からも KPI からも除外されるべき
+      benchmark_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_020_000],
+      ] as [string, number][],
+      // equity と同じ長さ → overlay にも KPI にも採用されるべき
+      backtest_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_010_000],
+        ['2026-06-06T00:00:00', 1_015_000],
+      ] as [string, number][],
+      receipts_count: 78,
+    }
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+
+    expect(equityPaneProps.current?.overlays ?? []).toHaveLength(1)
+    // 指数（長さ不一致）はチャートにもKPIにも出ない
+    expect(screen.queryByTestId('kpi-excess-index')).not.toBeInTheDocument()
+    // バックテスト（長さ一致）はチャートにもKPIにも出る
+    expect(screen.getByTestId('kpi-excess-backtest')).toBeInTheDocument()
+
+    warnSpy.mockRestore()
+  })
+
   it('overlay の長さが equity と食い違う系列は除外し、一致する系列だけ積む（console.warn で警告）', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const summary = {

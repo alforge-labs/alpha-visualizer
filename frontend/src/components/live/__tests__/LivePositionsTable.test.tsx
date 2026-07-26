@@ -112,4 +112,48 @@ describe('LivePositionsTable', () => {
     expect(weightCell.textContent).toContain('—')
     expect(weightCell.textContent).not.toMatch(/\d/)
   })
+
+  it('建玉はあるのに totalValue が 0 以下のときは現金・合計を em dash にする（Finding 3: 捏造された 0 を表示しない）', () => {
+    // WHY: cash/total_value（forge#1335）が未移行の行は repository が NULL を
+    // 0.0 にフォールバックするため、建玉合計（実数・33,471）の隣に
+    // 現金 0.000 / 合計 0.000 という「存在しない口座価値」が並んでしまう。
+    // unrealized_pnl と同じ判断（不明を 0 で埋めない）をここでも守る。
+    render(
+      <LivePositionsTable positions={POSITIONS} cash={0} totalValue={0} lang="ja" />,
+    )
+    const cashCell = screen.getByTestId('cash-value')
+    const totalCell = screen.getByTestId('total-value')
+    expect(cashCell.textContent).toContain('—')
+    expect(cashCell.textContent).not.toMatch(/\d/)
+    expect(totalCell.textContent).toContain('—')
+    expect(totalCell.textContent).not.toMatch(/\d/)
+    // 建玉合計自体は実数のまま出ることを対で固定する（行全体が dash 化した偽陽性を防ぐ）
+    expect(screen.getByTestId('positions-subtotal-value').textContent).toContain('33,471')
+  })
+
+  it('建玉が無ければ totalValue が 0 でも現金・合計は通常どおり数値で表示する（ノーポジション口座の正当な 0）', () => {
+    // WHY: Finding 3 のガードは「建玉があるのに totalValue が捏造された 0」を
+    // 弾くためのもの。建玉ゼロの口座で本当に価値が 0 なら、それは正当な値
+    // であり dash にすり替えてはならない。
+    render(<LivePositionsTable positions={[]} cash={0} totalValue={0} lang="ja" />)
+    expect(screen.getByTestId('cash-value').textContent).toContain('0')
+    expect(screen.getByTestId('total-value').textContent).toContain('0')
+  })
+
+  it('テーブルにスクリーンリーダー向けの caption と列見出しの scope="col" を備える', () => {
+    // WHY(Finding b): 建玉テーブルは金融保有情報を提示するにもかかわらず
+    // <th scope="col"> も <caption> も無く、ChartDataTable.tsx が既に
+    // 採用しているアクセシブルなパターンに追随していなかった。
+    render(
+      <LivePositionsTable positions={POSITIONS} cash={898032} totalValue={994492} lang="ja" />,
+    )
+    const table = screen.getByRole('table')
+    const headers = within(table).getAllByRole('columnheader')
+    expect(headers.length).toBeGreaterThan(0)
+    for (const th of headers) {
+      expect(th).toHaveAttribute('scope', 'col')
+    }
+    // caption は視覚的に隠れていてもアクセシブルツリー上は table の説明として存在する
+    expect(table.querySelector('caption')).not.toBeNull()
+  })
 })

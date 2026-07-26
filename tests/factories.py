@@ -461,7 +461,7 @@ def seed_old_schema_live_position_summary(
     """forge#1332 の列追加（``benchmark_equity_json`` 等）前の 7 列スキーマで
     ``live_position_summaries`` を再現する。
 
-    ``db.py`` の ``metadata`` は現行（10 列）スキーマを持つため使わず、素の
+    ``db.py`` の ``metadata`` は現行（12 列）スキーマを持つため使わず、素の
     ``CREATE TABLE`` で意図的に旧スキーマを再現する。alpha-forge が一度も
     ``ALTER TABLE`` を実行していない DB（本ツールがまだ開いたことのない
     旧 DB）を模したテスト専用ヘルパー。
