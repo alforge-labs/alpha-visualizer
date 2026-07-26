@@ -3,6 +3,7 @@ import { type SetURLSearchParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
 import { updateParam } from '../lib/searchParams'
+import { buildRecipes, effectiveSymbol, type Recipe } from '../lib/recipes'
 
 export type SortKey = 'name' | 'latest_sharpe' | 'latest_return_pct' | 'latest_max_drawdown_pct' | 'latest_profit_factor' | 'latest_win_rate_pct' | 'last_run_at'
 export type SortDir = 'asc' | 'desc'
@@ -14,6 +15,10 @@ const VALID_SORT_KEYS: readonly SortKey[] = [
 ] as const
 
 const VALID_GROUP_BY: readonly GroupBy[] = ['none', 'symbol', 'tf', 'tier'] as const
+
+function toIncludeUnrun(v: string | null): boolean {
+  return v === '1'
+}
 
 export const COMPARE_MAX = 6
 
@@ -48,13 +53,19 @@ export interface StrategyGroup {
   key: string
   label: string
   rank: number
-  items: StrategyListItem[]
+  items: Recipe[]
   aggregate: GroupAggregate
 }
 
 export interface StrategyListState {
   all: StrategyListItem[]
-  filtered: StrategyListItem[]
+  /** 絞り込み・未実行除外・ソートを通したレシピ（表の描画対象） */
+  recipes: Recipe[]
+  /** 全戦略から作ったレシピ数。フィルタに依らない分母 */
+  recipeTotal: number
+  /** 未実行トグルで隠れているレシピ数。includeUnrun が true なら 0 */
+  hiddenUnrunRecipeCount: number
+  includeUnrun: boolean
   groups: StrategyGroup[]
   loading: boolean
   error: string | null
@@ -97,32 +108,34 @@ function sharpeTierKey(v: number | null | undefined): TierKey {
   return 'weak'
 }
 
-function aggregate(items: StrategyListItem[]): GroupAggregate {
+function aggregate(recipes: Recipe[]): GroupAggregate {
   let bestSharpe: number | null = null
   let worstDd: number | null = null
-  for (const s of items) {
-    if (s.latest_sharpe != null) {
-      bestSharpe = bestSharpe == null ? s.latest_sharpe : Math.max(bestSharpe, s.latest_sharpe)
+  for (const r of recipes) {
+    const sharpe = r.best?.latest_sharpe
+    if (sharpe != null) {
+      bestSharpe = bestSharpe == null ? sharpe : Math.max(bestSharpe, sharpe)
     }
-    if (s.latest_max_drawdown_pct != null) {
-      worstDd = worstDd == null ? s.latest_max_drawdown_pct : Math.min(worstDd, s.latest_max_drawdown_pct)
+    const dd = r.best?.latest_max_drawdown_pct
+    if (dd != null) {
+      worstDd = worstDd == null ? dd : Math.min(worstDd, dd)
     }
   }
-  return { count: items.length, bestSharpe, worstDrawdownPct: worstDd }
+  return { count: recipes.length, bestSharpe, worstDrawdownPct: worstDd }
 }
 
-function buildGroups(items: StrategyListItem[], groupBy: GroupBy): StrategyGroup[] {
+function buildGroups(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
   if (groupBy === 'none') {
-    if (items.length === 0) return []
-    return [{ key: 'all', label: 'all', rank: 0, items, aggregate: aggregate(items) }]
+    if (recipes.length === 0) return []
+    return [{ key: 'all', label: 'all', rank: 0, items: recipes, aggregate: aggregate(recipes) }]
   }
 
   if (groupBy === 'tier') {
-    const buckets: Record<TierKey, StrategyListItem[]> = {
+    const buckets: Record<TierKey, Recipe[]> = {
       strong: [], moderate: [], weak: [], no_data: [],
     }
-    for (const s of items) {
-      buckets[sharpeTierKey(s.latest_sharpe)].push(s)
+    for (const r of recipes) {
+      buckets[sharpeTierKey(r.best?.latest_sharpe)].push(r)
     }
     const out: StrategyGroup[] = []
     for (const tierKey of Object.keys(buckets) as TierKey[]) {
@@ -140,15 +153,15 @@ function buildGroups(items: StrategyListItem[], groupBy: GroupBy): StrategyGroup
   }
 
   // groupBy: 'symbol' | 'tf'
-  const keyOf = (s: StrategyListItem): string =>
-    groupBy === 'symbol' ? (s.symbol ?? '') : (s.timeframe ?? '')
+  const keyOf = (r: Recipe): string =>
+    groupBy === 'symbol' ? (r.symbol ?? '') : (r.timeframe ?? '')
 
-  const map = new Map<string, StrategyListItem[]>()
-  for (const s of items) {
-    const k = keyOf(s)
+  const map = new Map<string, Recipe[]>()
+  for (const r of recipes) {
+    const k = keyOf(r)
     const arr = map.get(k)
-    if (arr) arr.push(s)
-    else map.set(k, [s])
+    if (arr) arr.push(r)
+    else map.set(k, [r])
   }
   const out: StrategyGroup[] = []
   for (const [k, groupItems] of map.entries()) {
@@ -198,7 +211,7 @@ function useStrategyData(): {
   }, [])
 
   const symbols = useMemo(
-    () => [...new Set(all.map(s => s.symbol).filter(Boolean) as string[])].sort(),
+    () => [...new Set(all.map(effectiveSymbol).filter((s): s is string => Boolean(s)))].sort(),
     [all],
   )
   const timeframes = useMemo(
@@ -219,9 +232,13 @@ function useFiltering(
   ddMax: number,
 ): StrategyListItem[] {
   return useMemo(() => {
+    const needle = q.toLowerCase()
     return all.filter(s => {
-      if (q && !s.name.toLowerCase().includes(q.toLowerCase()) && !(s.symbol ?? '').toLowerCase().includes(q.toLowerCase())) return false
-      if (symbolFilter.length > 0 && !symbolFilter.includes(s.symbol ?? '')) return false
+      // 銘柄は実効銘柄で判定する。item.symbol だけを見ると、定義のみで
+      // 銘柄が判明している戦略はチップに出るのに選ぶと 0 件になる。
+      const symbol = effectiveSymbol(s) ?? ''
+      if (q && !s.name.toLowerCase().includes(needle) && !symbol.toLowerCase().includes(needle)) return false
+      if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) return false
       if (tfFilter.length > 0 && !tfFilter.includes(s.timeframe ?? '')) return false
       if (!isNaN(sharpeMin) && numVal(s.latest_sharpe) < sharpeMin) return false
       if (!isNaN(ddMax) && Math.abs(numVal(s.latest_max_drawdown_pct)) > ddMax) return false
@@ -231,31 +248,36 @@ function useFiltering(
 }
 
 
-function useSortedItems(
-  items: StrategyListItem[],
+/** レシピを best の指標で並べる。best が無いレシピは常に末尾に沈む。 */
+function useSortedRecipes(
+  recipes: Recipe[],
   sortKey: SortKey,
   sortDir: SortDir,
-): StrategyListItem[] {
+): Recipe[] {
   return useMemo(() => {
-    return [...items].sort((a, b) => {
+    return [...recipes].sort((a, b) => {
       let va: number | string
       let vb: number | string
-      if (sortKey === 'name') { va = a.name; vb = b.name }
-      else if (sortKey === 'last_run_at') { va = a.last_run_at ?? ''; vb = b.last_run_at ?? '' }
-      else { va = numVal(a[sortKey] as number | null); vb = numVal(b[sortKey] as number | null) }
+      if (sortKey === 'name') {
+        va = a.name
+        vb = b.name
+      } else if (sortKey === 'last_run_at') {
+        va = a.best?.last_run_at ?? ''
+        vb = b.best?.last_run_at ?? ''
+      } else {
+        va = numVal(a.best?.[sortKey] as number | null | undefined)
+        vb = numVal(b.best?.[sortKey] as number | null | undefined)
+      }
       if (va < vb) return sortDir === 'asc' ? -1 : 1
       if (va > vb) return sortDir === 'asc' ? 1 : -1
       return 0
     })
-  }, [items, sortKey, sortDir])
+  }, [recipes, sortKey, sortDir])
 }
 
 
-function useGrouping(
-  items: StrategyListItem[],
-  groupBy: GroupBy,
-): StrategyGroup[] {
-  return useMemo(() => buildGroups(items, groupBy), [items, groupBy])
+function useGrouping(recipes: Recipe[], groupBy: GroupBy): StrategyGroup[] {
+  return useMemo(() => buildGroups(recipes, groupBy), [recipes, groupBy])
 }
 
 
@@ -329,6 +351,7 @@ export function useStrategyList(): StrategyListState {
   const sortKey = toSortKey(searchParams.get('sort'))
   const sortDir = toSortDir(searchParams.get('dir'))
   const groupBy = toGroupBy(searchParams.get('group'))
+  const includeUnrun = toIncludeUnrun(searchParams.get('include_unrun'))
   const q = searchParams.get('q') ?? ''
   const symbolFilter = useMemo(
     () => (searchParams.get('symbol') ?? '').split(',').filter(Boolean),
@@ -341,9 +364,27 @@ export function useStrategyList(): StrategyListState {
   const sharpeMin = parseFloat(searchParams.get('sharpe_min') ?? '')
   const ddMax = parseFloat(searchParams.get('dd_max') ?? '')
 
-  const filteredOnly = useFiltering(all, q, symbolFilter, tfFilter, sharpeMin, ddMax)
-  const filtered = useSortedItems(filteredOnly, sortKey, sortDir)
-  const groups = useGrouping(filtered, groupBy)
+  const filtered = useFiltering(all, q, symbolFilter, tfFilter, sharpeMin, ddMax)
+
+  // 絞り込み後の戦略をレシピへ畳む。未実行トグルはこのあとに効かせる。
+  const filteredRecipes = useMemo(() => buildRecipes(filtered), [filtered])
+
+  // 「隠した件数」は絞り込み後の集合に対して数える。全体から数えると、
+  // フィルタで既に落ちているレシピまで「トグルで隠した」と報告してしまう。
+  const unrunOnlyCount = useMemo(
+    () => filteredRecipes.filter(r => r.runCount === 0).length,
+    [filteredRecipes],
+  )
+  const visibleRecipes = useMemo(
+    () => (includeUnrun ? filteredRecipes : filteredRecipes.filter(r => r.runCount > 0)),
+    [filteredRecipes, includeUnrun],
+  )
+
+  const recipes = useSortedRecipes(visibleRecipes, sortKey, sortDir)
+  const groups = useGrouping(recipes, groupBy)
+
+  // 分母はフィルタに依らない全体のレシピ数
+  const recipeTotal = useMemo(() => buildRecipes(all).length, [all])
 
   const setSort = (key: SortKey): void => {
     setSearchParams(prev => {
@@ -369,7 +410,10 @@ export function useStrategyList(): StrategyListState {
   const compare = useCompareSelection(searchParams, setSearchParams)
 
   return {
-    all, filtered, groups, loading, error,
+    all, recipes, recipeTotal,
+    hiddenUnrunRecipeCount: includeUnrun ? 0 : unrunOnlyCount,
+    includeUnrun,
+    groups, loading, error,
     sortKey, sortDir, setSort,
     groupBy, setGroupBy,
     symbols, timeframes,

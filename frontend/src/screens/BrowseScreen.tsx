@@ -159,9 +159,11 @@ export function BrowseScreen({
           <Loading label={L('読み込み中…', 'Loading…')} />
         ) : (
           <StrategyTable
-            items={list.filtered}
+            recipes={list.recipes}
             groups={list.groups}
-            total={list.all.length}
+            strategyTotal={list.all.length}
+            recipeTotal={list.recipeTotal}
+            hiddenUnrunRecipeCount={list.hiddenUnrunRecipeCount}
             sortKey={list.sortKey}
             sortDir={list.sortDir}
             onSort={list.setSort}

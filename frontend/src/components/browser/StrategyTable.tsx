@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { StrategyListItem } from '../../api/types'
+import type { Recipe } from '../../lib/recipes'
 import { COMPARE_MAX, type SortKey, type SortDir, type StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
@@ -8,10 +8,12 @@ import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
 import { fmtNumber } from '../../lib/format'
 import { StrategyRow, TD_BASE, sharpeTone } from './StrategyRow'
+import { RecipeRow } from './RecipeRow'
 
 interface Props {
-  items: StrategyListItem[]
-  total: number
+  recipes: Recipe[]
+  /** 全戦略数。空状態の分岐（フィルタ由来 vs データ無し）に使う */
+  strategyTotal: number
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey) => void
@@ -21,6 +23,9 @@ interface Props {
   onToggleCompare: (id: string) => void
   lang: Lang
   groups?: StrategyGroup[]   // 与えられたらグループモード、無ければ従来 items を 1 グループ扱い
+  /** フッタに出す件数（Task 4 で `StrategyTableFooter` が使う） */
+  recipeTotal: number
+  hiddenUnrunRecipeCount: number
 }
 
 const HOVER_DELAY_MS = 220
@@ -162,8 +167,8 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
 }
 
 export function StrategyTable({
-  items,
-  total,
+  recipes,
+  strategyTotal,
   sortKey,
   sortDir,
   onSort,
@@ -173,11 +178,14 @@ export function StrategyTable({
   onToggleCompare,
   lang,
   groups,
+  recipeTotal,
+  // hiddenUnrunRecipeCount は Task 4 の StrategyTableFooter が使う（このタスクでは未消費）
 }: Props): React.ReactElement {
   const L = makeL(lang)
   const sparkline = useSparklineCache()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
 
   // 行ホバーが HOVER_DELAY_MS 続いたら sparkline を fetch
   useEffect(() => {
@@ -204,24 +212,53 @@ export function StrategyTable({
     })
   }
 
-  const renderRow = (s: StrategyListItem): React.ReactElement => {
-    const isSelected = selectedId === s.strategy_id
-    const inCompare = compareIds.includes(s.strategy_id)
-    const maxCompareReached = compareIds.length >= COMPARE_MAX && !inCompare
-    return (
-      <StrategyRow
-        key={s.strategy_id}
-        s={s}
-        selected={isSelected}
-        inCompare={inCompare}
-        maxCompareReached={maxCompareReached}
+  const toggleExpand = (key: string): void => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  /** レシピ 1 件を、折り畳み行＋（展開中なら）子行の配列にする。 */
+  const renderRecipe = (recipe: Recipe): React.ReactElement[] => {
+    const expanded = expandedKeys.has(recipe.key)
+    const head = (
+      <RecipeRow
+        key={recipe.key}
+        recipe={recipe}
+        expanded={expanded}
+        onToggleExpand={toggleExpand}
+        selectedId={selectedId}
         onSelect={onSelect}
+        compareIds={compareIds}
         onToggleCompare={onToggleCompare}
         onHover={setHoveredId}
-        sparkValues={sparkline.entries[s.strategy_id]}
+        sparkValues={recipe.best ? sparkline.entries[recipe.best.strategy_id] : undefined}
         lang={lang}
       />
     )
+    if (!expanded) return [head]
+    const children = recipe.variants.map(v => {
+      const inCompare = compareIds.includes(v.strategy_id)
+      return (
+        <StrategyRow
+          key={v.strategy_id}
+          s={v}
+          selected={selectedId === v.strategy_id}
+          inCompare={inCompare}
+          maxCompareReached={compareIds.length >= COMPARE_MAX && !inCompare}
+          onSelect={onSelect}
+          onToggleCompare={onToggleCompare}
+          onHover={setHoveredId}
+          sparkValues={sparkline.entries[v.strategy_id]}
+          lang={lang}
+          indent
+        />
+      )
+    })
+    return [head, ...children]
   }
 
   return (
@@ -280,25 +317,23 @@ export function StrategyTable({
           </tr>
         </thead>
         <tbody>
-          {renderGroups ? (
-            renderGroups.flatMap(group => {
-              const isCollapsed = collapsedKeys.has(group.key)
-              const header = (
-                <GroupHeaderRow
-                  key={`__header__${group.key}`}
-                  group={group}
-                  collapsed={isCollapsed}
-                  onToggle={toggleGroup}
-                  lang={lang}
-                />
-              )
-              if (isCollapsed) return [header]
-              return [header, ...group.items.map(renderRow)]
-            })
-          ) : (
-            items.map(renderRow)
-          )}
-          {items.length === 0 && (
+          {renderGroups
+            ? renderGroups.flatMap(group => {
+                const isCollapsed = collapsedKeys.has(group.key)
+                const header = (
+                  <GroupHeaderRow
+                    key={`__header__${group.key}`}
+                    group={group}
+                    collapsed={isCollapsed}
+                    onToggle={toggleGroup}
+                    lang={lang}
+                  />
+                )
+                if (isCollapsed) return [header]
+                return [header, ...group.items.flatMap(renderRecipe)]
+              })
+            : recipes.flatMap(renderRecipe)}
+          {recipes.length === 0 && (
             <tr>
               <td
                 colSpan={COL_COUNT}
@@ -312,7 +347,7 @@ export function StrategyTable({
                   letterSpacing: 'var(--tracking-mono)',
                 }}
               >
-                {total > 0 ? (
+                {strategyTotal > 0 ? (
                   L('該当する戦略はありません', 'No strategies match the current filters')
                 ) : (
                   /* データが一切ない初回起動（forge 未導入の OSS ユーザーの
@@ -366,11 +401,13 @@ export function StrategyTable({
           fontSize: 'var(--fs-mono-sm)',
           color: 'var(--text3)',
           letterSpacing: 'var(--tracking-mono)',
-          textTransform: 'uppercase',
           borderTop: '1px solid var(--border)',
         }}
       >
-        {L(`${items.length}件 / 全${total}件`, `${items.length} of ${total} strategies`)}
+        {L(
+          `${recipes.length} レシピ / 全 ${recipeTotal} レシピ`,
+          `${recipes.length} of ${recipeTotal} recipes`,
+        )}
       </div>
     </div>
   )

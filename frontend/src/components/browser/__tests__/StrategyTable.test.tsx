@@ -1,22 +1,51 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import type { StrategyListItem } from '../../../api/types'
+import { buildRecipes, type Recipe } from '../../../lib/recipes'
 import { StrategyTable } from '../StrategyTable'
 
-function renderTable(total: number) {
+function mkItem(overrides: Partial<StrategyListItem> & { strategy_id: string }): StrategyListItem {
+  return {
+    // strategy_id は overrides に必須プロパティとして含まれるため、下の
+    // ...overrides で必ず上書きされる。二重指定は tsc の TS2783
+    // （spread による上書き警告）を build エラーにしてしまうため書かない。
+    name: 'S1',
+    symbol: 'AAPL',
+    timeframe: '1d',
+    tags: [],
+    target_symbols: [],
+    latest_sharpe: null,
+    latest_return_pct: null,
+    latest_max_drawdown_pct: null,
+    latest_profit_factor: null,
+    latest_win_rate_pct: null,
+    latest_total_trades: null,
+    last_run_at: null,
+    latest_source: null,
+    ...overrides,
+  }
+}
+
+function renderTable(strategyTotal: number, recipes: Recipe[] = []) {
   render(
-    <StrategyTable
-      items={[]}
-      total={total}
-      sortKey="latest_sharpe"
-      sortDir="desc"
-      onSort={vi.fn()}
-      selectedId={null}
-      onSelect={vi.fn()}
-      compareIds={[]}
-      onToggleCompare={vi.fn()}
-      lang="ja"
-    />,
+    <MemoryRouter>
+      <StrategyTable
+        recipes={recipes}
+        strategyTotal={strategyTotal}
+        recipeTotal={recipes.length}
+        hiddenUnrunRecipeCount={0}
+        sortKey="latest_sharpe"
+        sortDir="desc"
+        onSort={vi.fn()}
+        selectedId={null}
+        onSelect={vi.fn()}
+        compareIds={[]}
+        onToggleCompare={vi.fn()}
+        lang="ja"
+      />
+    </MemoryRouter>,
   )
 }
 
@@ -49,48 +78,21 @@ describe('<StrategyTable /> empty states', () => {
   })
 })
 
-/**
- * vis#299: Browse 一覧の latest 指標が「保存していないチューニング試行ラン」に
- * すり替わったことに気づけるよう、latest_source=strategy-file にマーカーを出す。
- */
-describe('<StrategyTable /> latest-source marker (issue #299)', () => {
-  function renderWithItem(latestSource: string | null) {
-    render(
-      <MemoryRouter>
-        <StrategyTable
-          items={[
-            {
-              strategy_id: 's1',
-              name: 'S1',
-              symbol: 'AAPL',
-              timeframe: '1d',
-              tags: [],
-              target_symbols: [],
-              latest_sharpe: 1.2,
-              latest_source: latestSource,
-            } as unknown as import('../../../api/types').StrategyListItem,
-          ]}
-          total={1}
-          sortKey="latest_sharpe"
-          sortDir="desc"
-          onSort={vi.fn()}
-          selectedId={null}
-          onSelect={vi.fn()}
-          compareIds={[]}
-          onToggleCompare={vi.fn()}
-          lang="ja"
-        />
-      </MemoryRouter>,
-    )
-  }
+describe('<StrategyTable /> レシピ展開', () => {
+  it('折り畳み時は 1 行、展開すると variant の行が増える', async () => {
+    const recipes = buildRecipes([
+      mkItem({ strategy_id: 'v1', name: 'X', symbol: 'SPY', latest_sharpe: 1.0, last_run_at: '2026-01-01T00:00:00' }),
+      mkItem({ strategy_id: 'v2', name: 'X', symbol: 'SPY' }),
+      mkItem({ strategy_id: 'v3', name: 'X', symbol: 'SPY' }),
+    ])
+    renderTable(3, recipes)
 
-  it('shows the marker when the latest run is a strategy-file trial', () => {
-    renderWithItem('strategy-file')
-    expect(screen.getByTestId('latest-source-badge')).toBeInTheDocument()
-  })
+    // ヘッダー行 + レシピ 1 行
+    expect(screen.getAllByRole('row')).toHaveLength(2)
 
-  it('shows no marker for normal or unknown provenance', () => {
-    renderWithItem('strategy')
-    expect(screen.queryByTestId('latest-source-badge')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /試行を展開/ }))
+    // ヘッダー行 + レシピ 1 行 + variant 3 行
+    expect(screen.getAllByRole('row')).toHaveLength(5)
+    expect(screen.getByText('v2')).toBeInTheDocument()
   })
 })
