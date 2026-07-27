@@ -248,7 +248,10 @@ function useFiltering(
 }
 
 
-/** レシピを best の指標で並べる。best が無いレシピは常に末尾に沈む。 */
+/**
+ * レシピを best の指標で並べる。best が無いレシピは numVal で -Infinity 扱いになるため、
+ * dir=desc では末尾に沈むが、dir=asc では逆に先頭に来る。
+ */
 function useSortedRecipes(
   recipes: Recipe[],
   sortKey: SortKey,

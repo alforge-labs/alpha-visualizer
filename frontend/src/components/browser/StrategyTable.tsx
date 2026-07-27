@@ -23,7 +23,7 @@ interface Props {
   compareIds: string[]
   onToggleCompare: (id: string) => void
   lang: Lang
-  groups?: StrategyGroup[]   // 与えられたらグループモード、無ければ従来 items を 1 グループ扱い
+  groups?: StrategyGroup[]   // 与えられたらグループモード。1 グループ以下なら見出しを出さず recipes をそのまま描画
   /** フッタに出す件数（Task 4 で `StrategyTableFooter` が使う） */
   recipeTotal: number
   hiddenUnrunRecipeCount: number
@@ -349,7 +349,17 @@ export function StrategyTable({
                 }}
               >
                 {strategyTotal > 0 ? (
-                  L('該当する戦略はありません', 'No strategies match the current filters')
+                  <>
+                    {L('該当する戦略はありません', 'No strategies match the current filters')}
+                    {hiddenUnrunRecipeCount > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        {L(
+                          '「未実行を含める」にチェックすると表示できます',
+                          'Check "Include unrun" to show them',
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   /* データが一切ない初回起動（forge 未導入の OSS ユーザーの
                      最初の接点）はデッドエンドにせず、次の一歩を提示する */

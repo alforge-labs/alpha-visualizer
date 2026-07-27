@@ -120,7 +120,7 @@ export function StrategyRow({
           type="checkbox"
           checked={inCompare}
           disabled={maxCompareReached}
-          aria-label={L(`${s.name} を比較に追加`, `Add ${s.name} to compare`)}
+          aria-label={L(`${s.name}（${s.strategy_id}）を比較に追加`, `Add ${s.name} (${s.strategy_id}) to compare`)}
           onChange={() => onToggleCompare(s.strategy_id)}
           style={{
             cursor: maxCompareReached ? 'not-allowed' : 'pointer',

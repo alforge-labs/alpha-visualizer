@@ -78,7 +78,7 @@ export function BrowseScreen({
           style={{
             margin: '4px 0 0 0',
             fontFamily: 'var(--serif)',
-            fontSize: '1.5rem',
+            fontSize: 'var(--browse-fs-h1)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.01em',

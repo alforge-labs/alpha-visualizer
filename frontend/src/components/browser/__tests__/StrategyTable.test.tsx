@@ -28,14 +28,14 @@ function mkItem(overrides: Partial<StrategyListItem> & { strategy_id: string }):
   }
 }
 
-function renderTable(strategyTotal: number, recipes: Recipe[] = []) {
+function renderTable(strategyTotal: number, recipes: Recipe[] = [], hiddenUnrunRecipeCount = 0) {
   render(
     <MemoryRouter>
       <StrategyTable
         recipes={recipes}
         strategyTotal={strategyTotal}
         recipeTotal={recipes.length}
-        hiddenUnrunRecipeCount={0}
+        hiddenUnrunRecipeCount={hiddenUnrunRecipeCount}
         sortKey="latest_sharpe"
         sortDir="desc"
         onSort={vi.fn()}
@@ -75,6 +75,14 @@ describe('<StrategyTable /> empty states', () => {
     )
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel') ?? '').toContain('noopener')
+  })
+
+  it('shows a hint to include unrun recipes when filters hide none but all recipes are unrun', () => {
+    // scaffold 済み・バックテスト未実行の新規ユーザー（strategyTotal > 0 だが
+    // 未実行トグルの既定 OFF で全レシピが隠れているケース）
+    renderTable(3, [], 3)
+    expect(screen.getByText(/該当する戦略はありません/)).toBeInTheDocument()
+    expect(screen.getByText(/未実行を含める.*にチェックすると表示できます/)).toBeInTheDocument()
   })
 })
 

@@ -104,7 +104,7 @@ export function RecipeRow({
           type="checkbox"
           checked={inCompare}
           disabled={best == null || maxCompareReached}
-          aria-label={L(`${recipe.name} を比較に追加`, `Add ${recipe.name} to compare`)}
+          aria-label={L(`${recipe.name} の最良試行を比較に追加`, `Add the best trial of ${recipe.name} to compare`)}
           onChange={() => { if (best) onToggleCompare(best.strategy_id) }}
           style={{
             cursor: best == null || maxCompareReached ? 'not-allowed' : 'pointer',
@@ -159,7 +159,10 @@ export function RecipeRow({
               letterSpacing: '-0.005em',
               lineHeight: 1.2,
               textDecoration: 'none',
+              transition: 'color var(--motion-fast)',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text)' }}
           >
             {recipe.name}
           </Link>
