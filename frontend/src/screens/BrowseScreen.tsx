@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { useStrategyList } from '../hooks/useStrategyList'
 import type { Lang } from '../i18n/strings'
 import type { Theme } from '../hooks/useTheme'

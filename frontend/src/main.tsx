@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { RouterProvider } from 'react-router-dom'
+// v8 で react-router-dom が廃止。DOM 版 RouterProvider は react-router/dom 側にある
+// （react-router 直下にも同名 export があるが、そちらはフレームワーク非依存版）。
+import { RouterProvider } from 'react-router/dom'
 import { router } from './router'
 
 // セルフホスト化したフォント（OFL）。各 weight × latin subset のみを意図的に絞り込む。

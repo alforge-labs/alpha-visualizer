@@ -46,7 +46,7 @@ export default defineConfig({
             },
             {
               name: 'react-router',
-              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:react-router-dom|@remix-run)/,
+              test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?react-router[@\\/]/,
             },
             {
               name: 'react',

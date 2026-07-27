@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { LiveListItem } from '../api/types'
 import { Chip, Loading } from '../design/primitives'
 import type { Lang } from '../i18n/strings'

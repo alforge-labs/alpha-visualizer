@@ -1,7 +1,7 @@
 ================================================================================
 THIRDPARTY_LICENSES.txt
 ================================================================================
-Generated: 2026-07-19
+Generated: 2026-07-28
 
 This product includes third-party software components listed below.
 These components are subject to their respective licenses.
@@ -167,7 +167,7 @@ Total: 45 packages
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  fastapi 0.139.0
+  fastapi 0.140.2
   License: MIT
   License Text:
     The MIT License (MIT)
@@ -485,7 +485,7 @@ Total: 45 packages
     found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
     under the terms of *both* these licenses.
 
-  pandas 3.0.3
+  pandas 3.0.5
   License: BSD License
   License Text:
     BSD 3-Clause License
@@ -576,7 +576,7 @@ Total: 45 packages
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  pyarrow 24.0.0
+  pyarrow 25.0.0
   License: Apache-2.0
   License Text:
     Apache License
@@ -1247,7 +1247,7 @@ SOFTWARE.
 
 SECTION 2: FRONTEND DEPENDENCIES (Vite + React)
 ================================================================================
-Total: 70 packages
+Total: 68 packages
 
   @fontsource/inter-tight@5.2.7
   License: OFL-1.1
@@ -1389,9 +1389,9 @@ Total: 70 packages
   License: MIT
   Homepage: https://github.com/JedWatson/classnames#readme
 
-  cookie@1.1.1
+  cookie-es@3.1.1
   License: MIT
-  Homepage: https://github.com/jshttp/cookie#readme
+  Homepage: https://github.com/unjs/cookie-es#readme
 
   csstype@3.2.3
   License: MIT
@@ -1484,7 +1484,7 @@ Total: 70 packages
   License: MIT
   Homepage: https://facebook.github.io/react/
 
-  react-dom@19.2.6
+  react-dom@19.2.8
   License: MIT
   Homepage: https://react.dev/
 
@@ -1492,11 +1492,7 @@ Total: 70 packages
   License: MIT
   Homepage: https://reactjs.org/
 
-  react-router-dom@7.18.1
-  License: MIT
-  Homepage: https://github.com/remix-run/react-router#readme
-
-  react-router@7.18.1
+  react-router@8.3.0
   License: MIT
   Homepage: https://github.com/remix-run/react-router#readme
 
@@ -1504,7 +1500,7 @@ Total: 70 packages
   License: MIT
   Homepage: https://github.com/pmndrs/react-use-measure
 
-  react@19.2.6
+  react@19.2.8
   License: MIT
   Homepage: https://react.dev/
 
@@ -1523,9 +1519,5 @@ Total: 70 packages
   scheduler@0.27.0
   License: MIT
   Homepage: https://react.dev/
-
-  set-cookie-parser@2.7.2
-  License: MIT
-  Homepage: https://github.com/nfriedly/set-cookie-parser
 
 ================================================================================

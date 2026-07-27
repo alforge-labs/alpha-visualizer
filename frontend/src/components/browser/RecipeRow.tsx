@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { Recipe } from '../../lib/recipes'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'

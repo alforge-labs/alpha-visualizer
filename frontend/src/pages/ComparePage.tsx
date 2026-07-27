@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useCompare } from '../hooks/useBacktestData'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'

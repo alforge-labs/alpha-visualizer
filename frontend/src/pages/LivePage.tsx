@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { LiveScreen } from '../screens/LiveScreen'
 import { useLiveList } from '../hooks/useLiveList'
 import { useViewerSettings } from '../hooks/useTheme'

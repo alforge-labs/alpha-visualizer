@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 

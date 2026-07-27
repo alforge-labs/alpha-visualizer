@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { type SetURLSearchParams, useSearchParams } from 'react-router-dom'
+import { type SetURLSearchParams, useSearchParams } from 'react-router'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
 import { updateParam } from '../lib/searchParams'

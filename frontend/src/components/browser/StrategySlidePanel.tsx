@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { StrategyListItem } from '../../api/types'
 import { useRunBacktest, useStrategyRuns } from '../../hooks/useBacktestData'
 import { useSparklineCache } from '../../hooks/useSparklineCache'

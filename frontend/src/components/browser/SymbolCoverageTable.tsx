@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import type { Recipe } from '../../lib/recipes'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'

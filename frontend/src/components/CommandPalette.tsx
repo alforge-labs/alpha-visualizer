@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
 import type { Lang } from '../i18n/strings'

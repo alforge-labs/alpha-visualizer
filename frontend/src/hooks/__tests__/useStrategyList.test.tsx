@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router'
 import type { PropsWithChildren } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useStrategyList } from '../useStrategyList'

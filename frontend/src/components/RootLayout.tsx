@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router'
 import { useViewerSettings } from '../hooks/useTheme'
 import { makeL } from '../i18n/strings'
 import { AppFooter } from './AppFooter'

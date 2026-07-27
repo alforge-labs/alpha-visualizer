@@ -13,8 +13,17 @@
   },
   {
     "name": "react chunk",
-    "path": "../src/alpha_visualizer/static/assets/react-*.js",
+    "path": [
+      "../src/alpha_visualizer/static/assets/react-*.js",
+      "!../src/alpha_visualizer/static/assets/react-router-*.js"
+    ],
     "limit": "60 KB",
+    "gzip": true
+  },
+  {
+    "name": "react-router chunk",
+    "path": "../src/alpha_visualizer/static/assets/react-router-*.js",
+    "limit": "40 KB",
     "gzip": true
   }
 ]
