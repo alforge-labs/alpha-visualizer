@@ -83,8 +83,17 @@ Step 1・Step 2 で問題がなければ以下を実行する。
    with open("/tmp/py-licenses.json") as f:
        py_data = json.load(f)
 
+   # pip-licenses が返す配布名は表記ゆれする（nuitka → "Nuitka" 等）。PyPI の
+   # 正規化規則（大小無視・"_" / "." を "-" に畳む）で突き合わせないと、dev 専用
+   # パッケージが配布告知に漏れる。alpha-forge 側で Nuitka (AGPLv3+) の混入が
+   # 実際に発生したため、同じ判定を持つこちらも合わせる。
+   def _norm(name: str) -> str:
+       return name.lower().replace("_", "-").replace(".", "-")
+
+   DEV_ONLY_NORM = {_norm(n) for n in DEV_ONLY}
+
    py_pkgs = [p for p in sorted(py_data, key=lambda x: x["Name"].lower())
-              if p["Name"] not in DEV_ONLY]
+              if _norm(p["Name"]) not in DEV_ONLY_NORM]
 
    SEP = "=" * 80
    lines = [
@@ -156,10 +165,20 @@ Step 1・Step 2 で問題がなければ以下を実行する。
    head -30 THIRDPARTY_LICENSES.txt
    ```
 
+5. **生成後の GPL 系チェック**（`DEV_ONLY` の取りこぼし検知）。
+   生成前の目視では除外リストの表記ゆれを検出できないため、生成物そのものを見る。
+
+   ```bash
+   grep "^  License:.*GPL" THIRDPARTY_LICENSES.txt | sort -u
+   ```
+
+   現状の期待値は 0 行。1 行でも出たら、除外リストの表記ゆれか新規依存の混入を疑う。
+
 ## 完了後の確認事項
 
 - [ ] `THIRDPARTY_LICENSES.txt` がプロジェクトルートに生成されていること
 - [ ] GPL/AGPL パッケージが**ランタイム依存**に含まれていないこと
+- [ ] **生成後のファイルにも** GPL/AGPL が無いこと（Step 3-5 の grep）
 - [ ] LGPL パッケージがある場合、ファイル先頭に LGPL 告知が記載されていること
 - [ ] ファイルを `git add THIRDPARTY_LICENSES.txt` してリリースコミットに含めること
 
