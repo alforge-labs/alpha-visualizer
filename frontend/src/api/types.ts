@@ -31,6 +31,10 @@ export type OhlcBar = S['OhlcBar']
 // FX キャリー近似（vis#308）
 export type CarryAdjusted = S['CarryAdjusted']
 export type HistoricalResponse = S['HistoricalResponse']
+// 孤児バックテスト結果の一覧・削除（maintenance-orphan-runs Task 1/2）
+export type OrphanRunItem = S['OrphanRunItem']
+export type OrphanRunsResponse = S['OrphanRunsResponse']
+export type PruneOrphansResponse = S['PruneOrphansResponse']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
 

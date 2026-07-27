@@ -13,6 +13,7 @@ const ITEMS: readonly NavItem[] = [
   { to: '/compare', ja: '比較', en: 'Compare' },
   { to: '/ideas', ja: 'アイデア', en: 'Ideas' },
   { to: '/live', ja: 'ライブ', en: 'Live' },
+  { to: '/maintenance', ja: '整理', en: 'Maintenance' },
 ]
 
 /**

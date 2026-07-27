@@ -61,6 +61,10 @@ export const router = createBrowserRouter([
         path: '/live',
         element: lazyRoute(() => import('./pages/LivePage'), 'LivePage'),
       },
+      {
+        path: '/maintenance',
+        element: lazyRoute(() => import('./pages/MaintenancePage'), 'MaintenancePage'),
+      },
     ],
   },
 ])
