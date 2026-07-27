@@ -124,9 +124,8 @@ alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy ID]..
 SQLite のページ単位の実占有量ではない。実占有量は `VACUUM` するまで確定しないため、
 概算であることを表示側でも示す。
 
-> **フェーズ 2 への申し送り:** `GET /api/maintenance/orphan-runs` が返す `bytes` は
-> **この定義と 1 バイトも違わないこと**。visualizer は SQLAlchemy 直読みで独自に集計するため、
-> 列の選び方がずれると同じ孤児に対して GUI と CLI で違う容量が出る。
+> **フェーズ 2 との関係:** `GET /api/maintenance/orphan-runs` は CLI の `--json` を
+> そのまま返すので（§4.2）、容量の定義は自動的に一致する。visualizer 側で再実装しない。
 
 削除は 1 トランザクションで行い、`backtest_results` と `optimization_runs` の両方から
 同じ `strategy_id` の行を消す。
@@ -185,33 +184,67 @@ SQLite は `DELETE` だけではファイルが縮まない。しかし `VACUUM`
 
 ### 4.2 API
 
-| エンドポイント | 内容 |
+| エンドポイント | 委譲先 |
 |---|---|
-| `GET /api/maintenance/orphan-runs` | 孤児の一覧。既存の SQLAlchemy 直読みで返す（読み取りのみ） |
-| `DELETE /api/maintenance/orphan-runs` | body の `strategy_ids` を `--strategy` に渡して `forge backtest prune-orphans` を subprocess 実行 |
+| `GET /api/maintenance/orphan-runs` | `forge backtest prune-orphans --dry-run --json` |
+| `DELETE /api/maintenance/orphan-runs` | `forge backtest prune-orphans -y --vacuum --json --strategy <id>...` |
 
-レスポンス（`GET`）の 1 要素:
+**一覧も削除も forge CLI に委譲する。visualizer は孤児を自前で算出しない。**
 
-```
+当初案は `GET` を「既存の SQLAlchemy 直読みで返す」としていたが、**それではフェーズ 1 で
+修正した欠陥を GUI 側で再現する。** visualizer は規約上 `alpha_forge` を import できず
+（`alpha-visualizer/CLAUDE.md`）、`get_builtin_template_names()` を呼べない。つまり
+組み込みテンプレート戦略 7 件の存在を知らないため、自前で算出すると
+`macd_crossover_v1` のような実行可能な戦略を孤児として表示してしまう。
+
+7 件を visualizer 側にハードコードする案は、forge のテンプレートが増えたときに黙って
+壊れる（同じバグが再発する）ので採らない。**「何が孤児か」の定義を SSoT 1 つに保つ。**
+容量の列の選び方も自動的に一致する。
+
+`GET` のレスポンスは CLI の `--json` をそのまま返す:
+
+```json
 {
-  "strategy_id": "a158_aroon_trend",
-  "backtest_run_count": 3,
-  "optimization_run_count": 0,
-  "bytes": 2202009,
-  "first_run_at": "2026-05-11T...",
-  "last_run_at": "2026-05-11T..."
+  "orphans": [
+    {
+      "strategy_id": "lev_tmp",
+      "backtest_run_count": 20,
+      "optimization_run_count": 0,
+      "bytes": 5856500,
+      "first_run_at": "2026-06-08T14:05:30.187973+00:00",
+      "last_run_at": "2026-06-08T14:07:20.920498+00:00"
+    }
+  ],
+  "count": 128,
+  "total_bytes": 87497410,
+  "dry_run": true,
+  "deleted": null
 }
 ```
 
-書き込みは既存方針どおり forge CLI へ委譲する（`POST /api/strategies/{id}/parameters` が
-`forge strategy save --force` へ委譲しているのと同じ形）。既存の
-`services/forge_cli.py`（`resolve_forge_exe` / `build_forge_env` / `mask_home`）を使う。
+実装は `routers/run.py`（`POST /api/run` が `forge backtest run --json` を同期実行する）と
+同じ形にする。既存の `services/forge_cli.py`（`resolve_forge_exe` / `build_forge_env` /
+`mask_home` / `parse_json_lenient`）と `errors.ExternalProcessError` を使う。
+
+**代償:** 一覧表示に **約 3 秒**かかる（実測 3.0〜3.3 秒。forge の起動コスト）。まれにしか
+開かない保守画面なので許容する。また forge 未導入では一覧も表示できないが、この画面の
+唯一の操作である削除に forge が必須なので実質的な損失はない。未導入時は既存の
+`FORGE_NOT_FOUND_MESSAGE`（導線付き）を返す。
 
 ### 4.3 VACUUM と接続プールの衝突
 
-**subprocess を起動する前に `app.state.engine.dispose()` で SQLAlchemy の接続プールを
-閉じる。** `VACUUM` はデータベース全体の排他ロックを取るため、visualizer が接続を握った
-ままだと `database is locked` で失敗する。
+**`DELETE` の subprocess を起動する前に `app.state.engine.dispose()` で SQLAlchemy の
+接続プールを閉じる。** `VACUUM` はデータベース全体の排他ロックを取るため、visualizer が
+接続を握ったままだと `database is locked` で失敗する。
+
+この画面自体は `backtest_results.db` を直読みしない（§4.2 のとおり CLI に委譲する）が、
+**同じ Engine を Browse / Detail / Compare など他の画面が使っており、プールに接続が
+残っている。** 「この画面が直読みしないから dispose は不要」は誤り。
+
+なお、フェーズ 1 で `prune-orphans` の `OperationalError` 捕捉を `no such table` /
+`unable to open database file` に限定したため、ロック中に実行すると **exit 1 で失敗する**
+（以前は「孤児なし・exit 0」に握り潰されていた）。dispose を忘れると静かに成功したように
+見えるのではなく、はっきり失敗する。
 
 `Engine` は `app.py` で 1 度だけ生成され `app.state.engine` に保持されている
 （`db.py:152` の `get_engine`）。`dispose()` 後の次のクエリでプールは自動的に再確立される。
@@ -310,10 +343,20 @@ codemap を通す（`alpha-forge/CLAUDE.md`）。
 
 ### 6.3 API（`alpha-visualizer`）
 
-- `GET` が孤児だけを返し、戦略が存在する `strategy_id` を含まない
-- `DELETE` が forge CLI を正しい引数で呼ぶ（subprocess はモックする）
+subprocess はモックする（forge CLI 自体のテストはフェーズ 1 側にある）。
+
+- `GET` が `--dry-run --json` を付けて forge を呼び、CLI の JSON をそのまま返す
+- `DELETE` が選択 ID を `--strategy` で渡し、`-y` と `--vacuum` を付けて呼ぶ
+- **`DELETE` が subprocess 起動の前に `engine.dispose()` を呼ぶ**（VACUUM の排他ロック）
 - forge 未導入時に導線付きのエラーを返す（既存 `FORGE_NOT_FOUND_MESSAGE`）
+- forge が非ゼロ終了したとき、その旨をエラーとして返す（成功に見せない）
+- forge の stdout が JSON として壊れているとき、エラーとして返す
 - 孤児 0 件のとき空配列を返す
+- **選択 ID が空の `DELETE` は forge を呼ばない**（`--strategy` 無しは全孤児削除になるため、
+  空配列をそのまま渡すと全件消える）
+
+最後の 1 件は特に重要で、**CLI の「`--strategy` 省略時は全孤児が対象」という仕様と、
+GUI の「選択したものだけ消す」という期待が正反対にぶつかる箇所**である。
 
 ### 6.4 画面（`alpha-visualizer`）
 
@@ -326,9 +369,13 @@ codemap を通す（`alpha-forge/CLAUDE.md`）。
 
 実装をわざと退行させてテストが落ちることを確認する。
 
-- 孤児判定を反転させる（`strategies` に**ある** ID を拾う）→ 「ある ID は拾わない」が落ちること
-- `optimization_runs` の削除を落とす → 「両方から拾う」が落ちること
-- 削除をトランザクションでなく逐次コミットにする → トランザクションのテストが落ちること
+フェーズ 2 の ablation（フェーズ 1 の分は実施済み）:
+
+- **空の `strategy_ids` で forge を呼ばないガードを外す** → 「選択 ID が空の `DELETE` は
+  forge を呼ばない」が落ちること。**これが最も重要**で、ガードが無いと `--strategy` の無い
+  コマンドが組み立てられ、選択 0 件の削除が**全孤児 128 件の削除**になる
+- `engine.dispose()` の呼び出しを外す → 「subprocess 起動前に dispose を呼ぶ」が落ちること
+- forge の非ゼロ終了を無視して成功として返す → 「非ゼロ終了をエラーとして返す」が落ちること
 - 画面の既定選択を「全選択」にする → 「既定で全件未選択」が落ちること
 
 ### 6.6 ゲート
