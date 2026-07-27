@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { StrategyListItem } from '../api/types'
 import { classifySymbol, type AssetClass } from '../lib/assetClass'
+import { effectiveSymbol } from '../lib/recipes'
 
 export interface SymbolStat {
   symbol: string | null   // null = Unassigned
@@ -30,12 +31,13 @@ export function useSymbolStats(items: StrategyListItem[]): SymbolStat[] {
     const buckets = new Map<string, StrategyListItem[]>()
     const unassigned: StrategyListItem[] = []
     for (const s of items) {
-      if (s.symbol == null || s.symbol === '') {
+      const symbol = effectiveSymbol(s)
+      if (symbol == null) {
         unassigned.push(s)
       } else {
-        const arr = buckets.get(s.symbol)
+        const arr = buckets.get(symbol)
         if (arr) arr.push(s)
-        else buckets.set(s.symbol, [s])
+        else buckets.set(symbol, [s])
       }
     }
 

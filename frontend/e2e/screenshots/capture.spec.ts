@@ -145,11 +145,13 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await clearViewerSettings(page)
       })
 
-      // hero: ヘッダー＋銘柄アトラスが収まる縦長 viewport
+      // hero: ヘッダー＋表＋フッタが収まる縦長 viewport
+      // （レシピ・ロールアップで銘柄アトラスが既定で畳まれたため、旧 1180 は
+      // 余白が大きすぎた。実測 footer 下端 ≈875px に合わせて 900 に詰めた）
       test('browse', async ({ page }) => {
         await gotoBrowse(page)
         await setLang(page, lang)
-        await captureViewport(page, lang, 'browse', 1180)
+        await captureViewport(page, lang, 'browse', 900)
       })
 
       // detail: 「エクイティ & ドローダウン」カード（タイトル＋チャート）をクロップ

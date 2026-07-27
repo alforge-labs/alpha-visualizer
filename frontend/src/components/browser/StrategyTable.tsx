@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
-import type { StrategyListItem } from '../../api/types'
+import type { Recipe } from '../../lib/recipes'
 import { COMPARE_MAX, type SortKey, type SortDir, type StrategyGroup } from '../../hooks/useStrategyList'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import { Chip } from '../../design/primitives'
 import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
-import { Sparkline } from '../../charts/visx/Sparkline'
 import { useSparklineCache } from '../../hooks/useSparklineCache'
-import { fmtNumber, fmtDate } from '../../lib/format'
-import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
+import { fmtNumber } from '../../lib/format'
+import { StrategyRow, TD_BASE, sharpeTone } from './StrategyRow'
+import { RecipeRow } from './RecipeRow'
+import { StrategyTableFooter } from './StrategyTableFooter'
 
 interface Props {
-  items: StrategyListItem[]
-  total: number
+  recipes: Recipe[]
+  /** 全戦略数。空状態の分岐（フィルタ由来 vs データ無し）に使う */
+  strategyTotal: number
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey) => void
@@ -23,18 +23,14 @@ interface Props {
   compareIds: string[]
   onToggleCompare: (id: string) => void
   lang: Lang
-  groups?: StrategyGroup[]   // 与えられたらグループモード、無ければ従来 items を 1 グループ扱い
+  groups?: StrategyGroup[]   // 与えられたらグループモード。1 グループ以下なら見出しを出さず recipes をそのまま描画
+  /** フッタに出す件数（Task 4 で `StrategyTableFooter` が使う） */
+  recipeTotal: number
+  hiddenUnrunRecipeCount: number
 }
 
 const HOVER_DELAY_MS = 220
 const COL_COUNT = 9
-
-function sharpeTone(v: number | null | undefined): string {
-  if (v == null) return 'var(--text3)'
-  if (v >= 1.5) return 'var(--success)'
-  if (v >= 1.0) return 'var(--warn)'
-  return 'var(--danger)'
-}
 
 const TH_BASE: CSSProperties = {
   fontFamily: 'var(--sans)',
@@ -53,15 +49,6 @@ const TH_BASE: CSSProperties = {
   position: 'sticky',
   top: 0,
   zIndex: 2,
-}
-
-const TD_BASE: CSSProperties = {
-  fontFamily: 'var(--mono)',
-  fontSize: 'var(--fs-mono-md)',
-  padding: '14px 12px',
-  textAlign: 'right',
-  borderBottom: '1px solid var(--border)',
-  letterSpacing: 'var(--tracking-mono)',
 }
 
 interface SortThProps {
@@ -89,211 +76,6 @@ function SortTh({ col, label, align = 'right', width, sortKey, sortDir, onSort, 
       className={className}
       baseStyle={{ ...TH_BASE, color: active ? 'var(--text2)' : 'var(--text3)' }}
     />
-  )
-}
-
-interface RowProps extends Pick<Props, 'onSelect' | 'onToggleCompare' | 'lang'> {
-  s: StrategyListItem
-  selected: boolean
-  inCompare: boolean
-  maxCompareReached: boolean
-  onHover: (id: string | null) => void
-  sparkValues: number[] | 'loading' | 'empty' | undefined
-}
-
-function StrategyRow({
-  s,
-  selected,
-  inCompare,
-  maxCompareReached,
-  onSelect,
-  onToggleCompare,
-  onHover,
-  sparkValues,
-  lang,
-}: RowProps) {
-  const L = makeL(lang)
-  const [isHovered, setHovered] = useState(false)
-
-  const handleEnter = (): void => {
-    setHovered(true)
-    onHover(s.strategy_id)
-  }
-
-  const handleLeave = (): void => {
-    setHovered(false)
-    onHover(null)
-  }
-
-  const trBackground = selected
-    ? 'var(--accent-bg)'
-    : isHovered
-      ? 'var(--surface-2)'
-      : 'transparent'
-
-  const sparkRendered =
-    Array.isArray(sparkValues) && sparkValues.length >= 2 ? (
-      <Sparkline values={sparkValues} width={120} height={26} />
-    ) : sparkValues === 'loading' ? (
-      <div
-        style={{
-          width: 120,
-          height: 26,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--fs-mono-sm)',
-          color: 'var(--text3)',
-        }}
-      >
-        ···
-      </div>
-    ) : null
-
-  return (
-    <tr
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-      onClick={() => onSelect(s.strategy_id)}
-      title={L('クリックでプレビュー', 'Click to preview')}
-      style={{
-        background: trBackground,
-        borderLeft: selected ? '2px solid var(--accent)' : '2px solid transparent',
-        transition: 'background var(--motion-fast)',
-        cursor: 'pointer',
-      }}
-    >
-      <td
-        style={{ ...TD_BASE, textAlign: 'center', padding: '10px 4px', width: 36 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={inCompare}
-          disabled={maxCompareReached}
-          aria-label={L(
-            `${s.name} を比較に追加`,
-            `Add ${s.name} to compare`,
-          )}
-          onChange={() => onToggleCompare(s.strategy_id)}
-          style={{
-            cursor: maxCompareReached ? 'not-allowed' : 'pointer',
-            accentColor: 'var(--accent)',
-          }}
-        />
-      </td>
-      <td style={{ ...TD_BASE, textAlign: 'left' }}>
-        <Link
-          to={`/detail/${s.strategy_id}`}
-          title={L('フル詳細を開く', 'Open full detail')}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            display: 'inline-block',
-            fontFamily: 'var(--serif)',
-            fontSize: '1.0625rem',
-            fontWeight: 600,
-            color: 'var(--text)',
-            letterSpacing: '-0.005em',
-            lineHeight: 1.2,
-            textDecoration: 'none',
-            transition: 'color var(--motion-fast)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text)' }}
-        >
-          {s.name}
-        </Link>
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-          {s.symbol ? <Chip>{s.symbol}</Chip> : null}
-          {s.timeframe ? <Chip>{s.timeframe}</Chip> : null}
-          {!s.symbol && !s.timeframe && (
-            <span
-              style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--fs-mono-sm)',
-                color: 'var(--text3)',
-              }}
-            >
-              {L('未割当', 'unassigned')}
-            </span>
-          )}
-        </div>
-      </td>
-      <td
-        style={{
-          ...TD_BASE,
-          color: sharpeTone(s.latest_sharpe),
-          fontWeight: 700,
-          fontSize: '1rem',
-        }}
-      >
-        {fmtNumber(s.latest_sharpe, { decimals: 2 })}
-        {s.latest_source === RUN_SOURCE_STRATEGY_FILE && (
-          <span
-            data-testid="latest-source-badge"
-            role="img"
-            aria-label={L(
-              '最新ランはチューニング試行（保存していないパラメータ）です',
-              'Latest run is a tuning trial with unsaved parameters',
-            )}
-            title={L(
-              '最新ランはチューニング試行（保存していないパラメータ）です',
-              'Latest run is a tuning trial with unsaved parameters',
-            )}
-            style={{ marginLeft: 4, color: 'var(--warn)', fontSize: 10 }}
-          >
-            ⚠
-          </span>
-        )}
-      </td>
-      <td
-        style={{
-          ...TD_BASE,
-          color:
-            s.latest_return_pct == null
-              ? 'var(--text3)'
-              : s.latest_return_pct >= 0
-                ? 'var(--success)'
-                : 'var(--danger)',
-        }}
-      >
-        {fmtNumber(s.latest_return_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
-        {fmtNumber(s.latest_max_drawdown_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmtNumber(s.latest_profit_factor, { decimals: 2 })}
-      </td>
-      <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
-        {fmtNumber(s.latest_win_rate_pct, { suffix: '%', decimals: 1 })}
-      </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{
-          ...TD_BASE,
-          color: 'var(--text3)',
-          fontSize: 'var(--fs-mono-sm)',
-          textAlign: 'right',
-        }}
-      >
-        {fmtDate(s.last_run_at)}
-      </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{
-          ...TD_BASE,
-          padding: '10px 12px',
-          width: 132,
-          textAlign: 'right',
-        }}
-      >
-        <div style={{ display: 'inline-flex', justifyContent: 'flex-end', minHeight: 26 }}>
-          {sparkRendered}
-        </div>
-      </td>
-    </tr>
   )
 }
 
@@ -386,8 +168,8 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
 }
 
 export function StrategyTable({
-  items,
-  total,
+  recipes,
+  strategyTotal,
   sortKey,
   sortDir,
   onSort,
@@ -397,11 +179,14 @@ export function StrategyTable({
   onToggleCompare,
   lang,
   groups,
+  recipeTotal,
+  hiddenUnrunRecipeCount,
 }: Props): React.ReactElement {
   const L = makeL(lang)
   const sparkline = useSparklineCache()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
 
   // 行ホバーが HOVER_DELAY_MS 続いたら sparkline を fetch
   useEffect(() => {
@@ -428,24 +213,53 @@ export function StrategyTable({
     })
   }
 
-  const renderRow = (s: StrategyListItem): React.ReactElement => {
-    const isSelected = selectedId === s.strategy_id
-    const inCompare = compareIds.includes(s.strategy_id)
-    const maxCompareReached = compareIds.length >= COMPARE_MAX && !inCompare
-    return (
-      <StrategyRow
-        key={s.strategy_id}
-        s={s}
-        selected={isSelected}
-        inCompare={inCompare}
-        maxCompareReached={maxCompareReached}
+  const toggleExpand = (key: string): void => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  /** レシピ 1 件を、折り畳み行＋（展開中なら）子行の配列にする。 */
+  const renderRecipe = (recipe: Recipe): React.ReactElement[] => {
+    const expanded = expandedKeys.has(recipe.key)
+    const head = (
+      <RecipeRow
+        key={recipe.key}
+        recipe={recipe}
+        expanded={expanded}
+        onToggleExpand={toggleExpand}
+        selectedId={selectedId}
         onSelect={onSelect}
+        compareIds={compareIds}
         onToggleCompare={onToggleCompare}
         onHover={setHoveredId}
-        sparkValues={sparkline.entries[s.strategy_id]}
+        sparkValues={recipe.best ? sparkline.entries[recipe.best.strategy_id] : undefined}
         lang={lang}
       />
     )
+    if (!expanded) return [head]
+    const children = recipe.variants.map(v => {
+      const inCompare = compareIds.includes(v.strategy_id)
+      return (
+        <StrategyRow
+          key={v.strategy_id}
+          s={v}
+          selected={selectedId === v.strategy_id}
+          inCompare={inCompare}
+          maxCompareReached={compareIds.length >= COMPARE_MAX && !inCompare}
+          onSelect={onSelect}
+          onToggleCompare={onToggleCompare}
+          onHover={setHoveredId}
+          sparkValues={sparkline.entries[v.strategy_id]}
+          lang={lang}
+          indent
+        />
+      )
+    })
+    return [head, ...children]
   }
 
   return (
@@ -504,25 +318,23 @@ export function StrategyTable({
           </tr>
         </thead>
         <tbody>
-          {renderGroups ? (
-            renderGroups.flatMap(group => {
-              const isCollapsed = collapsedKeys.has(group.key)
-              const header = (
-                <GroupHeaderRow
-                  key={`__header__${group.key}`}
-                  group={group}
-                  collapsed={isCollapsed}
-                  onToggle={toggleGroup}
-                  lang={lang}
-                />
-              )
-              if (isCollapsed) return [header]
-              return [header, ...group.items.map(renderRow)]
-            })
-          ) : (
-            items.map(renderRow)
-          )}
-          {items.length === 0 && (
+          {renderGroups
+            ? renderGroups.flatMap(group => {
+                const isCollapsed = collapsedKeys.has(group.key)
+                const header = (
+                  <GroupHeaderRow
+                    key={`__header__${group.key}`}
+                    group={group}
+                    collapsed={isCollapsed}
+                    onToggle={toggleGroup}
+                    lang={lang}
+                  />
+                )
+                if (isCollapsed) return [header]
+                return [header, ...group.items.flatMap(renderRecipe)]
+              })
+            : recipes.flatMap(renderRecipe)}
+          {recipes.length === 0 && (
             <tr>
               <td
                 colSpan={COL_COUNT}
@@ -536,8 +348,18 @@ export function StrategyTable({
                   letterSpacing: 'var(--tracking-mono)',
                 }}
               >
-                {total > 0 ? (
-                  L('該当する戦略はありません', 'No strategies match the current filters')
+                {strategyTotal > 0 ? (
+                  <>
+                    {L('該当する戦略はありません', 'No strategies match the current filters')}
+                    {hiddenUnrunRecipeCount > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        {L(
+                          '「未実行を含める」にチェックすると表示できます',
+                          'Check "Include unrun" to show them',
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   /* データが一切ない初回起動（forge 未導入の OSS ユーザーの
                      最初の接点）はデッドエンドにせず、次の一歩を提示する */
@@ -583,19 +405,13 @@ export function StrategyTable({
           )}
         </tbody>
       </table>
-      <div
-        style={{
-          padding: '12px 24px',
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--fs-mono-sm)',
-          color: 'var(--text3)',
-          letterSpacing: 'var(--tracking-mono)',
-          textTransform: 'uppercase',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        {L(`${items.length}件 / 全${total}件`, `${items.length} of ${total} strategies`)}
-      </div>
+      <StrategyTableFooter
+        visibleRecipeCount={recipes.length}
+        recipeTotal={recipeTotal}
+        hiddenUnrunRecipeCount={hiddenUnrunRecipeCount}
+        strategyTotal={strategyTotal}
+        lang={lang}
+      />
     </div>
   )
 }

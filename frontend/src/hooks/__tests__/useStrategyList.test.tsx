@@ -191,3 +191,90 @@ describe('useStrategyList — state → URL updates', () => {
     expect(result.current.search.has('compare')).toBe(false)
   })
 })
+
+describe('useStrategyList — レシピ・ロールアップ', () => {
+  // 同名 3 件（2 件実行済み・1 件未実行）＋ 全 variant 未実行のレシピ 1 件
+  const ROLLUP: StrategyListItem[] = [
+    { strategy_id: 'amd_v1', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.5, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+    { strategy_id: 'amd_v2', name: 'AMD EMA ST', symbol: 'AMD', timeframe: '1d', latest_sharpe: 0.9, last_run_at: '2026-01-02T00:00:00', tags: [], target_symbols: [] },
+    { strategy_id: 'amd_v3', name: 'AMD EMA ST', symbol: null, timeframe: '1d', tags: [], target_symbols: ['AMD'] },
+    { strategy_id: 'idle_v1', name: 'Idle Recipe', symbol: null, timeframe: '1d', tags: [], target_symbols: ['SPY'] },
+  ]
+
+  beforeEach(() => {
+    vi.mocked(api.listStrategies).mockResolvedValue(ROLLUP)
+  })
+
+  it('未実行のみのレシピを既定で除外し、隠した件数を数える', async () => {
+    const { result } = renderWithUrl('/browse')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.recipes[0]?.name).toBe('AMD EMA ST')
+    expect(result.current.list.recipes[0]?.variantCount).toBe(3)
+    expect(result.current.list.recipes[0]?.runCount).toBe(2)
+    expect(result.current.list.recipeTotal).toBe(2)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(1)
+    expect(result.current.list.includeUnrun).toBe(false)
+  })
+
+  it('include_unrun=1 で未実行のみのレシピも出す', async () => {
+    const { result } = renderWithUrl('/browse?include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(2)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
+    expect(result.current.list.includeUnrun).toBe(true)
+  })
+
+  it('銘柄フィルタが定義のみで判明する銘柄にも効く', async () => {
+    // idle_v1 は symbol=null / target_symbols=['SPY']。実効銘柄で絞り込まない
+    // 実装だとチップには SPY が出るのに選ぶと 0 件になる。
+    const { result } = renderWithUrl('/browse?symbol=SPY&include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.recipes[0]?.name).toBe('Idle Recipe')
+  })
+
+  it('銘柄の選択肢を実効銘柄から作る', async () => {
+    const { result } = renderWithUrl('/browse')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    // amd_v3 と idle_v1 は symbol=null。定義側を見ないと AMD だけになる
+    expect(result.current.list.symbols).toEqual(['AMD', 'SPY'])
+  })
+
+  it('レシピを best の指標でソートする', async () => {
+    vi.mocked(api.listStrategies).mockResolvedValue([
+      { strategy_id: 'lo', name: 'Low', symbol: 'SPY', timeframe: '1d', latest_sharpe: 0.3, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+      { strategy_id: 'hi', name: 'High', symbol: 'QQQ', timeframe: '1d', latest_sharpe: 1.8, last_run_at: '2026-01-01T00:00:00', tags: [], target_symbols: [] },
+    ])
+    const { result } = renderWithUrl('/browse?sort=latest_sharpe&dir=desc')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes.map(r => r.name)).toEqual(['High', 'Low'])
+  })
+
+  it('groups はレシピを束ねる', async () => {
+    const { result } = renderWithUrl('/browse?group=symbol&include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    const labels = result.current.list.groups.map(g => g.label).sort()
+    expect(labels).toEqual(['AMD', 'SPY'])
+    for (const g of result.current.list.groups) {
+      expect(g.aggregate.count).toBe(g.items.length)
+    }
+  })
+
+  it('隠した未実行レシピ数は絞り込み後の集合から数える', async () => {
+    // ?symbol=AMD だと AMD レシピ（実行済み）だけが残り、未実行のみの
+    // Idle Recipe は絞り込みで既に落ちている。これを「トグルで隠した 1 件」と
+    // 報告してはならない。全体から数える実装だと 1 になって落ちる。
+    const { result } = renderWithUrl('/browse?symbol=AMD')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.hiddenUnrunRecipeCount).toBe(0)
+  })
+})

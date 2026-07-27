@@ -4,6 +4,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Stat } from '../../design/primitives/Stat'
 import { fmtSharpe } from '../../lib/format'
+import { effectiveSymbol } from '../../lib/recipes'
 
 interface Props {
   items: StrategyListItem[]
@@ -27,7 +28,10 @@ function computeMetrics(items: StrategyListItem[]): HeroMetrics {
   const cutoff = Date.now() - RECENT_DAYS * MS_PER_DAY
 
   for (const s of items) {
-    if (s.symbol) symbolSet.add(s.symbol)
+    // 実効銘柄で数える。item.symbol だけだと未実行分が落ちて、
+    // 銘柄フィルタの選択肢数（46）と食い違う（35 になる）。
+    const symbol = effectiveSymbol(s)
+    if (symbol) symbolSet.add(symbol)
     if (s.latest_sharpe != null) {
       topSharpe = topSharpe == null ? s.latest_sharpe : Math.max(topSharpe, s.latest_sharpe)
     }
@@ -63,33 +67,33 @@ export function Heroline({ items, lang }: Props) {
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        gap: 'var(--space-6)',
-        marginTop: 'var(--space-5)',
-        paddingTop: 'var(--space-5)',
+        gap: 'var(--space-5)',
+        marginTop: 'var(--space-3)',
+        paddingTop: 'var(--space-3)',
         borderTop: '1px solid var(--border)',
       }}
     >
       <Stat
-        size="lg"
+        size="md"
         label={L('戦略数', 'Strategies')}
         value={m.totalStrategies > 0 ? String(m.totalStrategies) : '—'}
         sub={L('登録済み', 'registered')}
       />
       <Stat
-        size="lg"
+        size="md"
         label={L('銘柄数', 'Symbols')}
         value={m.uniqueSymbols > 0 ? String(m.uniqueSymbols) : '—'}
         sub={L('割当済', 'with assignments')}
       />
       <Stat
-        size="lg"
+        size="md"
         tone={sharpeTone(m.topSharpe)}
         label={L('最高 Sharpe', 'Top Sharpe')}
         value={fmtSharpe(m.topSharpe)}
         sub={L('最新バックテスト', 'latest backtests')}
       />
       <Stat
-        size="lg"
+        size="md"
         tone={m.recentRunsCount > 0 ? 'accent' : 'neutral'}
         label={L('直近実行', 'Recent runs')}
         value={m.recentRunsCount > 0 ? String(m.recentRunsCount) : '—'}

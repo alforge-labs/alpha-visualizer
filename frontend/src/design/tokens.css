@@ -204,6 +204,7 @@ a:focus-visible {
   --compare-grid: minmax(0, 2fr) minmax(280px, 1fr);
   --hero-fs-h1: 2rem;
   --hero-fs-display: 1.625rem;
+  --browse-fs-h1: 1.5rem;
 }
 
 /* ── lg 以下 (≤1024px): タブレット横〜小ノート ─────────────── */
@@ -228,6 +229,7 @@ a:focus-visible {
     --slidepanel-width: 100vw;
     --hero-fs-h1: 1.5rem;
     --hero-fs-display: 1.375rem;
+    --browse-fs-h1: 1.375rem;
     --space-7: 32px;
     --space-6: 24px;
   }
@@ -243,6 +245,7 @@ a:focus-visible {
     --cols-summary-bar: 2;
     --hero-fs-h1: 1.375rem;
     --hero-fs-display: 1.25rem;
+    --browse-fs-h1: 1.25rem;
   }
 }
 

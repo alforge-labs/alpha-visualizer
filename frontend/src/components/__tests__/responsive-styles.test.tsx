@@ -6,6 +6,7 @@ import { MetricsSummaryBarV2 } from '../MetricsSummaryBarV2'
 import { StrategyTable } from '../browser/StrategyTable'
 import { StrategySlidePanel } from '../browser/StrategySlidePanel'
 import type { BacktestMetrics, StrategyListItem } from '../../api/types'
+import { buildRecipes } from '../../lib/recipes'
 
 // issue #54: tokens.css の CSS 変数を `gridTemplateColumns` 等に注入することで
 // @media による上書きを可能にしている。インラインスタイル文字列が想定通り
@@ -71,11 +72,14 @@ describe('Responsive styles (issue #54)', () => {
     const items: StrategyListItem[] = [
       { strategy_id: 's1', name: 'S1', symbol: 'AAPL', timeframe: '1d', tags: [], target_symbols: [] },
     ]
+    const recipes = buildRecipes(items)
     const { getByTestId } = render(
       <MemoryRouter>
         <StrategyTable
-          items={items}
-          total={1}
+          recipes={recipes}
+          strategyTotal={1}
+          recipeTotal={recipes.length}
+          hiddenUnrunRecipeCount={0}
           sortKey="latest_sharpe"
           sortDir="desc"
           onSort={() => {}}
@@ -108,11 +112,14 @@ describe('Responsive styles (issue #54)', () => {
         target_symbols: [],
       },
     ]
+    const recipes = buildRecipes(items)
     const { container } = render(
       <MemoryRouter>
         <StrategyTable
-          items={items}
-          total={1}
+          recipes={recipes}
+          strategyTotal={1}
+          recipeTotal={recipes.length}
+          hiddenUnrunRecipeCount={0}
           sortKey="latest_sharpe"
           sortDir="desc"
           onSort={() => {}}
