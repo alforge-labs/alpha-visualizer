@@ -6,13 +6,19 @@ import { makeL } from '../i18n/strings'
 import { fmtNumber, fmtDate } from '../lib/format'
 import { Button, ErrorBanner, Loading } from '../design/primitives'
 import { ConfirmActionButton } from '../components/ConfirmActionButton'
-import { TD_BASE } from '../components/browser/StrategyRow'
 
 export interface MaintenanceScreenProps {
   orphans: OrphanRunItem[]
   totalBytes: number
   loading: boolean
+  /** 生のエラーメッセージ（ApiError.message 形式）。真偽判定と ErrorBanner の title に使う。 */
   error: string | null
+  /**
+   * ユーザー向けに正規化済みのメッセージ（`extractApiErrorDetail` を Page 層で
+   * 適用した結果）。ErrorBanner の message に使う。`error` が真のときは常に
+   * 非 null で渡される想定だが、念のため未設定時は `error` にフォールバックする。
+   */
+  errorMessage: string | null
   onRetry: () => void
   selectedIds: string[]
   onToggleId: (strategyId: string) => void
@@ -37,6 +43,19 @@ const TH_BASE: CSSProperties = {
   whiteSpace: 'nowrap',
   textAlign: 'right',
   color: 'var(--text3)',
+}
+
+// browser ドメイン外のテーブルはローカル定義するのがこのコードベースの流儀
+// （components/metrics/CompareTable.tsx / components/live/LivePositionsTable.tsx も同様）。
+// components/browser/StrategyRow.tsx の TD_BASE と値は同一だが、Browse 側の都合で
+// 変更されて巻き添えを食わないようこの画面専用に持つ。
+const TD_BASE: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 'var(--fs-mono-md)',
+  padding: '8px 12px',
+  textAlign: 'right',
+  borderBottom: '1px solid var(--border)',
+  letterSpacing: 'var(--tracking-mono)',
 }
 
 /** bytes を MB 表示にする。全画面共通の丸め規約（fmtNumber decimals:1）に揃える。 */
@@ -136,6 +155,7 @@ export function MaintenanceScreen({
   totalBytes,
   loading,
   error,
+  errorMessage,
   onRetry,
   selectedIds,
   onToggleId,
@@ -223,7 +243,12 @@ export function MaintenanceScreen({
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}
 
         {error && (
-          <ErrorBanner message={error} retryLabel={L('再試行', 'Retry')} onRetry={onRetry} />
+          <ErrorBanner
+            message={errorMessage ?? error}
+            title={error}
+            retryLabel={L('再試行', 'Retry')}
+            onRetry={onRetry}
+          />
         )}
 
         {!loading && hasOrphans && (
@@ -293,10 +318,17 @@ export function MaintenanceScreen({
 
             <div>
               <ConfirmActionButton
-                triggerLabel={L(
-                  `選択した ${selectedIds.length} 件（${selectedMb} MB）を削除`,
-                  `Delete ${selectedIds.length} selected (${selectedMb} MB)`,
-                )}
+                triggerLabel={
+                  // 削除は最長 900 秒（forge 起動 + VACUUM）かかりうる。disabled に
+                  // なるだけでは「効いていない」と誤認され再操作・リロードを
+                  // 誘発するため、進行中は文言でも明示する。
+                  deleting
+                    ? L('削除中…', 'Deleting…')
+                    : L(
+                        `選択した ${selectedIds.length} 件（${selectedMb} MB）を削除`,
+                        `Delete ${selectedIds.length} selected (${selectedMb} MB)`,
+                      )
+                }
                 triggerDisabled={selectedIds.length === 0 || deleting}
                 title={L('孤児の実行結果を削除します', 'Delete orphan runs')}
                 body={L(

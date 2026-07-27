@@ -17,8 +17,8 @@ const ITEMS: readonly NavItem[] = [
 ]
 
 /**
- * 常設のグローバルナビ（issue #263）。Browse/Compare/Ideas/Live への導線を全画面で
- * 提供し、`<nav>` ランドマークと aria-current で現在地を AT に伝える。
+ * 常設のグローバルナビ（issue #263）。Browse/Compare/Ideas/Live/Maintenance への
+ * 導線を全画面で提供し、`<nav>` ランドマークと aria-current で現在地を AT に伝える。
  */
 export function AppNav({ lang }: { lang: Lang }) {
   const L = makeL(lang)

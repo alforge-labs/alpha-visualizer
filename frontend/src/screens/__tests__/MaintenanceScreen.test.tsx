@@ -29,6 +29,7 @@ function baseProps() {
     totalBytes: 5857524,
     loading: false,
     error: null,
+    errorMessage: null,
     onRetry: vi.fn(),
     selectedIds: [] as string[],
     onToggleId: vi.fn(),
@@ -94,6 +95,21 @@ describe('<MaintenanceScreen />', () => {
     expect(props.onRetry).toHaveBeenCalledTimes(1)
   })
 
+  it('errorMessage があるときは生の error でなくそちらを表示する', () => {
+    // error は ApiError.message 形式（"API <status>: <JSON body>"）の生文字列。
+    // errorMessage は Page 層で extractApiErrorDetail を適用した正規化済み文言。
+    // 生 JSON がそのまま画面に出てはならない。
+    render(
+      <MaintenanceScreen
+        {...baseProps()}
+        error='API 500: {"detail":"お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください / Your alpha-forge does not have this command. Please update to a newer version — https://alforgelabs.com"}'
+        errorMessage="お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください / Your alpha-forge does not have this command. Please update to a newer version — https://alforgelabs.com"
+      />,
+    )
+    expect(screen.getByText(/alforgelabs\.com/)).toBeInTheDocument()
+    expect(screen.queryByText(/API 500:/)).toBeNull()
+  })
+
   it('エラーがあるときは「孤児の実行結果はありません」を出さない', () => {
     // 取得失敗による 0 件と、本当に 0 件なのを混同させない
     // （forge 未導入時にまさにこの状況が起きる）。
@@ -111,6 +127,15 @@ describe('<MaintenanceScreen />', () => {
   it('削除中はボタンを無効にする', () => {
     render(<MaintenanceScreen {...baseProps()} selectedIds={['lev_tmp']} deleting />)
     expect(screen.getByRole('button', { name: /削除/ })).toBeDisabled()
+  })
+
+  it('削除中はボタンのラベルが「削除中…」に変わる', () => {
+    // 削除は forge 起動 + VACUUM で最長 900 秒かかりうる。disabled だけでは
+    // 「効いていない」と誤認され再操作・リロードを誘発するため、
+    // 進行中は文言でも明示する。
+    render(<MaintenanceScreen {...baseProps()} selectedIds={['lev_tmp']} deleting />)
+    const button = screen.getByRole('button', { name: /削除中/ })
+    expect(button.textContent).not.toContain('選択した')
   })
 
   it('削除結果に回収容量を出す', () => {

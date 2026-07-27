@@ -24,6 +24,7 @@
 - **Optimize** — WFO 合成エクイティカーブ・Grid 最適化結果の可視化
 - **Live** — バックテストとライブ実績の期間整合 diff
 - **Ideas** — 探索アイデアの一覧（ステータス・タグフィルタ）
+- **Maintenance** — 孤児バックテスト結果（strategies.db に定義の無い実行結果）の一覧・選択削除
 - **テーマ切替** — ダーク/ライトモード、日英バイリンガル UI
 - **エクスポート** — CSV / PNG エクスポート、SNS シェアカード（equity curve＋主要指標入り OGP サイズ PNG）、URL 共有（Browse の selectedId / compareIds 同期）
 
