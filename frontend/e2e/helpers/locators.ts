@@ -37,6 +37,10 @@ export async function gotoLive(page: Page): Promise<void> {
   await page.goto('/live')
 }
 
+export async function gotoMaintenance(page: Page): Promise<void> {
+  await page.goto('/maintenance')
+}
+
 /**
  * 言語切替ボタンをクリックする。LangToggle の各ボタンは role="radio" で
  * aria-label に「日本語」「English」が付与されている。
