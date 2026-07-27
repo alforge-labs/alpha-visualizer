@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { OrphanRunItem } from '../api/types'
 
@@ -38,7 +38,30 @@ export function useOrphanRuns(): UseOrphanRunsState {
   const [deleting, setDeleting] = useState(false)
   const [result, setResult] = useState<PruneResultView | null>(null)
 
-  const load = useCallback(async (): Promise<void> => {
+  // 初回マウント時の取得。react-hooks/set-state-in-effect を避けるため、
+  // 他 hook（useStrategyList / useIdeasList 等）と同様に .then/.catch で
+  // 完了後にのみ setState する（effect 本体で同期的に setState しない）。
+  useEffect(() => {
+    let cancelled = false
+    api.listOrphanRuns()
+      .then(data => {
+        if (cancelled) return
+        setOrphans(data.orphans)
+        setTotalBytes(data.total_bytes)
+        setError(null)
+        setLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : String(err))
+        setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  // 削除後の再取得用。イベントハンドラ（deleteSelected）からのみ呼ぶため、
+  // effect 内呼び出しと違い setLoading(true) を同期的に呼んでも問題ない。
+  const reload = async (): Promise<void> => {
     setLoading(true)
     try {
       const data = await api.listOrphanRuns()
@@ -50,11 +73,7 @@ export function useOrphanRuns(): UseOrphanRunsState {
     } finally {
       setLoading(false)
     }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  }
 
   const toggleId = (strategyId: string): void => {
     setSelectedIds(prev =>
@@ -87,7 +106,7 @@ export function useOrphanRuns(): UseOrphanRunsState {
       })
       setSelectedIds([])
       setError(null)
-      await load()
+      await reload()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
