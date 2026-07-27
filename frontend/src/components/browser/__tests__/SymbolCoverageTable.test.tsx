@@ -153,6 +153,39 @@ describe('<SymbolCoverageTable />', () => {
     expect(screen.getByRole('button', { name: '未割当' })).toBeDisabled()
   })
 
+  it('行にマウスを乗せると背景が変わり、離すと戻る', () => {
+    // StrategyRow / RecipeRow と同じ hover フィードバック。onMouseEnter を
+    // 消すと isHovered が常に false のままになり、この assert が落ちる。
+    renderTable()
+    const row = screen.getByRole('button', { name: 'SPY' }).closest('tr')
+    if (!row) throw new Error('SPY の行が見つからない')
+
+    expect(row).toHaveStyle({ background: 'transparent' })
+    fireEvent.mouseEnter(row)
+    expect(row).toHaveStyle({ background: 'var(--surface-2)' })
+    fireEvent.mouseLeave(row)
+    expect(row).toHaveStyle({ background: 'transparent' })
+  })
+
+  it('選択中の行は hover してもハイライト背景のまま', () => {
+    renderTable(ITEMS, '/browse?symbol=QQQ')
+    const row = screen.getByRole('button', { name: 'QQQ' }).closest('tr')
+    if (!row) throw new Error('QQQ の行が見つからない')
+
+    expect(row).toHaveStyle({ background: 'var(--accent-bg)' })
+    fireEvent.mouseEnter(row)
+    expect(row).toHaveStyle({ background: 'var(--accent-bg)' })
+  })
+
+  it('未割当の行は hover しても背景が変わらない（押せないため）', () => {
+    renderTable()
+    const row = screen.getByRole('button', { name: '未割当' }).closest('tr')
+    if (!row) throw new Error('未割当の行が見つからない')
+
+    fireEvent.mouseEnter(row)
+    expect(row).toHaveStyle({ background: 'transparent' })
+  })
+
   it('768px 以下で落とす列にだけ u-col-hide-md-down が付く', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader')

@@ -77,17 +77,27 @@ function SymbolCoverageRow({ stat, selected, dimmed, onToggle, lang }: RowProps)
   const L = makeL(lang)
   const symbol = stat.symbol
   const label = symbol == null ? L('未割当', 'Unassigned') : symbol
+  const [isHovered, setHovered] = useState(false)
 
   const handleToggle = (): void => {
     if (symbol == null) return
     onToggle(symbol)
   }
 
+  // 未割当は押せないので hover でも背景を変えない（本体の StrategyRow と同じ方針）。
+  const trBackground = selected
+    ? 'var(--accent-bg)'
+    : isHovered && symbol != null
+      ? 'var(--surface-2)'
+      : 'transparent'
+
   return (
     <tr
       onClick={handleToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        background: selected ? 'var(--accent-bg)' : 'transparent',
+        background: trBackground,
         borderLeft: selected ? '2px solid var(--accent)' : '2px solid transparent',
         opacity: dimmed ? 0.55 : 1,
         cursor: symbol == null ? 'default' : 'pointer',
@@ -234,7 +244,7 @@ export function SymbolCoverageTable({ recipes, lang }: Props): React.ReactElemen
           }}
         >
           {L(
-            `${sorted.length}銘柄 · ${recipes.length}レシピ`,
+            `${sorted.length} 銘柄 · ${recipes.length} レシピ`,
             `${sorted.length} symbols · ${recipes.length} recipes`,
           )}
         </span>

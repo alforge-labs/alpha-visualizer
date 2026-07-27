@@ -45,13 +45,19 @@ function bySymbol(stats: SymbolStat[], symbol: string | null): SymbolStat {
   return hit
 }
 
-/** SymbolStat のテスト用ファクトリ。並べ替えのテストで使う。 */
+/**
+ * SymbolStat のテスト用ファクトリ。並べ替えのテストで使う。
+ * 既定値は不変条件 1（recipeCount === runRecipeCount + unrunRecipeCount）を
+ * 満たすよう揃えてある（1 = 0 + 1、未実行のみの銘柄）。overrides で
+ * recipeCount / runRecipeCount / unrunRecipeCount のいずれかを変える場合は、
+ * 呼び出し側で 3 つの整合を取ること。
+ */
 function mkStat(overrides: Partial<SymbolStat> & { symbol: string | null }): SymbolStat {
   return {
     assetClass: 'stock',
     recipeCount: 1,
     runRecipeCount: 0,
-    unrunRecipeCount: 0,
+    unrunRecipeCount: 1,
     bestSharpe: null,
     avgReturnPct: null,
     lastRunAt: null,
@@ -167,11 +173,11 @@ describe('sortSymbolStats — 並べ替え', () => {
   it('既定は 未実行降順 → レシピ数降順 → 最高Sharpe降順 → 銘柄名昇順', () => {
     // 各段でしか決まらない組み合わせを並べ、4 段すべてが効くことを固定する
     const stats = [
-      mkStat({ symbol: 'D', unrunRecipeCount: 1, recipeCount: 2, bestSharpe: 1.0 }),
-      mkStat({ symbol: 'C', unrunRecipeCount: 1, recipeCount: 2, bestSharpe: 1.0 }),
-      mkStat({ symbol: 'B', unrunRecipeCount: 1, recipeCount: 2, bestSharpe: 2.0 }),
-      mkStat({ symbol: 'A', unrunRecipeCount: 1, recipeCount: 5, bestSharpe: 0.1 }),
-      mkStat({ symbol: 'Z', unrunRecipeCount: 9, recipeCount: 1, bestSharpe: null }),
+      mkStat({ symbol: 'D', recipeCount: 2, runRecipeCount: 1, unrunRecipeCount: 1, bestSharpe: 1.0 }),
+      mkStat({ symbol: 'C', recipeCount: 2, runRecipeCount: 1, unrunRecipeCount: 1, bestSharpe: 1.0 }),
+      mkStat({ symbol: 'B', recipeCount: 2, runRecipeCount: 1, unrunRecipeCount: 1, bestSharpe: 2.0 }),
+      mkStat({ symbol: 'A', recipeCount: 5, runRecipeCount: 4, unrunRecipeCount: 1, bestSharpe: 0.1 }),
+      mkStat({ symbol: 'Z', recipeCount: 9, runRecipeCount: 0, unrunRecipeCount: 9, bestSharpe: null }),
     ]
 
     const sorted = sortSymbolStats(stats, DEFAULT_SYMBOL_SORT_KEY, DEFAULT_SYMBOL_SORT_DIR)
@@ -181,8 +187,8 @@ describe('sortSymbolStats — 並べ替え', () => {
 
   it('入力配列を破壊しない', () => {
     const stats = [
-      mkStat({ symbol: 'A', unrunRecipeCount: 0 }),
-      mkStat({ symbol: 'B', unrunRecipeCount: 5 }),
+      mkStat({ symbol: 'A', unrunRecipeCount: 0, runRecipeCount: 1 }),
+      mkStat({ symbol: 'B', unrunRecipeCount: 5, recipeCount: 5 }),
     ]
     sortSymbolStats(stats, DEFAULT_SYMBOL_SORT_KEY, DEFAULT_SYMBOL_SORT_DIR)
     expect(stats.map(s => s.symbol)).toEqual(['A', 'B'])
@@ -191,7 +197,7 @@ describe('sortSymbolStats — 並べ替え', () => {
   it('未割当はどの並べ替えでも末尾に来る', () => {
     const stats = [
       mkStat({ symbol: null, unrunRecipeCount: 99, recipeCount: 99, bestSharpe: 9 }),
-      mkStat({ symbol: 'A', unrunRecipeCount: 0, recipeCount: 1, bestSharpe: 0 }),
+      mkStat({ symbol: 'A', unrunRecipeCount: 0, runRecipeCount: 1, recipeCount: 1, bestSharpe: 0 }),
     ]
 
     expect(sortSymbolStats(stats, 'unrunRecipeCount', 'desc').map(s => s.symbol)).toEqual(['A', null])
@@ -202,8 +208,8 @@ describe('sortSymbolStats — 並べ替え', () => {
 
   it('主キーを変えると並びが変わり、dir で反転する', () => {
     const stats = [
-      mkStat({ symbol: 'SPY', recipeCount: 3, unrunRecipeCount: 2 }),
-      mkStat({ symbol: 'QQQ', recipeCount: 2, unrunRecipeCount: 0 }),
+      mkStat({ symbol: 'SPY', recipeCount: 3, runRecipeCount: 1, unrunRecipeCount: 2 }),
+      mkStat({ symbol: 'QQQ', recipeCount: 2, runRecipeCount: 2, unrunRecipeCount: 0 }),
       mkStat({ symbol: 'MSFT', recipeCount: 1, unrunRecipeCount: 1 }),
     ]
 
@@ -215,9 +221,9 @@ describe('sortSymbolStats — 並べ替え', () => {
     // 指数 → ETF → 個別銘柄 → FX → コモディティ → その他。
     // 文字列比較にすると日英でラベルが変わり、言語によって並びが変わってしまう。
     const stats = [
-      mkStat({ symbol: 'CL=F', assetClass: 'commodity', recipeCount: 1, unrunRecipeCount: 0 }),
-      mkStat({ symbol: 'SPY', assetClass: 'etf', recipeCount: 1, unrunRecipeCount: 0 }),
-      mkStat({ symbol: '^GSPC', assetClass: 'index', recipeCount: 1, unrunRecipeCount: 0 }),
+      mkStat({ symbol: 'CL=F', assetClass: 'commodity', recipeCount: 1, runRecipeCount: 1, unrunRecipeCount: 0 }),
+      mkStat({ symbol: 'SPY', assetClass: 'etf', recipeCount: 1, runRecipeCount: 1, unrunRecipeCount: 0 }),
+      mkStat({ symbol: '^GSPC', assetClass: 'index', recipeCount: 1, runRecipeCount: 1, unrunRecipeCount: 0 }),
     ]
     expect(sortSymbolStats(stats, 'assetClass', 'asc').map(s => s.assetClass)).toEqual([
       'index',
@@ -228,8 +234,8 @@ describe('sortSymbolStats — 並べ替え', () => {
 
   it('Sharpe が null の銘柄は降順で末尾に沈む', () => {
     const stats = [
-      mkStat({ symbol: 'A', bestSharpe: null, recipeCount: 1, unrunRecipeCount: 0 }),
-      mkStat({ symbol: 'B', bestSharpe: 0.2, recipeCount: 1, unrunRecipeCount: 0 }),
+      mkStat({ symbol: 'A', bestSharpe: null, recipeCount: 1, runRecipeCount: 1, unrunRecipeCount: 0 }),
+      mkStat({ symbol: 'B', bestSharpe: 0.2, recipeCount: 1, runRecipeCount: 1, unrunRecipeCount: 0 }),
     ]
     expect(sortSymbolStats(stats, 'bestSharpe', 'desc').map(s => s.symbol)).toEqual(['B', 'A'])
   })

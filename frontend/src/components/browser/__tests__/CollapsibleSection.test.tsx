@@ -6,7 +6,7 @@ import { CollapsibleSection } from '../CollapsibleSection'
 describe('<CollapsibleSection />', () => {
   it('既定では中身を出さない', () => {
     render(
-      <CollapsibleSection label="銘柄カバレッジ（47 銘柄 · 未実行 139 レシピ）">
+      <CollapsibleSection label="銘柄カバレッジ（46 銘柄 + 未割当 · 未実行 139 レシピ）">
         <p>中身</p>
       </CollapsibleSection>,
     )
@@ -16,7 +16,7 @@ describe('<CollapsibleSection />', () => {
 
   it('クリックで開閉し aria-expanded が追随する', async () => {
     render(
-      <CollapsibleSection label="銘柄カバレッジ（47 銘柄 · 未実行 139 レシピ）">
+      <CollapsibleSection label="銘柄カバレッジ（46 銘柄 + 未割当 · 未実行 139 レシピ）">
         <p>中身</p>
       </CollapsibleSection>,
     )
@@ -39,10 +39,10 @@ describe('<CollapsibleSection />', () => {
 
   it('ラベルは件数を含められる（消えたと誤認させないため）', () => {
     render(
-      <CollapsibleSection label="銘柄カバレッジ（47 銘柄 · 未実行 139 レシピ）">
+      <CollapsibleSection label="銘柄カバレッジ（46 銘柄 + 未割当 · 未実行 139 レシピ）">
         <p>中身</p>
       </CollapsibleSection>,
     )
-    expect(screen.getByText(/47 銘柄/)).toBeInTheDocument()
+    expect(screen.getByText(/46 銘柄/)).toBeInTheDocument()
   })
 })
