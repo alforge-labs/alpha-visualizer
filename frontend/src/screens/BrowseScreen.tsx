@@ -11,8 +11,6 @@ import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
 import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
-import { SymbolAtlas } from '../components/browser/SymbolAtlas'
-import { CollapsibleSection } from '../components/browser/CollapsibleSection'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Loading } from '../design/primitives'
 import { makeL } from '../i18n/strings'
@@ -135,18 +133,6 @@ export function BrowseScreen({
       >
         <GroupByToggle groupBy={list.groupBy} onChange={list.setGroupBy} lang={lang} />
       </div>
-
-      {!list.loading && list.all.length > 0 && (
-        <CollapsibleSection
-          label={L(
-            `銘柄アトラス（${list.symbols.length} 銘柄）`,
-            `Symbol atlas (${list.symbols.length} symbols)`,
-          )}
-          testId="symbol-atlas-collapsible"
-        >
-          <SymbolAtlas items={list.all} lang={lang} />
-        </CollapsibleSection>
-      )}
 
       <div style={{ display: 'flex', flex: 1 }}>
         {list.loading ? (
