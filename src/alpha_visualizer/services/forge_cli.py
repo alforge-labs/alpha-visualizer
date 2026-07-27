@@ -21,6 +21,16 @@ FORGE_NOT_FOUND_MESSAGE = (
     " — https://alforgelabs.com"
 )
 
+# forge は導入済みだがバージョンが古く、必要なサブコマンド（例: prune-orphans）を
+# 持たないケース。生の Click エラー（"No such command 'xxx'."）をそのまま出すより
+# 親切な導線に変換する。具体的なバージョン番号は書かない
+# （次にどのリリースへ入るかは呼び出し側が知らないため）。
+FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE = (
+    "お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください"
+    " / Your alpha-forge does not have this command. Please update to a newer version"
+    " — https://alforgelabs.com"
+)
+
 
 def resolve_forge_exe() -> str | None:
     """PATH 上の forge 実行ファイルを解決する（無ければ None）。"""

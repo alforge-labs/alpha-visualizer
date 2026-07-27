@@ -27,6 +27,7 @@ from alpha_visualizer.schemas.maintenance import (
 )
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
+    FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE,
     build_forge_env,
     mask_home,
     parse_json_lenient,
@@ -64,7 +65,13 @@ def _run_forge(argv: list[str], forge_cfg: ForgeConfig, timeout: int) -> dict[st
 
     if proc.returncode != 0:
         # 空一覧を返して「掃除済み」と誤読させてはいけない
-        detail = mask_home((proc.stderr or proc.stdout or "").strip())
+        raw = proc.stderr or proc.stdout or ""
+        # forge は導入済みだがバージョンが古く prune-orphans を持たないケース。
+        # Click が出す生の "No such command 'xxx'." をそのまま見せず、更新を
+        # 促す導線付きメッセージに変換する（判定は大文字小文字を無視）。
+        if "no such command" in raw.lower():
+            raise ExternalProcessError(FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE)
+        detail = mask_home(raw.strip())
         raise ExternalProcessError(f"forge が異常終了しました（exit {proc.returncode}）: {detail}")
 
     payload = parse_json_lenient(proc.stdout)

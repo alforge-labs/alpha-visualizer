@@ -114,6 +114,39 @@ class TestOrphanRunsList:
 
         assert resp.status_code >= 400
 
+    def test_forgeにサブコマンドが無い場合はアップデートを促すメッセージを返す(
+        self, client_with_db: TestClient
+    ) -> None:
+        """forge は導入済みだがバージョンが古く prune-orphans を持たないケース。
+
+        Click が出す生の "No such command 'prune-orphans'." をそのまま見せると、
+        forge 未導入時の導線付きメッセージより体験が悪化する。更新を促す
+        メッセージ（バージョン番号は断定しない）と alforgelabs.com への導線に
+        変換されることを固定する。
+        """
+        click_stderr = (
+            "Usage: forge backtest [OPTIONS] COMMAND [ARGS]...\n"
+            "Try 'forge backtest -h' for help.\n\n"
+            "Error: No such command 'prune-orphans'."
+        )
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=_proc(returncode=2, stdout="", stderr=click_stderr),
+            ),
+        ):
+            resp = client_with_db.get("/api/maintenance/orphan-runs")
+
+        assert resp.status_code >= 400
+        body_text = json.dumps(resp.json(), ensure_ascii=False)
+        # 生の Click エラー文言（コマンド名）をそのまま出していない
+        assert "prune-orphans" not in body_text
+        # アップデート導線メッセージに変換されている
+        assert "新しいバージョンへ更新" in body_text
+        assert "update to a newer version" in body_text
+        assert "alforgelabs.com" in body_text
+
     def test_stdoutが壊れていたらエラーにする(self, client_with_db: TestClient) -> None:
         with (
             mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
