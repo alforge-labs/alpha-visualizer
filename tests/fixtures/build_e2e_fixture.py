@@ -8,7 +8,8 @@
       ├── forge.yaml
       └── data/
           ├── results/backtest_results.db
-          ├── strategies/{sma_cross,rsi_reversal,momo_breakout}.json
+          ├── strategies/{sma_cross,rsi_reversal,momo_breakout,...}.json
+          │   （+ ROLLUP_STRATEGIES 8 件。レシピ・ロールアップ検証用）
           └── ideas/ideas.json
 
 スクリプトは決定論的（乱数 seed 固定）で、同じ DB バイト列を再生成する。
@@ -195,15 +196,22 @@ def _metrics(equity: list[dict[str, object]], trades: list[dict[str, object]]) -
     }
 
 
-def _strategy_definition(strategy_id: str, name: str, params: dict[str, object]) -> dict[str, object]:
+def _strategy_definition(
+    strategy_id: str,
+    name: str,
+    params: dict[str, object],
+    *,
+    target_symbols: list[str] | None = None,
+    timeframe: str = "1d",
+) -> dict[str, object]:
     return {
         "strategy_id": strategy_id,
         "name": name,
         "version": "1.0.0",
         "asset_type": "equity",
-        "timeframe": "1d",
+        "timeframe": timeframe,
         "tags": ["e2e-fixture"],
-        "target_symbols": ["SPY"],
+        "target_symbols": ["SPY"] if target_symbols is None else target_symbols,
         "parameters": params,
         "indicators": [
             {"name": "sma_fast", "type": "SMA", "params": {"period": 10}},
@@ -347,6 +355,24 @@ def _write_historical_parquet() -> None:
     df.to_parquet(HISTORICAL_PARQUET)
 
 
+# ロールアップ検証用（issue: ブラウズ画面のレシピ・ロールアップ SP1）。
+# 名前・銘柄・実行有無の組み合わせで、レシピの畳み方を画面で確認できるようにする。
+ROLLUP_STRATEGIES: tuple[tuple[str, str, dict[str, object], list[str] | None], ...] = (
+    # 同名 3 試行 = 1 レシピ（v1 / v2 は実行済み・v3 は未実行）
+    ("ema_trend_v1", "EMA Trend Following", {"fast": 10, "slow": 30}, None),
+    ("ema_trend_v2", "EMA Trend Following", {"fast": 12, "slow": 26}, None),
+    ("ema_trend_v3", "EMA Trend Following", {"fast": 8, "slow": 40}, None),
+    # 全 variant 未実行 = 既定で非表示になるレシピ
+    ("idle_recipe_v1", "Idle Recipe", {"lookback": 5}, ["QQQ"]),
+    ("idle_recipe_v2", "Idle Recipe", {"lookback": 9}, ["QQQ"]),
+    # 同名・別銘柄 = 別レシピ（name だけを鍵にすると 1 行に潰れる）
+    ("dual_symbol_spy", "Dual Symbol Recipe", {"n": 1}, ["SPY"]),
+    ("dual_symbol_qqq", "Dual Symbol Recipe", {"n": 1}, ["QQQ"]),
+    # 銘柄がどこからも判明しない = 「未割当」表示
+    ("no_symbol_v1", "No Symbol Recipe", {"n": 1}, []),
+)
+
+
 def _write_strategies() -> None:
     sma_cross = _strategy_definition(
         "sma_cross",
@@ -371,6 +397,11 @@ def _write_strategies() -> None:
         path = STRATEGIES_DIR / f"{sid}.json"
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
+    for sid, name, params, targets in ROLLUP_STRATEGIES:
+        payload = _strategy_definition(sid, name, params, target_symbols=targets)
+        path = STRATEGIES_DIR / f"{sid}.json"
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
 
 def _write_ideas() -> None:
     payload = [
@@ -391,6 +422,7 @@ def _build_backtest_row(
     drift: float,
     volatility: float,
     run_at: str,
+    symbol: str = "SPY",
 ) -> dict[str, object]:
     equity = _equity_curve(seed, drift, volatility)
     bh = _buy_hold_curve()
@@ -401,7 +433,7 @@ def _build_backtest_row(
     return {
         "run_id": f"e2e_{strategy_id}_001",
         "strategy_id": strategy_id,
-        "symbol": "SPY",
+        "symbol": symbol,
         "run_at": run_at,
         "total_return_pct": float(metrics["total_return_pct"]),
         "cagr_pct": float(metrics["cagr_pct"]),
@@ -585,6 +617,12 @@ def _write_db() -> None:
         _build_backtest_row("sma_cross", seed=1, drift=0.0008, volatility=0.012, run_at="2024-04-01T10:00:00"),
         _build_backtest_row("rsi_reversal", seed=2, drift=0.0006, volatility=0.014, run_at="2024-04-02T10:00:00"),
         _build_backtest_row("momo_breakout", seed=3, drift=0.0010, volatility=0.018, run_at="2024-04-03T10:00:00"),
+        # 同名 3 試行のうち 2 件だけ実行済み。drift を変えて v2 が best になるようにする
+        _build_backtest_row("ema_trend_v1", seed=4, drift=0.0005, volatility=0.013, run_at="2024-04-04T10:00:00"),
+        _build_backtest_row("ema_trend_v2", seed=5, drift=0.0014, volatility=0.013, run_at="2024-04-05T10:00:00"),
+        # 同名・別銘柄。symbol を変えて別レシピになることを画面で確認する
+        _build_backtest_row("dual_symbol_spy", seed=6, drift=0.0007, volatility=0.015, run_at="2024-04-06T10:00:00", symbol="SPY"),
+        _build_backtest_row("dual_symbol_qqq", seed=7, drift=0.0009, volatility=0.015, run_at="2024-04-07T10:00:00", symbol="QQQ"),
     ]
     opt_rows = [
         _build_optimization_row("rsi_reversal", "2024-04-02T11:00:00"),
