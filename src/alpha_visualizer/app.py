@@ -17,6 +17,7 @@ from alpha_visualizer.routers import historical as historical_router
 from alpha_visualizer.routers import ideas as ideas_router
 from alpha_visualizer.routers import jobs as jobs_router
 from alpha_visualizer.routers import live as live_router
+from alpha_visualizer.routers import maintenance as maintenance_router
 from alpha_visualizer.routers import optimize as optimize_router
 from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
@@ -128,6 +129,7 @@ def create_app(
     app.include_router(jobs_router.router, prefix="/api")
     app.include_router(live_router.router, prefix="/api")
     app.include_router(historical_router.router, prefix="/api")
+    app.include_router(maintenance_router.router, prefix="/api")
 
     forge_dir_str = str(config.forge_dir)
 

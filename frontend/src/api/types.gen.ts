@@ -385,6 +385,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/maintenance/orphan-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Orphan Runs */
+        get: operations["list_orphan_runs_api_maintenance_orphan_runs_get"];
+        put?: never;
+        post?: never;
+        /** Prune Orphan Runs */
+        delete: operations["prune_orphan_runs_api_maintenance_orphan_runs_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1033,6 +1051,33 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * OrphanRunItem
+         * @description 孤児 1 件。forge CLI の `--json` の `orphans[]` と 1:1 で対応する。
+         */
+        OrphanRunItem: {
+            /** Strategy Id */
+            strategy_id: string;
+            /** Backtest Run Count */
+            backtest_run_count: number;
+            /** Optimization Run Count */
+            optimization_run_count: number;
+            /** Bytes */
+            bytes: number;
+            /** First Run At */
+            first_run_at?: string | null;
+            /** Last Run At */
+            last_run_at?: string | null;
+        };
+        /** OrphanRunsResponse */
+        OrphanRunsResponse: {
+            /** Orphans */
+            orphans: components["schemas"]["OrphanRunItem"][];
+            /** Count */
+            count: number;
+            /** Total Bytes */
+            total_bytes: number;
+        };
+        /**
          * Period
          * @description ``BacktestDetail.period``: equity 期間の YYYY-MM 表記。
          */
@@ -1049,6 +1094,24 @@ export interface components {
             end: string;
         } & {
             [key: string]: unknown;
+        };
+        /** PruneOrphansRequest */
+        PruneOrphansRequest: {
+            /** Strategy Ids */
+            strategy_ids: string[];
+        };
+        /** PruneOrphansResponse */
+        PruneOrphansResponse: {
+            /** Deleted Strategy Ids */
+            deleted_strategy_ids: string[];
+            /** Deleted Backtest Rows */
+            deleted_backtest_rows: number;
+            /** Deleted Optimization Rows */
+            deleted_optimization_rows: number;
+            /** Reclaimed Bytes */
+            reclaimed_bytes: number;
+            /** Vacuum Error */
+            vacuum_error?: string | null;
         };
         /**
          * RegimeSeries
@@ -2094,6 +2157,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoricalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_orphan_runs_api_maintenance_orphan_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrphanRunsResponse"];
+                };
+            };
+        };
+    };
+    prune_orphan_runs_api_maintenance_orphan_runs_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PruneOrphansRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PruneOrphansResponse"];
                 };
             };
             /** @description Validation Error */

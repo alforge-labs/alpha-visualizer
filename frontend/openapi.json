@@ -887,6 +887,60 @@
         }
       }
     },
+    "/api/maintenance/orphan-runs": {
+      "get": {
+        "summary": "List Orphan Runs",
+        "operationId": "list_orphan_runs_api_maintenance_orphan_runs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrphanRunsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Prune Orphan Runs",
+        "operationId": "prune_orphan_runs_api_maintenance_orphan_runs_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruneOrphansRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PruneOrphansResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -2307,6 +2361,83 @@
         "title": "OptimizeTrial",
         "description": "1 試行のパラメータと評価値。\n\n``routers/optimize.py::_parse_trial`` が組み立てる dict の構造：\n``{\"params\": {...}, \"metric\": float, \"pass\": bool, \"metrics\": {...}}``。\n\n``pass`` キーは Python 予約語のため明示フィールドとして宣言できない。\nレスポンス互換性のため ``extra=\"allow\"`` で透過的に保持する。"
       },
+      "OrphanRunItem": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "backtest_run_count": {
+            "type": "integer",
+            "title": "Backtest Run Count"
+          },
+          "optimization_run_count": {
+            "type": "integer",
+            "title": "Optimization Run Count"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "first_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Run At"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "backtest_run_count",
+          "optimization_run_count",
+          "bytes"
+        ],
+        "title": "OrphanRunItem",
+        "description": "孤児 1 件。forge CLI の `--json` の `orphans[]` と 1:1 で対応する。"
+      },
+      "OrphanRunsResponse": {
+        "properties": {
+          "orphans": {
+            "items": {
+              "$ref": "#/components/schemas/OrphanRunItem"
+            },
+            "type": "array",
+            "title": "Orphans"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "title": "Total Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orphans",
+          "count",
+          "total_bytes"
+        ],
+        "title": "OrphanRunsResponse"
+      },
       "Period": {
         "properties": {
           "start": {
@@ -2324,6 +2455,64 @@
         "type": "object",
         "title": "Period",
         "description": "``BacktestDetail.period``: equity 期間の YYYY-MM 表記。"
+      },
+      "PruneOrphansRequest": {
+        "properties": {
+          "strategy_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Strategy Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_ids"
+        ],
+        "title": "PruneOrphansRequest"
+      },
+      "PruneOrphansResponse": {
+        "properties": {
+          "deleted_strategy_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Strategy Ids"
+          },
+          "deleted_backtest_rows": {
+            "type": "integer",
+            "title": "Deleted Backtest Rows"
+          },
+          "deleted_optimization_rows": {
+            "type": "integer",
+            "title": "Deleted Optimization Rows"
+          },
+          "reclaimed_bytes": {
+            "type": "integer",
+            "title": "Reclaimed Bytes"
+          },
+          "vacuum_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vacuum Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted_strategy_ids",
+          "deleted_backtest_rows",
+          "deleted_optimization_rows",
+          "reclaimed_bytes"
+        ],
+        "title": "PruneOrphansResponse"
       },
       "RegimeSeries": {
         "properties": {
