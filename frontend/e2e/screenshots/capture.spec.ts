@@ -25,7 +25,7 @@ const __dirname = dirname(__filename)
  * - 「アピールしたい主役（チャート・構造）」がヘッダー/メトリクスで切れないよう、
  *   グリッド掲載分（detail/compare/optimize/strategy）は showcase コンポーネントを
  *   element 単位でタイトにクロップする。
- * - hero（browse）はコンテキスト維持のため縦長 viewport でヘッダー＋銘柄アトラスを収める。
+ * - hero（browse）はコンテキスト維持のため縦長 viewport でヘッダー＋表を収める。
  */
 
 const STRATEGY_ID = 'sma_cross'
