@@ -154,4 +154,62 @@ describe('<RecipeRow />', () => {
     renderRecipe(recipe)
     expect(screen.queryByTestId('latest-source-badge')).not.toBeInTheDocument()
   })
+
+  it('銘柄がどこからも判明しなければ未割当と出す', () => {
+    // symbol も target_symbols も無ければ effectiveSymbol は null になり、
+    // レシピの symbol も null になる。timeframe の有無は問わない。
+    const recipe = firstRecipe([
+      mkItem({ strategy_id: 'v1', symbol: null, target_symbols: [], latest_sharpe: 1.0, last_run_at: '2026-01-01T00:00:00' }),
+    ])
+    renderRecipe(recipe)
+    expect(screen.getByText(/未割当/)).toBeInTheDocument()
+  })
+
+  it('DD・PF・勝率・最終実行日も best 1 件の値で、列ごとの最良/最悪を混ぜない', () => {
+    // best（Sharpe 最大）の他指標をあえて「中間」の値にし、他 variant 側に
+    // 各指標の最良・最悪を分散させる。列ごとに Math.max でも Math.min でも
+    // 合成表示すれば必ず best の値からズレる設計。
+    const recipe = firstRecipe([
+      mkItem({
+        strategy_id: 'best',
+        latest_sharpe: 2.0, // 最大 → best として選ばれる
+        latest_max_drawdown_pct: -20, // 中間（他は -80 / -5）
+        latest_profit_factor: 1.5, // 中間（他は 0.3 / 5.0）
+        latest_win_rate_pct: 50, // 中間（他は 10 / 95）
+        last_run_at: '2026-03-01T00:00:00', // 中間（他は 01-01 / 06-01）
+      }),
+      mkItem({
+        strategy_id: 'worst_case',
+        latest_sharpe: 1.0,
+        latest_max_drawdown_pct: -80, // 全体最悪 DD
+        latest_profit_factor: 0.3, // 全体最悪 PF
+        latest_win_rate_pct: 10, // 全体最悪勝率
+        last_run_at: '2026-01-01T00:00:00', // 全体最古
+      }),
+      mkItem({
+        strategy_id: 'best_case',
+        latest_sharpe: 0.5,
+        latest_max_drawdown_pct: -5, // 全体最良 DD
+        latest_profit_factor: 5.0, // 全体最良 PF
+        latest_win_rate_pct: 95, // 全体最良勝率
+        last_run_at: '2026-06-01T00:00:00', // 全体最新
+      }),
+    ])
+    renderRecipe(recipe)
+
+    expect(screen.getByText('2.00')).toBeInTheDocument() // Sharpe = best
+    expect(screen.getByText('-20.0%')).toBeInTheDocument() // DD = best
+    expect(screen.getByText('1.50')).toBeInTheDocument() // PF = best
+    expect(screen.getByText('50.0%')).toBeInTheDocument() // Win% = best
+    expect(screen.getByText('2026-03-01')).toBeInTheDocument() // Last run = best
+
+    expect(screen.queryByText('-80.0%')).toBeNull()
+    expect(screen.queryByText('-5.0%')).toBeNull()
+    expect(screen.queryByText('0.30')).toBeNull()
+    expect(screen.queryByText('5.00')).toBeNull()
+    expect(screen.queryByText('10.0%')).toBeNull()
+    expect(screen.queryByText('95.0%')).toBeNull()
+    expect(screen.queryByText('2026-01-01')).toBeNull()
+    expect(screen.queryByText('2026-06-01')).toBeNull()
+  })
 })

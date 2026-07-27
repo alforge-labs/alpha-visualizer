@@ -66,6 +66,21 @@ export function RecipeRow({
   const sparkRendered =
     Array.isArray(sparkValues) && sparkValues.length >= 2 ? (
       <Sparkline values={sparkValues} width={120} height={20} />
+    ) : sparkValues === 'loading' ? (
+      <div
+        style={{
+          width: 120,
+          height: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          color: 'var(--text3)',
+        }}
+      >
+        ···
+      </div>
     ) : null
 
   return (
@@ -73,6 +88,7 @@ export function RecipeRow({
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onClick={() => { if (best) onSelect(best.strategy_id) }}
+      title={L('クリックでプレビュー', 'Click to preview')}
       style={{
         background: selected ? 'var(--accent-bg)' : isHovered ? 'var(--surface-2)' : 'transparent',
         borderLeft: selected ? '2px solid var(--accent)' : '2px solid transparent',
@@ -147,7 +163,22 @@ export function RecipeRow({
           >
             {recipe.name}
           </Link>
-          {recipe.symbol ? <Chip>{recipe.symbol}</Chip> : null}
+          {recipe.symbol ? (
+            <Chip>{recipe.symbol}</Chip>
+          ) : (
+            // 銘柄がどこからも判明しない場合のみ表示する。timeframe の有無は
+            // 問わない（StrategyRow.tsx と同じ判定。Task 2 で潰した
+            // 「未割当が出ない」不具合を RecipeRow でも踏襲する）。
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+              }}
+            >
+              {L('未割当', 'unassigned')}
+            </span>
+          )}
           {recipe.timeframe ? <Chip>{recipe.timeframe}</Chip> : null}
           {expandable && (
             <span
