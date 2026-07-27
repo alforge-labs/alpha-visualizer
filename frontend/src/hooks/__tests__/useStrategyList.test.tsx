@@ -237,6 +237,28 @@ describe('useStrategyList — レシピ・ロールアップ', () => {
     expect(result.current.list.recipes[0]?.name).toBe('Idle Recipe')
   })
 
+  it('allRecipes はフィルタに依らず全レシピを返す', async () => {
+    // symbol=SPY で絞ると表に出るのは Idle Recipe の 1 件だけになるが、
+    // カバレッジ表は「絞り込むためのナビゲーション」なので絞り込み結果に
+    // 依存してはならない。依存すると絞り込みを解除する手がかりが消える。
+    const { result } = renderWithUrl('/browse?symbol=SPY&include_unrun=1')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipes).toHaveLength(1)
+    expect(result.current.list.allRecipes).toHaveLength(2)
+    expect([...result.current.list.allRecipes].map(r => r.name).sort()).toEqual([
+      'AMD EMA ST',
+      'Idle Recipe',
+    ])
+  })
+
+  it('recipeTotal は allRecipes の件数と一致する', async () => {
+    const { result } = renderWithUrl('/browse')
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+
+    expect(result.current.list.recipeTotal).toBe(result.current.list.allRecipes.length)
+  })
+
   it('銘柄の選択肢を実効銘柄から作る', async () => {
     const { result } = renderWithUrl('/browse')
     await waitFor(() => expect(result.current.list.loading).toBe(false))
