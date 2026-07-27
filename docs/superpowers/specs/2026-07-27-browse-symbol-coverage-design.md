@@ -199,8 +199,10 @@ useStrategyList
   └─ recipes: Recipe[]              （フィルタ・未実行除外・ソート後。本体の表用）
 
 BrowseScreen
+  ├─ 折り畳みラベル ← buildSymbolStats(list.allRecipes) で銘柄数と未実行合計を出す
   └─ SymbolCoverageTable recipes={list.allRecipes} lang={lang}
-       └─ useSymbolStats(recipes) → SymbolStat[]
+       ├─ buildSymbolStats(recipes) → SymbolStat[]
+       └─ sortSymbolStats(stats, sortKey, sortDir)
 ```
 
 カバレッジ表は**フィルタ前の全レシピ**を集計する。現行アトラスが `list.all`
@@ -236,10 +238,14 @@ export interface SymbolStat {
 3. `unrunRecipeCount === recipeCount` ⟺ その銘柄は一度も実行されていない
    ⟺ `bestSharpe === null` かつ `lastRunAt === null`
 
-指標 3 種（`bestSharpe` / `avgReturnPct` / `lastRunAt`）は `recipe.best` から取る。
+**成績指標（`bestSharpe` / `avgReturnPct`）は `recipe.best` から取る。**
 `best === null`（＝未実行レシピ）は集計から除外する。SP1 で確立した
 「レシピの指標は best 1 件から取る」原則をそのまま銘柄集計にも適用する
-（列ごとに最大を取ると実在しない戦略の成績を合成表示することになる）。
+（レシピごとに別 variant の最良値を混ぜると、実在しない戦略の成績を合成表示することになる）。
+
+**`lastRunAt` だけは全 variant の最大値を取る。** この列が答えるのは「この銘柄の成績」
+ではなく「この銘柄を最後にいつ触ったか」であり、best 1 件に絞ると実際より古い日付が出て
+活動状況を誤って伝える。合成表示の懸念は成績指標に固有のもので、日付には当てはまらない。
 
 ---
 
@@ -249,15 +255,19 @@ export interface SymbolStat {
 
 | ファイル | 責務 | 目安 |
 |---|---|---|
-| `components/browser/SymbolCoverageTable.tsx` | 表の描画・ソート状態・行クリック | 200 行前後 |
+| `lib/symbolStats.ts` | 集計と並べ替えの pure function（`SymbolStat` の定義もここ） | 130 行前後 |
+| `lib/__tests__/symbolStats.test.ts` | 集計・不変条件・並べ替え順のテスト | — |
+| `components/browser/SymbolCoverageTable.tsx` | 表の描画・ソート状態・行クリック | 230 行前後 |
 | `components/browser/__tests__/SymbolCoverageTable.test.tsx` | 表の単体テスト | — |
-| `hooks/__tests__/useSymbolStats.test.ts` | 集計と不変条件のテスト | — |
+
+計算を `lib/` の pure function に置く（`frontend/CLAUDE.md` の「`lib/` は pure function、
+container から呼ぶ」に従う）。`useMemo` は表コンポーネント側で掛ける。
+折り畳みラベルの件数も `screens/` から同じ pure function を呼んで作れるようになる。
 
 **変更:**
 
 | ファイル | 変更内容 |
 |---|---|
-| `hooks/useSymbolStats.ts` | 引数を `Recipe[]` に。`SymbolStat` に実行済 / 未実行を追加。既定ソートを未実行降順に |
 | `hooks/useStrategyList.ts` | `allRecipes: Recipe[]` を公開し、`recipeTotal` をそこから導出 |
 | `hooks/__tests__/useStrategyList.test.tsx` | `allRecipes` の公開と `recipeTotal === allRecipes.length` を検証するケースを追加 |
 | `screens/BrowseScreen.tsx` | `SymbolAtlas` → `SymbolCoverageTable`。折り畳みラベルを変更 |
@@ -271,6 +281,7 @@ export interface SymbolStat {
 |---|---|
 | `components/browser/SymbolAtlas.tsx`（189 行） | 表に置き換わる。参照元は `BrowseScreen` のみ |
 | `components/browser/SymbolCard.tsx`（171 行） | 参照元は `SymbolAtlas` のみ |
+| `hooks/useSymbolStats.ts`（80 行） | 中身は `lib/symbolStats.ts` へ移す。表側が自前で `useMemo` を掛けて並べ替えるため、既定順で返すだけのラッパは呼び出し元が無くなる |
 
 `lib/assetClass.ts`（`classifySymbol` / `ASSET_CLASS_LABEL`）は表の区分列で使い続けるため
 変更しない。`ASSET_CLASS_ORDER` はセクション分割が消えるため参照が減るが、
@@ -283,18 +294,20 @@ export interface SymbolStat {
 現在 `SymbolAtlas` / `SymbolCard` / `useSymbolStats` には**単体テストが 1 つも無い**。
 SP2 で新規に用意する。
 
-### 6.1 `useSymbolStats`
+### 6.1 `lib/symbolStats.ts`
 
-- レシピを銘柄ごとに振り分ける（`effectiveSymbol` 経由。`item.symbol` が空でも
-  `target_symbols[0]` から解決される）
+- レシピを銘柄ごとに振り分ける（レシピの `symbol` は既に実効銘柄なので、
+  `symbol` が空で `target_symbols` にしか銘柄が無い戦略も正しいバケットに入る）
 - `recipeCount === runRecipeCount + unrunRecipeCount` を、実行済と未実行が混在する
   銘柄で検証する
 - 全レシピの合計が入力レシピ数と一致する（§4.2 不変条件 2）
 - 未実行のみの銘柄で `bestSharpe === null` / `lastRunAt === null` / `avgReturnPct === null`
-- 指標が `recipe.best` から取られている（同じレシピ内で best より高い Sharpe を持つ
-  variant を用意し、それが拾われないことを確認する）
+- 成績指標が `recipe.best` から取られている。best より Return が大きい非 best variant を
+  用意し、平均に混ざらないことを確認する
+- `lastRunAt` は best ではなく全 variant の最大になる（同じ入力で、best より新しい
+  非 best variant の日付が採られる）
 - 既定ソートの決定順序を、4 段のタイブレークすべてが効く入力で固定する
-- `未割当` が末尾に来る
+- `未割当` がどの並べ替えでも末尾に来る
 
 ### 6.2 `SymbolCoverageTable`
 
@@ -315,8 +328,10 @@ Sharpe 降順のため `best === variants[0]` となり、想定した退行が�
 
 - 未実行カウントを `runCount === 0` ではなく `variantCount === 0` で数える
   → 全銘柄の未実行が 0 になり、既定ソートと不変条件のテストが落ちること
-- 指標を `best` ではなく `variants[0]` から取る
-  → §6.1 の「best から取られている」テストが落ちること
+- 成績指標を `best` ではなく全 variant から集計する（＝旧実装の挙動に戻す）
+  → §6.1 の「best から取られている」テストが落ちること。
+  **`variants[0]` に差し替える退行は使わない**（`variants` は Sharpe 降順なので
+  `best === variants[0]` となり判別できない。SP1 で実際に踏んだ罠）
 - 既定ソートを未実行降順ではなくレシピ数降順に戻す
   → 順序固定のテストが落ちること
 
