@@ -80,7 +80,23 @@ alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy ID]..
 ```
 
 孤児の定義: `backtest_results` および `optimization_runs` の `strategy_id` のうち、
-`strategies` テーブルに存在しないもの。
+**その戦略を今も実行できないもの**。
+
+「実行できる」の判定を `strategies` テーブルの有無だけで行ってはならない。**組み込み
+テンプレート戦略（`strategy templates` に出る 7 件）は DB に登録されていなくても
+`backtest run --strategy <id>` で実行できる。** 判定には次の 2 つの和集合を使う。
+
+1. `StrategyRepository.list_all()` が返す `strategy_id`
+2. `get_builtin_template_names()` が返す組み込みテンプレート名
+
+> **なぜ両方が要るか（実データで踏んだ）:** `FileStrategyRepository.list_all()` は
+> 組み込みテンプレートを結果に含めるが、`SQLiteStrategyRepository.list_all()` は
+> DB 行しか返さない。実運用の構成は `strategies.use_db: true` なので後者が使われ、
+> `list_all()` だけを信じると組み込み戦略の実行履歴が孤児と判定される。実際に
+> `macd_crossover_v1`（実行可能な組み込み戦略）が孤児 129 件に混入していた。
+>
+> **フェーズ 2 も同じ判定を使うこと。** visualizer が `strategies.db` を直読みして
+> 孤児を算出すると、同じ穴を再現する。
 
 ### 3.1 挙動
 
@@ -95,11 +111,22 @@ alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy ID]..
 表示する列: `strategy_id` / バックテスト行数 / 最適化行数 / 容量 / `run_at` の範囲。
 **容量降順**（大きいものから）に並べる。何を消せば効くかが最初に目に入る順序にする。
 
-**「容量」の定義:** その `strategy_id` が持つ全行の JSON 列の
-バイト長の合計（`backtest_results` は `equity_curve_json` + `trades_json` +
-`buy_hold_curve_json`、`optimization_runs` は `best_params_json` + `all_trials_json`）。
+**「容量」の定義:** その `strategy_id` が持つ全行の**重い JSON 列**のバイト長の合計。
+
+| テーブル | 数える列 | 数えない列 |
+|---|---|---|
+| `backtest_results` | `equity_curve_json` + `trades_json` + `buy_hold_curve_json` | `metrics_json` / `carry_adjusted_json` |
+| `optimization_runs` | `all_trials_json` | `best_params_json` |
+
+`metrics_json` と `best_params_json` を除くのは、小さくて「どれを消せば効くか」の
+判断材料にならないため（実データで `best_params_json` の合計は 9 KB）。
+
 SQLite のページ単位の実占有量ではない。実占有量は `VACUUM` するまで確定しないため、
 概算であることを表示側でも示す。
+
+> **フェーズ 2 への申し送り:** `GET /api/maintenance/orphan-runs` が返す `bytes` は
+> **この定義と 1 バイトも違わないこと**。visualizer は SQLAlchemy 直読みで独自に集計するため、
+> 列の選び方がずれると同じ孤児に対して GUI と CLI で違う容量が出る。
 
 削除は 1 トランザクションで行い、`backtest_results` と `optimization_runs` の両方から
 同じ `strategy_id` の行を消す。
@@ -348,6 +375,20 @@ E2E で検証できない。`tests/fixtures/build_e2e_fixture.py` に、`strateg
 **削除は不可逆。** `backtest_results.db` にバックアップの仕組みは無い。実行前の `--dry-run`
 と画面上の確認が唯一の防御になる。テストで「戦略が存在する行が 1 行も減っていない」ことを
 固定し、ablation で判別力を確認する（§6.5）。
+
+**「生きている戦略の ID の集合」が単一障害点。** 孤児判定・CLI の入力検証・削除直前の
+再突合の 3 段はいずれもこの集合に依存しており、集合が過小になると 3 段すべてが同時に
+破れる。実測では `forge.yaml` の `strategies.use_db` を取り違えただけの設定で、稼働中の
+戦略を含む 268 ID / 191.9 MB が孤児と判定された。`SQLiteStrategyRepository` は
+`strategies.db` が無ければ空の DB を黙って作るため、パスの誤りでも警告が出ない。
+
+したがって**設定ミスを検知して止まる仕組みを入れる**。次のいずれかに当てはまるときは、
+明示フラグ無しでは削除を中断してエラー終了する。
+
+- 戦略の定義が 1 件も見つからない
+- 孤児が結果 DB の `strategy_id` の大半（目安 8 割以上）を占める
+
+`--dry-run` は中断せず、警告を出したうえで一覧を表示する（見て気づけるようにするため）。
 
 **`VACUUM` は 216 MB の一時領域を要求する。** 空き容量が足りない環境では失敗する。
 失敗しても削除自体は完了しているので、エラーメッセージでその旨を伝える。
