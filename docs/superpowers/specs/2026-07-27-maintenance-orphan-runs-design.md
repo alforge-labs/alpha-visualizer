@@ -17,8 +17,15 @@
 
 | テーブル | 全体 | 孤児 | 孤児の容量 |
 |---|---|---|---|
-| `backtest_results` | 725 行 | **116 ID / 240 行** | **83.5 MB** |
+| `backtest_results` | 725 行 | 116 ID / 240 行 | **83.5 MB** |
 | `optimization_runs` | 92 行 | 29 ID / 35 行 | 0.0 MB |
+| **和集合（掃除の対象）** | — | **129 ID / 275 行** | **83.5 MB** |
+
+**ID 数は単純な足し算にならない。** 116 + 29 = 145 ではなく **129** である。両方の
+テーブルに行を持つ孤児が 16 件あり、**`optimization_runs` にしか行が無い孤児が 13 件**
+ある。`backtest_results` だけを見て掃除すると、この 13 件が永久に残る。
+
+画面と CLI が「孤児 N 件」として数えるのは**和集合の 129** である。
 
 `backtest_results.db` は 216.7 MB。JSON 列（`equity_curve_json` / `trades_json` /
 `buy_hold_curve_json`）の合計が 203.3 MB で、**そのうち 41% が孤児**である。
@@ -69,7 +76,7 @@ Sharpe<0 38 件）を「整理モード」に並べる予定だった。実測�
 ## 3. `alpha-forge` 側: `backtest prune-orphans`
 
 ```
-alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy-id ID]... [--json]
+alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy ID]... [--json]
 ```
 
 孤児の定義: `backtest_results` および `optimization_runs` の `strategy_id` のうち、
@@ -80,7 +87,7 @@ alpha-forge backtest prune-orphans [--dry-run] [-y] [--vacuum] [--strategy-id ID
 | オプション | 挙動 |
 |---|---|
 | `--dry-run` | 削除せず、対象を表で表示して終了する |
-| `--strategy-id ID` | 複数指定可。指定した ID のみ削除する。省略時は全孤児が対象 |
+| `--strategy ID` | 複数指定可。指定した ID のみ削除する。省略時は全孤児が対象 |
 | `-y` / `--yes` | 確認プロンプトを飛ばす |
 | `--vacuum` | 削除後に `VACUUM` を実行する。**既定 off** |
 | `--json` | 機械可読出力（既存の CLI 規約に従う） |
@@ -97,7 +104,7 @@ SQLite のページ単位の実占有量ではない。実占有量は `VACUUM` 
 削除は 1 トランザクションで行い、`backtest_results` と `optimization_runs` の両方から
 同じ `strategy_id` の行を消す。
 
-**`--strategy-id` に孤児でない ID（＝ `strategies` に存在する ID）が指定された場合は
+**`--strategy` に孤児でない ID（＝ `strategies` に存在する ID）が指定された場合は
 何も削除せずエラーで終了する。** 部分的に実行して「一部だけ消えた」状態を作らない。
 
 ### 3.2 `--vacuum` を既定 off にする理由
@@ -154,7 +161,7 @@ SQLite は `DELETE` だけではファイルが縮まない。しかし `VACUUM`
 | エンドポイント | 内容 |
 |---|---|
 | `GET /api/maintenance/orphan-runs` | 孤児の一覧。既存の SQLAlchemy 直読みで返す（読み取りのみ） |
-| `DELETE /api/maintenance/orphan-runs` | body の `strategy_ids` を `--strategy-id` に渡して `forge backtest prune-orphans` を subprocess 実行 |
+| `DELETE /api/maintenance/orphan-runs` | body の `strategy_ids` を `--strategy` に渡して `forge backtest prune-orphans` を subprocess 実行 |
 
 レスポンス（`GET`）の 1 要素:
 
@@ -212,7 +219,8 @@ GUI から削除する目的は容量の回収そのものなので、`VACUUM` �
 
 ### 4.5 推測でラベルを付けない
 
-孤児 240 行の `source` 列は**すべて `NULL`** だった（実行元の記録がない）。
+`backtest_results` の孤児 240 行の `source` 列は**すべて `NULL`** だった（実行元の記録が
+ない。`optimization_runs` にはそもそも `source` 列が無い）。
 `_smoke441_*` は見るからにテストの残骸だが、`strategy_id` の見た目から
 「テストの残骸」「探索の残骸」といったラベルを機械的に付けることはしない。
 
@@ -230,12 +238,20 @@ CLI が無いと画面が動かないため、2 リポジトリを順に進め�
 **実装計画は 2 本に分ける。** 別々の git リポジトリで別々のワークツリー・別々の PR に
 なるため、1 本の計画では実行できない。本仕様書からフェーズごとに計画を起こす:
 
-- `docs/superpowers/plans/2026-07-27-forge-prune-orphans.md`（`alpha-forge` 用・§3 が対象）
-- `docs/superpowers/plans/2026-07-27-maintenance-orphan-runs.md`（`alpha-visualizer` 用・§4 が対象）
+- `alpha-forge/docs/superpowers/plans/2026-07-27-backtest-prune-orphans.md`（§3 が対象）
+- `alpha-visualizer/docs/superpowers/plans/2026-07-27-maintenance-orphan-runs.md`（§4 が対象）
+
+**計画はそれぞれ実装するリポジトリ側に置く。** SDD のワークスペース（`.superpowers/sdd/`）が
+リポジトリルート基準で作られるため、別リポジトリの計画を参照すると台帳と成果物の置き場所が
+ずれる。
 
 どちらの計画も本仕様書を Single Source of Truth として参照する。仕様書自体は
 `alpha-visualizer` 側に置く（SP1・SP2 と同じ場所に 3 部作を揃えるため）。フェーズ 1 の
 `alpha-forge` PR には、本仕様書の §1〜§3 の要点を PR 本文に転記して単体で読めるようにする。
+
+**フェーズ 2 の計画はフェーズ 1 のマージ後に書く。** 画面が呼ぶ CLI の契約（`--json` の
+出力形・exit code・`--strategy` の挙動）が確定していない段階で計画を書くと、実在しない
+インターフェースに対する計画になる。
 
 `alpha-forge` は PR で CI が走らない。マージ前にローカルでフルテスト・`ruff`・`mypy`・
 codemap を通す（`alpha-forge/CLAUDE.md`）。
@@ -252,11 +268,11 @@ codemap を通す（`alpha-forge/CLAUDE.md`）。
 - 孤児の検出: `strategies` に無い `strategy_id` だけを拾う。ある ID は 1 件も拾わない
 - `backtest_results` と `optimization_runs` の両方から拾う
 - 容量集計が JSON 列の長さの合計になる
-- `--strategy-id` で選択削除したとき、指定した ID の行だけが消える
+- `--strategy` で選択削除したとき、指定した ID の行だけが消える
 - **削除後、`strategies` に存在する戦略の行が 1 行も減っていない**
 - 削除がトランザクションであること（途中で失敗したら 1 行も消えない）
 - 孤児が 0 件のとき、削除は何もせず正常終了する
-- 孤児でない ID を `--strategy-id` に渡すと、何も削除せずエラーになる
+- 孤児でない ID を `--strategy` に渡すと、何も削除せずエラーになる
 
 ### 6.2 CLI（`alpha-forge`）
 
