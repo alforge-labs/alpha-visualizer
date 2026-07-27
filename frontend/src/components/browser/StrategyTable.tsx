@@ -9,6 +9,7 @@ import { useSparklineCache } from '../../hooks/useSparklineCache'
 import { fmtNumber } from '../../lib/format'
 import { StrategyRow, TD_BASE, sharpeTone } from './StrategyRow'
 import { RecipeRow } from './RecipeRow'
+import { StrategyTableFooter } from './StrategyTableFooter'
 
 interface Props {
   recipes: Recipe[]
@@ -179,7 +180,7 @@ export function StrategyTable({
   lang,
   groups,
   recipeTotal,
-  // hiddenUnrunRecipeCount は Task 4 の StrategyTableFooter が使う（このタスクでは未消費）
+  hiddenUnrunRecipeCount,
 }: Props): React.ReactElement {
   const L = makeL(lang)
   const sparkline = useSparklineCache()
@@ -394,21 +395,13 @@ export function StrategyTable({
           )}
         </tbody>
       </table>
-      <div
-        style={{
-          padding: '12px 24px',
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--fs-mono-sm)',
-          color: 'var(--text3)',
-          letterSpacing: 'var(--tracking-mono)',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        {L(
-          `${recipes.length} レシピ / 全 ${recipeTotal} レシピ`,
-          `${recipes.length} of ${recipeTotal} recipes`,
-        )}
-      </div>
+      <StrategyTableFooter
+        visibleRecipeCount={recipes.length}
+        recipeTotal={recipeTotal}
+        hiddenUnrunRecipeCount={hiddenUnrunRecipeCount}
+        strategyTotal={strategyTotal}
+        lang={lang}
+      />
     </div>
   )
 }
