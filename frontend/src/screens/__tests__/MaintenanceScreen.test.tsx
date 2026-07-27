@@ -29,6 +29,7 @@ function baseProps() {
     totalBytes: 5857524,
     loading: false,
     error: null,
+    onRetry: vi.fn(),
     selectedIds: [] as string[],
     onToggleId: vi.fn(),
     onSelectAll: vi.fn(),
@@ -80,6 +81,31 @@ describe('<MaintenanceScreen />', () => {
   it('エラーを表示する', () => {
     render(<MaintenanceScreen {...baseProps()} error="forge コマンドが見つかりません" />)
     expect(screen.getByText(/forge コマンドが見つかりません/)).toBeInTheDocument()
+  })
+
+  it('エラー時に再試行ボタンが出て、押すと onRetry が呼ばれる', async () => {
+    // 一覧取得の失敗はユーザーが最も遭遇しやすい失敗ケース。ページ全体の
+    // リロードに頼らず、その場で再試行できる導線が必須。
+    const props = baseProps()
+    render(<MaintenanceScreen {...props} error="forge コマンドが見つかりません" />)
+
+    const retryButton = screen.getByRole('button', { name: /再試行/ })
+    await userEvent.click(retryButton)
+    expect(props.onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('エラーがあるときは「孤児の実行結果はありません」を出さない', () => {
+    // 取得失敗による 0 件と、本当に 0 件なのを混同させない
+    // （forge 未導入時にまさにこの状況が起きる）。
+    render(
+      <MaintenanceScreen
+        {...baseProps()}
+        orphans={[]}
+        totalBytes={0}
+        error="forge コマンドが見つかりません"
+      />,
+    )
+    expect(screen.queryByText(/孤児の実行結果はありません/)).toBeNull()
   })
 
   it('削除中はボタンを無効にする', () => {

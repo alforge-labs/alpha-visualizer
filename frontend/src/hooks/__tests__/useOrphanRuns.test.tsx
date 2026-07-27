@@ -144,4 +144,37 @@ describe('useOrphanRuns', () => {
     // 失敗時は一覧を取り直さない（初回 fetch のみ）
     expect(api.listOrphanRuns).toHaveBeenCalledTimes(1)
   })
+
+  it('前回の削除成功結果は次の削除失敗時にクリアされる', async () => {
+    // result をクリアしないと、2 回目の削除が失敗したときに古い成功パネルと
+    // 新しいエラーバナーが同時に出てしまう。
+    const { result } = renderHook(() => useOrphanRuns())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    act(() => result.current.toggleId('lev_tmp'))
+    await act(async () => {
+      await result.current.deleteSelected()
+    })
+    expect(result.current.result).not.toBeNull()
+
+    vi.mocked(api.pruneOrphanRuns).mockRejectedValue(new Error('database is locked'))
+    act(() => result.current.toggleId('a158_sma_base'))
+    await act(async () => {
+      await result.current.deleteSelected()
+    })
+
+    expect(result.current.error).toBe('database is locked')
+    expect(result.current.result).toBeNull()
+  })
+
+  it('reload を呼ぶと一覧を再取得する（エラーバナーの再試行から使う）', async () => {
+    const { result } = renderHook(() => useOrphanRuns())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.reload()
+    })
+
+    expect(api.listOrphanRuns).toHaveBeenCalledTimes(2)
+  })
 })

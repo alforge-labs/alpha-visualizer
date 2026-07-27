@@ -28,6 +28,7 @@ export function MaintenancePage(): ReactElement {
       totalBytes={orphanRuns.totalBytes}
       loading={orphanRuns.loading}
       error={orphanRuns.error}
+      onRetry={orphanRuns.reload}
       selectedIds={orphanRuns.selectedIds}
       onToggleId={orphanRuns.toggleId}
       onSelectAll={orphanRuns.selectAll}

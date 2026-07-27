@@ -5,7 +5,7 @@ import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { fmtNumber, fmtDate } from '../lib/format'
 import { Button, ErrorBanner, Loading } from '../design/primitives'
-import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ConfirmActionButton } from '../components/ConfirmActionButton'
 import { TD_BASE } from '../components/browser/StrategyRow'
 
 export interface MaintenanceScreenProps {
@@ -13,6 +13,7 @@ export interface MaintenanceScreenProps {
   totalBytes: number
   loading: boolean
   error: string | null
+  onRetry: () => void
   selectedIds: string[]
   onToggleId: (strategyId: string) => void
   onSelectAll: () => void
@@ -128,13 +129,14 @@ function ResultPanel({ result, lang }: ResultPanelProps): ReactElement {
  * 結果が残っている strategy_id。`alpha-forge strategy delete` を `--with-results`
  * 無しで実行すると意図的に結果を残すため、孤児は必ずしも不要データではない。
  * 削除は forge CLI へ委譲する不可逆な操作なので、確認ダイアログを経由しないと
- * 実行できないようにする（`components/ConfirmDialog.tsx`）。
+ * 実行できないようにする（`components/ConfirmActionButton.tsx`）。
  */
 export function MaintenanceScreen({
   orphans,
   totalBytes,
   loading,
   error,
+  onRetry,
   selectedIds,
   onToggleId,
   onSelectAll,
@@ -221,7 +223,7 @@ export function MaintenanceScreen({
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}
 
         {error && (
-          <ErrorBanner message={error} retryLabel={L('再試行', 'Retry')} />
+          <ErrorBanner message={error} retryLabel={L('再試行', 'Retry')} onRetry={onRetry} />
         )}
 
         {!loading && hasOrphans && (
@@ -290,7 +292,7 @@ export function MaintenanceScreen({
             </div>
 
             <div>
-              <ConfirmDialog
+              <ConfirmActionButton
                 triggerLabel={L(
                   `選択した ${selectedIds.length} 件（${selectedMb} MB）を削除`,
                   `Delete ${selectedIds.length} selected (${selectedMb} MB)`,
@@ -310,7 +312,7 @@ export function MaintenanceScreen({
           </>
         )}
 
-        {!loading && !hasOrphans && (
+        {!loading && !error && !hasOrphans && (
           <p
             style={{
               fontFamily: 'var(--sans)',

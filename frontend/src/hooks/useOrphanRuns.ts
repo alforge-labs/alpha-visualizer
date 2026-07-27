@@ -23,6 +23,8 @@ export interface UseOrphanRunsState {
   deleteSelected: () => Promise<void>
   deleting: boolean
   result: PruneResultView | null
+  /** 一覧の再取得（エラーバナーの再試行導線から使う）。 */
+  reload: () => Promise<void>
 }
 
 /**
@@ -95,6 +97,9 @@ export function useOrphanRuns(): UseOrphanRunsState {
     // （2 段防御）。
     if (selectedIds.length === 0) return
     setDeleting(true)
+    // 前回成功時の結果パネルを引きずらない。今回失敗すると古い成功結果と
+    // 新しいエラーが同時に出てしまうため、削除開始時点でクリアする。
+    setResult(null)
     try {
       const res = await api.pruneOrphanRuns(selectedIds)
       setResult({
@@ -126,5 +131,6 @@ export function useOrphanRuns(): UseOrphanRunsState {
     deleteSelected,
     deleting,
     result,
+    reload,
   }
 }
