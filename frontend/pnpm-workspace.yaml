@@ -14,3 +14,6 @@ overrides:
   # minimatch@5 系が引く 5.0.6 が脆弱。eslint 側の minimatch@10 は既に 5.0.7 のため
   # 全系統を 5.0.7 以上に揃える
   brace-expansion: '>=5.0.7'
+  # vite が引く postcss 8.5.15 が sourceMappingURL 経由の path traversal 持ち。
+  # vite 側の範囲は 8.5.18 を許容するが lock が古い版に固定されているため明示する
+  postcss: '>=8.5.18 <9'

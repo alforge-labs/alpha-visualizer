@@ -2,7 +2,7 @@
    router 経由で lazy chunk を組み立てるため、本ファイルは const `router` と
    内部ヘルパ関数 (PageFallback) を併存させる。 */
 import { lazy, Suspense, type ComponentType, type ReactElement } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { RootLayout } from './components/RootLayout'
 import { Loading } from './design/primitives'
 

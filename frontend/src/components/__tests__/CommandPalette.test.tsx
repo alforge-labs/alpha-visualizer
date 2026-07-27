@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { StrategyListItem } from '../../api/types'
 import { CommandPalette } from '../CommandPalette'

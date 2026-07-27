@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { IdeaItem, LinkedRun } from '../api/types'
 import { Card, Chip, Loading } from '../design/primitives'
 import type { Lang } from '../i18n/strings'

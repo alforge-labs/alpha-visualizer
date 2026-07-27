@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { MOCK_OPTIMIZE } from '../mock/btData'
 import { OptimizeScreen } from './OptimizeScreen'
 

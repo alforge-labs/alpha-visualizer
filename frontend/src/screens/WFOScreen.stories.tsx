@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { MOCK_WFO } from '../mock/btData'
 import { WFOScreen } from './WFOScreen'
 

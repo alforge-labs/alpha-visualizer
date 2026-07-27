@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { describe, it, expect } from 'vitest'
 import { MetricsGrid } from '../metrics/MetricsGrid'
 import { MetricsSummaryBarV2 } from '../MetricsSummaryBarV2'
