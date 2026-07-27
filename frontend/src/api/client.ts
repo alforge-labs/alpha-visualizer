@@ -1,4 +1,4 @@
-import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -156,6 +156,20 @@ export const api = {
       `/historical/${encodeURIComponent(symbol)}?${params.toString()}`,
     )
   },
+
+  // 孤児バックテスト結果（strategies.db に無い strategy_id の結果）の一覧・削除。
+  // /maintenance 画面（vis#Task2）から利用する。
+  listOrphanRuns: (): Promise<OrphanRunsResponse> =>
+    request<OrphanRunsResponse>('/maintenance/orphan-runs'),
+
+  // strategyIds が空の呼び出しは forge が全孤児を削除してしまうため、
+  // backend が 400 で弾く（呼び出し側の hook でも重ねてガードする）。
+  pruneOrphanRuns: (strategyIds: string[]): Promise<PruneOrphansResponse> =>
+    request<PruneOrphansResponse>('/maintenance/orphan-runs', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strategy_ids: strategyIds }),
+    }),
 }
 
 export { ApiError }

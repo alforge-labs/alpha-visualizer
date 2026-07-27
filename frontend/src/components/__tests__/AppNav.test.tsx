@@ -27,4 +27,14 @@ describe('AppNav (issue #263)', () => {
     expect(screen.getByRole('link', { name: 'アイデア' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'ブラウズ' })).not.toHaveAttribute('aria-current')
   })
+
+  /** SP3: 孤児バックテスト結果の掃除画面（/maintenance）への導線を追加。5 項目目。 */
+  it('renders a link to the Maintenance screen', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: '整理' })).toHaveAttribute('href', '/maintenance')
+  })
 })

@@ -24,6 +24,7 @@
 - **Optimize** — Walk-Forward composite equity curves and Grid optimization results
 - **Live** — Period-aligned diff between backtest and live execution
 - **Ideas** — Exploration idea board with status / tag filters
+- **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db)
 - **Theme & i18n** — Dark/Light modes, English/Japanese UI toggle
 - **Export & share** — CSV / PNG export, social share card (OGP-sized PNG with equity curve + headline metrics), URL-based state sharing for Browse
 

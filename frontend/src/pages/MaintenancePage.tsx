@@ -1,0 +1,51 @@
+import type { ReactElement } from 'react'
+import { MaintenanceScreen } from '../screens/MaintenanceScreen'
+import { useOrphanRuns } from '../hooks/useOrphanRuns'
+import { useViewerSettings } from '../hooks/useTheme'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { extractApiErrorDetail } from '../lib/errorMessage'
+
+/**
+ * MaintenancePage（Container）。
+ *
+ * 役割:
+ * - データ取得・選択状態・削除実行 (useOrphanRuns) と画面設定 (useViewerSettings) の
+ *   フック呼び出し
+ * - エラーメッセージの正規化（`extractApiErrorDetail`）。この API の 4xx/5xx は
+ *   detail にユーザー向け bilingual 文言が入っている（forge 未導入時の案内等）ため、
+ *   `normalizeErrorMessage` の定型文には潰さない（`ComparePage.tsx` の 500 潰しとは
+ *   事情が異なる。`DuplicateStrategyCard.tsx` と同じ理由）。
+ *
+ * `error` はページ単位の早期 return にせず、そのまま `MaintenanceScreen` に渡す
+ * （一覧・エラー・削除結果を同一画面内で並べて見せるため）。
+ *
+ * Render は MaintenanceScreen に委譲する（ADR-0001）。
+ */
+export function MaintenancePage(): ReactElement {
+  const { settings } = useViewerSettings()
+  const { lang } = settings
+  useDocumentTitle(lang === 'ja' ? '整理' : 'Maintenance')
+  const orphanRuns = useOrphanRuns()
+  const errorMessage = orphanRuns.error
+    ? extractApiErrorDetail(orphanRuns.error, lang)
+    : null
+
+  return (
+    <MaintenanceScreen
+      orphans={orphanRuns.orphans}
+      totalBytes={orphanRuns.totalBytes}
+      loading={orphanRuns.loading}
+      error={orphanRuns.error}
+      errorMessage={errorMessage}
+      onRetry={orphanRuns.reload}
+      selectedIds={orphanRuns.selectedIds}
+      onToggleId={orphanRuns.toggleId}
+      onSelectAll={orphanRuns.selectAll}
+      onClearSelection={orphanRuns.clearSelection}
+      onDelete={orphanRuns.deleteSelected}
+      deleting={orphanRuns.deleting}
+      result={orphanRuns.result}
+      lang={lang}
+    />
+  )
+}
