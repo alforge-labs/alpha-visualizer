@@ -11,9 +11,12 @@ import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
 import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
+import { SymbolCoverageTable } from '../components/browser/SymbolCoverageTable'
+import { CollapsibleSection } from '../components/browser/CollapsibleSection'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Loading } from '../design/primitives'
 import { makeL } from '../i18n/strings'
+import { buildSymbolStats } from '../lib/symbolStats'
 
 interface BrowseScreenProps {
   list: ReturnType<typeof useStrategyList>
@@ -37,6 +40,9 @@ export function BrowseScreen({
   onCloseSlidePanel,
 }: BrowseScreenProps): ReactElement {
   const L = makeL(lang)
+  // 折り畳みラベルの件数は表の行数と一致させる（list.symbols は未割当を含まないので 1 ずれる）
+  const coverage = buildSymbolStats(list.allRecipes)
+  const unrunRecipeTotal = coverage.reduce((acc, s) => acc + s.unrunRecipeCount, 0)
 
   return (
     <div
@@ -133,6 +139,18 @@ export function BrowseScreen({
       >
         <GroupByToggle groupBy={list.groupBy} onChange={list.setGroupBy} lang={lang} />
       </div>
+
+      {!list.loading && list.all.length > 0 && (
+        <CollapsibleSection
+          label={L(
+            `銘柄カバレッジ（${coverage.length} 銘柄 · 未実行 ${unrunRecipeTotal} レシピ）`,
+            `Symbol coverage (${coverage.length} symbols · ${unrunRecipeTotal} unrun recipes)`,
+          )}
+          testId="symbol-coverage-collapsible"
+        >
+          <SymbolCoverageTable recipes={list.allRecipes} lang={lang} />
+        </CollapsibleSection>
+      )}
 
       <div style={{ display: 'flex', flex: 1 }}>
         {list.loading ? (
