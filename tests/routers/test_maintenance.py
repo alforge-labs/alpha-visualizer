@@ -96,7 +96,10 @@ class TestOrphanRunsList:
             resp = client_with_db.get("/api/maintenance/orphan-runs")
 
         assert resp.status_code >= 400
-        assert "alforgelabs.com" in json.dumps(resp.json(), ensure_ascii=False)
+        # CodeQL py/incomplete-url-substring-sanitization 対策: 部分一致でなく
+        # 末尾トークンの等価比較で funnel URL を検証する（他ルーターの既存テストと同規約。
+        # 例: test_run.py::test_run_forge_not_found）
+        assert resp.json()["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"
 
     def test_forgeが非ゼロ終了したらエラーにする(self, client_with_db: TestClient) -> None:
         # 成功に見せてはいけない。空一覧を返すと「掃除済み」と誤読される。
@@ -139,13 +142,15 @@ class TestOrphanRunsList:
             resp = client_with_db.get("/api/maintenance/orphan-runs")
 
         assert resp.status_code >= 400
-        body_text = json.dumps(resp.json(), ensure_ascii=False)
+        detail = resp.json()["detail"]
         # 生の Click エラー文言（コマンド名）をそのまま出していない
-        assert "prune-orphans" not in body_text
+        assert "prune-orphans" not in detail
         # アップデート導線メッセージに変換されている
-        assert "新しいバージョンへ更新" in body_text
-        assert "update to a newer version" in body_text
-        assert "alforgelabs.com" in body_text
+        assert "新しいバージョンへ更新" in detail
+        assert "update to a newer version" in detail
+        # CodeQL py/incomplete-url-substring-sanitization 対策: 部分一致でなく
+        # 末尾トークンの等価比較で funnel URL を検証する（他ルーターの既存テストと同規約）
+        assert detail.rsplit(" ", 1)[-1] == "https://alforgelabs.com"
 
     def test_stdoutが壊れていたらエラーにする(self, client_with_db: TestClient) -> None:
         with (

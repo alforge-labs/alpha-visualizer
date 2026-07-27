@@ -99,14 +99,19 @@ describe('<MaintenanceScreen />', () => {
     // error は ApiError.message 形式（"API <status>: <JSON body>"）の生文字列。
     // errorMessage は Page 層で extractApiErrorDetail を適用した正規化済み文言。
     // 生 JSON がそのまま画面に出てはならない。
+    // メッセージ全文（導線 URL を含む）を完全一致で検証する。ドメイン名だけを
+    // 正規表現で拾うと任意位置マッチとみなされ、CodeQL の
+    // js/regex/missing-regexp-anchor が誤検知するため避ける。
+    const normalizedMessage =
+      'お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください / Your alpha-forge does not have this command. Please update to a newer version — https://alforgelabs.com'
     render(
       <MaintenanceScreen
         {...baseProps()}
-        error='API 500: {"detail":"お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください / Your alpha-forge does not have this command. Please update to a newer version — https://alforgelabs.com"}'
-        errorMessage="お使いの alpha-forge にはこのコマンドがありません。新しいバージョンへ更新してください / Your alpha-forge does not have this command. Please update to a newer version — https://alforgelabs.com"
+        error={`API 500: {"detail":"${normalizedMessage}"}`}
+        errorMessage={normalizedMessage}
       />,
     )
-    expect(screen.getByText(/alforgelabs\.com/)).toBeInTheDocument()
+    expect(screen.getByText(normalizedMessage)).toBeInTheDocument()
     expect(screen.queryByText(/API 500:/)).toBeNull()
   })
 
