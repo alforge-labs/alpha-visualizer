@@ -25,7 +25,7 @@ const __dirname = dirname(__filename)
  * - 「アピールしたい主役（チャート・構造）」がヘッダー/メトリクスで切れないよう、
  *   グリッド掲載分（detail/compare/optimize/strategy）は showcase コンポーネントを
  *   element 単位でタイトにクロップする。
- * - hero（browse）はコンテキスト維持のため縦長 viewport でヘッダー＋銘柄アトラスを収める。
+ * - hero（browse）はコンテキスト維持のため縦長 viewport でヘッダー＋表を収める。
  */
 
 const STRATEGY_ID = 'sma_cross'
@@ -146,7 +146,7 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
       })
 
       // hero: ヘッダー＋表＋フッタが収まる縦長 viewport
-      // （レシピ・ロールアップで銘柄アトラスが既定で畳まれたため、旧 1180 は
+      // （レシピ・ロールアップで銘柄カバレッジが既定で畳まれたため、旧 1180 は
       // 余白が大きすぎた。実測 footer 下端 ≈875px に合わせて 900 に詰めた）
       test('browse', async ({ page }) => {
         await gotoBrowse(page)

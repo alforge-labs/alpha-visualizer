@@ -18,7 +18,7 @@
 
 ## 主な機能
 
-- **Browse** — 戦略ライブラリの一覧と検索（Symbol Atlas / Saved Views / Strategy Ledger）
+- **Browse** — 戦略ライブラリの一覧と検索（Symbol Coverage / Saved Views / Strategy Ledger）
 - **Detail** — Equity / Drawdown / 取引履歴・ベンチマーク（alpha / beta / IR / Correlation）
 - **Compare** — 複数戦略の指標比較と相関ヒートマップ
 - **Optimize** — WFO 合成エクイティカーブ・Grid 最適化結果の可視化

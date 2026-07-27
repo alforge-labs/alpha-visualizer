@@ -11,11 +11,12 @@ import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
 import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
-import { SymbolAtlas } from '../components/browser/SymbolAtlas'
+import { SymbolCoverageTable } from '../components/browser/SymbolCoverageTable'
 import { CollapsibleSection } from '../components/browser/CollapsibleSection'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Loading } from '../design/primitives'
 import { makeL } from '../i18n/strings'
+import { buildSymbolStats } from '../lib/symbolStats'
 
 interface BrowseScreenProps {
   list: ReturnType<typeof useStrategyList>
@@ -39,6 +40,22 @@ export function BrowseScreen({
   onCloseSlidePanel,
 }: BrowseScreenProps): ReactElement {
   const L = makeL(lang)
+  // 折り畳みラベルの銘柄数は Heroline の「銘柄数」・FilterBar の「銘柄で絞る」と
+  // 揃える（どちらも未割当を除いた実効銘柄数）。表の行数（未割当込み）との差は
+  // 「+ 未割当」で明示する。詳細は設計仕様 §3.6 を参照。
+  const coverage = buildSymbolStats(list.allRecipes)
+  const unrunRecipeTotal = coverage.reduce((acc, s) => acc + s.unrunRecipeCount, 0)
+  const assignedSymbolCount = coverage.filter(s => s.symbol !== null).length
+  const hasUnassigned = coverage.some(s => s.symbol === null)
+  const coverageLabel = hasUnassigned
+    ? L(
+        `銘柄カバレッジ（${assignedSymbolCount} 銘柄 + 未割当 · 未実行 ${unrunRecipeTotal} レシピ）`,
+        `Symbol coverage (${assignedSymbolCount} symbols + unassigned · ${unrunRecipeTotal} unrun recipes)`,
+      )
+    : L(
+        `銘柄カバレッジ（${assignedSymbolCount} 銘柄 · 未実行 ${unrunRecipeTotal} レシピ）`,
+        `Symbol coverage (${assignedSymbolCount} symbols · ${unrunRecipeTotal} unrun recipes)`,
+      )
 
   return (
     <div
@@ -138,13 +155,10 @@ export function BrowseScreen({
 
       {!list.loading && list.all.length > 0 && (
         <CollapsibleSection
-          label={L(
-            `銘柄アトラス（${list.symbols.length} 銘柄）`,
-            `Symbol atlas (${list.symbols.length} symbols)`,
-          )}
-          testId="symbol-atlas-collapsible"
+          label={coverageLabel}
+          testId="symbol-coverage-collapsible"
         >
-          <SymbolAtlas items={list.all} lang={lang} />
+          <SymbolCoverageTable recipes={list.allRecipes} lang={lang} />
         </CollapsibleSection>
       )}
 

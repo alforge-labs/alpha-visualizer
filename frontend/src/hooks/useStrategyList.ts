@@ -59,6 +59,11 @@ export interface StrategyGroup {
 
 export interface StrategyListState {
   all: StrategyListItem[]
+  /**
+   * 全戦略から作ったレシピ。絞り込み・未実行除外・並べ替えのいずれも通っていない。
+   * 銘柄カバレッジ表のように「絞り込むためのナビゲーション」を描く側が使う。
+   */
+  allRecipes: Recipe[]
   /** 絞り込み・未実行除外・ソートを通したレシピ（表の描画対象） */
   recipes: Recipe[]
   /** 全戦略から作ったレシピ数。フィルタに依らない分母 */
@@ -386,8 +391,8 @@ export function useStrategyList(): StrategyListState {
   const recipes = useSortedRecipes(visibleRecipes, sortKey, sortDir)
   const groups = useGrouping(recipes, groupBy)
 
-  // 分母はフィルタに依らない全体のレシピ数
-  const recipeTotal = useMemo(() => buildRecipes(all).length, [all])
+  // 分母もカバレッジ表の入力も、フィルタに依らない全体のレシピ
+  const allRecipes = useMemo(() => buildRecipes(all), [all])
 
   const setSort = (key: SortKey): void => {
     setSearchParams(prev => {
@@ -413,7 +418,8 @@ export function useStrategyList(): StrategyListState {
   const compare = useCompareSelection(searchParams, setSearchParams)
 
   return {
-    all, recipes, recipeTotal,
+    all, allRecipes, recipes,
+    recipeTotal: allRecipes.length,
     hiddenUnrunRecipeCount: includeUnrun ? 0 : unrunOnlyCount,
     includeUnrun,
     groups, loading, error,

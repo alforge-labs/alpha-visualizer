@@ -73,13 +73,19 @@ test.describe('Browse スモーク', () => {
     await expect(page.getByText('Dual Symbol Recipe')).toHaveCount(2)
   })
 
-  test('銘柄アトラスは既定で畳まれている', async ({ page }) => {
+  test('銘柄カバレッジは既定で畳まれている', async ({ page }) => {
     await gotoBrowse(page)
-    const toggle = page.getByTestId('symbol-atlas-collapsible').getByRole('button')
+    const toggle = page.getByTestId('symbol-coverage-collapsible').getByRole('button')
     await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    await expect(page.getByRole('heading', { name: /銘柄アトラス|Symbol Atlas/ })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: /銘柄カバレッジ|Symbol coverage/ })).toHaveCount(0)
 
     await toggle.click()
-    await expect(page.getByRole('heading', { name: /銘柄アトラス|Symbol Atlas/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /銘柄カバレッジ|Symbol coverage/ })).toBeVisible()
+  })
+
+  test('銘柄カバレッジに未実行列が出る', async ({ page }) => {
+    await gotoBrowse(page)
+    await page.getByTestId('symbol-coverage-collapsible').getByRole('button').click()
+    await expect(page.getByRole('columnheader', { name: /未実行|Unrun/ })).toBeVisible()
   })
 })

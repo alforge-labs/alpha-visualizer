@@ -18,7 +18,7 @@
 
 ## Features
 
-- **Browse** — Strategy library with search (Symbol Atlas / Saved Views / Strategy Ledger)
+- **Browse** — Strategy library with search (Symbol Coverage / Saved Views / Strategy Ledger)
 - **Detail** — Equity / Drawdown / trade history with benchmark metrics (alpha / beta / IR / Correlation)
 - **Compare** — Side-by-side metrics and correlation heatmap across strategies
 - **Optimize** — Walk-Forward composite equity curves and Grid optimization results
