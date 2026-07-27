@@ -12,6 +12,7 @@ import { GroupByToggle } from '../components/browser/GroupByToggle'
 import { Heroline } from '../components/browser/Heroline'
 import { SavedViews } from '../components/browser/SavedViews'
 import { SymbolAtlas } from '../components/browser/SymbolAtlas'
+import { CollapsibleSection } from '../components/browser/CollapsibleSection'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Loading } from '../design/primitives'
 import { makeL } from '../i18n/strings'
@@ -51,7 +52,7 @@ export function BrowseScreen({
       <header
         className="u-toolbar-wrap"
         style={{
-          padding: 'var(--layout-gutter-y) var(--layout-gutter) var(--space-5)',
+          padding: 'var(--space-4) var(--layout-gutter)',
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
           display: 'flex',
@@ -75,9 +76,9 @@ export function BrowseScreen({
         </div>
         <h1
           style={{
-            margin: '6px 0 0 0',
+            margin: '4px 0 0 0',
             fontFamily: 'var(--serif)',
-            fontSize: 'var(--hero-fs-h1)',
+            fontSize: '1.5rem',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.01em',
@@ -86,21 +87,6 @@ export function BrowseScreen({
         >
           {L('登録済みの戦略を一覧する', 'Browse the strategy library')}
         </h1>
-        <p
-          style={{
-            margin: '12px 0 0 0',
-            maxWidth: 720,
-            fontFamily: 'var(--sans)',
-            fontSize: 'var(--fs-body)',
-            color: 'var(--text2)',
-            lineHeight: 1.55,
-          }}
-        >
-          {L(
-            '最新のバックテスト結果を一覧で比較し、有望な候補を詳細画面に進めましょう。行にカーソルを乗せると直近の equity sparkline がプリビューされます。',
-            'Scan the latest backtests at a glance, hover a row to peek at its recent equity, and dive into the full detail when something stands out.',
-          )}
-        </p>
         {!list.loading && <Heroline items={list.all} lang={lang} />}
         <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
           {(['/ideas', '/live'] as const).map((to) => (
@@ -151,7 +137,15 @@ export function BrowseScreen({
       </div>
 
       {!list.loading && list.all.length > 0 && (
-        <SymbolAtlas items={list.all} lang={lang} />
+        <CollapsibleSection
+          label={L(
+            `銘柄アトラス（${list.symbols.length} 銘柄）`,
+            `Symbol atlas (${list.symbols.length} symbols)`,
+          )}
+          testId="symbol-atlas-collapsible"
+        >
+          <SymbolAtlas items={list.all} lang={lang} />
+        </CollapsibleSection>
       )}
 
       <div style={{ display: 'flex', flex: 1 }}>

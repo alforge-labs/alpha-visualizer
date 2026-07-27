@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { makeL } from '../../i18n/strings'
 import type { Lang } from '../../i18n/strings'
 import { Toolbar } from '../../design/primitives'
+import { CollapsibleSection } from './CollapsibleSection'
 
 interface Props {
   symbols: string[]
@@ -108,23 +109,118 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
   const tfFilter = searchParams.get('tf')?.split(',').filter(Boolean) ?? []
   const sharpeMin = searchParams.get('sharpe_min') ?? ''
   const ddMax = searchParams.get('dd_max') ?? ''
+  const includeUnrun = searchParams.get('include_unrun') === '1'
 
-  const hasFilters = q || symbolFilter.length > 0 || tfFilter.length > 0 || sharpeMin || ddMax
+  const hasFilters =
+    q || symbolFilter.length > 0 || tfFilter.length > 0 || sharpeMin || ddMax || includeUnrun
 
   return (
-    <Toolbar>
-      <input
-        style={SEARCH_INPUT}
-        aria-label={L('戦略名・銘柄を検索', 'Search strategy or symbol')}
-        placeholder={L('戦略名・銘柄を検索…', 'Search strategy or symbol…')}
-        value={q}
-        onChange={(e) => set('q', e.target.value)}
-      />
+    <>
+      <Toolbar>
+        <input
+          style={SEARCH_INPUT}
+          aria-label={L('戦略名・銘柄を検索', 'Search strategy or symbol')}
+          placeholder={L('戦略名・銘柄を検索…', 'Search strategy or symbol…')}
+          value={q}
+          onChange={(e) => set('q', e.target.value)}
+        />
+
+        {timeframes.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={CAPTION}>{L('時間軸', 'TF')}</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {timeframes.map(tf => (
+                <FilterChipButton
+                  key={tf}
+                  active={tfFilter.includes(tf)}
+                  onClick={() => toggle('tf', tf)}
+                >
+                  {tf}
+                </FilterChipButton>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={CAPTION}>Sharpe ≥</span>
+          <input
+            style={NUMERIC_INPUT}
+            type="number"
+            step="0.1"
+            min="0"
+            aria-label={L('Sharpe 下限', 'Sharpe ≥')}
+            value={sharpeMin}
+            placeholder="1.0"
+            onChange={(e) => set('sharpe_min', e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={CAPTION}>{L('DD ≤ %', 'DD ≤ %')}</span>
+          <input
+            style={NUMERIC_INPUT}
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            aria-label={L('DD 上限 (%)', 'DD ≤ %')}
+            value={ddMax}
+            placeholder="30"
+            onChange={(e) => set('dd_max', e.target.value)}
+          />
+        </div>
+
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            color: 'var(--text2)',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={includeUnrun}
+            onChange={(e) => set('include_unrun', e.target.checked ? '1' : '')}
+            style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          {L('未実行を含める', 'Include unrun')}
+        </label>
+
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={clearAll}
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--accent)',
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              fontWeight: 600,
+              letterSpacing: 'var(--tracking-caption)',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              padding: '4px 8px',
+            }}
+          >
+            {L('フィルタを解除', 'Clear filters')}
+          </button>
+        )}
+      </Toolbar>
 
       {symbols.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <span style={CAPTION}>{L('銘柄', 'Symbol')}</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <CollapsibleSection
+          label={L(`銘柄で絞る（${symbols.length}）`, `Filter by symbol (${symbols.length})`)}
+          defaultOpen={symbolFilter.length > 0}
+          testId="symbol-filter-collapsible"
+        >
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: 'var(--space-2) 0' }}>
             {symbols.map(s => (
               <FilterChipButton
                 key={s}
@@ -135,76 +231,8 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
               </FilterChipButton>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
-
-      {timeframes.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <span style={CAPTION}>{L('時間軸', 'TF')}</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {timeframes.map(tf => (
-              <FilterChipButton
-                key={tf}
-                active={tfFilter.includes(tf)}
-                onClick={() => toggle('tf', tf)}
-              >
-                {tf}
-              </FilterChipButton>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={CAPTION}>Sharpe ≥</span>
-        <input
-          style={NUMERIC_INPUT}
-          type="number"
-          step="0.1"
-          min="0"
-          aria-label={L('Sharpe 下限', 'Sharpe ≥')}
-          value={sharpeMin}
-          placeholder="1.0"
-          onChange={(e) => set('sharpe_min', e.target.value)}
-        />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={CAPTION}>{L('DD ≤ %', 'DD ≤ %')}</span>
-        <input
-          style={NUMERIC_INPUT}
-          type="number"
-          step="1"
-          min="0"
-          max="100"
-          aria-label={L('DD 上限 (%)', 'DD ≤ %')}
-          value={ddMax}
-          placeholder="30"
-          onChange={(e) => set('dd_max', e.target.value)}
-        />
-      </div>
-
-      {hasFilters && (
-        <button
-          type="button"
-          onClick={clearAll}
-          style={{
-            marginLeft: 'auto',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--accent)',
-            fontFamily: 'var(--sans)',
-            fontSize: 'var(--fs-caption)',
-            fontWeight: 600,
-            letterSpacing: 'var(--tracking-caption)',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            padding: '4px 8px',
-          }}
-        >
-          {L('フィルタを解除', 'Clear filters')}
-        </button>
-      )}
-    </Toolbar>
+    </>
   )
 }
