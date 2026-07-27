@@ -396,12 +396,28 @@ GUI の「選択したものだけ消す」という期待が正反対にぶつ�
 > `tsc --noEmit` は `tsconfig` の `files: []` により 0 ファイルを検査するため常に成功する。
 > 型検査の実ゲートは `pnpm run build`（`tsc -b && vite build`）。
 
-### 6.7 E2E フィクスチャ
+### 6.7 E2E で検証できる範囲
 
-`frontend/e2e/fixtures/forge/` の `backtest_results.db` に孤児行が無いと `/maintenance` を
-E2E で検証できない。`tests/fixtures/build_e2e_fixture.py` に、`strategies` に対応する
-定義を持たない `strategy_id` の行を追加する。`optimization_runs` 側にも 1 件入れて、
-2 テーブルにまたがることを E2E でも押さえる。
+**E2E 環境に `forge` バイナリは無い。** §4.2 で一覧を CLI 委譲にしたため、`/maintenance` は
+E2E では「forge 未導入」のエラー状態を描く。
+
+当初案は E2E フィクスチャの `backtest_results.db` に孤児行を仕込む予定だったが、CLI 委譲では
+visualizer が DB を直読みしないので**フィクスチャに孤児行を足しても E2E からは見えない**。
+`build_e2e_fixture.py` は変更しない。
+
+E2E で固定するのは次に絞る。表の中身は単体テスト（§6.4）が担う。
+
+- `AppNav` に「整理 / Maintenance」のリンクがあり、クリックで `/maintenance` に遷移する
+- `/maintenance` を直接開いても 404 にならず画面が描画される
+- forge 未導入の環境で、導線付きのエラー（`alforgelabs.com` を含む）が出る
+
+**forge 未導入時の表示は、実際に forge を入れていないユーザーが見る画面そのもの**なので、
+これを固定する価値は高い。
+
+### 6.8 スクリーンショットへの波及
+
+`AppNav` は全画面の上部に出る。項目が 4 → 5 に増えるため、**既存のスクリーンショットが
+すべて古くなる**。`pnpm run screenshots` で全画面を撮り直す。
 
 ---
 
