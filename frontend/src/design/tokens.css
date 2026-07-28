@@ -49,6 +49,12 @@
   --fs-body: 1rem;
   --fs-caption: 0.8125rem;
   --fs-mono-sm: 0.75rem;
+  /* 表のセルなど mono の既定サイズ（issue #342）。定義が無いまま 11 ファイルが
+   * 参照しており、body の 1rem を継承して 17px で描かれていた。sm (0.75rem) と
+   * 1rem の中間に置くことで、Sharpe 列に個別指定されている 1rem + bold が
+   * 主要指標として初めて効くようになる。0.8125rem は sm と 1px しか離れず
+   * スケールとして機能しないため採らない（--fs-caption とも値が衝突する）。 */
+  --fs-mono-md: 0.875rem;
 
   /* Line heights */
   --lh-tight: 1.05;
@@ -70,6 +76,11 @@
   --surface-2: #F5F2E9;
   --border: rgba(40, 28, 18, 0.10);
   --border-h: rgba(40, 28, 18, 0.20);
+  /* 表ヘッダ・合計行など「既定より強い」区切り線（issue #342）。未定義のまま
+   * 5 箇所が参照しており、無効な var() のため border-color が初期値の
+   * currentColor に落ちて文字色の濃い線で描かれていた。新しい色を発明せず
+   * --border-h と同値にして、既存の意匠の範囲に収める。 */
+  --border-strong: rgba(40, 28, 18, 0.20);
   --text: #1F1B16;
   --text2: #4B453C;
   --text3: #6E665B;
@@ -96,6 +107,7 @@ html[data-variation="lab"] {
   --surface-2: #2A2536;
   --border: rgba(245, 240, 230, 0.08);
   --border-h: rgba(245, 240, 230, 0.16);
+  --border-strong: rgba(245, 240, 230, 0.16);
   --text: #F1ECE0;
   --text2: #C1B9A8;
   --text3: #8E8675;
