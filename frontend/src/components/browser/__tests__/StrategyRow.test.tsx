@@ -77,4 +77,16 @@ describe('<StrategyRow />', () => {
     const link = screen.getByRole('link', { name: /SPY EMA Cross v1/ })
     expect(link.getAttribute('href')).toBe('/detail/sma_cross')
   })
+
+  // issue #334: 実データでは名前列が長い戦略名で 915px まで広がり、table-layout: auto の
+  // 配分で最終実行列が宣言幅 132px から 83px に圧縮される。日付が 2 行に折り返され、
+  // 行高が想定 44px に対し 55px になっていた（136 行でページ全高が 8,165px）。
+  // 折り返しを禁じれば列が 106px まで押し返され 1 行に収まる（実測で 44px / 6,652px）。
+  // 日付は分割して読む値ではないので、幅が足りなければ横スクロールに逃がすのが正しい。
+  it('最終実行の日付は折り返さない（列が圧縮されても行高を一定に保つ）', () => {
+    renderRow(mkItem({ strategy_id: 'a', last_run_at: '2026-05-28T00:00:00Z' }))
+    const cell = screen.getByText('2026-05-28').closest('td')
+    expect(cell).not.toBeNull()
+    expect(cell!.style.whiteSpace).toBe('nowrap')
+  })
 })
