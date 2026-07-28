@@ -76,7 +76,7 @@ export function CarryAdjustedCard({ carry, lang }: Props) {
                 fontSize: 'var(--fs-mono-md)',
                 fontWeight: 700,
                 letterSpacing: 'var(--tracking-mono)',
-                color: 'var(--text1)',
+                color: 'var(--text)',
               }}
             >
               {value}
