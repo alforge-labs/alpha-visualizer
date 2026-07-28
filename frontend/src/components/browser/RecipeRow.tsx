@@ -7,7 +7,7 @@ import { Chip } from '../../design/primitives'
 import { Sparkline } from '../../charts/visx/Sparkline'
 import { fmtNumber, fmtDate } from '../../lib/format'
 import { COMPARE_MAX } from '../../hooks/useStrategyList'
-import { TD_BASE, sharpeTone } from './StrategyRow'
+import { TD_BASE, TD_DATE, sharpeTone } from './StrategyRow'
 import { RUN_SOURCE_STRATEGY_FILE } from '../../constants/runSource'
 
 export interface RecipeRowProps {
@@ -243,10 +243,7 @@ export function RecipeRow({
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
         {fmtNumber(best?.latest_win_rate_pct, { suffix: '%', decimals: 1 })}
       </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{ ...TD_BASE, color: 'var(--text3)', fontSize: 'var(--fs-mono-sm)' }}
-      >
+      <td className="u-col-hide-md-down" style={TD_DATE}>
         {fmtDate(best?.last_run_at)}
       </td>
       <td

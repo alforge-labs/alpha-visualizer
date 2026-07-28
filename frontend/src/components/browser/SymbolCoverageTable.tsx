@@ -7,7 +7,7 @@ import { makeL } from '../../i18n/strings'
 import { ASSET_CLASS_LABEL } from '../../lib/assetClass'
 import { fmtNumber, fmtDate } from '../../lib/format'
 import { SortHeaderCell } from '../../design/primitives/SortHeaderCell'
-import { TD_BASE, sharpeTone } from './StrategyRow'
+import { TD_BASE, TD_DATE, sharpeTone } from './StrategyRow'
 import {
   buildSymbolStats,
   sortSymbolStats,
@@ -147,10 +147,7 @@ function SymbolCoverageRow({ stat, selected, dimmed, onToggle, lang }: RowProps)
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: returnTone(stat.avgReturnPct) }}>
         {fmtNumber(stat.avgReturnPct, { suffix: '%', decimals: 1 })}
       </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{ ...TD_BASE, color: 'var(--text3)', fontSize: 'var(--fs-mono-sm)' }}
-      >
+      <td className="u-col-hide-md-down" style={TD_DATE}>
         {fmtDate(stat.lastRunAt)}
       </td>
     </tr>

@@ -33,6 +33,24 @@ export const TD_BASE: CSSProperties = {
   letterSpacing: 'var(--tracking-mono)',
 }
 
+/**
+ * 最終実行（日付）セルの共通スタイル。ブラウズ系の 3 つの表で同じ見た目にする。
+ *
+ * `whiteSpace: 'nowrap'` が要点（issue #334）。表は `table-layout: auto` なので、
+ * 実データのように名前列が長いと残りの列が宣言幅より狭く配分される。実測では
+ * 最終実行列が 132px → 83px まで圧縮され、日付が 2 行に折り返されて行高が
+ * 44px → 55px に膨らんでいた（136 行でページ全高 8,165px）。折り返しを禁じると
+ * 列が 106px まで押し返されて 1 行に収まる（44px / 6,652px）。
+ * 日付は途中で改行して読む値ではないので、幅が足りなければ横スクロールに逃がす。
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const TD_DATE: CSSProperties = {
+  ...TD_BASE,
+  color: 'var(--text3)',
+  fontSize: 'var(--fs-mono-sm)',
+  whiteSpace: 'nowrap',
+}
+
 export interface StrategyRowProps {
   s: StrategyListItem
   selected: boolean
@@ -227,10 +245,7 @@ export function StrategyRow({
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
         {fmtNumber(s.latest_win_rate_pct, { suffix: '%', decimals: 1 })}
       </td>
-      <td
-        className="u-col-hide-md-down"
-        style={{ ...TD_BASE, color: 'var(--text3)', fontSize: 'var(--fs-mono-sm)', textAlign: 'right' }}
-      >
+      <td className="u-col-hide-md-down" style={TD_DATE}>
         {fmtDate(s.last_run_at)}
       </td>
       <td
