@@ -30,24 +30,39 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
       </div>
     )
   }
-  const eff = ((oosM.sharpe_ratio / isM.sharpe_ratio) * 100).toFixed(1)
+  const isSharpe = typeof isM.sharpe_ratio === 'number' ? isM.sharpe_ratio : null
+  const oosSharpe = typeof oosM.sharpe_ratio === 'number' ? oosM.sharpe_ratio : null
+  // IS Sharpe が非正・算出不能のとき効率比は意味を持たないため表示しない (issue #349)
+  const effNum =
+    isSharpe !== null && oosSharpe !== null && isSharpe > 0 ? (oosSharpe / isSharpe) * 100 : null
   const degMetrics = DEGRADE_KEYS.filter((k) => {
     const isVal = isM[k] as number | undefined
     const oosVal = oosM[k] as number | undefined
     return typeof isVal === 'number' && typeof oosVal === 'number' && oosVal < isVal * 0.8
   }) as readonly (keyof BacktestMetrics)[]
 
-  const effNum = parseFloat(eff)
   const right = (
     <div style={{ display: 'flex', gap: 12 }}>
       {(
         [
-          [L('OOS効率', 'OOS Efficiency'), `${eff}%`, effNum >= 70 ? 'var(--success)' : 'var(--warn)'],
-          [L('IS Sharpe', 'IS Sharpe'), isM.sharpe_ratio.toFixed(2), 'var(--success)'],
+          [
+            L('OOS効率', 'OOS Efficiency'),
+            effNum !== null ? `${effNum.toFixed(1)}%` : '—',
+            effNum === null ? 'var(--text3)' : effNum >= 70 ? 'var(--success)' : 'var(--warn)',
+          ],
+          [
+            L('IS Sharpe', 'IS Sharpe'),
+            isSharpe !== null ? isSharpe.toFixed(2) : '—',
+            isSharpe !== null ? 'var(--success)' : 'var(--text3)',
+          ],
           [
             L('OOS Sharpe', 'OOS Sharpe'),
-            oosM.sharpe_ratio.toFixed(2),
-            oosM.sharpe_ratio >= 0.8 ? 'var(--success)' : 'var(--warn)',
+            oosSharpe !== null ? oosSharpe.toFixed(2) : '—',
+            oosSharpe === null
+              ? 'var(--text3)'
+              : oosSharpe >= 0.8
+                ? 'var(--success)'
+                : 'var(--warn)',
           ],
         ] as const
       ).map(([lbl, val, c], i) => (

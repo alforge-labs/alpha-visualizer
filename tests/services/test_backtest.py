@@ -452,3 +452,63 @@ class TestCarryAdjusted:
     def test_build_detailでcarry無しはnone(self) -> None:
         detail = bt.build_detail(_make_row())
         assert detail["carry_adjusted"] is None
+
+
+class TestSplitMetricsRealSplit:
+    """split_metrics が equity を実分割して区間指標を計算すること (issue #349)。
+
+    従来の比率按分（Sharpe 等の同値コピー）では OOS 効率が常に 100% になり、
+    IS/OOS 比較の目的である過剰適合検出そのものが機能しなかった。
+    IS で好調・OOS で不調な equity から劣化が検出できることを保証する。
+    """
+
+    @staticmethod
+    def _dates(n: int) -> list[str]:
+        from datetime import date, timedelta
+
+        d0 = date(2020, 1, 1)
+        return [(d0 + timedelta(days=i)).isoformat() for i in range(n)]
+
+    def test_overfit_strategy_shows_oos_degradation(self) -> None:
+        # IS: 60 bar で 100 → 160（好調）、OOS: 40 bar で 160 → 100（崩壊）
+        values = [100.0 + i for i in range(61)] + [
+            160.0 - 1.5 * (i + 1) for i in range(40)
+        ]
+        dates = self._dates(len(values))
+        is_m, oos_m = bt.split_metrics(values, dates, [], 61)
+        assert is_m is not None and oos_m is not None
+        assert is_m["sharpe_ratio"] > 0
+        assert oos_m["sharpe_ratio"] < 0
+        assert is_m["total_return_pct"] == pytest.approx(60.0)
+        assert oos_m["total_return_pct"] == pytest.approx(-37.5)
+        # OOS の DD は正値 % 規約（metrics_json と同じ向き）
+        assert oos_m["max_drawdown_pct"] == pytest.approx(37.5)
+
+    def test_trades_assigned_by_exit_date(self) -> None:
+        values = [100.0, 110.0, 120.0, 130.0]
+        dates = self._dates(4)
+        trades = [
+            {"exit_date": "2020-01-01", "pnl": 5.0},   # IS（勝ち）
+            {"exit_date": "2020-01-02", "pnl": -2.0},  # IS（負け）
+            {"exit_date": "2020-01-03", "pnl": 4.0},   # OOS（勝ち）
+            {"exit_date": "", "pnl": 1.0},             # exit 不明 → IS 扱い
+        ]
+        is_m, oos_m = bt.split_metrics(values, dates, trades, 2)
+        assert is_m is not None and oos_m is not None
+        assert is_m["total_trades"] == 3
+        assert oos_m["total_trades"] == 1
+        assert is_m["win_rate_pct"] == pytest.approx(2 / 3 * 100.0)
+        assert is_m["profit_factor"] == pytest.approx(3.0)  # (5+1)/2
+        assert oos_m["win_rate_pct"] == pytest.approx(100.0)
+        # OOS は負け取引ゼロ → profit_factor は算出不能でキー省略
+        assert "profit_factor" not in oos_m
+
+    def test_flat_equity_omits_unstable_ratios(self) -> None:
+        # 全バー同値 → std=0・下方偏差=0・DD=0 → 不安定な比率はキー省略
+        values = [100.0] * 10
+        is_m, oos_m = bt.split_metrics(values, self._dates(10), [], 5)
+        assert is_m is not None and oos_m is not None
+        for m in (is_m, oos_m):
+            assert "sharpe_ratio" not in m
+            assert "sortino_ratio" not in m
+            assert "calmar_ratio" not in m
