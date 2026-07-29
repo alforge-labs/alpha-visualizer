@@ -83,7 +83,7 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
   const kpis: MetricCardProps[] = [
     { label: L('総リターン', 'Total Return'), value: m.total_return_pct, suffix: '%', goodWhen: 'pos', big: true },
     { label: L('シャープ比', 'Sharpe Ratio'), value: m.sharpe_ratio, goodWhen: 'gte1', big: true },
-    { label: L('最大DD', 'Max Drawdown'), value: m.max_drawdown_pct, suffix: '%', goodWhen: 'neg', big: true },
+    { label: L('最大DD', 'Max Drawdown'), value: m.max_drawdown_pct, suffix: '%', goodWhen: 'dd', big: true },
     { label: L('勝率', 'Win Rate'), value: m.win_rate_pct, suffix: '%', goodWhen: 'wr', big: true },
   ]
   const secondary: MetricCardProps[] = [
@@ -102,7 +102,7 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
     { label: L('最大連勝', 'Max Cons. W'), value: m.max_consecutive_wins },
     { label: L('最大連敗', 'Max Cons. L'), value: m.max_consecutive_losses },
     { label: L('平均利益%', 'Avg Win%'), value: m.avg_win_pct, suffix: '%', goodWhen: 'pos' },
-    { label: L('平均損失%', 'Avg Loss%'), value: m.avg_loss_pct, suffix: '%', goodWhen: 'neg' },
+    { label: L('平均損失%', 'Avg Loss%'), value: m.avg_loss_pct, suffix: '%' },
     { label: L('DD期間', 'DD Duration'), value: m.max_drawdown_duration_days, suffix: 'd' },
     {
       label: L('回復日数', 'Recovery'),
