@@ -17,7 +17,7 @@ import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
 import { TuningPanel } from '../components/tuning/TuningPanel'
 import { DuplicateStrategyCard } from '../components/tuning/DuplicateStrategyCard'
 import { Tab, TabBar } from '../design/primitives/TabBar'
-import { ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
+import { Button, ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
 
@@ -93,6 +93,66 @@ export function DetailPage() {
   const handleAddToCompare = () => {
     if (!strategyId) return
     navigate(`/compare?ids=${strategyId}`)
+  }
+
+  // 戦略自体が存在しない（GET /strategies/{id} が 404）場合は、恒久ローディング
+  // スケルトンではなく 404 の empty state を表示する (issue #347)。
+  if (runsState.status === 'no_data') {
+    return (
+      <div
+        data-testid="strategy-not-found"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          gap: 14,
+          background: 'var(--bg)',
+          padding: '0 var(--layout-gutter)',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-md)',
+            color: 'var(--text3)',
+            letterSpacing: 'var(--tracking-mono)',
+          }}
+        >
+          404
+        </div>
+        <h1
+          style={{
+            fontFamily: 'var(--sans)',
+            fontSize: 22,
+            fontWeight: 700,
+            color: 'var(--text)',
+            margin: 0,
+          }}
+        >
+          {L('戦略が見つかりません', 'Strategy not found')}
+        </h1>
+        <p
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-md)',
+            color: 'var(--text3)',
+            letterSpacing: 'var(--tracking-mono)',
+            margin: 0,
+            textAlign: 'center',
+          }}
+        >
+          {L(
+            `「${strategyId ?? ''}」は削除されたか、ID が誤っている可能性があります。`,
+            `"${strategyId ?? ''}" may have been deleted, or the ID may be incorrect.`,
+          )}
+        </p>
+        <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+          {L('戦略一覧へ戻る', 'Back to strategies')}
+        </Button>
+      </div>
+    )
   }
 
   const tabs: ReadonlyArray<readonly [DetailTab, string]> = [
@@ -275,13 +335,6 @@ export function DetailPage() {
                   onSelectRun={handleSelectRun}
                   lang={lang}
                 />
-              ) : runsState.status === 'no_data' ? (
-                <Note>
-                  {L(
-                    '実行履歴がありません',
-                    'No run history',
-                  )}
-                </Note>
               ) : runsState.status === 'error' ? (
                 <Note tone="danger">{runsState.error}</Note>
               ) : (
