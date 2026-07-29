@@ -36,8 +36,11 @@ export const api = {
   getWFO: (strategyId: string): Promise<WFOResult> =>
     request<WFOResult>(`/wfo/${encodeURIComponent(strategyId)}`),
 
-  getOptimize: (strategyId: string): Promise<OptimizeResult> =>
-    request<OptimizeResult>(`/optimize/${encodeURIComponent(strategyId)}`),
+  getOptimize: (strategyId: string, runId?: string): Promise<OptimizeResult> =>
+    request<OptimizeResult>(
+      `/optimize/${encodeURIComponent(strategyId)}` +
+        (runId ? `?run_id=${encodeURIComponent(runId)}` : ''),
+    ),
 
   compareStrategies: (ids: string[]): Promise<StrategyComparison[]> =>
     request<StrategyComparison[]>(`/strategies/compare?ids=${encodeURIComponent(ids.join(','))}`),

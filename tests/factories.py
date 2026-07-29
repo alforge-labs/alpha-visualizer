@@ -273,8 +273,17 @@ def build_optimize_db(
     trials_json: list[dict] | None,
     best_metric_name: str = "sharpe_ratio",
     best_metric_value: float = 1.5,
+    run_id: str = "opt_grid_001",
+    run_at: str = "2026-01-01T00:00:00",
+    n_trials: int | None = None,
 ) -> None:
-    """optimization_runs テーブルを持つ最小 DB を作成してトライアルデータを挿入する。"""
+    """optimization_runs テーブルを持つ最小 DB を作成してトライアルデータを挿入する。
+
+    スキーマ生成は冪等（CREATE IF NOT EXISTS 相当）のため、``run_id`` /
+    ``run_at`` を変えて複数回呼べば同一戦略の複数 run を挿入できる。
+    ``n_trials`` を明示すると all_trials_json の件数と独立に設定できる
+    （明細未保存で n_trials だけ記録された run の再現・issue #348）。
+    """
     _create_schema(db_path)
     conn = sqlite3.connect(db_path)
     try:
@@ -284,11 +293,11 @@ def build_optimize_db(
                 best_metric_name, best_metric_value, best_params_json, all_trials_json)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                "opt_grid_001",
+                run_id,
                 strategy_id,
                 "AAPL",
-                "2026-01-01T00:00:00",
-                len(trials_json) if trials_json else 0,
+                run_at,
+                n_trials if n_trials is not None else (len(trials_json) if trials_json else 0),
                 best_metric_name,
                 best_metric_value,
                 "{}",

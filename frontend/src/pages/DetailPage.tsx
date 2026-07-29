@@ -46,13 +46,15 @@ export function DetailPage() {
   // optimize / WFT ジョブ完了時にタブのデータだけ再フェッチするトークン（issue #292）。
   // WFT は forge#1293（optimize walk-forward --save）で DB 記録されるようになった。
   const [optimizeReload, setOptimizeReload] = useState(0)
+  // optimize run の切替選択（null = 最新の通常最適化ラン・issue #348）
+  const [optimizeRunId, setOptimizeRunId] = useState<string | null>(null)
   const [wfoReload, setWfoReload] = useState(0)
   // パラメータ保存後に戦略詳細を再フェッチするトークン（issue #293）
   const [strategyReload, setStrategyReload] = useState(0)
 
   const backtest = useBacktest({ runId, reloadToken })
   const wfo = useWFO(strategyId ?? null, wfoReload)
-  const optimize = useOptimize(strategyId ?? null, optimizeReload)
+  const optimize = useOptimize(strategyId ?? null, optimizeReload, optimizeRunId)
   const strategyDetail = useStrategyDetail(
     tab === 'strategy' ? (strategyId ?? null) : null,
     strategyReload,
@@ -307,7 +309,11 @@ export function DetailPage() {
                     symbol={symbol}
                     lang={lang}
                     onFinished={(s) => {
-                      if (s === 'succeeded') setOptimizeReload((t) => t + 1)
+                      if (s === 'succeeded') {
+                        // 新しい run が最新になるため選択をリセットして最新を表示
+                        setOptimizeRunId(null)
+                        setOptimizeReload((t) => t + 1)
+                      }
                     }}
                   />
                 )}
@@ -323,7 +329,12 @@ export function DetailPage() {
                 ) : optimize.status === 'error' ? (
                   <Note tone="danger">{optimize.error}</Note>
                 ) : (
-                  <OptimizeScreen data={optimize.data} compact={compact} lang={lang} />
+                  <OptimizeScreen
+                    data={optimize.data}
+                    compact={compact}
+                    lang={lang}
+                    onSelectRun={setOptimizeRunId}
+                  />
                 )}
               </>
             )}

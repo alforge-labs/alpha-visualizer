@@ -12,6 +12,8 @@ interface Props {
   data: OptimizeResult
   compact: boolean
   lang: Lang
+  /** optimize run の切替（issue #348）。未指定時はセレクタを表示しない */
+  onSelectRun?: (runId: string) => void
 }
 
 function topTrials(trials: OptimizeTrial[], n: number): OptimizeTrial[] {
@@ -20,7 +22,7 @@ function topTrials(trials: OptimizeTrial[], n: number): OptimizeTrial[] {
 
 type ChartView = 'scatter' | 'heatmap'
 
-export function OptimizeScreen({ data, compact, lang }: Props) {
+export function OptimizeScreen({ data, compact, lang, onSelectRun }: Props) {
   const L = makeL(lang)
   const paramNames = data.trials.length > 0 ? Object.keys(data.trials[0]!.params) : []
   const [xParam, setXParam] = useState<string>(paramNames[0] ?? '')
@@ -64,9 +66,46 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
         title={L('最適化トライアル分析', 'Optimization Trial Analysis')}
         subtitle={
           L('試行数', 'Trials') +
-          `: ${data.trials.length} · ` +
+          `: ${data.n_trials ?? data.trials.length} · ` +
           L('最良', 'Best') +
           ` ${metricLabel}: ${bestMetricLabel}`
+        }
+        right={
+          onSelectRun && data.runs.length > 1 ? (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--text3)',
+                letterSpacing: 'var(--tracking-mono)',
+              }}
+            >
+              {L('実行', 'Run')}
+              <select
+                aria-label={L('表示する最適化 run を選択', 'Select optimization run to display')}
+                value={data.run_id}
+                onChange={(e) => onSelectRun(e.target.value)}
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: 'var(--fs-mono-sm)',
+                  color: 'var(--text)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
+                }}
+              >
+                {data.runs.map((r) => (
+                  <option key={r.run_id} value={r.run_id}>
+                    {`${r.run_at.slice(0, 16).replace('T', ' ')} · ${r.n_trials ?? '—'} trials`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : undefined
         }
       />
 
@@ -80,7 +119,12 @@ export function OptimizeScreen({ data, compact, lang }: Props) {
             color: 'var(--text3)',
           }}
         >
-          {L('最適化トライアルデータがありません', 'No optimization trial data available')}
+          {(data.n_trials ?? 0) > 0
+            ? L(
+                'この実行のトライアル明細は保存されていません（試行数と最良値のみ記録されています）',
+                'Trial details were not saved for this run (only the trial count and best value are recorded)',
+              )
+            : L('最適化トライアルデータがありません', 'No optimization trial data available')}
         </div>
       ) : (
         <>

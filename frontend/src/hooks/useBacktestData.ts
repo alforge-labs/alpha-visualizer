@@ -58,11 +58,23 @@ export function useCompare(
 export function useOptimize(
   strategyId: string | null,
   reloadToken?: number,
+  runId?: string | null,
 ): LoadState<OptimizeResult> {
-  return useFetchByKey<OptimizeResult>(strategyId, api.getOptimize, {
-    mockFallback: MOCK_OPTIMIZE_FALLBACK,
-    reloadToken,
-  })
+  // run 切替（issue #348）: runId を key に含め、変更で再フェッチする。
+  // 区切りの '::' は strategy_id の許容文字（英数・ハイフン・アンダースコア）に
+  // 含まれないため衝突しない。
+  const key = strategyId ? (runId ? `${strategyId}::${runId}` : strategyId) : null
+  return useFetchByKey<OptimizeResult>(
+    key,
+    (k) => {
+      const [sid, rid] = k.split('::')
+      return api.getOptimize(sid!, rid)
+    },
+    {
+      mockFallback: MOCK_OPTIMIZE_FALLBACK,
+      reloadToken,
+    },
+  )
 }
 
 export function useStrategyRuns(

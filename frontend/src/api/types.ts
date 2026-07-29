@@ -272,12 +272,25 @@ export interface OptimizeTrial {
   metrics: Record<string, number>
 }
 
+export interface OptimizeRunSummary {
+  run_id: string
+  run_at: string
+  n_trials: number | null
+  best_metric_name: string
+  best_metric_value: number | null
+}
+
 export interface OptimizeResult {
   strategy_id: string
+  run_id: string
   run_at: string
   metric_name: string
   best_metric: number | null
+  // DB の n_trials カラム由来の総試行数。trials（明細）未保存の run でも入る (issue #348)
+  n_trials: number | null
   trials: OptimizeTrial[]
+  // 同一戦略の optimize run 一覧（新しい順）。切替 UI 用
+  runs: OptimizeRunSummary[]
 }
 
 export interface IndicatorConfig {

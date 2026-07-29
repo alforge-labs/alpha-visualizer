@@ -106,11 +106,40 @@ def _extract_trials(
     return result
 
 
+def _parse_run_trials(candidate: Any) -> tuple[list[dict[str, Any]], bool]:
+    """run 1 件の all_trials_json から trial 明細を抽出する。
+
+    Returns:
+        (trials, is_pure_wft): 抽出済み trial リストと、
+        「明細はあるが window 形式 trial のみ（純 WFT 行）」かどうか。
+    """
+    candidate_metric = str(candidate.best_metric_name or "sharpe_ratio")
+    all_trials: list[dict[str, Any]] | None = None
+    if candidate.all_trials_json:
+        try:
+            all_trials = json.loads(candidate.all_trials_json)
+        except (json.JSONDecodeError, TypeError) as exc:
+            # 破損 JSON や旧フォーマット混入時は trials なしで継続する
+            logger.debug(
+                "all_trials_json のパースに失敗 (run_id=%s): %s",
+                candidate.run_id,
+                exc,
+            )
+    trials = _extract_trials(all_trials, candidate_metric)
+    is_pure_wft = bool(
+        not trials
+        and all_trials
+        and any(isinstance(t, dict) and _is_wfo_trial(t) for t in all_trials)
+    )
+    return trials, is_pure_wft
+
+
 @router.get("/optimize/{strategy_id}", response_model=OptimizeResult)
 async def get_optimize(
     strategy_id: str,
     config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     repo: Annotated[OptimizationRepository, Depends(get_optimization_repo)],
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     if not config.forge_db.exists():
         raise NotFoundError("バックテスト DB が見つかりません")
@@ -128,37 +157,34 @@ async def get_optimize(
             f"最適化結果の取得に失敗しました: {strategy_id}",
         ) from e
 
-    # 最新ランから走査し、純 WFT 行（`optimize walk-forward --save`・forge#1293。
-    # 抽出可能な trial がなく window 形式 trial のみ）はスキップして直近の
-    # 通常最適化ランを採用する。WFT 行を採用すると trial 散布図が空になり
-    # best_metric が集約 OOS 値にすり替わるため（WFT 行は WFO タブが読む）。
-    # 混在行（旧フォーマット）は通常 trial が抽出できるため従来どおり採用される。
-    # 走査は直近 _MAX_RUN_SCAN 件まで: all_trials_json のパースは大きい JSON で
-    # 高コストのため、WFT 連発運用でもリクエストごとのコストを一定に抑える。
     row = None
     trials: list[dict[str, Any]] = []
-    for candidate in rows[:_MAX_RUN_SCAN]:
-        candidate_metric = str(candidate.best_metric_name or "sharpe_ratio")
-        all_trials: list[dict[str, Any]] | None = None
-        if candidate.all_trials_json:
-            try:
-                all_trials = json.loads(candidate.all_trials_json)
-            except (json.JSONDecodeError, TypeError) as exc:
-                # 破損 JSON や旧フォーマット混入時は trials なしで継続する
-                logger.debug(
-                    "all_trials_json のパースに失敗 (run_id=%s): %s",
-                    candidate.run_id,
-                    exc,
-                )
-        trials = _extract_trials(all_trials, candidate_metric)
-        if (
-            not trials
-            and all_trials
-            and any(isinstance(t, dict) and _is_wfo_trial(t) for t in all_trials)
-        ):
-            continue
-        row = candidate
-        break
+    if run_id is not None:
+        # 明示指定された run を採用する（切替 UI からの選択・issue #348）。
+        # 純 WFT 行のスキップは行わない（ユーザーの明示選択を尊重する）。
+        for candidate in rows:
+            if candidate.run_id == run_id:
+                row = candidate
+                trials, _ = _parse_run_trials(candidate)
+                break
+        if row is None:
+            raise NotFoundError(
+                f"最適化結果が見つかりません: {strategy_id} (run_id={run_id})"
+            )
+    else:
+        # 最新ランから走査し、純 WFT 行（`optimize walk-forward --save`・forge#1293。
+        # 抽出可能な trial がなく window 形式 trial のみ）はスキップして直近の
+        # 通常最適化ランを採用する。WFT 行を採用すると trial 散布図が空になり
+        # best_metric が集約 OOS 値にすり替わるため（WFT 行は WFO タブが読む）。
+        # 混在行（旧フォーマット）は通常 trial が抽出できるため従来どおり採用される。
+        # 走査は直近 _MAX_RUN_SCAN 件まで: all_trials_json のパースは大きい JSON で
+        # 高コストのため、WFT 連発運用でもリクエストごとのコストを一定に抑える。
+        for candidate in rows[:_MAX_RUN_SCAN]:
+            trials, is_pure_wft = _parse_run_trials(candidate)
+            if is_pure_wft:
+                continue
+            row = candidate
+            break
 
     if row is None:
         raise NotFoundError(f"最適化結果が見つかりません: {strategy_id}")
@@ -173,8 +199,27 @@ async def get_optimize(
 
     return {
         "strategy_id": strategy_id,
+        "run_id": str(row.run_id or ""),
         "run_at": str(row.run_at or ""),
         "metric_name": metric_name,
         "best_metric": best_metric,
+        # DB カラム由来の総試行数。明細（trials）未保存の run でもここは入る
+        "n_trials": row.n_trials,
         "trials": trials,
+        # 切替 UI 用の run 一覧（メタのみ・新しい順 = repository のソート順）
+        "runs": [
+            {
+                "run_id": str(r.run_id or ""),
+                "run_at": str(r.run_at or ""),
+                "n_trials": r.n_trials,
+                "best_metric_name": str(r.best_metric_name or "sharpe_ratio"),
+                "best_metric_value": (
+                    r.best_metric_value
+                    if r.best_metric_value is not None
+                    and math.isfinite(r.best_metric_value)
+                    else None
+                ),
+            }
+            for r in rows
+        ],
     }

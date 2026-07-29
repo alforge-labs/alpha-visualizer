@@ -998,6 +998,11 @@ export interface components {
             /** Strategy Id */
             strategy_id: string;
             /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /**
              * Run At
              * @default
              */
@@ -1009,13 +1014,42 @@ export interface components {
             metric_name: string;
             /** Best Metric */
             best_metric?: number | null;
+            /** N Trials */
+            n_trials?: number | null;
             /**
              * Trials
              * @default []
              */
             trials: components["schemas"]["OptimizeTrial"][];
+            /**
+             * Runs
+             * @default []
+             */
+            runs: components["schemas"]["OptimizeRunSummary"][];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OptimizeRunSummary
+         * @description optimize run 切替 UI 用のメタ情報 1 件（issue #348）。
+         */
+        OptimizeRunSummary: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Run At
+             * @default
+             */
+            run_at: string;
+            /** N Trials */
+            n_trials?: number | null;
+            /**
+             * Best Metric Name
+             * @default sharpe_ratio
+             */
+            best_metric_name: string;
+            /** Best Metric Value */
+            best_metric_value?: number | null;
         };
         /**
          * OptimizeTrial
@@ -1863,7 +1897,9 @@ export interface operations {
     };
     get_optimize_api_optimize__strategy_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 strategy_id: string;
