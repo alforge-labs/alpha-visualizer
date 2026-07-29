@@ -311,6 +311,64 @@ def test_engine_lazy_init_after_db_created_at_runtime(
     assert res.status_code == 200
 
 
+def test_gzip_compression_enabled_for_large_responses(tmp_path: pathlib.Path) -> None:
+    """Accept-Encoding: gzip を送ると 1KB 超のレスポンスが gzip 圧縮される (issue #385)。
+
+    バックテスト詳細 API は約 2MB の JSON を返すため、圧縮なしでは
+    Detail 表示・sparkline hover のたびに無駄な転送コストが載る。
+    """
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    # openapi.json は常に 1KB を超える実エンドポイント
+    res = client.get("/openapi.json", headers={"Accept-Encoding": "gzip"})
+    assert res.status_code == 200
+    assert res.headers.get("content-encoding") == "gzip"
+
+
+def test_gzip_not_applied_to_small_responses(tmp_path: pathlib.Path) -> None:
+    """1KB 未満の小さいレスポンスは圧縮しない（gzip オーバーヘッド回避）(issue #385)。"""
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    res = client.get("/health", headers={"Accept-Encoding": "gzip"})
+    assert res.status_code == 200
+    assert "content-encoding" not in res.headers
+
+
+def test_hashed_assets_get_immutable_cache_control(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ハッシュ付き /assets/ には immutable な Cache-Control を付与する (issue #385)。
+
+    Vite はビルドごとにファイル名へコンテンツハッシュを含めるため、
+    同名ファイルの内容が変わることはなく長期キャッシュが安全。
+    一方 index.html は更新の起点なので毎回再検証させる（no-cache）。
+    """
+    import alpha_visualizer.app as app_module
+
+    fake_static = tmp_path / "static"
+    (fake_static / "assets").mkdir(parents=True)
+    (fake_static / "index.html").write_text("<html>SPA</html>", encoding="utf-8")
+    (fake_static / "assets" / "index-abc123.js").write_text(
+        "console.log(1)", encoding="utf-8"
+    )
+    monkeypatch.setattr(app_module, "__file__", str(tmp_path / "app.py"))
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+
+    r_asset = client.get("/assets/index-abc123.js")
+    assert r_asset.status_code == 200
+    assert r_asset.headers.get("cache-control") == "public, max-age=31536000, immutable"
+
+    # SPA fallback で返る index.html は immutable にしない（デプロイ更新を即時反映）
+    r_index = client.get("/browse")
+    assert r_index.status_code == 200
+    assert r_index.headers.get("cache-control") == "no-cache"
+    # 直接 index.html を要求した場合も同様
+    r_direct = client.get("/index.html")
+    assert r_direct.headers.get("cache-control") == "no-cache"
+
+
 def test_strategies_engine_lazy_init_after_db_created_at_runtime(
     tmp_path: pathlib.Path,
 ) -> None:

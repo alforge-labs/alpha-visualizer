@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -65,6 +66,10 @@ def create_app(
     )
     app.state.forge_config = config
     app.state.job_manager = job_manager
+
+    # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
+    # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
     # backtest_results.db が存在する場合のみ Engine を作る。これは
@@ -160,6 +165,12 @@ def create_app(
                 continue
             allowed_files[rel] = child
 
+        # Vite の /assets/ はファイル名にコンテンツハッシュを含むため、
+        # 同名で内容が変わることはなく immutable な長期キャッシュが安全 (issue #385)。
+        # 一方 index.html は更新の起点なので毎回再検証させる。
+        assets_cache_control = "public, max-age=31536000, immutable"
+        index_cache_control = "no-cache"
+
         # include_in_schema=False: SPA 配信用のキャッチオールであり API ではない。
         # fastapi 0.139.2 以降このルートが OpenAPI スキーマに載るようになったため、
         # 生成される公開 API 型に偽のエンドポイントが混入しないよう明示的に除外する。
@@ -171,8 +182,18 @@ def create_app(
             """
             target = allowed_files.get(full_path)
             if target is not None:
+                if full_path.startswith("assets/"):
+                    return FileResponse(
+                        target, headers={"Cache-Control": assets_cache_control}
+                    )
+                if full_path == "index.html":
+                    return FileResponse(
+                        target, headers={"Cache-Control": index_cache_control}
+                    )
                 return FileResponse(target)
-            return FileResponse(index_html)
+            return FileResponse(
+                index_html, headers={"Cache-Control": index_cache_control}
+            )
     else:
         # wheel への static/ 同梱漏れ（issue #225）や frontend 未ビルドの開発環境では
         # SPA を配信できない。無言でルート / が 404 になるのではなく、
