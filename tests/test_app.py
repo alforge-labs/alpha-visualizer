@@ -281,3 +281,54 @@ def test_missing_static_dir_logs_warning(
 
     messages = [r.getMessage() for r in caplog.records]
     assert any("static" in m and "SPA" in m for m in messages), messages
+
+
+def test_engine_lazy_init_after_db_created_at_runtime(
+    tmp_path: pathlib.Path,
+) -> None:
+    """起動後に backtest_results.db が生成されても DB 系 API が動くこと (issue #354)。
+
+    空 forge_dir で serve → GUI からの初回バックテストで forge が DB を新規生成、
+    という初回オンボーディング動線で、再起動なしに結果を閲覧できることを保証する。
+    """
+    from tests.factories import build_backtest_db
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+
+    # 起動時点では DB 不在 → 空配列（issue #173 の既存挙動）
+    res = client.get("/api/results")
+    assert res.status_code == 200
+    assert res.json() == []
+
+    # 起動後に forge が DB を生成した状況を模擬
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    build_backtest_db(db_path)
+
+    # 再起動なしで一覧が返ること（従来はここで 500）
+    res = client.get("/api/results")
+    assert res.status_code == 200
+
+
+def test_strategies_engine_lazy_init_after_db_created_at_runtime(
+    tmp_path: pathlib.Path,
+) -> None:
+    """DB モードで strategies.db が起動後に生成された場合も戦略 API が動くこと (issue #354)。"""
+    from tests.factories import build_strategies_db
+
+    (tmp_path / "forge.yaml").write_text(
+        "strategies:\n  path: ./data/strategies\n  use_db: true\n",
+        encoding="utf-8",
+    )
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+
+    # 起動後に strategies.db が生成された状況を模擬
+    db_path = tmp_path / "data" / "strategies" / "strategies.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    build_strategies_db(db_path, "lazy_strat", "Lazy Strategy")
+
+    res = client.get("/api/strategies")
+    assert res.status_code == 200
+    assert [s["strategy_id"] for s in res.json()] == ["lazy_strat"]
