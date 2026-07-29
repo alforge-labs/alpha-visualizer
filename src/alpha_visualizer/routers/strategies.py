@@ -32,6 +32,7 @@ from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import (
     BacktestResultRow,
     BacktestResultsRepository,
+    BacktestResultSummaryRow,
 )
 from alpha_visualizer.repositories.optimization import OptimizationRepository
 from alpha_visualizer.repositories.strategies import (
@@ -58,21 +59,10 @@ router = APIRouter()
 
 # --- ヘルパ -----------------------------------------------------------------
 
-
-def _latest_summary(
-    bt_repo: BacktestResultsRepository,
-    forge_db_exists: bool,
-    strategy_id: str,
-) -> BacktestResultRow | None:
-    """指定 strategy_id の最新バックテスト結果を返す。
-
-    ``list_results`` は ``run_at`` 降順で返るため先頭が最新。
-    backtest_results.db ファイルが存在しない場合は ``None``。
-    """
-    if not forge_db_exists:
-        return None
-    rows = bt_repo.list_results(strategy_id=strategy_id)
-    return rows[0] if rows else None
+# compare の ids 要素数上限。UI の同時比較上限（6）に余裕を持たせつつ、
+# ids 数十件で数 MB 級レスポンスになる無制限クエリを API 境界で拒否する
+# (issue #384)。
+MAX_COMPARE_IDS = 20
 
 
 def _parsed_definition(strategy: StrategyRow) -> dict[str, Any]:
@@ -88,7 +78,7 @@ def _parsed_definition(strategy: StrategyRow) -> dict[str, Any]:
 
 
 def _strategy_to_summary(
-    strategy: StrategyRow, latest: BacktestResultRow | None
+    strategy: StrategyRow, latest: BacktestResultSummaryRow | None
 ) -> dict[str, Any]:
     """``/api/strategies`` 1 件分の dict を生成する。"""
     entry: dict[str, Any] = {
@@ -171,7 +161,7 @@ def _list_all_results_summary(
     """``/api/strategies/{id}`` の results 配列を生成する（run_at 降順）。"""
     if not forge_db_exists:
         return []
-    rows = bt_repo.list_results(strategy_id=strategy_id)
+    rows = bt_repo.list_results_summary(strategy_id=strategy_id)
     return [
         {
             "run_id": r.run_id,
@@ -222,9 +212,12 @@ async def list_strategies(
 ) -> list[dict[str, Any]]:
     strategies = list(strategies_repo.list_strategies())
     forge_db_exists = config.forge_db.exists()
-    # N+1 を避けるため最新行を 1 クエリでまとめて取得し dict ルックアップする
-    latest_map: dict[str, BacktestResultRow] = (
-        bt_repo.find_latest_by_strategy_ids([s.strategy_id for s in strategies])
+    # N+1 を避けるため最新行を 1 クエリでまとめて取得し dict ルックアップする。
+    # 一覧はスカラー値しか使わないため blob 列を読まない summary 版 (issue #384)
+    latest_map: dict[str, BacktestResultSummaryRow] = (
+        bt_repo.find_latest_summary_by_strategy_ids(
+            [s.strategy_id for s in strategies]
+        )
         if forge_db_exists
         else {}
     )
@@ -244,6 +237,10 @@ async def compare_strategies(
     parsed = [s for s in (i.strip() for i in ids.split(",")) if s]
     if not parsed:
         raise InvalidRequestError("ids が空です")
+    if len(parsed) > MAX_COMPARE_IDS:
+        raise InvalidRequestError(
+            f"ids は最大 {MAX_COMPARE_IDS} 件までです（{len(parsed)} 件指定されました）"
+        )
 
     forge_db_exists = config.forge_db.exists()
     # 戦略定義と最新バックテスト結果をそれぞれ 1 クエリで取得し dict 化する

@@ -233,3 +233,19 @@ class TestStrategiesRouterJsonFallback:
         data = response.json()
         assert len(data) == 1
         assert data[0]["strategy_id"] == "test_strategy"
+
+
+class TestCompareIdsLimit:
+    """issue #384: compare の ids 要素数に API 境界の上限を設ける。"""
+
+    def test_ids_21件で400(self, client: TestClient) -> None:
+        ids = ",".join(f"s{i}" for i in range(21))
+        response = client.get(f"/api/strategies/compare?ids={ids}")
+        assert response.status_code == 400
+        assert "20" in response.json()["detail"]
+
+    def test_ids_20件は上限エラーにならない(self, client: TestClient) -> None:
+        # 空 DB のため 404（見つからない）にはなるが、400（上限超過）ではない
+        ids = ",".join(f"s{i}" for i in range(20))
+        response = client.get(f"/api/strategies/compare?ids={ids}")
+        assert response.status_code == 404

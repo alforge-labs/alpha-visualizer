@@ -392,3 +392,94 @@ class TestCarryAdjustedColumn:
 
         latest = repo.find_latest_by_strategy_ids(["sma_cross"])
         assert latest["sma_cross"].carry_adjusted_json is None
+
+
+# ---------------------------------------------------------------------------
+# issue #384: 一覧用スカラー SELECT（blob 列を読まない）+ limit/offset
+# ---------------------------------------------------------------------------
+
+
+class TestListResultsSummary:
+    """一覧系 API 用のスカラー行取得。
+
+    summarize / 戦略サマリはスカラー値しか使わないのに、従来は数百 run 分の
+    equity_curve_json 等の blob を読み込んだ直後に捨てていた（issue #384）。
+    """
+
+    def test_run_at降順でスカラー行を返す(self, tmp_path: Path) -> None:
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        rows = repo.list_results_summary()
+        assert [r.run_id for r in rows] == ["run_003", "run_002", "run_001"]
+        # 一覧・戦略サマリで使うスカラーは揃っている
+        assert rows[0].sharpe_ratio == 1.0
+        assert rows[0].win_rate_pct == 55.0
+        assert rows[0].profit_factor == 1.3
+
+    def test_blob列をdtoに持たない(self, tmp_path: Path) -> None:
+        import dataclasses
+
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        rows = repo.list_results_summary()
+        fields = {f.name for f in dataclasses.fields(rows[0])}
+        assert fields.isdisjoint(
+            {
+                "metrics_json",
+                "equity_curve_json",
+                "buy_hold_curve_json",
+                "trades_json",
+                "carry_adjusted_json",
+            }
+        )
+
+    def test_strategy_idフィルタ(self, tmp_path: Path) -> None:
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        rows = repo.list_results_summary(strategy_id="sma_cross")
+        assert [r.run_id for r in rows] == ["run_002", "run_001"]
+
+    def test_limitとoffsetがsqlで適用される(self, tmp_path: Path) -> None:
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        assert [r.run_id for r in repo.list_results_summary(limit=2)] == [
+            "run_003",
+            "run_002",
+        ]
+        assert [r.run_id for r in repo.list_results_summary(limit=1, offset=1)] == [
+            "run_002"
+        ]
+        assert repo.list_results_summary(limit=1, offset=99) == []
+
+    def test_後付けsource列が無い旧dbでも読める(self, tmp_path: Path) -> None:
+        db_path = _make_db(tmp_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("ALTER TABLE backtest_results DROP COLUMN source")
+            conn.execute(
+                "ALTER TABLE backtest_results DROP COLUMN carry_adjusted_json"
+            )
+        repo = BacktestResultsRepository(get_engine(db_path))
+        rows = repo.list_results_summary()
+        assert len(rows) == 3
+        assert all(r.source is None for r in rows)
+
+
+class TestFindLatestSummaryByStrategyIds:
+    def test_各戦略の最新スカラー行を返す(self, tmp_path: Path) -> None:
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        latest = repo.find_latest_summary_by_strategy_ids(["sma_cross", "ema_cross"])
+        assert latest["sma_cross"].run_id == "run_002"
+        assert latest["ema_cross"].run_id == "run_003"
+        # blob 列を持たないスカラー DTO であること
+        import dataclasses
+
+        fields = {f.name for f in dataclasses.fields(latest["sma_cross"])}
+        assert "equity_curve_json" not in fields
+
+    def test_空リストはクエリなしで空dict(self, tmp_path: Path) -> None:
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        assert repo.find_latest_summary_by_strategy_ids([]) == {}
+
+
+class TestListResultsLimit:
+    def test_list_resultsのlimitで最新1件のみ取得できる(self, tmp_path: Path) -> None:
+        """live diff 用の最新 1 行取得が全行 blob ロードにならないこと (issue #384)。"""
+        repo = BacktestResultsRepository(get_engine(_make_db(tmp_path)))
+        rows = repo.list_results(strategy_id="sma_cross", limit=1)
+        assert [r.run_id for r in rows] == ["run_002"]

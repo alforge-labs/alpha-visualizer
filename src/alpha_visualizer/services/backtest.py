@@ -21,7 +21,10 @@ from datetime import datetime
 from statistics import fmean, stdev
 from typing import Any
 
-from alpha_visualizer.repositories.backtest_results import BacktestResultRow
+from alpha_visualizer.repositories.backtest_results import (
+    BacktestResultRow,
+    BacktestResultSummaryRow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -489,7 +492,9 @@ def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
     }
 
 
-def summarize_row(row: BacktestResultRow) -> dict[str, Any]:
+def summarize_row(
+    row: BacktestResultRow | BacktestResultSummaryRow,
+) -> dict[str, Any]:
     """``/api/results`` 一覧用のサマリ dict を生成する。
 
     既存レスポンスとの互換性を維持するため、キーは従来のまま 8 フィールドのみを返す。
@@ -571,13 +576,15 @@ def build_detail(row: BacktestResultRow) -> dict[str, Any]:
     return _shape_detail_from_record(row_to_dict(row))
 
 
-def filter_by_since(
-    rows: list[BacktestResultRow], since: datetime | None
-) -> list[BacktestResultRow]:
+# 一覧は BacktestResultSummaryRow（スカラー行, issue #384）、live diff 等は
+# BacktestResultRow を扱うため、run_at を持つ両 DTO を受けられる制約付き型にする
+def filter_by_since[RowT: (BacktestResultRow, BacktestResultSummaryRow)](
+    rows: list[RowT], since: datetime | None
+) -> list[RowT]:
     """``since`` 指定時に ``run_at`` を Python 側でパースして閾値以降の行のみ残す。"""
     if since is None:
         return rows
-    out: list[BacktestResultRow] = []
+    out: list[RowT] = []
     for r in rows:
         try:
             if parse_dt(r.run_at or "") < since:
