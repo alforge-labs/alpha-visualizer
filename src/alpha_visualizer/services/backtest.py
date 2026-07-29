@@ -18,6 +18,7 @@ import json
 import logging
 import math
 from datetime import datetime
+from statistics import fmean, stdev
 from typing import Any
 
 from alpha_visualizer.repositories.backtest_results import BacktestResultRow
@@ -305,33 +306,103 @@ def is_cutoff(dates: list[str], oos_start: str | None) -> dict[str, Any]:
     return {"date": dates[-1] if dates else None, "index": len(dates)}
 
 
+def _segment_years(dates: list[str], n_bars: int) -> float:
+    """区間の経過年数。日付が有効なら実日数 / 365.25、無ければ 252 営業日換算。"""
+    if len(dates) >= 2 and dates[0] and dates[-1]:
+        try:
+            d0 = datetime.fromisoformat(dates[0][:10]).date()
+            d1 = datetime.fromisoformat(dates[-1][:10]).date()
+            days = (d1 - d0).days
+            if days > 0:
+                return days / 365.25
+        except ValueError:
+            pass
+    return max(n_bars - 1, 1) / 252.0
+
+
+def _segment_metrics(
+    values: list[float],
+    dates: list[str],
+    trades: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """equity 区間と区間内取引から指標を実計算する (issue #349)。
+
+    日次バー前提（Sharpe / Sortino は √252 年率化、CAGR は実日数ベース）。
+    算出不能な指標（標準偏差ゼロ・下方偏差ゼロ・DD ゼロ等）はキーごと省略し、
+    フロント側は '—' 表示にフォールバックする。
+    """
+    if len(values) < 2:
+        return None
+    start, end = values[0], values[-1]
+    m: dict[str, Any] = {}
+    if start != 0.0 and math.isfinite(start) and math.isfinite(end):
+        m["total_return_pct"] = round((end - start) / start * 100.0, 4)
+    years = _segment_years(dates, len(values))
+    if start > 0.0 and end > 0.0 and years > 0.0:
+        # 極端な比率×短期間では指数評価が overflow しうるため有限値のみ採用
+        try:
+            cagr = ((end / start) ** (1.0 / years) - 1.0) * 100.0
+        except OverflowError:
+            cagr = math.inf
+        if math.isfinite(cagr):
+            m["cagr_pct"] = round(cagr, 4)
+    returns = compute_daily_returns(values)
+    if len(returns) >= 2:
+        mean = fmean(returns)
+        std = stdev(returns)
+        if std > 0.0:
+            m["sharpe_ratio"] = round(mean / std * math.sqrt(252.0), 4)
+        downside = math.sqrt(fmean([min(r, 0.0) ** 2 for r in returns]))
+        if downside > 0.0:
+            m["sortino_ratio"] = round(mean / downside * math.sqrt(252.0), 4)
+    dd = compute_drawdown(values)
+    if dd:
+        # metrics_json の既存規約に合わせ正値 % で返す
+        m["max_drawdown_pct"] = round(abs(min(dd)), 4)
+        cagr = m.get("cagr_pct")
+        if cagr is not None and m["max_drawdown_pct"] > 0.0:
+            m["calmar_ratio"] = round(cagr / m["max_drawdown_pct"], 4)
+    m["total_trades"] = len(trades)
+    if trades:
+        pnls = [float(t.get("pnl") or 0.0) for t in trades]
+        wins = [p for p in pnls if p > 0.0]
+        m["win_rate_pct"] = round(len(wins) / len(pnls) * 100.0, 4)
+        gross_loss = abs(sum(p for p in pnls if p < 0.0))
+        if gross_loss > 0.0:
+            m["profit_factor"] = round(sum(wins) / gross_loss, 4)
+    return m
+
+
 def split_metrics(
-    metrics: dict[str, Any], cutoff_idx: int, total: int
+    values: list[float],
+    dates: list[str],
+    trades: list[dict[str, Any]],
+    cutoff_idx: int,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    if cutoff_idx <= 0 or cutoff_idx >= total or not metrics:
+    """equity を IS/OOS カットオフで実分割し、各区間の指標を実計算する。
+
+    従来は全期間 metrics の比率按分（Sharpe 等は同値コピー）だったため
+    OOS 効率が常に 100% になり過剰適合検出が機能しなかった (issue #349)。
+
+    OOS 区間はリターンの連続性を保つため境界バー（``cutoff_idx - 1``）を
+    起点に含める。取引は exit 日が OOS 開始バー以降のものを OOS に振り分ける
+    （exit 日不明の取引は IS 扱い）。
+    """
+    total = len(values)
+    if cutoff_idx <= 0 or cutoff_idx >= total:
         return None, None
-    is_ratio = cutoff_idx / total
-    oos_ratio = 1.0 - is_ratio
-    period_independent = {"sharpe_ratio", "sortino_ratio", "calmar_ratio", "win_rate_pct", "profit_factor"}
-    is_m: dict[str, Any] = {}
-    oos_m: dict[str, Any] = {}
-    for key in (
-        "total_return_pct", "cagr_pct", "sharpe_ratio", "sortino_ratio", "calmar_ratio",
-        "max_drawdown_pct", "win_rate_pct", "profit_factor", "total_trades",
-    ):
-        v = metrics.get(key)
-        if v is None:
-            continue
-        if key in period_independent:
-            is_m[key] = float(v)
-            oos_m[key] = float(v)
-        elif key == "total_trades":
-            is_m[key] = int(round(float(v) * is_ratio))
-            oos_m[key] = max(int(v) - is_m[key], 0)
+    oos_start_date = dates[cutoff_idx] if cutoff_idx < len(dates) else ""
+    is_trades: list[dict[str, Any]] = []
+    oos_trades: list[dict[str, Any]] = []
+    for t in trades:
+        exit_date = str(t.get("exit_date") or "")
+        if oos_start_date and exit_date and exit_date[:10] >= oos_start_date[:10]:
+            oos_trades.append(t)
         else:
-            is_m[key] = float(v) * is_ratio
-            oos_m[key] = float(v) * oos_ratio
-    return is_m or None, oos_m or None
+            is_trades.append(t)
+    is_m = _segment_metrics(values[:cutoff_idx], dates[:cutoff_idx], is_trades)
+    oos_m = _segment_metrics(values[cutoff_idx - 1 :], dates[cutoff_idx - 1 :], oos_trades)
+    return is_m, oos_m
 
 
 def row_to_dict(row: BacktestResultRow) -> dict[str, Any]:
@@ -446,7 +517,7 @@ def _shape_detail_from_record(record: dict[str, Any]) -> dict[str, Any]:
     monthly = shape_monthly_returns(metrics.get("monthly_returns"))
     trade_analysis = metrics.get("trade_analysis") or {}
     trades = shape_trades(record.get("trades"), trade_analysis)
-    is_m, oos_m = split_metrics(metrics, cutoff["index"], len(values))
+    is_m, oos_m = split_metrics(values, dates, trades, cutoff["index"])
     period_start = dates[0][:7] if dates else ""
     period_end = dates[-1][:7] if dates else ""
     buy_hold_vals = compute_buy_hold_equity(record)

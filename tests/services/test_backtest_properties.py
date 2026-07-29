@@ -114,53 +114,88 @@ class TestComputeDailyReturns:
 
 
 class TestSplitMetrics:
-    """split_metrics の不変条件:
+    """split_metrics（実分割計算・issue #349）の不変条件:
 
-    1. cutoff_idx <= 0 or >= total → (None, None)
-    2. total_trades が分割される: is_total + oos_total == total
-    3. 期間非依存 metric (sharpe / sortino / calmar / win_rate / profit_factor) は IS と OOS で同値
+    1. cutoff_idx <= 0 or >= len(values) → (None, None)
+    2. 取引は IS/OOS に漏れなく振り分けられる: is_total + oos_total == 全取引数
+    3. 出力の数値はすべて有限値
+    4. 総リターンは複利で合成される: (1+is)(1+oos) ≈ 1+total
     """
 
     @given(
-        total_trades=st.integers(min_value=0, max_value=10000),
-        cutoff_ratio=st.floats(min_value=0.01, max_value=0.99),
-        total=st.integers(min_value=2, max_value=1000),
+        values=st.lists(positive_floats, min_size=4, max_size=200),
+        cutoff_ratio=st.floats(min_value=0.1, max_value=0.9),
+        n_trades=st.integers(min_value=0, max_value=50),
     )
     @SETTINGS
-    def test_total_trades_split_sums(
-        self, total_trades: int, cutoff_ratio: float, total: int
+    def test_trades_split_sums(
+        self, values: list[float], cutoff_ratio: float, n_trades: int
     ) -> None:
+        total = len(values)
         cutoff_idx = max(1, min(total - 1, int(total * cutoff_ratio)))
-        metrics = {"total_trades": total_trades}
-        is_m, oos_m = split_metrics(metrics, cutoff_idx, total)
+        dates = [f"2020-{1 + i // 28:02d}-{1 + i % 28:02d}" for i in range(total)]
+        trades = [
+            {"exit_date": dates[i % total], "pnl": 1.0 if i % 2 == 0 else -1.0}
+            for i in range(n_trades)
+        ]
+        is_m, oos_m = split_metrics(values, dates, trades, cutoff_idx)
         if is_m is None or oos_m is None:
             return
-        assert int(is_m["total_trades"]) + int(oos_m["total_trades"]) == total_trades
+        assert int(is_m["total_trades"]) + int(oos_m["total_trades"]) == n_trades
 
     @given(
-        sharpe=finite_floats,
-        cutoff_ratio=st.floats(min_value=0.01, max_value=0.99),
-        total=st.integers(min_value=2, max_value=1000),
+        values=st.lists(positive_floats, min_size=4, max_size=200),
+        cutoff_ratio=st.floats(min_value=0.1, max_value=0.9),
     )
     @SETTINGS
-    def test_period_independent_metric_equal(
-        self, sharpe: float, cutoff_ratio: float, total: int
+    def test_all_outputs_finite(
+        self, values: list[float], cutoff_ratio: float
     ) -> None:
+        total = len(values)
         cutoff_idx = max(1, min(total - 1, int(total * cutoff_ratio)))
-        metrics = {"sharpe_ratio": sharpe}
-        is_m, oos_m = split_metrics(metrics, cutoff_idx, total)
+        is_m, oos_m = split_metrics(values, [""] * total, [], cutoff_idx)
+        for m in (is_m, oos_m):
+            if m is None:
+                continue
+            for v in m.values():
+                assert math.isfinite(float(v))
+
+    @given(
+        values=st.lists(
+            st.floats(min_value=1.0, max_value=1e6, allow_nan=False, allow_infinity=False),
+            min_size=4,
+            max_size=200,
+        ),
+        cutoff_ratio=st.floats(min_value=0.1, max_value=0.9),
+    )
+    @SETTINGS
+    def test_total_return_compounds(
+        self, values: list[float], cutoff_ratio: float
+    ) -> None:
+        total = len(values)
+        cutoff_idx = max(1, min(total - 1, int(total * cutoff_ratio)))
+        is_m, oos_m = split_metrics(values, [""] * total, [], cutoff_idx)
         if is_m is None or oos_m is None:
             return
-        assert is_m["sharpe_ratio"] == pytest.approx(oos_m["sharpe_ratio"])
-        assert is_m["sharpe_ratio"] == pytest.approx(float(sharpe))
+        if "total_return_pct" not in is_m or "total_return_pct" not in oos_m:
+            return
+        r_is = is_m["total_return_pct"] / 100.0
+        r_oos = oos_m["total_return_pct"] / 100.0
+        combined = (1.0 + r_is) * (1.0 + r_oos)
+        expected = values[-1] / values[0]
+        # total_return_pct は 4 桁丸め（粒度 5e-7）。丸め誤差は相手側の
+        # (1+r) 倍で増幅されるため、許容誤差を丸め粒度から導出する。
+        eps = 5e-7
+        tol = 2.0 * eps * ((1.0 + abs(r_is)) + (1.0 + abs(r_oos)))
+        assert combined == pytest.approx(expected, rel=1e-6, abs=tol)
 
-    @given(total=st.integers(min_value=2, max_value=100))
+    @given(n=st.integers(min_value=2, max_value=100))
     @SETTINGS
-    def test_cutoff_at_boundary_returns_none(self, total: int) -> None:
-        # cutoff_idx == 0 or cutoff_idx >= total では分割不可
-        metrics = {"total_return_pct": 10.0}
-        for boundary in (0, total, total + 1):
-            is_m, oos_m = split_metrics(metrics, boundary, total)
+    def test_cutoff_at_boundary_returns_none(self, n: int) -> None:
+        # cutoff_idx == 0 or cutoff_idx >= len(values) では分割不可
+        values = [100.0 + i for i in range(n)]
+        for boundary in (0, n, n + 1):
+            is_m, oos_m = split_metrics(values, [""] * n, [], boundary)
             assert is_m is None and oos_m is None
 
 
