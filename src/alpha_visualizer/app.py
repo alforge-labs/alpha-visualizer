@@ -72,6 +72,8 @@ def create_app(
     # 0 byte の backtest_results.db が散らかるのを防ぐため (issue #173)。
     # 不在時は ``engine = None`` にし、各 router の
     # ``config.forge_db.exists()`` ガードで 404 を返す経路に揃える。
+    # 起動後に DB が生成された場合は dependencies._resolve_engine が
+    # 初回アクセス時に遅延生成する（issue #354）。
     # 注: CLI 用途（ephemeral プロセス）のため明示的な engine.dispose() は行わない。
     # 長命プロセスや uvicorn reload を伴う用途への転用時は lifespan で dispose() すること。
     if config.forge_db.exists():
