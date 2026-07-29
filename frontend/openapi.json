@@ -458,6 +458,22 @@
               "type": "string",
               "title": "Strategy Id"
             }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
           }
         ],
         "responses": {
@@ -2294,6 +2310,11 @@
             "type": "string",
             "title": "Strategy Id"
           },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id",
+            "default": ""
+          },
           "run_at": {
             "type": "string",
             "title": "Run At",
@@ -2315,12 +2336,31 @@
             ],
             "title": "Best Metric"
           },
+          "n_trials": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Trials"
+          },
           "trials": {
             "items": {
               "$ref": "#/components/schemas/OptimizeTrial"
             },
             "type": "array",
             "title": "Trials",
+            "default": []
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/OptimizeRunSummary"
+            },
+            "type": "array",
+            "title": "Runs",
             "default": []
           }
         },
@@ -2331,6 +2371,52 @@
         ],
         "title": "OptimizeResult",
         "description": "``GET /api/optimize/{strategy_id}`` レスポンス。"
+      },
+      "OptimizeRunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "run_at": {
+            "type": "string",
+            "title": "Run At",
+            "default": ""
+          },
+          "n_trials": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Trials"
+          },
+          "best_metric_name": {
+            "type": "string",
+            "title": "Best Metric Name",
+            "default": "sharpe_ratio"
+          },
+          "best_metric_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Metric Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "OptimizeRunSummary",
+        "description": "optimize run 切替 UI 用のメタ情報 1 件（issue #348）。"
       },
       "OptimizeTrial": {
         "properties": {

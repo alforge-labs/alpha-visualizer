@@ -311,3 +311,77 @@ class TestOptimizeRouter:
         data = response.json()
         assert data["metric_name"] == "sharpe_ratio"
         assert len(data["trials"]) == 3
+
+
+class TestOptimizeNTrialsAndRunSelection:
+    """issue #348: 「試行数: 0」誤表示と optimize run 切替不可の修正。
+
+    - all_trials_json が未保存でも DB の n_trials カラムを返すこと
+      （従来はフロントが trials 明細の length を試行数として表示し、
+      n_trials=30 の run が「試行数: 0」と誤表示されていた）
+    - 同一戦略の複数 run を一覧（runs）で返し、?run_id= で切替できること
+    """
+
+    def _make_app(self, tmp_path: pathlib.Path) -> TestClient:
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                report:
+                  output_path: ./data/results
+                  db_filename: backtest_results.db
+                """
+            ).strip()
+        )
+        return TestClient(create_app(forge_dir=tmp_path))
+
+    def test_reports_db_n_trials_when_trials_json_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        build_optimize_db(
+            db_path, strategy_id="s1", trials_json=None, n_trials=30,
+            best_metric_value=0.744,
+        )
+        client = self._make_app(tmp_path)
+        res = client.get("/api/optimize/s1")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["n_trials"] == 30
+        assert body["trials"] == []
+        assert body["run_id"] == "opt_grid_001"
+
+    def test_runs_list_and_run_id_selection(self, tmp_path: pathlib.Path) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        build_optimize_db(
+            db_path, strategy_id="s1", trials_json=_GRID_TRIALS_3,
+            run_id="opt_old", run_at="2026-01-01T00:00:00", best_metric_value=1.0,
+        )
+        build_optimize_db(
+            db_path, strategy_id="s1", trials_json=_GRID_TRIALS_3[:2],
+            run_id="opt_new", run_at="2026-02-01T00:00:00", best_metric_value=2.0,
+        )
+        client = self._make_app(tmp_path)
+
+        # 無指定 → 最新 run。runs には両方のメタが新しい順で載る
+        res = client.get("/api/optimize/s1")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["run_id"] == "opt_new"
+        assert [r["run_id"] for r in body["runs"]] == ["opt_new", "opt_old"]
+        assert body["runs"][0]["n_trials"] == 2
+        assert body["runs"][1]["n_trials"] == 3
+
+        # run_id 指定 → 過去 run に切替できる
+        res = client.get("/api/optimize/s1", params={"run_id": "opt_old"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["run_id"] == "opt_old"
+        assert body["best_metric"] == 1.0
+        assert len(body["trials"]) == 3
+
+    def test_unknown_run_id_returns_404(self, tmp_path: pathlib.Path) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        build_optimize_db(db_path, strategy_id="s1", trials_json=_GRID_TRIALS_3)
+        client = self._make_app(tmp_path)
+        res = client.get("/api/optimize/s1", params={"run_id": "no_such_run"})
+        assert res.status_code == 404

@@ -24,13 +24,29 @@ class OptimizeTrial(BaseModel):
     metrics: dict[str, float] = {}
 
 
+class OptimizeRunSummary(BaseModel):
+    """optimize run 切替 UI 用のメタ情報 1 件（issue #348）。"""
+
+    run_id: str
+    run_at: str = ""
+    n_trials: int | None = None
+    best_metric_name: str = "sharpe_ratio"
+    best_metric_value: float | None = None
+
+
 class OptimizeResult(BaseModel):
     """``GET /api/optimize/{strategy_id}`` レスポンス。"""
 
     model_config = ConfigDict(extra="allow")
 
     strategy_id: str
+    run_id: str = ""
     run_at: str = ""
     metric_name: str = "sharpe_ratio"
     best_metric: float | None = None
+    # DB の n_trials カラム由来の総試行数。all_trials_json（トライアル明細）が
+    # 未保存の run では trials が空でもこの値は入る（issue #348）。
+    n_trials: int | None = None
     trials: list[OptimizeTrial] = []
+    # 同一戦略の optimize run 一覧（新しい順）。切替 UI 用
+    runs: list[OptimizeRunSummary] = []

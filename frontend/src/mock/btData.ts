@@ -311,8 +311,19 @@ const _OPTIMIZE_TRIALS = genOptimizeTrials()
 
 export const MOCK_OPTIMIZE: OptimizeResult = {
   strategy_id: 'ema_cross_aapl_v1',
+  run_id: 'mock_opt_run_001',
   run_at: '2024-09-30T00:00:00Z',
   metric_name: 'sharpe_ratio',
   best_metric: Math.max(..._OPTIMIZE_TRIALS.map((t) => t.metric)),
+  n_trials: _OPTIMIZE_TRIALS.length,
   trials: _OPTIMIZE_TRIALS,
+  runs: [
+    {
+      run_id: 'mock_opt_run_001',
+      run_at: '2024-09-30T00:00:00Z',
+      n_trials: _OPTIMIZE_TRIALS.length,
+      best_metric_name: 'sharpe_ratio',
+      best_metric_value: Math.max(..._OPTIMIZE_TRIALS.map((t) => t.metric)),
+    },
+  ],
 }
