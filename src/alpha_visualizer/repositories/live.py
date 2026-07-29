@@ -325,5 +325,6 @@ class LiveDataRepository:
             return None
         if run_id:
             return self._backtest_repo.get_result(run_id)
-        rows = self._backtest_repo.list_results(strategy_id=strategy_id)
+        # 最新 1 行しか使わないため全行の blob ロードを避ける (issue #384)
+        rows = self._backtest_repo.list_results(strategy_id=strategy_id, limit=1)
         return rows[0] if rows else None

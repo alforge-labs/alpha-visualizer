@@ -567,3 +567,61 @@ class TestCarryAdjustedPassthrough:
         response = client_with_carry_db.get("/api/results/run-nocarry01")
         assert response.status_code == 200
         assert "carry_adjusted" not in response.json()
+
+
+# ---------------------------------------------------------------------------
+# issue #384: /api/results の limit / offset ページネーション
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def client_with_three_runs(tmp_path: pathlib.Path) -> TestClient:
+    """run_at の異なる 3 run が入った状態のクライアント（新しい順に page03 > page02 > aapl_001）。"""
+    db_path = tmp_path / "data" / "results" / "backtest_results.db"
+    db_path.parent.mkdir(parents=True)
+    build_backtest_db(db_path)  # run_aapl_001 (2026-04-01T12:00:00)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO backtest_results"
+            " (run_id, strategy_id, symbol, run_at,"
+            " total_return_pct, sharpe_ratio, max_drawdown_pct, total_trades)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                ("run-page02", "s2", "MSFT", "2026-04-02T12:00:00", 5.0, 1.1, -5.0, 10),
+                ("run-page03", "s3", "GOOG", "2026-04-03T12:00:00", 7.0, 1.3, -4.0, 12),
+            ],
+        )
+    return TestClient(create_app(forge_dir=tmp_path))
+
+
+class TestListResultsPagination:
+    def test_limitで件数を絞れる(self, client_with_three_runs: TestClient) -> None:
+        res = client_with_three_runs.get("/api/results?limit=2")
+        assert res.status_code == 200
+        assert [r["run_id"] for r in res.json()] == ["run-page03", "run-page02"]
+
+    def test_offsetで読み飛ばせる(self, client_with_three_runs: TestClient) -> None:
+        res = client_with_three_runs.get("/api/results?limit=1&offset=1")
+        assert res.status_code == 200
+        assert [r["run_id"] for r in res.json()] == ["run-page02"]
+
+    def test_limit省略時は従来通り全件(self, client_with_three_runs: TestClient) -> None:
+        res = client_with_three_runs.get("/api/results")
+        assert res.status_code == 200
+        assert len(res.json()) == 3
+
+    def test_sinceフィルタ後にページングされる(
+        self, client_with_three_runs: TestClient
+    ) -> None:
+        # since で run_aapl_001 を除外 → [page03, page02] → offset=1 で page02
+        res = client_with_three_runs.get(
+            "/api/results?since=2026-04-02&limit=1&offset=1"
+        )
+        assert res.status_code == 200
+        assert [r["run_id"] for r in res.json()] == ["run-page02"]
+
+    def test_不正なlimitはバリデーションエラー(
+        self, client_with_three_runs: TestClient
+    ) -> None:
+        assert client_with_three_runs.get("/api/results?limit=0").status_code == 422
+        assert client_with_three_runs.get("/api/results?offset=-1").status_code == 422

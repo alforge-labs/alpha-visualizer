@@ -1591,6 +1591,10 @@ export interface operations {
             query?: {
                 strategy_id?: string | null;
                 since?: string | null;
+                /** @description 返す最大件数（省略時は全件・従来互換） */
+                limit?: number | null;
+                /** @description 読み飛ばす件数 */
+                offset?: number;
             };
             header?: never;
             path?: never;

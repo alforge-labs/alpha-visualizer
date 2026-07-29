@@ -42,6 +42,38 @@
               ],
               "title": "Since"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "返す最大件数（省略時は全件・従来互換）",
+              "title": "Limit"
+            },
+            "description": "返す最大件数（省略時は全件・従来互換）"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "読み飛ばす件数",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "読み飛ばす件数"
           }
         ],
         "responses": {
