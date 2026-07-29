@@ -40,6 +40,16 @@ uv pip install alpha-visualizer
 pip install alpha-visualizer
 ```
 
+### まず同梱サンプルで試す（AlphaForge 不要）
+
+AlphaForge をまだ持っていなくても、同梱の合成サンプルデータで全画面を 1 コマンドで試せます:
+
+```bash
+alpha-vis serve --use-bundled-samples
+```
+
+40 件のバックテスト結果・WFO / Grid 最適化結果・戦略アイデアを含む自己完結の forge プロジェクト（完全合成データ・再配布フリー）が開きます。内訳は [samples/README.md](samples/README.md) を参照してください。
+
 ### 起動
 
 ```bash
@@ -83,6 +93,17 @@ alpha-vis serve --no-open
 | Optimize | Strategy 構造 |
 |---|---|
 | ![Optimize](docs/screenshots/ja/optimize.png) | ![Strategy](docs/screenshots/ja/strategy.png) |
+
+| Live（バックテスト×ライブ実績 diff） | Ideas（探索アイデアボード） |
+|---|---|
+| ![Live](docs/screenshots/ja/live.png) | ![Ideas](docs/screenshots/ja/ideas.png) |
+
+## 困ったときは
+
+`alpha-vis: command not found`・`backtest_results.db` が見つからない・ポート衝突など、よくある詰まりの回答は公式 FAQ にまとまっています。
+
+- **FAQ・トラブルシューティング**: <https://alforgelabs.com/ja/docs/alpha-visualizer/faq/>
+- 解決しない場合は [GitHub Issues](https://github.com/alforge-labs/alpha-visualizer/issues) へどうぞ
 
 ## ドキュメント
 

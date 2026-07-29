@@ -40,6 +40,16 @@ uv pip install alpha-visualizer
 pip install alpha-visualizer
 ```
 
+### Try the bundled samples first (no AlphaForge required)
+
+Even without AlphaForge, you can explore every screen with the bundled synthetic sample data — one command:
+
+```bash
+alpha-vis serve --use-bundled-samples
+```
+
+This opens a self-contained forge project with 40 backtest results, WFO / Grid optimization runs, and strategy ideas (fully synthetic data, free to redistribute). See [samples/README.en.md](samples/README.en.md) for details.
+
 ### Run
 
 ```bash
@@ -83,6 +93,17 @@ If `alpha-vis serve --forge-dir /path/to/A` seems to be reading a different DB t
 | Optimize | Strategy structure |
 |---|---|
 | ![Optimize](docs/screenshots/en/optimize.png) | ![Strategy](docs/screenshots/en/strategy.png) |
+
+| Live (backtest vs. live diff) | Ideas (exploration board) |
+|---|---|
+| ![Live](docs/screenshots/en/live.png) | ![Ideas](docs/screenshots/en/ideas.png) |
+
+## Troubleshooting
+
+Answers to common issues — `alpha-vis: command not found`, missing `backtest_results.db`, port conflicts — are collected in the official FAQ.
+
+- **FAQ & Troubleshooting**: <https://alforgelabs.com/en/docs/alpha-visualizer/faq/>
+- Still stuck? Open a [GitHub Issue](https://github.com/alforge-labs/alpha-visualizer/issues)
 
 ## Documentation
 
