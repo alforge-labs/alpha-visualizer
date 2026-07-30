@@ -23,11 +23,15 @@ describe('<AppFooter />', () => {
 
   it('announces the new-tab navigation in the accessible name', () => {
     // target="_blank" は視覚外の文脈変化なので、SR 利用者にも新規タブ遷移を
-    // アクセシブルネームで伝える（装飾矢印 ↗ は aria-hidden で読み上げ対象外）
+    // アクセシブルネームで伝える（装飾矢印 ↗ は aria-hidden で読み上げ対象外）。
+    // ヘルプ導線（issue #361）を含む全リンクが対象。
     render(<AppFooter lang="ja" />)
-    const link = screen.getByRole('link', { name: /別タブで開く/ })
-    expect(link).toBeInTheDocument()
-    expect(link.getAttribute('aria-label') ?? '').not.toContain('↗')
+    const links = screen.getAllByRole('link')
+    expect(links.length).toBeGreaterThanOrEqual(3)
+    for (const link of links) {
+      expect(link.getAttribute('aria-label') ?? '').toContain('別タブで開く')
+      expect(link.getAttribute('aria-label') ?? '').not.toContain('↗')
+    }
   })
 
   it('shows the ja CTA copy for lang=ja', () => {
@@ -38,5 +42,30 @@ describe('<AppFooter />', () => {
   it('shows the en CTA copy for lang=en', () => {
     render(<AppFooter lang="en" />)
     expect(screen.getByText(/Try .* free/i)).toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #361: アプリ内ヘルプ導線がゼロ（フッターはマーケ CTA のみ）だった。
+ * 使用中に詰まったユーザーが公式 docs / FAQ に 1 クリックで到達できる
+ * 言語別リンクを常設する。
+ */
+describe('<AppFooter /> のヘルプ導線 (issue #361)', () => {
+  it('ja では日本語 docs / FAQ へのリンクを表示する', () => {
+    render(<AppFooter lang="ja" />)
+    const help = screen.getByRole('link', { name: /ヘルプ/ })
+    expect(help.getAttribute('href')).toContain('/ja/docs/alpha-visualizer/')
+    const faq = screen.getByRole('link', { name: /FAQ/ })
+    expect(faq.getAttribute('href')).toContain('/ja/docs/alpha-visualizer/faq/')
+    expect(faq.getAttribute('target')).toBe('_blank')
+    expect(faq.getAttribute('rel') ?? '').toContain('noopener')
+  })
+
+  it('en では英語 docs / FAQ へのリンクを表示する', () => {
+    render(<AppFooter lang="en" />)
+    const help = screen.getByRole('link', { name: /Help/ })
+    expect(help.getAttribute('href')).toContain('/en/docs/alpha-visualizer/')
+    const faq = screen.getByRole('link', { name: /FAQ/ })
+    expect(faq.getAttribute('href')).toContain('/en/docs/alpha-visualizer/faq/')
   })
 })

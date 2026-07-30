@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -88,5 +88,32 @@ describe('DetailPage strategy not found (issue #347)', () => {
       expect(api.getStrategyRuns).toHaveBeenCalled(),
     )
     expect(screen.queryByTestId('strategy-not-found')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #361: 「IS / OOS」「WFO」はタブ名に略語のまま登場するのに、
+ * 初級者に必須の概念説明（IS=最適化期間 / OOS=検証期間、OOS 悪化=過剰適合の疑い）
+ * がアプリ内のどこにもなかった。タブ直下の 1 行サブテキストで説明する。
+ */
+describe('DetailPage の IS/OOS・WFO 概念説明 (issue #361)', () => {
+  it('IS / OOS タブに概念説明のサブテキストが表示される', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    renderDetail('existing_no_runs')
+    await waitFor(() => expect(api.getStrategyRuns).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('tab', { name: 'IS / OOS' }))
+    expect(screen.getByText(/最適化に使った期間/)).toBeInTheDocument()
+    expect(screen.getByText(/過剰適合/)).toBeInTheDocument()
+  })
+
+  it('WFO タブに概念説明のサブテキストが表示される', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    renderDetail('existing_no_runs')
+    await waitFor(() => expect(api.getStrategyRuns).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('tab', { name: 'WFO' }))
+    // no_data の「WFO データがありません」文言ではなく、概念説明そのものを検証する
+    expect(screen.getByText(/パラメータの頑健性/)).toBeInTheDocument()
   })
 })

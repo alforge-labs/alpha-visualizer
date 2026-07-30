@@ -12,6 +12,7 @@ import {
   type CommandPaletteResult,
   type MatchReason,
 } from '../lib/searchStrategies'
+import { docsUrl } from '../constants/helpLinks'
 
 interface Props {
   open: boolean
@@ -302,6 +303,33 @@ export function CommandPalette({ open, onClose, lang }: Props): React.ReactEleme
             )
           })}
         </ul>
+        {/* issue #361: どの画面からでも公式 docs に到達できる常設ヘルプ導線。
+            戦略検索の combobox キーボードナビとは独立させ、Tab で到達する */}
+        <div
+          style={{
+            borderTop: '1px solid var(--border)',
+            padding: '8px 16px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <a
+            href={docsUrl(lang, 'command-palette')}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              letterSpacing: 'var(--tracking-mono)',
+              color: 'var(--text3)',
+              textDecoration: 'none',
+            }}
+          >
+            {L('ドキュメントを開く', 'Open documentation')}
+            <span aria-hidden="true"> ↗</span>
+          </a>
+        </div>
       </div>
     </div>
   )

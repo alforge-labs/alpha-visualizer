@@ -181,3 +181,19 @@ describe('CommandPalette', () => {
     expect(reverted[0]).toHaveAttribute('aria-selected', 'true')
   })
 })
+
+/**
+ * issue #361: 詰まったユーザーがどの画面からでもドキュメントへ到達できるよう、
+ * Cmd+K パレットに「ドキュメントを開く」導線を常設する。
+ */
+describe('CommandPalette のドキュメント導線 (issue #361)', () => {
+  it('パレットに言語別 docs への「ドキュメントを開く」リンクがある', () => {
+    // リンクは同期描画（データ取得に依存しない）。fake timers 下の findBy は
+    // waitFor がタイマー依存でハングするため getBy を使う
+    renderPalette(true)
+    const link = screen.getByRole('link', { name: /ドキュメントを開く/ })
+    expect(link.getAttribute('href')).toContain('/ja/docs/alpha-visualizer/')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel') ?? '').toContain('noopener')
+  })
+})
