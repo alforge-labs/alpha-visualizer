@@ -1,7 +1,31 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { RootLayout } from '../RootLayout'
+
+// AppFooter が /health からバージョンを取得するため（issue #399）、
+// jsdom で実 fetch が走らないよう api client を mock する。
+// 注: useFetchByKey が instanceof ApiError で分岐するため ApiError も含める。
+vi.mock('../../api/client', () => {
+  class ApiError extends Error {
+    readonly status: number
+    readonly url: string
+    constructor(message: string, status: number, url: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.url = url
+    }
+  }
+  return {
+    ApiError,
+    api: {
+      getHealth: vi
+        .fn()
+        .mockResolvedValue({ status: 'ok', forge_dir: '/tmp/forge', version: '9.9.9' }),
+    },
+  }
+})
 
 /**
  * issue #260: <main> ランドマークと skip-link が無く、キーボード/SR 利用者が

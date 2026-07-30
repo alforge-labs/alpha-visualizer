@@ -1,6 +1,30 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { AppFooter } from '../AppFooter'
+
+// AppFooter は /health からバージョンを取得する（issue #399）。
+// 注: useFetchByKey が instanceof ApiError で分岐するため、mock には
+// ApiError クラスも必ず含める（欠けると loading のまま固まる）。
+vi.mock('../../api/client', () => {
+  class ApiError extends Error {
+    readonly status: number
+    readonly url: string
+    constructor(message: string, status: number, url: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.url = url
+    }
+  }
+  return {
+    ApiError,
+    api: {
+      getHealth: vi
+        .fn()
+        .mockResolvedValue({ status: 'ok', forge_dir: '/tmp/forge', version: '9.9.9' }),
+    },
+  }
+})
 
 /**
  * OSS ダッシュボード常用ユーザーは README やターミナルバナーを見ないため、
@@ -42,6 +66,13 @@ describe('<AppFooter />', () => {
   it('shows the en CTA copy for lang=en', () => {
     render(<AppFooter lang="en" />)
     expect(screen.getByText(/Try .* free/i)).toBeInTheDocument()
+  })
+
+  it('shows the app version fetched from /health (issue #399)', async () => {
+    // ユーザーが「自分がどのバージョンを使っているか」を UI から確認できる
+    // ようにする（バグ報告時に CLI へ戻る必要をなくす）。
+    render(<AppFooter lang="ja" />)
+    expect(await screen.findByText('v9.9.9')).toBeInTheDocument()
   })
 })
 

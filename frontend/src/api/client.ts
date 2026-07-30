@@ -1,4 +1,4 @@
-import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -13,8 +13,7 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`
+async function requestUrl<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
     headers: {
@@ -27,6 +26,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(`API ${res.status}: ${text || res.statusText}`, res.status, url)
   }
   return (await res.json()) as T
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return requestUrl<T>(`${API_BASE}${path}`, init)
 }
 
 export const api = {
@@ -47,6 +50,9 @@ export const api = {
 
   listStrategies: (): Promise<StrategyListItem[]> =>
     request<StrategyListItem[]>('/strategies'),
+
+  // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）
+  getHealth: (): Promise<HealthResponse> => requestUrl<HealthResponse>('/health'),
 
   // backend に専用 /runs エンドポイントが無いため、/strategies/{id} の results を整形して返す
   getStrategyRuns: async (strategyId: string): Promise<StrategyRun[]> => {
