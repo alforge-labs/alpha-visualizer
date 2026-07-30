@@ -25,6 +25,7 @@ from alpha_visualizer.dependencies import (
 from alpha_visualizer.errors import (
     ConflictError,
     ExternalProcessError,
+    ForgeCliNotFoundError,
     InvalidRequestError,
     NotFoundError,
 )
@@ -340,7 +341,7 @@ def _delegate_forge_strategy_save(
     try:
         forge_exe = resolve_forge_exe()
         if forge_exe is None:
-            raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+            raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
         cmd = [forge_exe, "strategy", "save", str(temp_path)]
         if force:
             cmd.append("--force")

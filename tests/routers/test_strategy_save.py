@@ -71,7 +71,9 @@ class TestSaveStrategyParameters:
                 "/api/strategies/test_strategy/parameters",
                 json={"parameters": {"period": 30}},
             )
-        assert resp.status_code == 500
+        # forge 未導入は想定内の状態のため 503 + 機械可読 code (issue #358)
+        assert resp.status_code == 503
+        assert resp.json()["code"] == "forge_cli_not_found"
         assert resp.json()["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"
 
     def test_save_forge_failure_returns_500_with_detail(

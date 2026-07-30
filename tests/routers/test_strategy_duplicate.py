@@ -122,7 +122,9 @@ class TestDuplicateStrategy:
                 "/api/strategies/test_strategy/duplicate",
                 json={"new_strategy_id": "test_strategy_v4"},
             )
-        assert resp.status_code == 500
+        # forge 未導入は想定内の状態のため 503 + 機械可読 code (issue #358)
+        assert resp.status_code == 503
+        assert resp.json()["code"] == "forge_cli_not_found"
         # CodeQL py/incomplete-url-substring-sanitization 対策: 部分一致でなく
         # 末尾トークンの等価比較で funnel URL を検証する（既存テストと同規約）
         assert resp.json()["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"

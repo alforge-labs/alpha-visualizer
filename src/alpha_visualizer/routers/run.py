@@ -22,7 +22,11 @@ from alpha_visualizer.dependencies import (
     get_backtest_results_repo,
     get_forge_config_dep,
 )
-from alpha_visualizer.errors import DataCorruptError, ExternalProcessError
+from alpha_visualizer.errors import (
+    DataCorruptError,
+    ExternalProcessError,
+    ForgeCliNotFoundError,
+)
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
 from alpha_visualizer.services.forge_cli import (
@@ -118,7 +122,7 @@ def run_backtest(
     """forge backtest run をサブプロセス実行し、run_id と実行ログ末尾を返す。"""
     forge_exe = resolve_forge_exe()
     if forge_exe is None:
-        raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+        raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
 
     # EULA 未同意時の Confirm.ask() は FORGE_NONINTERACTIVE では防げないため、
     # stdin=DEVNULL でハングせず即座に失敗させる（build_forge_env の docstring 参照）。

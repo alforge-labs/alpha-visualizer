@@ -59,6 +59,29 @@ describe('MaintenancePage error normalization (review: Important 1)', () => {
     expect(alert.textContent).toContain('alforgelabs.com')
   })
 
+  it('forge 未導入（503 + code）のとき表示言語のみのメッセージを表示する', async () => {
+    // サーバーの detail は curl 利用者向けに日英連結のままだが、UI では
+    // 機械可読 code から表示言語のみの文言へ写像する（issue #358）。
+    const rawMessage =
+      'API 503: {"detail":"forge コマンドが見つかりません。AlphaForge を導入してください / forge command not found in PATH. Install AlphaForge — https://alforgelabs.com","code":"forge_cli_not_found"}'
+    vi.mocked(api.listOrphanRuns).mockRejectedValue(
+      new ApiError(rawMessage, 503, '/api/maintenance/orphan-runs'),
+    )
+
+    render(
+      <MemoryRouter initialEntries={['/maintenance']}>
+        <MaintenancePage />
+      </MemoryRouter>,
+    )
+
+    const alert = await waitFor(() => screen.getByRole('alert'))
+    // 表示言語（既定 ja）の文言だけが出る（日英連結を出さない）
+    expect(alert.textContent).toContain('forge コマンドが見つかりません')
+    expect(alert.textContent).not.toContain('not found in PATH')
+    // AlphaForge への導線 URL は維持する
+    expect(alert.textContent).toContain('alforgelabs.com')
+  })
+
   it('再試行ボタンを押すと一覧を再取得する', async () => {
     vi.mocked(api.listOrphanRuns).mockRejectedValueOnce(
       new ApiError('API 500: {"detail":"サーバーエラー"}', 500, '/api/maintenance/orphan-runs'),

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { extractApiErrorDetail, normalizeErrorMessage } from '../errorMessage'
+import {
+  extractApiErrorDetail,
+  messageForApiErrorCode,
+  normalizeErrorMessage,
+} from '../errorMessage'
 
 /**
  * issue #265: バックエンド例外が整形されずに UI へ露出していた。
@@ -59,5 +63,31 @@ describe('extractApiErrorDetail (issue #301)', () => {
       'サーバーに接続できません',
     )
     expect(extractApiErrorDetail(null, 'ja')).toBe('問題が発生しました')
+  })
+})
+
+describe('messageForApiErrorCode (issue #358)', () => {
+  const raw =
+    'API 503: {"detail":"forge コマンドが見つかりません。AlphaForge を導入してください / forge command not found in PATH. Install AlphaForge — https://alforgelabs.com","code":"forge_cli_not_found"}'
+
+  it('maps forge_cli_not_found to a single-language message (ja)', () => {
+    const msg = messageForApiErrorCode(raw, 'ja')
+    expect(msg).toContain('forge コマンドが見つかりません')
+    expect(msg).not.toContain('not found in PATH')
+    expect(msg).toContain('https://alforgelabs.com')
+  })
+
+  it('maps forge_cli_not_found to a single-language message (en)', () => {
+    const msg = messageForApiErrorCode(raw, 'en')
+    expect(msg).toContain('not found in PATH')
+    expect(msg).not.toContain('見つかりません')
+    expect(msg).toContain('https://alforgelabs.com')
+  })
+
+  it('returns null when the body has no known code', () => {
+    expect(messageForApiErrorCode('API 500: {"detail":"boom"}', 'ja')).toBeNull()
+    expect(messageForApiErrorCode('API 503: {"detail":"x","code":"unknown_code"}', 'ja')).toBeNull()
+    expect(messageForApiErrorCode('Failed to fetch', 'ja')).toBeNull()
+    expect(messageForApiErrorCode(null, 'ja')).toBeNull()
   })
 })
