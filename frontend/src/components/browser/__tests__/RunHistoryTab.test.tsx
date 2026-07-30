@@ -1,6 +1,12 @@
-import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
 import type { StrategyRun } from '../../../api/types'
+
+// 比較ビュー本体は RunCompareView.test.tsx で単体検証するため、ここでは stub
+vi.mock('../RunCompareView', () => ({
+  RunCompareView: () => <div data-testid="run-compare-view" />,
+}))
+
 import { RunHistoryTab } from '../RunHistoryTab'
 
 /**
@@ -74,5 +80,48 @@ describe('RunHistoryTab tuning-trial badge (issue #299)', () => {
   it('shows no badge when source is absent (legacy rows)', () => {
     render(<RunHistoryTab runs={runs} currentRunId="a" onSelectRun={() => {}} lang="ja" />)
     expect(screen.queryByTestId('run-source-badge')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #369: チューニング前後の run を並べて比較する導線。
+ * 行のチェックボックスで 2 run を選ぶと比較ビューが開く。
+ */
+describe('RunHistoryTab の run 比較選択 (issue #369)', () => {
+  const threeRuns = [
+    { run_id: 'a', run_at: '2025-01-01T00:00', sharpe_ratio: 1.2, total_return_pct: 12.3, max_drawdown_pct: -5 },
+    { run_id: 'b', run_at: '2025-01-02T00:00', sharpe_ratio: 0.2, total_return_pct: -8.4, max_drawdown_pct: -10 },
+    { run_id: 'c', run_at: '2025-01-03T00:00', sharpe_ratio: 0.9, total_return_pct: 3.1, max_drawdown_pct: -7 },
+  ] as unknown as StrategyRun[]
+
+  it('2 run を選択すると比較ビューが表示され、3 つ目は選択できない', () => {
+    render(
+      <RunHistoryTab runs={threeRuns} currentRunId="a" onSelectRun={() => {}} lang="ja" />,
+    )
+    expect(screen.queryByTestId('run-compare-view')).not.toBeInTheDocument()
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(3)
+    fireEvent.click(checkboxes[0]!)
+    // 1 つだけでは比較ビューは出ない
+    expect(screen.queryByTestId('run-compare-view')).not.toBeInTheDocument()
+
+    fireEvent.click(checkboxes[1]!)
+    expect(screen.getByTestId('run-compare-view')).toBeInTheDocument()
+    // 2 つ選択中は残りのチェックボックスが無効
+    expect(checkboxes[2]!).toBeDisabled()
+  })
+
+  it('チェックを外すと比較ビューが閉じる', () => {
+    render(
+      <RunHistoryTab runs={threeRuns} currentRunId="a" onSelectRun={() => {}} lang="ja" />,
+    )
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[0]!)
+    fireEvent.click(checkboxes[1]!)
+    expect(screen.getByTestId('run-compare-view')).toBeInTheDocument()
+
+    fireEvent.click(checkboxes[1]!)
+    expect(screen.queryByTestId('run-compare-view')).not.toBeInTheDocument()
   })
 })
