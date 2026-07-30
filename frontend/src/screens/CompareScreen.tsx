@@ -7,6 +7,7 @@ import { CompareTable } from '../components/metrics/CompareTable'
 import { CompareEquityTV, type CompareEquityTVSeries } from '../charts/tv/CompareEquityTV'
 import { ShareButton, ShareXButton } from '../components/ShareCardButton'
 import { selectBestSharpe } from '../lib/bestSharpe'
+import { fmtNumber, fmtPercent } from '../lib/format'
 import { downloadCompareShareCard } from '../lib/shareCard'
 import { buildCompareShareTweetText, openXIntent } from '../lib/shareTweet'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
@@ -108,7 +109,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
                 letterSpacing: 'var(--tracking-mono)',
               }}
             >
-              Sharpe {(winner.sharpe_ratio ?? 0).toFixed(2)}
+              Sharpe {fmtNumber(winner.sharpe_ratio, { decimals: 2 })}
             </span>
           </div>
         }
@@ -254,28 +255,36 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
                     marginTop: 'var(--space-3)',
                   }}
                 >
+                  {/* issue #352: null は 0.00 に潰さず、指標テーブルと同じ
+                      「—」で統一する（0.00 は「総利益ゼロ」等の実測値に見える） */}
                   <Stat
                     label="Sharpe"
-                    value={(s.sharpe_ratio ?? 0).toFixed(2)}
+                    value={fmtNumber(s.sharpe_ratio, { decimals: 2 })}
                     tone={sharpeTone(s.sharpe_ratio)}
                     size="md"
                   />
                   <Stat
                     label={L('リターン', 'Return')}
-                    value={`${(s.total_return_pct ?? 0).toFixed(1)}%`}
+                    value={fmtPercent(s.total_return_pct, { decimals: 1 })}
                     tone={returnTone(s.total_return_pct)}
                     size="md"
                   />
                   <Stat
                     label="Max DD"
-                    value={`${(s.max_drawdown_pct ?? 0).toFixed(1)}%`}
-                    tone="negative"
+                    value={fmtPercent(s.max_drawdown_pct, { decimals: 1 })}
+                    tone={s.max_drawdown_pct == null ? 'neutral' : 'negative'}
                     size="md"
                   />
                   <Stat
                     label="P.Factor"
-                    value={(s.profit_factor ?? 0).toFixed(2)}
-                    tone={(s.profit_factor ?? 0) >= 1.5 ? 'positive' : 'warning'}
+                    value={fmtNumber(s.profit_factor, { decimals: 2 })}
+                    tone={
+                      s.profit_factor == null
+                        ? 'neutral'
+                        : s.profit_factor >= 1.5
+                          ? 'positive'
+                          : 'warning'
+                    }
                     size="md"
                   />
                 </div>
