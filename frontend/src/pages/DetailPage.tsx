@@ -437,14 +437,13 @@ export function DetailPage() {
         open={confirmRun}
         title={L('バックテスト再実行', 'Re-run backtest')}
         message={L(
-          '再実行すると最新結果が上書きされます。続けますか？',
-          'Re-running will overwrite the latest result. Continue?',
+          '新しい実行結果が追加され、表示は最新の結果に切り替わります（過去の結果は実行履歴に残ります）。実行しますか？',
+          'A new run will be added and the view will switch to the latest result (past results remain in the run history). Continue?',
         )}
         confirmLabel={btRunning ? L('実行中…', 'Running…') : L('実行', 'Run')}
         cancelLabel={L('やめる', 'Cancel')}
         onConfirm={doRun}
         onCancel={() => setConfirmRun(false)}
-        tone="danger"
       />
     </div>
   )
