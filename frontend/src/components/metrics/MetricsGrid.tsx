@@ -4,6 +4,7 @@ import type { BacktestMetrics } from '../../api/types'
 import { evaluateGood, type GoodWhen } from './evaluate'
 import { MetricInfoTip } from './MetricInfoTip'
 import { fmtNumber } from '../../lib/format'
+import { isNoTradeSentinel } from '../../lib/sentinel'
 
 interface MetricCardProps {
   label: string
@@ -93,15 +94,33 @@ interface MetricsGridProps {
 
 export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
   const L = makeL(lang)
+  // issue #351: 取引 0 件の run では forge が Sharpe / Sortino にセンチネル値
+  // -100 を書き込む。実測値として表示せず「—」+ 注釈へ置き換える。
+  const sentinelNote = L('取引なしのため算出不可', 'N/A — no trades')
+  const sharpeSentinel = isNoTradeSentinel(m.sharpe_ratio)
+  const sortinoSentinel = isNoTradeSentinel(m.sortino_ratio)
   const kpis: MetricCardProps[] = [
     { label: L('総リターン', 'Total Return'), value: m.total_return_pct, suffix: '%', goodWhen: 'pos', big: true, defKey: 'total_return_pct' },
-    { label: L('シャープ比', 'Sharpe Ratio'), value: m.sharpe_ratio, goodWhen: 'gte1', big: true, defKey: 'sharpe_ratio' },
+    {
+      label: L('シャープ比', 'Sharpe Ratio'),
+      value: sharpeSentinel ? '—' : m.sharpe_ratio,
+      goodWhen: sharpeSentinel ? null : 'gte1',
+      sub: sharpeSentinel ? sentinelNote : null,
+      big: true,
+      defKey: 'sharpe_ratio',
+    },
     { label: L('最大DD', 'Max Drawdown'), value: m.max_drawdown_pct, suffix: '%', goodWhen: 'dd', big: true, defKey: 'max_drawdown_pct' },
     { label: L('勝率', 'Win Rate'), value: m.win_rate_pct, suffix: '%', goodWhen: 'wr', big: true, defKey: 'win_rate_pct' },
   ]
   const secondary: MetricCardProps[] = [
     { label: 'CAGR', value: m.cagr_pct, suffix: '%', goodWhen: 'pos', defKey: 'cagr_pct' },
-    { label: L('ソルティノ', 'Sortino'), value: m.sortino_ratio, goodWhen: 'gte1', defKey: 'sortino_ratio' },
+    {
+      label: L('ソルティノ', 'Sortino'),
+      value: sortinoSentinel ? '—' : m.sortino_ratio,
+      goodWhen: sortinoSentinel ? null : 'gte1',
+      sub: sortinoSentinel ? sentinelNote : null,
+      defKey: 'sortino_ratio',
+    },
     { label: L('カルマー', 'Calmar'), value: m.calmar_ratio, goodWhen: 'pos', defKey: 'calmar_ratio' },
     { label: 'Profit Factor', value: m.profit_factor, goodWhen: 'gte15', defKey: 'profit_factor' },
     { label: L('取引数', 'Trades'), value: m.total_trades, defKey: 'total_trades' },
