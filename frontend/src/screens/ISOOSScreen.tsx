@@ -41,6 +41,20 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
     return typeof isVal === 'number' && typeof oosVal === 'number' && oosVal < isVal * 0.8
   }) as readonly (keyof BacktestMetrics)[]
 
+  // issue #353: 分割比をハードコード（IS 60% / OOS 40%）せず、実データ
+  // （境界 index / 総バー数）から算出する。導出できなければ境界日のみ示す。
+  const cutoffIdx = data.is_cutoff.index
+  const totalBars = data.equity.values.length
+  const isPct =
+    cutoffIdx > 0 && totalBars > 0 && cutoffIdx < totalBars
+      ? Math.round((cutoffIdx / totalBars) * 100)
+      : null
+  const cutoffDate = data.is_cutoff.date ?? '—'
+  const splitSubtitle =
+    isPct != null
+      ? `IS ${isPct}% (〜${cutoffDate})  /  OOS ${100 - isPct}%`
+      : L(`IS/OOS 境界: ${cutoffDate}`, `IS/OOS boundary: ${cutoffDate}`)
+
   const right = (
     <div style={{ display: 'flex', gap: 12 }}>
       {(
@@ -104,7 +118,7 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
     <div data-testid="isoos-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
         title={L('IS / OOS 詳細比較', 'IS / OOS Deep Comparison')}
-        subtitle={`IS 60% (〜${data.is_cutoff.date ?? '—'})  /  OOS 40%`}
+        subtitle={splitSubtitle}
         right={right}
       />
 
