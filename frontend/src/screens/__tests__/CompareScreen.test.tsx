@@ -82,3 +82,30 @@ describe('<CompareScreen /> share card', () => {
     openSpy.mockRestore()
   })
 })
+
+/**
+ * issue #352: PF が算出不可（null）の戦略で、サイドカードが「0.00」・
+ * 指標テーブルが「—」と同一画面で食い違っていた。0.00 は「総利益ゼロ」を
+ * 意味してしまうため、カード側も「—」に統一する。
+ */
+describe('<CompareScreen /> null metrics on side cards (issue #352)', () => {
+  const withNullPf = [
+    { ...STRATS[0] },
+    {
+      ...STRATS[1],
+      profit_factor: null,
+      sharpe_ratio: null,
+      total_return_pct: null,
+      max_drawdown_pct: null,
+    },
+  ] as unknown as StrategyComparison[]
+
+  it('renders — instead of 0.00 for null side-card values', () => {
+    render(<CompareScreen data={withNullPf} lang="ja" symbol="SPY" />)
+    // null の PF / Sharpe が 0.00 と表示されない
+    expect(screen.queryByText('0.00')).not.toBeInTheDocument()
+    expect(screen.queryByText('0.0%')).not.toBeInTheDocument()
+    // カード側も指標テーブルと同じ「—」で統一される
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4)
+  })
+})
