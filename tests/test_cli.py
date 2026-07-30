@@ -176,3 +176,43 @@ def test_serve_loopback_bind_does_not_warn(tmp_path, monkeypatch) -> None:
     )
     assert result.exit_code == 0
     assert "警告" not in result.output
+
+
+# --- issue #400: CLI の日英併記と DB 不在警告の導線 ---------------------------
+
+
+def test_serve_help_is_bilingual() -> None:
+    """--help が README 等と同じ「日本語 / English」併記であること (issue #400)。
+
+    最初の接点である CLI だけが日本語のみで、英語圏の PyPI ユーザーが
+    --use-bundled-samples の説明を読めなかった。
+    """
+    runner = CliRunner()
+    result = runner.invoke(cli, ["serve", "--help"])
+    assert result.exit_code == 0
+    # 代表的なオプションの説明に英語が併記されている
+    assert "Host to bind" in result.output
+    assert "Port number" in result.output
+    assert "bundled sample" in result.output
+
+
+def test_serve_db_missing_warning_offers_next_steps(tmp_path) -> None:
+    """DB 不在警告がデッドエンドにならず、次の一歩を案内すること (issue #400)。"""
+    import uvicorn
+
+    monkeypatch_target = uvicorn.Server
+    original = monkeypatch_target.run
+    monkeypatch_target.run = lambda self: None
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, ["serve", "--forge-dir", str(tmp_path), "--no-open"]
+        )
+    finally:
+        monkeypatch_target.run = original
+
+    assert result.exit_code == 0
+    assert "backtest_results.db" in result.output
+    # サンプルモードの具体的なコマンドと FAQ への導線
+    assert "--use-bundled-samples" in result.output
+    assert "faq" in result.output.lower()

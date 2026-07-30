@@ -48,6 +48,8 @@ def _ensure_port_available(host: str, port: int) -> None:
             raise click.ClickException(
                 f"ポート {port} は使用中です（別の alpha-vis serve が動いていませんか？）。"
                 "--port で別のポート番号を指定してください。"
+                f" / Port {port} is already in use (another alpha-vis serve?)."
+                " Specify a different port with --port."
             ) from exc
 
 
@@ -93,34 +95,48 @@ def _resolve_bundled_samples() -> pathlib.Path | None:
 @click.group()
 @click.version_option(version=__version__, prog_name="alpha-visualizer")
 def cli() -> None:
-    """alpha-visualizer - AlphaForge バックテスト結果の Web 可視化ツール"""
+    """alpha-visualizer - AlphaForge バックテスト結果の Web 可視化ツール / Web viewer for AlphaForge backtest results"""
 
 
 @cli.command("serve")
-@click.option("--host", default="127.0.0.1", show_default=True, help="バインドするホスト名")
-@click.option("--port", default=8000, show_default=True, help="ポート番号")
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="バインドするホスト名 / Host to bind",
+)
+@click.option("--port", default=8000, show_default=True, help="ポート番号 / Port number")
 @click.option(
     "--forge-dir",
     default=".",
     show_default=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="forge が生成するデータディレクトリのパス",
+    help="forge が生成するデータディレクトリのパス / Path to the forge data directory",
 )
 @click.option(
     "--forge-config",
     "forge_config",
     default=None,
     type=click.Path(exists=False, file_okay=True, dir_okay=False),
-    help="forge.yaml のパス。未指定なら <forge-dir>/forge.yaml → $FORGE_CONFIG の順で探索",
+    help=(
+        "forge.yaml のパス。未指定なら <forge-dir>/forge.yaml → $FORGE_CONFIG の順で探索"
+        " / Path to forge.yaml (default: <forge-dir>/forge.yaml, then $FORGE_CONFIG)"
+    ),
 )
-@click.option("--no-open", "no_open", is_flag=True, default=False, help="ブラウザを自動で開かない")
+@click.option(
+    "--no-open",
+    "no_open",
+    is_flag=True,
+    default=False,
+    help="ブラウザを自動で開かない / Do not open the browser automatically",
+)
 @click.option(
     "--log-level",
     "log_level",
     default="info",
     show_default=True,
     type=click.Choice(["debug", "info", "warning", "error"], case_sensitive=False),
-    help="ログの冗長度（alpha_visualizer.* と uvicorn に適用）",
+    help="ログの冗長度 / Log verbosity (applies to alpha_visualizer.* and uvicorn)",
 )
 @click.option(
     "--use-bundled-samples",
@@ -128,7 +144,8 @@ def cli() -> None:
     is_flag=True,
     default=False,
     help=(
-        "OSS 同梱の合成サンプル forge_dir を使う。指定時は --forge-dir / --forge-config は無視される。"
+        "OSS 同梱の合成サンプル forge_dir を使う（--forge-dir / --forge-config は無視）"
+        " / Use the bundled sample forge_dir (ignores --forge-dir / --forge-config)"
     ),
 )
 def serve(
@@ -140,7 +157,7 @@ def serve(
     use_bundled_samples: bool,
     log_level: str,
 ) -> None:
-    """Web ダッシュボードを起動する"""
+    """Web ダッシュボードを起動する / Start the web dashboard"""
     import uvicorn
 
     from alpha_visualizer.app import create_app
@@ -155,6 +172,8 @@ def serve(
             raise click.ClickException(
                 "同梱サンプル sample-forge/ が見つかりません。"
                 "開発環境では `uv run python samples/build_samples.py` を先に実行してください。"
+                " / Bundled sample sample-forge/ not found. In a dev checkout, run"
+                " `uv run python samples/build_samples.py` first."
             )
         forge_path = bundled
         config_path = None
@@ -174,19 +193,35 @@ def serve(
         click.secho(
             f"⚠ 警告: --host {host} は LAN 全体へ公開されます。"
             "この API には認証がなく、結果の削除・戦略定義の上書き・forge プロセス起動が"
-            "誰でも可能になります。信頼できるネットワークでのみ使用してください。",
+            "誰でも可能になります。信頼できるネットワークでのみ使用してください。"
+            f" / Warning: --host {host} exposes this server to the whole network."
+            " The API has no authentication; anyone can delete results, overwrite"
+            " strategies, and launch forge processes. Use only on trusted networks.",
             fg="yellow",
         )
         app = create_app(config=config, allowed_hosts=["*"])
 
     url = f"http://{host}:{port}"
-    click.echo(f"alpha-vis serve: {url}  (Ctrl+C で停止)")
+    click.echo(f"alpha-vis serve: {url}  (Ctrl+C で停止 / press Ctrl+C to stop)")
     click.echo(f"forge-dir: {forge_path}")
     click.echo(f"forge-db:  {config.forge_db}")
     if not config.forge_db.exists():
+        # デッドエンドにせず次の一歩を案内する (issue #400)
         click.echo(
-            "  ⚠ backtest_results.db が見つかりません"
-            "（空 DB として扱います。一覧 API は空配列・個別取得 API は 404 を返します）"
+            "  ⚠ backtest_results.db が見つかりません（空 DB として扱います）"
+            " / backtest_results.db not found (treated as empty)"
+        )
+        click.echo(
+            "    まずはサンプルで試す / Try the bundled samples:"
+            "  alpha-vis serve --use-bundled-samples"
+        )
+        click.echo(
+            "    自分のデータを使う / Use your own data:"
+            "  alpha-vis serve --forge-dir <forge データのディレクトリ / your forge data dir>"
+        )
+        click.echo(
+            "    詳細 / Details:  https://alforgelabs.com/ja/docs/alpha-visualizer/faq/"
+            "  (EN: https://alforgelabs.com/en/docs/alpha-visualizer/faq/)"
         )
     if config.strategies_db is not None:
         click.echo(f"strategies-db: {config.strategies_db}")
@@ -212,4 +247,4 @@ def serve(
         ).start()
 
     server.run()
-    click.echo("alpha-vis serve を停止しました。")
+    click.echo("alpha-vis serve を停止しました。 / alpha-vis serve stopped.")
