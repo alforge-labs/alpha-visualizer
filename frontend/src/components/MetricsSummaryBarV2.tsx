@@ -1,19 +1,14 @@
-import { useState, useEffect, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import type { BacktestMetrics } from '../api/types'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { fmtNumber } from '../lib/format'
 import { METRIC_DEFINITIONS } from '../constants/metricDefinitions'
+import { MetricInfoTip } from './metrics/MetricInfoTip'
 
 interface Props {
   metrics: BacktestMetrics
   lang: Lang
-}
-
-interface TooltipState {
-  key: string
-  x: number
-  y: number
 }
 
 interface Item {
@@ -66,14 +61,7 @@ const ITEMS: Item[] = [
 ]
 
 export function MetricsSummaryBarV2({ metrics, lang }: Props) {
-  const [tip, setTip] = useState<TooltipState | null>(null)
   const L = makeL(lang)
-
-  useEffect(() => {
-    const hide = () => setTip(null)
-    window.addEventListener('scroll', hide, true)
-    return () => window.removeEventListener('scroll', hide, true)
-  }, [])
 
   return (
     <div
@@ -123,23 +111,8 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
               >
                 {L(def?.label ?? key, def?.labelEn ?? key)}
               </span>
-              {def && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--text3)',
-                    cursor: 'help',
-                    opacity: 0.55,
-                  }}
-                  onMouseEnter={(e) => {
-                    const rect = (e.target as HTMLElement).getBoundingClientRect()
-                    setTip({ key, x: rect.left, y: rect.bottom + 4 })
-                  }}
-                  onMouseLeave={() => setTip(null)}
-                >
-                  ⓘ
-                </span>
-              )}
+              {/* issue #360: hover 限定 span から click/focus 対応の共通機構へ置換 */}
+              <MetricInfoTip defKey={key} lang={lang} />
             </div>
             <span
               style={{
@@ -156,53 +129,6 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
           </div>
         )
       })}
-      {tip && (() => {
-        const def = METRIC_DEFINITIONS[tip.key]
-        if (!def) return null
-        // モバイル/狭幅で右端からはみ出さないようクランプ。
-        const TIP_W = 320
-        const left = Math.max(8, Math.min(tip.x, window.innerWidth - TIP_W - 8))
-        return (
-          <div
-            style={{
-              position: 'fixed',
-              left,
-              top: tip.y,
-              zIndex: 100,
-              background: 'var(--surface)',
-              border: '1px solid var(--border-h)',
-              borderRadius: 'var(--radius-md)',
-              padding: 'var(--space-3) var(--space-4)',
-              maxWidth: TIP_W,
-              boxShadow: 'var(--shadow-2)',
-            }}
-          >
-            <div
-              style={{
-                fontFamily: 'var(--sans)',
-                fontSize: 'var(--fs-body)',
-                color: 'var(--text)',
-                marginBottom: 6,
-                lineHeight: 1.45,
-              }}
-            >
-              {L(def.description, def.descriptionEn)}
-            </div>
-            {def.formula && (
-              <div
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 'var(--fs-mono-sm)',
-                  color: 'var(--text3)',
-                  letterSpacing: 'var(--tracking-mono)',
-                }}
-              >
-                {def.formula}
-              </div>
-            )}
-          </div>
-        )
-      })()}
     </div>
   )
 }

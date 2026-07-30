@@ -1,6 +1,7 @@
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { BacktestMetrics } from '../../api/types'
+import { MetricInfoTip } from './MetricInfoTip'
 
 interface Props {
   metrics: BacktestMetrics
@@ -60,8 +61,18 @@ export function SignalQualityBadge({ metrics, lang }: Props) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text2)' }}>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontFamily: 'var(--sans)',
+              fontSize: 14,
+              color: 'var(--text2)',
+            }}
+          >
             {L('品質スコア', 'Quality Score')}
+            <MetricInfoTip defKey="signal_quality_score" lang={lang} />
           </span>
           <span
             style={{
@@ -98,18 +109,27 @@ export function SignalQualityBadge({ metrics, lang }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           {(
             [
-              [L('PSR', 'PSR'), `${(psr * 100).toFixed(1)}%`, psr >= 0.9 ? 'var(--success)' : 'var(--warn)'],
+              [
+                L('PSR', 'PSR'),
+                `${(psr * 100).toFixed(1)}%`,
+                psr >= 0.9 ? 'var(--success)' : 'var(--warn)',
+                'probabilistic_sr',
+              ],
               [
                 L('DSR（補正済）', 'DSR (deflated)'),
                 `${(dsr * 100).toFixed(1)}%`,
                 dsr >= 0.9 ? 'var(--success)' : 'var(--warn)',
+                'deflated_sr',
               ],
-              [L('試行数', 'N trials'), String(ds.n_trials), 'var(--text2)'],
+              [L('試行数', 'N trials'), String(ds.n_trials), 'var(--text2)', 'n_trials'],
             ] as const
-          ).map(([lbl, val, c], i) => (
+          ).map(([lbl, val, c, defKey], i) => (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
                   fontFamily: 'var(--mono)',
                   fontSize: 'var(--fs-caption)',
                   color: 'var(--text3)',
@@ -117,6 +137,7 @@ export function SignalQualityBadge({ metrics, lang }: Props) {
                 }}
               >
                 {lbl}
+                <MetricInfoTip defKey={defKey} lang={lang} />
               </span>
               <span
                 style={{
