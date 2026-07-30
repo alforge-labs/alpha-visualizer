@@ -46,7 +46,7 @@ describe('TradeTable number formatting via SSoT (issue #266)', () => {
 
   it('groups thousands in P&L and keeps the explicit + sign', () => {
     render(<TradeTable trades={bigTrade} lang="ja" />)
-    // 桁区切り + 正の符号（color 列なので '+'）
-    expect(screen.getByText('+1,250.0')).toBeInTheDocument()
+    // 桁区切り + 正の符号（color 列なので '+'）。issue #359: 整数は小数なし
+    expect(screen.getByText('+1,250')).toBeInTheDocument()
   })
 })

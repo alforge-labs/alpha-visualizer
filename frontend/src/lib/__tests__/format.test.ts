@@ -17,23 +17,32 @@ describe('fmtNumber', () => {
     expect(fmtNumber(Number.NEGATIVE_INFINITY)).toBe('—')
   })
 
-  it('uses 3 decimals for |v| < 10 (auto)', () => {
-    expect(fmtNumber(0)).toBe('0.000')
+  it('uses 3 decimals for non-integer |v| < 10 (auto)', () => {
     expect(fmtNumber(1.234567)).toBe('1.235')
     expect(fmtNumber(-9.5)).toBe('-9.500')
   })
 
-  it('uses 2 decimals for 10 <= |v| < 100 (auto)', () => {
+  it('uses 2 decimals for non-integer 10 <= |v| < 100 (auto)', () => {
     expect(fmtNumber(12.345)).toBe('12.35')
     expect(fmtNumber(99.999)).toBe('100.00')
-    expect(fmtNumber(-50)).toBe('-50.00')
   })
 
-  it('uses 1 decimal for |v| >= 100 (auto)', () => {
-    expect(fmtNumber(100)).toBe('100.0')
+  it('uses 1 decimal for non-integer |v| >= 100 (auto)', () => {
     // issue #266: |v| >= 1000 では Intl 桁区切りが入る（旧 '1234.6' → '1,234.6'）
     expect(fmtNumber(1234.56)).toBe('1,234.6')
     expect(fmtNumber(-987.6)).toBe('-987.6')
+  })
+
+  // issue #359: 整数値は小数を付けない（取引数 119 が「119.0」になるのを防ぐ）。
+  // decimals を明示した場合は従来通りその桁数を尊重する。
+  it('renders integers without decimals when decimals is unspecified (issue #359)', () => {
+    expect(fmtNumber(0)).toBe('0')
+    expect(fmtNumber(119)).toBe('119')
+    expect(fmtNumber(-50)).toBe('-50')
+    expect(fmtNumber(100)).toBe('100')
+    expect(fmtNumber(2173)).toBe('2,173')
+    expect(fmtNumber(15, { decimals: 2 })).toBe('15.00')
+    expect(fmtNumber(1715, { suffix: 'd' })).toBe('1,715d')
   })
 
   it('honors explicit decimals option', () => {
@@ -52,8 +61,8 @@ describe('fmtNumber', () => {
       expect(fmtNumber(1234567, { decimals: 0 })).toBe('1,234,567')
     })
 
-    it('groups with auto decimals (|v| >= 100 → 1 桁)', () => {
-      expect(fmtNumber(12345)).toBe('12,345.0')
+    it('groups with auto decimals (非整数の |v| >= 100 → 1 桁)', () => {
+      expect(fmtNumber(12345.6)).toBe('12,345.6')
     })
 
     it('keeps the minus sign with grouping', () => {
@@ -80,7 +89,7 @@ describe('fmtNumber', () => {
   })
 
   it('does not prefix + for zero when sign=true', () => {
-    expect(fmtNumber(0, { sign: true })).toBe('0.000')
+    expect(fmtNumber(0, { sign: true })).toBe('0')
   })
 
   it('honors custom fallback', () => {
@@ -121,6 +130,12 @@ describe('fmtInteger', () => {
     expect(fmtInteger(0)).toBe('0')
   })
 
+  // issue #359: 桁区切りの規約を fmtNumber と揃える
+  it('groups thousands like fmtNumber (issue #359)', () => {
+    expect(fmtInteger(2173)).toBe('2,173')
+    expect(fmtInteger(1234567.4)).toBe('1,234,567')
+  })
+
   it('returns fallback for null / undefined / non-finite', () => {
     expect(fmtInteger(null)).toBe('—')
     expect(fmtInteger(undefined)).toBe('—')
@@ -136,17 +151,18 @@ describe('fmtInteger', () => {
 describe('fmtDiff', () => {
   it('prefixes + for positive', () => {
     expect(fmtDiff(1.234, '%')).toBe('+1.234%')
-    expect(fmtDiff(15)).toBe('+15.00')
-    expect(fmtDiff(150)).toBe('+150.0')
+    // issue #359: 整数の diff（取引数差分など）は小数を付けない
+    expect(fmtDiff(15)).toBe('+15')
+    expect(fmtDiff(150.5)).toBe('+150.5')
   })
 
   it('keeps minus for negative', () => {
     expect(fmtDiff(-1.234, '%')).toBe('-1.234%')
-    expect(fmtDiff(-15)).toBe('-15.00')
+    expect(fmtDiff(-15)).toBe('-15')
   })
 
   it('does not prefix + for zero', () => {
-    expect(fmtDiff(0)).toBe('0.000')
+    expect(fmtDiff(0)).toBe('0')
   })
 
   it('returns dash for null / undefined', () => {

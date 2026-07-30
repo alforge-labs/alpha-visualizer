@@ -68,8 +68,8 @@ describe('MetricsGrid 上級指標セクション (issue #368)', () => {
     // 既定で折りたたまれている（初級者のノイズにしない）
     expect(details).not.toHaveAttribute('open')
     expect(within(details).getByText(/上級指標/)).toBeInTheDocument()
-    // Kelly は資金比率（0.18）を % で表示する
-    expect(within(details).getByText('18.00%')).toBeInTheDocument()
+    // Kelly は資金比率（0.18）を % で表示する（issue #359: 整数は小数なし）
+    expect(within(details).getByText('18%')).toBeInTheDocument()
     // 勝率 90% CI はレンジ表示
     expect(within(details).getByText('45.2–61.3%')).toBeInTheDocument()
     expect(within(details).getByText(/期待値/)).toBeInTheDocument()

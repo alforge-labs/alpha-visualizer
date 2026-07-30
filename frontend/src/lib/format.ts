@@ -7,7 +7,8 @@
 
 export interface NumberFormatOptions {
   /**
-   * 小数桁数。指定しない場合は auto（|v| >= 100 → 1、|v| >= 10 → 2、else → 3）。
+   * 小数桁数。指定しない場合は auto
+   * （整数 → 0、|v| >= 100 → 1、|v| >= 10 → 2、else → 3）。
    */
   decimals?: number
   /** 末尾に付ける文字（'%', 'x' など）。既定: '' */
@@ -34,7 +35,10 @@ export function fmtNumber(
   if (value == null || !Number.isFinite(value)) return fallback
 
   const abs = Math.abs(value)
-  const dec = decimals ?? (abs >= 100 ? 1 : abs >= 10 ? 2 : 3)
+  // issue #359: 整数（取引数・連勝数・DD 期間日数等）は「119.0」のような
+  // 小数付き表示にしない。decimals 明示指定時はその桁数を尊重する。
+  const dec =
+    decimals ?? (Number.isInteger(value) ? 0 : abs >= 100 ? 1 : abs >= 10 ? 2 : 3)
   // issue #266: 桁区切りを SSoT 化。ja / en はともに ',' 区切り・'.' 小数点なので、
   // CI ロケール差で出力がブレないよう 'en-US' に固定する（両言語で表記は同一）。
   const formatted = new Intl.NumberFormat('en-US', {
@@ -64,7 +68,8 @@ export function fmtInteger(
   fallback = '—',
 ): string {
   if (value == null || !Number.isFinite(value)) return fallback
-  return String(Math.round(value))
+  // issue #359: 桁区切りの規約を fmtNumber と揃える（2,173 等）
+  return fmtNumber(Math.round(value), { decimals: 0, fallback })
 }
 
 /** diff 表示用。正の数で '+' を強制前置する fmtNumber ショートカット。 */
