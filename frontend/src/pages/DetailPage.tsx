@@ -23,6 +23,15 @@ import { makeL } from '../i18n/strings'
 
 type DetailTab = 'backtest' | 'isoos' | 'wfo' | 'optimize' | 'history' | 'strategy'
 
+const DETAIL_TABS: ReadonlySet<string> = new Set([
+  'backtest', 'isoos', 'wfo', 'optimize', 'history', 'strategy',
+])
+
+/** URL の ?tab= を検証して初期タブに使う (issue #365)。不正値は既定へ */
+function initialTab(raw: string | null): DetailTab {
+  return raw !== null && DETAIL_TABS.has(raw) ? (raw as DetailTab) : 'backtest'
+}
+
 export function DetailPage() {
   const { strategyId } = useParams<{ strategyId: string }>()
   const { settings, update } = useViewerSettings()
@@ -30,7 +39,8 @@ export function DetailPage() {
   const L = makeL(lang)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [tab, setTab] = useState<DetailTab>('backtest')
+  // Browse の新規作成導線（?tab=strategy）などから初期タブを指定できる (issue #365)
+  const [tab, setTab] = useState<DetailTab>(() => initialTab(searchParams.get('tab')))
   const [manualRunId, setManualRunId] = useState<string | null>(null)
   // issue #265: 再実行後の更新を全画面リロードでなく再フェッチで行うためのトークン。
   const [reloadToken, setReloadToken] = useState(0)
