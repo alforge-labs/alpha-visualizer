@@ -3,6 +3,7 @@ import type { BacktestMetrics } from '../api/types'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { fmtNumber } from '../lib/format'
+import { isNoTradeSentinel } from '../lib/sentinel'
 import { METRIC_DEFINITIONS } from '../constants/metricDefinitions'
 import { MetricInfoTip } from './metrics/MetricInfoTip'
 
@@ -80,10 +81,15 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
       {ITEMS.map(({ key, suffix, decimals, tone }) => {
         const def = METRIC_DEFINITIONS[key]
         const val = metrics[key] as number | undefined
+        // issue #351: 取引 0 件の run のセンチネル値（Sharpe -100 等）は
+        // 実測値として表示せず「—」+ 注釈にする（赤字の -100.00 は誤読を招く）
+        const sentinel = isNoTradeSentinel(val)
         // issue #266: 数値整形を SSoT（fmtNumber）経由へ統一し桁区切りを効かせる
-        const display = fmtNumber(val, { decimals, suffix })
+        const display = sentinel ? '—' : fmtNumber(val, { decimals, suffix })
         const valueColor =
-          typeof val === 'number' && tone ? TONE_COLOR[tone(val)] : 'var(--text)'
+          !sentinel && typeof val === 'number' && tone
+            ? TONE_COLOR[tone(val)]
+            : 'var(--text)'
 
         // 境界線（左 or 上）は metrics-summary-bar クラス側の :nth-child セレクタが制御。
         const cellStyle: CSSProperties = {
@@ -126,6 +132,17 @@ export function MetricsSummaryBarV2({ metrics, lang }: Props) {
             >
               {display}
             </span>
+            {sentinel && (
+              <span
+                style={{
+                  fontFamily: 'var(--sans)',
+                  fontSize: 'var(--fs-caption)',
+                  color: 'var(--text3)',
+                }}
+              >
+                {L('取引なしのため算出不可', 'N/A — no trades')}
+              </span>
+            )}
           </div>
         )
       })}

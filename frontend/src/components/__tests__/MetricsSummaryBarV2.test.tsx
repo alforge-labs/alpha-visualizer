@@ -30,3 +30,28 @@ describe('MetricsSummaryBarV2 number formatting via SSoT (issue #266)', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 })
+
+/**
+ * issue #351: 取引 0 件の run では forge が Sharpe / Sortino にセンチネル値
+ * -100 を書き込む。これを「-100.00」と赤字で表示すると初級者は壊滅的に
+ * 悪い戦略と誤読するため、「—」+ 算出不可の注釈に置き換える。
+ */
+describe('MetricsSummaryBarV2 no-trade sentinel (issue #351)', () => {
+  const noTradeMetrics = {
+    ...baseMetrics,
+    sharpe_ratio: -100.0,
+    total_trades: 0,
+  } as unknown as BacktestMetrics
+
+  it('renders — with an annotation instead of -100.00', () => {
+    render(<MetricsSummaryBarV2 metrics={noTradeMetrics} lang="ja" />)
+    expect(screen.queryByText('-100.00')).not.toBeInTheDocument()
+    expect(screen.getByText(/取引なしのため算出不可/)).toBeInTheDocument()
+  })
+
+  it('does not paint the sentinel as a danger value', () => {
+    render(<MetricsSummaryBarV2 metrics={noTradeMetrics} lang="ja" />)
+    const dashes = screen.getAllByText('—')
+    expect(dashes.some((el) => (el as HTMLElement).style.color === 'var(--danger)')).toBe(false)
+  })
+})
