@@ -41,10 +41,12 @@ from alpha_visualizer.repositories.strategies import (
     StrategyRow,
 )
 from alpha_visualizer.schemas.strategies import (
+    SparklineResponse,
     StrategyComparison,
     StrategyDetail,
     StrategySummary,
 )
+from alpha_visualizer.services.backtest import downsample_values, shape_equity
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
     build_forge_env,
@@ -284,6 +286,42 @@ async def compare_strategies(
             f"指定した戦略のバックテスト結果が見つかりません: {parsed}",
         )
     return out
+
+
+@router.get("/strategies/{strategy_id}/sparkline", response_model=SparklineResponse)
+async def get_strategy_sparkline(
+    strategy_id: str,
+    config: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
+) -> SparklineResponse:
+    """Browse 行ホバー用の軽量 sparkline (issue #387)。
+
+    最新 run の equity をダウンサンプルした値だけを返す。従来はフロントが
+    「run 一覧 → 約 2MB のフル詳細」を 2 連 fetch していた。
+    """
+    if not config.forge_db.exists():
+        raise NotFoundError("backtest_results.db が見つかりません")
+    found = bt_repo.find_latest_equity(strategy_id)
+    if found is None:
+        raise NotFoundError(
+            f"strategy_id '{strategy_id}' の実行結果が見つかりません"
+        )
+    run_id, equity_json = found
+    raw: list[Any] | None = None
+    if equity_json:
+        try:
+            parsed = json.loads(equity_json)
+            if isinstance(parsed, list):
+                raw = parsed
+        except json.JSONDecodeError as exc:
+            logger.debug("equity_curve_json のパースに失敗: %s", exc)
+    _, values = shape_equity(raw)
+    if len(values) < 2:
+        # equity 未保存の run は sparkline を描けない（データなし扱い）
+        raise NotFoundError(
+            f"strategy_id '{strategy_id}' の最新 run に equity がありません"
+        )
+    return SparklineResponse(run_id=run_id, values=downsample_values(values))
 
 
 @router.get("/strategies/{strategy_id}", response_model=StrategyDetail)

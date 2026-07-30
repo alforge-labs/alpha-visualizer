@@ -19,6 +19,17 @@ class ComparisonEquityCurve(BaseModel):
     values: list[float] = []
 
 
+class SparklineResponse(BaseModel):
+    """Browse 行ホバー用の軽量 sparkline (issue #387)。
+
+    最新 run の equity をダウンサンプルした値だけを返し、
+    2MB 級のフル詳細を引かずに済ませる。
+    """
+
+    run_id: str
+    values: list[float]
+
+
 class StrategySummary(BaseModel):
     """``GET /api/strategies`` リストの 1 件。"""
 

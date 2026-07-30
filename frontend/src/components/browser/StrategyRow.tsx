@@ -59,7 +59,7 @@ export interface StrategyRowProps {
   onSelect: (id: string) => void
   onToggleCompare: (id: string) => void
   onHover: (id: string | null) => void
-  sparkValues: number[] | 'loading' | 'empty' | undefined
+  sparkValues: number[] | 'loading' | 'empty' | 'error' | undefined
   lang: Lang
   /** レシピ展開時の子行として描画する（名前セルを字下げする） */
   indent?: boolean
@@ -115,6 +115,18 @@ export function StrategyRow({
       >
         ···
       </div>
+    ) : sparkValues === 'error' ? (
+      // issue #387: 障害を「データなし」に見せない
+      <span
+        title={L('推移の取得に失敗しました', 'Failed to load the trend')}
+        style={{
+          fontFamily: 'var(--mono)',
+          fontSize: 'var(--fs-mono-sm)',
+          color: 'var(--warn)',
+        }}
+      >
+        {L('取得失敗', 'error')}
+      </span>
     ) : null
 
   return (
