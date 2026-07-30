@@ -131,3 +131,39 @@ describe('DetailPage keyboard-scrollable region (issue #396)', () => {
     expect(region).toHaveAttribute('tabindex', '0')
   })
 })
+
+/**
+ * issue #365: 新規戦略作成ウィザードが Detail の戦略構成タブ内にのみあり、
+ * Browse から到達できなかった。Browse の導線が `?tab=strategy` 付きで
+ * 遷移してくるため、URL クエリで初期タブを指定できるようにする。
+ */
+describe('DetailPage の ?tab= 初期タブ (issue #365)', () => {
+  it('?tab=strategy で戦略構成タブが初期表示される', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    vi.mocked(api.getStrategyDetail).mockRejectedValue(
+      new ApiError('not found', 404, '/api/strategies/x'),
+    )
+    render(
+      <MemoryRouter initialEntries={['/detail/spy_test_v1?tab=strategy']}>
+        <Routes>
+          <Route path="/detail/:strategyId" element={<DetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    // strategy タブ固有の表示（定義 404 の empty note）が初期表示される
+    expect(await screen.findByText(/戦略定義が見つかりません/)).toBeInTheDocument()
+  })
+
+  it('不正な ?tab= は既定タブへフォールバックする', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    render(
+      <MemoryRouter initialEntries={['/detail/spy_test_v1?tab=bogus']}>
+        <Routes>
+          <Route path="/detail/:strategyId" element={<DetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.getStrategyRuns).toHaveBeenCalled())
+    expect(screen.queryByText(/戦略定義が見つかりません/)).not.toBeInTheDocument()
+  })
+})

@@ -6,6 +6,7 @@ import type { Theme } from '../hooks/useTheme'
 import type { StrategyListItem } from '../api/types'
 import { FilterBar } from '../components/browser/FilterBar'
 import { StrategyTable } from '../components/browser/StrategyTable'
+import { CreateStrategyEntry } from '../components/browser/CreateStrategyEntry'
 import { StrategySlidePanel } from '../components/browser/StrategySlidePanel'
 import { CompareFloatingBar } from '../components/browser/CompareFloatingBar'
 import { GroupByToggle } from '../components/browser/GroupByToggle'
@@ -105,7 +106,11 @@ export function BrowseScreen({
           {L('登録済みの戦略を一覧する', 'Browse the strategy library')}
         </h1>
         {!list.loading && <Heroline items={list.all} lang={lang} />}
-        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* issue #365: 作成ウィザード（Detail 戦略構成タブ）への発見可能な導線 */}
+          <div style={{ marginTop: 'var(--space-3)' }}>
+            <CreateStrategyEntry strategies={list.all} lang={lang} />
+          </div>
           {(['/ideas', '/live'] as const).map((to) => (
             <Link
               key={to}
