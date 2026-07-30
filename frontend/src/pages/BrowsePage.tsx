@@ -4,6 +4,9 @@ import { useStrategyList } from '../hooks/useStrategyList'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { ErrorBanner } from '../design/primitives'
+import { makeL } from '../i18n/strings'
+import { normalizeErrorMessage } from '../lib/errorMessage'
 
 export function BrowsePage(): React.ReactElement {
   const { settings, update } = useViewerSettings()
@@ -27,19 +30,17 @@ export function BrowsePage(): React.ReactElement {
   }, [list])
 
   if (list.error) {
+    // issue #390: 生のエラー文字列を直表示せず、他画面（Detail / Compare /
+    // Maintenance）と同じ「正規化 + ErrorBanner + 再試行」ポリシーに揃える。
+    const L = makeL(lang)
     return (
-      <div
-        style={{
-          padding: 'var(--space-7)',
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--fs-mono-md)',
-          color: 'var(--danger)',
-          letterSpacing: 'var(--tracking-mono)',
-          background: 'var(--bg)',
-          minHeight: '100vh',
-        }}
-      >
-        {list.error}
+      <div style={{ padding: 'var(--space-7)', background: 'var(--bg)', minHeight: '100vh' }}>
+        <ErrorBanner
+          message={normalizeErrorMessage(list.error, lang)}
+          title={list.error}
+          retryLabel={L('再試行', 'Retry')}
+          onRetry={list.reload}
+        />
       </div>
     )
   }

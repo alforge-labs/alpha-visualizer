@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -133,6 +134,33 @@ def create_app(
         if exc.code is not None:
             content["code"] = exc.code
         return JSONResponse(status_code=exc.status_code, content=content)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """FastAPI バリデーション（422）の detail を文字列へ正規化する。
+
+        既定ではオブジェクト配列で、フロントの api/client はボディを text
+        連結するだけのため生 JSON 配列がユーザーに露出する (issue #390)。
+        ドメイン例外と同じ ``{"detail": str}`` の envelope に統一する。
+        """
+        errors = exc.errors()
+        if errors:
+            first = errors[0]
+            loc = ".".join(
+                str(part) for part in first.get("loc", ()) if part != "body"
+            )
+            msg = str(first.get("msg", "validation error"))
+            detail = f"{loc}: {msg}" if loc else msg
+            if len(errors) > 1:
+                detail += f" (+{len(errors) - 1})"
+        else:
+            detail = "validation error"
+        logger.warning(
+            "バリデーションエラー: %s (path=%s)", detail, request.url.path
+        )
+        return JSONResponse(status_code=422, content={"detail": detail})
 
     app.include_router(results_router.router, prefix="/api")
     app.include_router(strategies_router.router, prefix="/api")

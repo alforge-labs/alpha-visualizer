@@ -441,3 +441,20 @@ def test_strategies_engine_lazy_init_after_db_created_at_runtime(
     res = client.get("/api/strategies")
     assert res.status_code == 200
     assert [s["strategy_id"] for s in res.json()] == ["lazy_strat"]
+
+
+def test_validation_error_detail_is_a_string(tmp_path: pathlib.Path) -> None:
+    """422（FastAPI バリデーション）の detail が文字列に正規化されること (issue #390)。
+
+    既定ではオブジェクト配列で、フロントは text 連結するだけのため
+    生 JSON 配列がそのままユーザーに見えてしまう。ドメイン例外と同じ
+    ``{"detail": str}`` の envelope に統一する。
+    """
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    response = client.get("/api/results?limit=0")
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert isinstance(detail, str)
+    # フィールド位置と理由が読める形で含まれる
+    assert "limit" in detail
