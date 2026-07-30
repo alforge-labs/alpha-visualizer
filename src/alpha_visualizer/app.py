@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.requests import Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from alpha_visualizer.db import get_engine
 from alpha_visualizer.errors import AlphaVisualizerError
@@ -175,11 +175,19 @@ def create_app(
         # fastapi 0.139.2 以降このルートが OpenAPI スキーマに載るようになったため、
         # 生成される公開 API 型に偽のエンドポイントが混入しないよう明示的に除外する。
         @app.get("/{full_path:path}", include_in_schema=False)
-        async def spa_fallback(full_path: str) -> FileResponse:
+        async def spa_fallback(full_path: str) -> Response:
             """SPA ルート対応: 起動時にスキャンした許可リストにあるファイルだけを
             配信し、それ以外（未知のルート・トラバーサル試行・ディレクトリ）は
             すべて index.html へフォールバックする。
             """
+            # 未定義の /api/* を index.html にフォールバックさせると、API
+            # クライアントには「200 なのに JSON でない」という紛らわしい失敗に
+            # なるため 404 JSON を返す (issue #357)。定義済み API ルートは
+            # このキャッチオールより先にマッチするのでここには来ない。
+            if full_path.startswith("api/"):
+                return JSONResponse(
+                    status_code=404, content={"detail": "Not Found"}
+                )
             target = allowed_files.get(full_path)
             if target is not None:
                 if full_path.startswith("assets/"):

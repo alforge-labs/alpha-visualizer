@@ -102,6 +102,33 @@ def test_spa_fallback_serves_index_with_static_dir(
     assert r3.status_code == 200  # 200 OK の JSON 応答
 
 
+def test_spa_fallback_returns_404_json_for_unknown_api_paths(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未定義の /api/* パスは index.html でなく 404 JSON を返すこと (issue #357)。
+
+    API クライアントから見ると 200 + HTML は「成功したのに JSON でない」という
+    紛らわしい失敗になり、タイポしたエンドポイントの検出が遅れるため。
+    """
+    import alpha_visualizer.app as app_module
+
+    fake_static = tmp_path / "static"
+    fake_static.mkdir()
+    (fake_static / "index.html").write_text(
+        "<html>FAKE_SPA_INDEX</html>", encoding="utf-8"
+    )
+
+    monkeypatch.setattr(app_module, "__file__", str(tmp_path / "app.py"))
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/api/does-not-exist")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not Found"}
+    assert "FAKE_SPA_INDEX" not in response.text
+
+
 def test_spa_fallback_rejects_directory_traversal(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
