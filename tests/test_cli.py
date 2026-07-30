@@ -50,3 +50,100 @@ def test_pyproject_の_console_script_は_alpha_vis() -> None:
         "use `alpha-vis` (see issue: vis command name conflict)"
     )
     assert scripts["alpha-vis"] == "alpha_visualizer.cli:cli"
+
+
+# --- issue #392: ロガー設定・ポート衝突・ブラウザ起動順序 ---------------------
+
+
+def test_serve_help_has_log_level_option() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["serve", "--help"])
+    assert result.exit_code == 0
+    assert "--log-level" in result.output
+
+
+def test_setup_logging_enables_info_diagnostics() -> None:
+    """アプリロガー未設定だと INFO 診断が lastResort に落ちて消える (issue #392)。
+
+    _setup_logging 後は alpha_visualizer.* の INFO が有効になること。
+    """
+    import logging
+
+    from alpha_visualizer.cli import _setup_logging
+
+    root = logging.getLogger()
+    before_handlers = root.handlers[:]
+    before_level = root.level
+    try:
+        _setup_logging("info")
+        assert logging.getLogger("alpha_visualizer.app").isEnabledFor(logging.INFO)
+        _setup_logging("debug")
+        assert logging.getLogger("alpha_visualizer.app").isEnabledFor(logging.DEBUG)
+    finally:
+        root.handlers = before_handlers
+        root.setLevel(before_level)
+
+
+def test_serve_port_in_use_shows_friendly_error(tmp_path) -> None:
+    """使用中ポートでは生の uvicorn エラーで死なず、--port 案内付きで失敗する。"""
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        port = sock.getsockname()[1]
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "serve",
+                "--forge-dir",
+                str(tmp_path),
+                "--port",
+                str(port),
+                "--no-open",
+            ],
+        )
+
+    assert result.exit_code != 0
+    assert "使用中" in result.output
+    assert "--port" in result.output
+
+
+def test_open_browser_waits_for_server_startup() -> None:
+    """ブラウザは bind 成功（server.started）後に開く (issue #392)。
+
+    従来は uvicorn.run より先に webbrowser.open していたため、ポート衝突時に
+    別プロセスの画面が開いた状態で CLI が死んでいた。
+    """
+    from alpha_visualizer.cli import _open_browser_when_started
+
+    class FakeServer:
+        def __init__(self) -> None:
+            self.started = False
+            self.should_exit = False
+
+    opened: list[str] = []
+    server = FakeServer()
+
+    # 起動前は開かない → started で開く
+    import threading
+
+    t = threading.Thread(
+        target=_open_browser_when_started,
+        args=(server, "http://x", opened.append),
+        kwargs={"poll_interval": 0.01},
+    )
+    t.start()
+    assert opened == []
+    server.started = True
+    t.join(timeout=2)
+    assert opened == ["http://x"]
+
+    # 起動に失敗して終了フラグが立った場合は開かない
+    opened.clear()
+    failed = FakeServer()
+    failed.should_exit = True
+    _open_browser_when_started(failed, "http://x", opened.append, poll_interval=0.01)
+    assert opened == []
