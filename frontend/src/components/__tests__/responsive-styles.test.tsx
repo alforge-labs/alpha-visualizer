@@ -137,6 +137,53 @@ describe('Responsive styles (issue #54)', () => {
     expect(hidden.length).toBeGreaterThanOrEqual(8)
   })
 
+  // issue #366: 375px では Max DD 列も隠し、主要 2 指標（Sharpe・リターン）
+  // だけの列構成にする。名前列は width:100% + maxWidth:0 で余白を吸収し、
+  // 1280px で右列（Profit F. 以降）が切れるのを防ぐ。
+  it('StrategyTable hides the Max DD column under 480px via u-col-hide-sm-down (issue #366)', () => {
+    const items: StrategyListItem[] = [
+      {
+        strategy_id: 's1',
+        name: 'S1',
+        symbol: 'AAPL',
+        timeframe: '1d',
+        latest_sharpe: 1.2,
+        latest_return_pct: 12,
+        latest_max_drawdown_pct: -8,
+        tags: [],
+        target_symbols: [],
+      },
+    ]
+    const recipes = buildRecipes(items)
+    const { container } = render(
+      <MemoryRouter>
+        <StrategyTable
+          recipes={recipes}
+          strategyTotal={1}
+          recipeTotal={recipes.length}
+          hiddenUnrunRecipeCount={0}
+          sortKey="latest_sharpe"
+          sortDir="desc"
+          onSort={() => {}}
+          selectedId={null}
+          onSelect={() => {}}
+          compareIds={[]}
+          onToggleCompare={() => {}}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    // Max DD の th + td に class が付く（ヘッダ + 1 行 → 2 個以上）
+    const hidden = container.querySelectorAll('.u-col-hide-sm-down')
+    expect(hidden.length).toBeGreaterThanOrEqual(2)
+    // 名前列は余白吸収 + truncation（width:100% / maxWidth:0）
+    const nameCell = Array.from(container.querySelectorAll('td')).find(
+      (td) => (td as HTMLElement).style.width === '100%',
+    ) as HTMLElement | undefined
+    expect(nameCell).toBeDefined()
+    expect(nameCell!.style.maxWidth).toBe('0px')
+  })
+
   it('StrategySlidePanel applies u-drawer-md-down with data-open', () => {
     const strategy: StrategyListItem = {
       strategy_id: 's1',

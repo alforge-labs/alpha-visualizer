@@ -24,6 +24,7 @@ const NUMERIC_INPUT: React.CSSProperties = {
 
 const SEARCH_INPUT: React.CSSProperties = {
   width: 240,
+  maxWidth: '100%',
   padding: '8px 12px',
   background: 'var(--surface-2)',
   border: '1px solid var(--border)',
@@ -34,6 +35,8 @@ const SEARCH_INPUT: React.CSSProperties = {
 }
 
 const CAPTION: React.CSSProperties = {
+  // issue #366: 375px で「時間軸」が 1 文字ずつ縦書き化しないようにする
+  whiteSpace: 'nowrap',
   fontFamily: 'var(--sans)',
   fontSize: 'var(--fs-caption)',
   fontWeight: 500,
@@ -126,7 +129,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
         />
 
         {timeframes.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
             <span style={CAPTION}>{L('時間軸', 'TF')}</span>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {timeframes.map(tf => (
@@ -142,7 +145,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <span style={CAPTION}>Sharpe ≥</span>
           <input
             style={NUMERIC_INPUT}
@@ -156,7 +159,7 @@ export function FilterBar({ symbols, timeframes, lang }: Props) {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <span style={CAPTION}>{L('DD ≤ %', 'DD ≤ %')}</span>
           <input
             style={NUMERIC_INPUT}
