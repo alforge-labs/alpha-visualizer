@@ -360,4 +360,38 @@ export const METRIC_DEFINITIONS: Record<string, MetricDef> = {
     descriptionEn:
       'Number of optimization trials behind this strategy. More trials mean more chances of lucky results, so the DSR correction gets stronger.',
   },
+
+  // ---- モンテカルロ（issue #363） -----------------------------------------
+  mc_median_return: {
+    label: '中央値リターン',
+    labelEn: 'Median return',
+    description:
+      '全シミュレーションを並べたとき真ん中に来る累積リターン（バックテスト全期間・年率ではない）。運の良し悪しを均した「典型的な結果」の目安。',
+    descriptionEn:
+      'The middle cumulative return across all simulations (whole backtest period, not annualized). A guide to the “typical” outcome after averaging out luck.',
+  },
+  mc_best_p95: {
+    label: '最良 95%ile',
+    labelEn: 'Best 95%ile',
+    description:
+      '上位 5% に入る幸運なケースの累積リターン。これを期待値として見ないこと（並び順の運が良かった場合の上振れ）。',
+    descriptionEn:
+      'Cumulative return of the lucky top 5% of simulations. Do not treat this as the expected outcome — it is the upside from a fortunate trade ordering.',
+  },
+  mc_worst_p5: {
+    label: '最悪 5%ile',
+    labelEn: 'Worst 5%ile',
+    description:
+      '下位 5% に入る不運なケースの累積リターン。実運用で覚悟すべき下振れの目安になる。',
+    descriptionEn:
+      'Cumulative return of the unlucky bottom 5% of simulations. A guide to the downside you should be prepared for in live trading.',
+  },
+  mc_loss_prob: {
+    label: '損失確率',
+    labelEn: 'Loss prob.',
+    description:
+      '全シミュレーションのうち最終的にマイナスで終わった割合。高いほど「取引の並び順しだいで損失に終わる」不安定さを示す。30% 超は要注意。',
+    descriptionEn:
+      'Share of simulations that ended negative. Higher values mean the result depends heavily on trade ordering. Above 30% needs caution.',
+  },
 }

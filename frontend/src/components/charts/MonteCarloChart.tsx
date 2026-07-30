@@ -12,6 +12,7 @@ import { makeL } from '../../i18n/strings'
 import type { Trade } from '../../api/types'
 import { useChartTheme } from '../../design/useChartTheme'
 import { runMonteCarlo } from '../../lib/monteCarlo'
+import { MetricInfoTip } from '../metrics/MetricInfoTip'
 
 interface MonteCarloChartProps {
   trades: Trade[]
@@ -85,27 +86,73 @@ function MonteCarloInner({
   const successFaint = `color-mix(in srgb, ${success} 18%, transparent)`
   const successSoft = `color-mix(in srgb, ${success} 8%, transparent)`
 
-  const statRows: ReadonlyArray<readonly [string, string, string]> = [
+  // issue #363: 数千%級の累積リターンが「年率」と誤読されないよう、
+  // バックテスト全期間の長さを日付から概算して前提を明示する
+  const periodYears = useMemo(() => {
+    const dates = trades
+      .flatMap(t => [t.entry_date, t.exit_date])
+      .filter((d): d is string => Boolean(d))
+      .sort()
+    if (dates.length < 2) return null
+    const first = new Date(dates[0]!).getTime()
+    const last = new Date(dates[dates.length - 1]!).getTime()
+    if (Number.isNaN(first) || Number.isNaN(last) || last <= first) return null
+    return (last - first) / 86_400_000 / 365.25
+  }, [trades])
+
+  const statRows: ReadonlyArray<readonly [string, string, string, string]> = [
     [
       L('中央値リターン', 'Median return'),
       `${((stats.p50 / 100 - 1) * 100).toFixed(1)}%`,
       stats.p50 >= 100 ? theme.success : theme.danger,
+      'mc_median_return',
     ],
-    [L('最良 95%ile', 'Best 95%ile'), `${((stats.p95 / 100 - 1) * 100).toFixed(1)}%`, theme.success],
+    [
+      L('最良 95%ile', 'Best 95%ile'),
+      `${((stats.p95 / 100 - 1) * 100).toFixed(1)}%`,
+      theme.success,
+      'mc_best_p95',
+    ],
     [
       L('最悪 5%ile', 'Worst 5%ile'),
       `${((stats.p5 / 100 - 1) * 100).toFixed(1)}%`,
       stats.p5 < 100 ? theme.danger : theme.warn,
+      'mc_worst_p5',
     ],
     [
       L('損失確率', 'Loss prob.'),
       `${stats.lossProb.toFixed(1)}%`,
       stats.lossProb > 30 ? theme.danger : theme.warn,
+      'mc_loss_prob',
     ],
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* issue #363: 何の試算か・リターンが全期間累積であることを冒頭で明示 */}
+      <p
+        style={{
+          margin: 0,
+          paddingLeft: MARGIN.left,
+          fontFamily: 'var(--sans)',
+          fontSize: 13,
+          color: 'var(--text2)',
+          lineHeight: 1.6,
+        }}
+      >
+        {L(
+          '取引の並び順の運不運で結果がどれだけブレるかの試算です（将来リターンの予測ではありません）。',
+          'An estimate of how much the outcome varies with the luck of trade ordering (not a forecast of future returns).',
+        )}
+        {L(
+          `表示リターンはバックテスト全期間${
+            periodYears != null ? `（約 ${periodYears.toFixed(1)} 年）` : ''
+          }の累積で、年率ではありません。`,
+          `Returns shown are cumulative over the whole backtest period${
+            periodYears != null ? ` (~${periodYears.toFixed(1)} years)` : ''
+          }, not annualized.`,
+        )}
+      </p>
       <div
         style={{
           display: 'flex',
@@ -114,10 +161,13 @@ function MonteCarloInner({
           paddingLeft: MARGIN.left,
         }}
       >
-        {statRows.map(([lbl, val, col], i) => (
+        {statRows.map(([lbl, val, col, defKey], i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
                 fontFamily: 'var(--sans)',
                 fontSize: 'var(--fs-caption)',
                 fontWeight: 500,
@@ -127,6 +177,7 @@ function MonteCarloInner({
               }}
             >
               {lbl}
+              <MetricInfoTip defKey={defKey} lang={lang} />
             </span>
             <span
               style={{
