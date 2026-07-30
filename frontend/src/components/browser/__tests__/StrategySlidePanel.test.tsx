@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BacktestDetail, StrategyListItem, StrategyRun } from '../../../api/types'
@@ -80,5 +80,27 @@ describe('StrategySlidePanel', () => {
     // 実行履歴（useStrategyRuns）で 1 回、sparkline の prefetch で 1 回の計 2 回が上限
     expect(api.getStrategyRuns).toHaveBeenCalledTimes(2)
     expect(api.getBacktest).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+/**
+ * issue #356: 再実行の確認ダイアログが「最新結果が上書きされます」(danger) と
+ * 警告していたが、実際は POST /api/run は新しい run を追加するだけで過去の
+ * 結果は実行履歴から閲覧し続けられる。事実と異なる警告はデータ消失の誤解や
+ * 再実行のためらいを生むため、実挙動の説明に置き換える。
+ */
+describe('StrategySlidePanel 再実行ダイアログ (issue #356)', () => {
+  it('「追加される」事実を説明し、事実と異なる上書き警告を出さない', async () => {
+    const withHistory = { ...ITEM, last_run_at: '2026-07-01T00:00:00' }
+    render(
+      <MemoryRouter>
+        <StrategySlidePanel strategy={withHistory} onClose={() => {}} lang="ja" />
+      </MemoryRouter>,
+    )
+    const btn = await screen.findByRole('button', { name: /バックテスト再実行/ })
+    fireEvent.click(btn)
+    expect(screen.queryByText(/上書きされます/)).not.toBeInTheDocument()
+    expect(screen.getByText(/過去の結果は実行履歴に残ります/)).toBeInTheDocument()
   })
 })
