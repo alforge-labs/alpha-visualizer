@@ -136,6 +136,45 @@ class StrategiesRepository:
         """
         if self._db_engine is not None:
             return self._load_from_db()
+        self._raise_if_db_configured_but_missing()
+        return self._load_from_json_dir()
+
+    def get_strategy(self, strategy_id: str) -> StrategyRow | None:
+        """``strategy_id`` に一致する 1 件を返す。存在しなければ ``None``。
+
+        全件ロードの線形走査を避ける fast path 付き (issue #386):
+
+        - DB モード → ``WHERE strategy_id = ?`` の 1 件 SELECT
+        - JSON モード → まず ``<strategy_id>.json`` だけを読む。ファイル名 stem と
+          strategy_id が一致しない既存データのために全走査へフォールバックする
+        """
+        if self._db_engine is not None:
+            rows = self._load_from_db(ids=[strategy_id])
+            return rows[0] if rows else None
+        self._raise_if_db_configured_but_missing()
+
+        candidate = self._load_json_file(self._strategies_dir / f"{strategy_id}.json")
+        if candidate is not None and candidate.strategy_id == strategy_id:
+            return candidate
+        for row in self._load_from_json_dir():
+            if row.strategy_id == strategy_id:
+                return row
+        return None
+
+    def find_by_ids(self, ids: list[str]) -> list[StrategyRow]:
+        """指定 ID 群に該当する行のみを返す（重複は無視、順序は内部リスト順）。
+
+        DB モードは ``WHERE strategy_id IN (...)`` で対象行のみ取得する
+        (issue #386)。JSON モードはファイル名と strategy_id の不一致がありうる
+        ため全走査を維持する（compare 上限 20 件・単一ディレクトリで十分軽い）。
+        """
+        if self._db_engine is not None:
+            return self._load_from_db(ids=ids)
+        wanted = set(ids)
+        return [r for r in self.list_strategies() if r.strategy_id in wanted]
+
+    def _raise_if_db_configured_but_missing(self) -> None:
+        """DB モード設定なのに strategies.db が無い場合の Fail Loud 共通ガード。"""
         if self._strategies_db is not None:
             raise DataSourceUnavailableError(
                 "strategies.use_db=true ですが strategies.db が見つかりません: "
@@ -143,23 +182,11 @@ class StrategiesRepository:
                 "forge で戦略を保存して DB を生成するか、forge.yaml の "
                 "strategies.path / db_filename を確認してください。"
             )
-        return self._load_from_json_dir()
-
-    def get_strategy(self, strategy_id: str) -> StrategyRow | None:
-        """``strategy_id`` に一致する 1 件を返す。存在しなければ ``None``。"""
-        for row in self.list_strategies():
-            if row.strategy_id == strategy_id:
-                return row
-        return None
-
-    def find_by_ids(self, ids: list[str]) -> list[StrategyRow]:
-        """指定 ID 群に該当する行のみを返す（重複は無視、順序は内部リスト順）。"""
-        wanted = set(ids)
-        return [r for r in self.list_strategies() if r.strategy_id in wanted]
 
     # --- 内部実装 -------------------------------------------------------------
 
-    def _load_from_db(self) -> list[StrategyRow]:
+    def _load_from_db(self, ids: list[str] | None = None) -> list[StrategyRow]:
+        """strategies テーブルから読む。``ids`` 指定時は該当行のみ (issue #386)。"""
         if self._db_engine is None:
             raise RuntimeError("_load_from_db を呼ぶには DB Engine が必要です")
         stmt = select(
@@ -171,6 +198,8 @@ class StrategiesRepository:
             strategies_table.c.tags,
             strategies_table.c.definition_json,
         )
+        if ids is not None:
+            stmt = stmt.where(strategies_table.c.strategy_id.in_(ids))
         with self._db_engine.connect() as conn:
             rows = conn.execute(stmt).all()
 
@@ -199,38 +228,45 @@ class StrategiesRepository:
             return []
         out: list[StrategyRow] = []
         for path in sorted(self._strategies_dir.glob("*.json")):
-            try:
-                raw = path.read_text(encoding="utf-8")
-                data = json.loads(raw)
-            except (OSError, json.JSONDecodeError) as exc:
-                logger.warning("戦略ファイル読み込み失敗: %s (%s)", path, exc)
-                continue
-            if not isinstance(data, dict):
-                continue
-            sid = data.get("strategy_id")
-            if not isinstance(sid, str):
-                # ファイル名 stem をフォールバックに使う既存挙動を踏襲
-                sid = path.stem
-            tags_raw = data.get("tags")
-            target_symbols_raw = data.get("target_symbols") or []
-            target_symbols = (
-                [str(s) for s in target_symbols_raw if s]
-                if isinstance(target_symbols_raw, list)
-                else []
-            )
-            out.append(
-                StrategyRow(
-                    strategy_id=sid,
-                    name=str(data.get("name") or sid),
-                    version=_optional_str(data.get("version")),
-                    asset_type=_optional_str(data.get("asset_type")),
-                    timeframe=_optional_str(data.get("timeframe")),
-                    tags=tuple(_parse_tags(tags_raw)),
-                    target_symbols=tuple(target_symbols),
-                    raw_definition=raw,
-                )
-            )
+            row = self._load_json_file(path)
+            if row is not None:
+                out.append(row)
         return out
+
+    def _load_json_file(self, path: Path) -> StrategyRow | None:
+        """単一 JSON ファイルを StrategyRow に変換する（不正・不在は ``None``）。"""
+        try:
+            raw = path.read_text(encoding="utf-8")
+            data = json.loads(raw)
+        except FileNotFoundError:
+            # fast path (issue #386) で <id>.json が無いだけの正常系。警告不要
+            return None
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("戦略ファイル読み込み失敗: %s (%s)", path, exc)
+            return None
+        if not isinstance(data, dict):
+            return None
+        sid = data.get("strategy_id")
+        if not isinstance(sid, str):
+            # ファイル名 stem をフォールバックに使う既存挙動を踏襲
+            sid = path.stem
+        tags_raw = data.get("tags")
+        target_symbols_raw = data.get("target_symbols") or []
+        target_symbols = (
+            [str(s) for s in target_symbols_raw if s]
+            if isinstance(target_symbols_raw, list)
+            else []
+        )
+        return StrategyRow(
+            strategy_id=sid,
+            name=str(data.get("name") or sid),
+            version=_optional_str(data.get("version")),
+            asset_type=_optional_str(data.get("asset_type")),
+            timeframe=_optional_str(data.get("timeframe")),
+            tags=tuple(_parse_tags(tags_raw)),
+            target_symbols=tuple(target_symbols),
+            raw_definition=raw,
+        )
 
 
 def _optional_str(value: object) -> str | None:
