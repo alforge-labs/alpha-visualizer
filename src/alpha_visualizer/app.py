@@ -11,6 +11,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, JSONResponse
 
+from alpha_visualizer import __version__
 from alpha_visualizer.db import get_engine
 from alpha_visualizer.errors import AlphaVisualizerError
 from alpha_visualizer.forge_config import ForgeConfig
@@ -24,6 +25,7 @@ from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
 from alpha_visualizer.routers import wfo as wfo_router
+from alpha_visualizer.schemas.health import HealthResponse
 from alpha_visualizer.services.jobs import JobManager
 
 logger = logging.getLogger(__name__)
@@ -58,10 +60,12 @@ def create_app(
         # 止めないと Ctrl+C でのサーバー終了時に孤児プロセスが残る。
         await job_manager.shutdown()
 
+    # version はパッケージ実バージョンに連動させる (issue #399)。
+    # ハードコードすると /docs・openapi.json が偽バージョンを表示し続ける。
     app = FastAPI(
         title="alpha-visualizer",
         description="AlphaForge バックテスト結果の Web 可視化ツール",
-        version="0.1.0",
+        version=__version__,
         lifespan=_lifespan,
     )
     app.state.forge_config = config
@@ -141,8 +145,10 @@ def create_app(
     forge_dir_str = str(config.forge_dir)
 
     @app.get("/health")
-    async def health() -> JSONResponse:
-        return JSONResponse({"status": "ok", "forge_dir": forge_dir_str})
+    async def health() -> HealthResponse:
+        return HealthResponse(
+            status="ok", forge_dir=forge_dir_str, version=__version__
+        )
 
     static_dir = pathlib.Path(__file__).parent / "static"
     if static_dir.exists():

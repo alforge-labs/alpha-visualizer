@@ -103,3 +103,10 @@ replace = 'version = "{new_version}"'
 filename = "src/alpha_visualizer/__init__.py"
 search = '__version__ = "{current_version}"'
 replace = '__version__ = "{new_version}"'
+
+# openapi.json の info.version はアプリ実バージョンに連動する (issue #399)。
+# バンプ時にここも書き換えないと CI の OpenAPI drift check が落ちる。
+[[tool.bumpversion.files]]
+filename = "frontend/openapi.json"
+search = '"version": "{current_version}"'
+replace = '"version": "{new_version}"'

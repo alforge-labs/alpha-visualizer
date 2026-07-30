@@ -671,6 +671,21 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HealthResponse
+         * @description 稼働確認 + バージョン確認用のレスポンス。
+         *
+         *     version はフッター表示・バグ報告時の確認に使う（UI から CLI に
+         *     戻らずバージョンを確認できるようにする）。
+         */
+        HealthResponse: {
+            /** Status */
+            status: string;
+            /** Forge Dir */
+            forge_dir: string;
+            /** Version */
+            version: string;
+        };
+        /**
          * HistoricalResponse
          * @description OHLC 時系列のレスポンスエンベロープ。
          *
@@ -2278,7 +2293,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };

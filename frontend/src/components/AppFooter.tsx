@@ -2,6 +2,12 @@ import type { CSSProperties, ReactElement } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { docsUrl, faqUrl } from '../constants/helpLinks'
+import { api } from '../api/client'
+import type { HealthResponse } from '../api/types'
+import { useFetchByKey } from '../hooks/useFetchByKey'
+
+// useFetchByKey は fetcher の安定参照を前提とするため module-level に置く
+const fetchHealth = (): Promise<HealthResponse> => api.getHealth()
 
 /**
  * 全画面共通のフッター（contentinfo ランドマーク）。
@@ -13,6 +19,9 @@ import { docsUrl, faqUrl } from '../constants/helpLinks'
  */
 export function AppFooter({ lang }: { lang: Lang }): ReactElement {
   const L = makeL(lang)
+  // 使用中のバージョンを UI から確認できるようにする（issue #399）。
+  // 取得失敗時は何も表示しない（バージョンは補助情報のためエラーを出さない）。
+  const health = useFetchByKey('health', fetchHealth)
   const helpLinkStyle: CSSProperties = {
     fontFamily: 'var(--mono)',
     fontSize: 'var(--fs-mono-sm)',
@@ -81,6 +90,18 @@ export function AppFooter({ lang }: { lang: Lang }): ReactElement {
         FAQ
         <span aria-hidden="true"> ↗</span>
       </a>
+      {health.status === 'ready' && (
+        <span
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            letterSpacing: 'var(--tracking-caption)',
+            color: 'var(--text3)',
+          }}
+        >
+          v{health.data.version}
+        </span>
+      )}
     </footer>
   )
 }

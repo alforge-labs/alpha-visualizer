@@ -19,6 +19,30 @@ def test_health_returns_ok(tmp_path: pathlib.Path) -> None:
     assert str(tmp_path) in data["forge_dir"]
 
 
+def test_health_includes_app_version(tmp_path: pathlib.Path) -> None:
+    """/health がパッケージ実バージョンを返すこと (issue #399)。
+
+    UI（フッター）とバグ報告時のバージョン確認が CLI に戻らず済むようにする。
+    """
+    from alpha_visualizer import __version__
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    data = client.get("/health").json()
+    assert data["version"] == __version__
+
+
+def test_openapi_version_matches_package_version(tmp_path: pathlib.Path) -> None:
+    """openapi.json / Swagger の version がハードコード 0.1.0 のまま凍結されず
+    パッケージ実バージョンと一致すること (issue #399)。"""
+    from alpha_visualizer import __version__
+
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    data = client.get("/openapi.json").json()
+    assert data["info"]["version"] == __version__
+
+
 def test_create_app_accepts_config(tmp_path: pathlib.Path) -> None:
     """config キーワードで ForgeConfig を直接渡せる"""
     config = ForgeConfig.from_forge_dir(tmp_path)

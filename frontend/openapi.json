@@ -3,7 +3,7 @@
   "info": {
     "title": "alpha-visualizer",
     "description": "AlphaForge バックテスト結果の Web 可視化ツール",
-    "version": "0.1.0"
+    "version": "1.2.2"
   },
   "paths": {
     "/api/results": {
@@ -998,7 +998,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
               }
             }
           }
@@ -1551,6 +1553,30 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "forge_dir": {
+            "type": "string",
+            "title": "Forge Dir"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "forge_dir",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "description": "稼働確認 + バージョン確認用のレスポンス。\n\nversion はフッター表示・バグ報告時の確認に使う（UI から CLI に\n戻らずバージョンを確認できるようにする）。"
       },
       "HistoricalResponse": {
         "properties": {

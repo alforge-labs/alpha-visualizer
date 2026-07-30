@@ -19,6 +19,8 @@ type S = components['schemas']
 // ===== 1. 生成型 alias（単純な構造体・名前一致） =====
 
 export type Period = S['Period']
+// /health レスポンス（#399 でバージョン表示に利用）
+export type HealthResponse = S['HealthResponse']
 export type IsCutoff = S['IsCutoff']
 export type WFOWindow = S['WFOWindow']
 export type LivePeriod = S['LivePeriod']
