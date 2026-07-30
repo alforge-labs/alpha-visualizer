@@ -74,7 +74,7 @@ export function LiveKpiRow({
       <Stat
         testId="kpi-current-value"
         size="lg"
-        label={L('現在評価額', 'Current Value')}
+        label={L('現在評価額（口座通貨）', 'Current Value (acct ccy)')}
         value={fmtNumber(last)}
         sub={dayChange != null ? `${L('前日比', 'Day change')} ${fmtDiff(dayChange * 100, '%')}` : undefined}
         tone={statTone(diffTone(dayChange))}

@@ -50,3 +50,18 @@ describe('TradeTable number formatting via SSoT (issue #266)', () => {
     expect(screen.getByText('+1,250')).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #362: P&L 列が裸の数値で、通貨の前提が UI のどこにも無かった。
+ * 金額列が口座通貨建てであることをテーブルの注記で示す。
+ */
+describe('TradeTable currency note (issue #362)', () => {
+  const one = [
+    { id: 1, direction: 'long', entry_date: '2025-01-01', exit_date: '2025-01-05', holding_days: 4, return_pct: 2.5, pnl: 100, mae_pct: -1, mfe_pct: 3 },
+  ] as unknown as Trade[]
+
+  it('金額列が口座通貨建てである注記を表示する', () => {
+    render(<TradeTable trades={one} lang="ja" />)
+    expect(screen.getByText(/口座通貨/)).toBeInTheDocument()
+  })
+})

@@ -107,6 +107,18 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
           CSV
         </button>
       </div>
+      {/* issue #362: P&L・価格の通貨前提を明示する */}
+      <p
+        style={{
+          margin: 0,
+          fontFamily: 'var(--sans)',
+          fontSize: 'var(--fs-caption)',
+          color: 'var(--text3)',
+          textAlign: 'right',
+        }}
+      >
+        {L('P&L・価格は口座通貨建て', 'P&L and prices are in account currency')}
+      </p>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
           <thead>

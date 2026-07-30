@@ -145,3 +145,22 @@ describe('BacktestScreen regime toggle (issue #317)', () => {
     expect(screen.queryByRole('button', { name: 'レジーム' })).toBeNull()
   })
 })
+
+/**
+ * issue #362: P&L・エクイティに通貨単位・初期資金の前提が無く、初級者が
+ * 損益の規模感を掴めなかった。initial_capital は forge の journal のみに
+ * 記録され visualizer の DB には無いため、データから取れる事実
+ * （開始時評価額 = equity 先頭値）+「口座通貨建て」の注記で前提を示す。
+ */
+describe('BacktestScreen capital context note (issue #362)', () => {
+  it('エクイティ節に開始時評価額と口座通貨建ての注記を表示する', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen data={MOCK_BACKTEST} compact={false} lang="ja" />
+      </MemoryRouter>,
+    )
+    const note = screen.getByTestId('capital-context-note')
+    expect(note.textContent).toContain('開始時評価額')
+    expect(note.textContent).toContain('口座通貨')
+  })
+})
