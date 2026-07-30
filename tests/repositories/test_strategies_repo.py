@@ -299,3 +299,123 @@ def test_raw_definition_is_parseable_json(tmp_path: Path) -> None:
 
     parsed = json.loads(row.raw_definition)
     assert parsed["parameters"] == {"period": 14}
+
+
+# --- issue #386: 1 件取得の fast path ----------------------------------------
+
+
+def _fail_full_scan(*args: object, **kwargs: object) -> list[StrategyRow]:
+    raise AssertionError("fast path があるため全件ロードしてはならない (issue #386)")
+
+
+def test_get_strategy_json_mode_reads_only_the_target_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """JSON モード: <strategy_id>.json が存在すれば全ファイル走査しない"""
+    strategies_dir = _make_json_dir(tmp_path)
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=None
+    )
+    monkeypatch.setattr(repo, "_load_from_json_dir", _fail_full_scan)
+
+    row = repo.get_strategy("alpha")
+
+    assert row is not None
+    assert row.strategy_id == "alpha"
+    assert row.name == "Alpha 戦略"
+
+
+def test_get_strategy_json_mode_falls_back_when_filename_differs(
+    tmp_path: Path,
+) -> None:
+    """JSON モード: ファイル名 stem と strategy_id が異なる戦略も発見できる。
+
+    fast path（<id>.json 直接読み）はあくまで最適化であり、ファイル名が
+    strategy_id と一致しない既存データを取りこぼしてはならない。
+    """
+    strategies_dir = tmp_path / "strategies"
+    strategies_dir.mkdir()
+    (strategies_dir / "renamed.json").write_text(
+        json.dumps({"strategy_id": "gamma", "name": "Gamma 戦略"}),
+        encoding="utf-8",
+    )
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=None
+    )
+
+    row = repo.get_strategy("gamma")
+
+    assert row is not None
+    assert row.name == "Gamma 戦略"
+
+
+def test_get_strategy_json_mode_stem_collision_does_not_shadow(
+    tmp_path: Path,
+) -> None:
+    """JSON モード: <id>.json の中身が別 ID の場合は fast path を採用しない。
+
+    例: alpha.json の中身が strategy_id="delta" のとき、get_strategy("alpha")
+    がその行を誤って返してはならない。
+    """
+    strategies_dir = tmp_path / "strategies"
+    strategies_dir.mkdir()
+    (strategies_dir / "alpha.json").write_text(
+        json.dumps({"strategy_id": "delta", "name": "Delta 戦略"}),
+        encoding="utf-8",
+    )
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=None
+    )
+
+    assert repo.get_strategy("alpha") is None
+    row = repo.get_strategy("delta")
+    assert row is not None
+    assert row.name == "Delta 戦略"
+
+
+def test_get_strategy_db_mode_does_not_load_all_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DB モード: WHERE strategy_id で 1 件だけ取得し全件ロードしない"""
+    strategies_dir = tmp_path / "strategies"
+    strategies_dir.mkdir()
+    db_path = _make_strategies_db(strategies_dir)
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=db_path
+    )
+    monkeypatch.setattr(repo, "list_strategies", _fail_full_scan)
+
+    row = repo.get_strategy("db_beta")
+
+    assert row is not None
+    assert row.name == "DB Beta"
+    assert repo.get_strategy("missing") is None
+
+
+def test_find_by_ids_db_mode_does_not_load_all_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DB モード: find_by_ids も WHERE IN で対象行のみ取得する"""
+    strategies_dir = tmp_path / "strategies"
+    strategies_dir.mkdir()
+    db_path = _make_strategies_db(strategies_dir)
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir, strategies_db=db_path
+    )
+    monkeypatch.setattr(repo, "list_strategies", _fail_full_scan)
+
+    rows = repo.find_by_ids(["db_alpha", "missing"])
+
+    assert {r.strategy_id for r in rows} == {"db_alpha"}
+
+
+def test_get_strategy_db_mode_missing_db_fails_loud(tmp_path: Path) -> None:
+    """DB モード設定なのに DB 不在なら get_strategy も Fail Loud"""
+    strategies_dir = _make_json_dir(tmp_path)
+    repo = StrategiesRepository.from_paths(
+        strategies_dir=strategies_dir,
+        strategies_db=tmp_path / "missing.db",
+    )
+
+    with pytest.raises(DataSourceUnavailableError):
+        repo.get_strategy("alpha")
