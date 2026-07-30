@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { JobStatus } from '../../api/types'
-import { useJobRunner } from '../../hooks/useJobRunner'
+import { useJobRunner, JOB_STATE_LOST_ERROR } from '../../hooks/useJobRunner'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Button } from '../../design/primitives'
@@ -204,7 +204,12 @@ export function JobRunnerCard({
             whiteSpace: 'pre-wrap',
           }}
         >
-          {error}
+          {error === JOB_STATE_LOST_ERROR
+            ? L(
+                'ジョブの状態が不明になりました（サーバー再起動の可能性があります）。もう一度実行してください。',
+                'Job state is unknown (the server may have restarted). Please run it again.',
+              )
+            : error}
         </p>
       )}
 
