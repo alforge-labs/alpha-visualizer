@@ -2,6 +2,7 @@ import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import type { BacktestMetrics } from '../../api/types'
 import { evaluateGood, type GoodWhen } from './evaluate'
+import { MetricInfoTip } from './MetricInfoTip'
 
 interface MetricCardProps {
   label: string
@@ -10,9 +11,21 @@ interface MetricCardProps {
   goodWhen?: GoodWhen
   big?: boolean
   sub?: string | null
+  /** METRIC_DEFINITIONS のキー。指定すると説明ツールチップを表示 (issue #360) */
+  defKey?: string
+  lang?: Lang
 }
 
-function MetricCard({ label, value, suffix = '', goodWhen = null, big = false, sub = null }: MetricCardProps) {
+function MetricCard({
+  label,
+  value,
+  suffix = '',
+  goodWhen = null,
+  big = false,
+  sub = null,
+  defKey,
+  lang = 'ja',
+}: MetricCardProps) {
   const num = typeof value === 'number' ? value : null
   const isGood = evaluateGood(num, goodWhen)
   const valColor =
@@ -40,6 +53,9 @@ function MetricCard({ label, value, suffix = '', goodWhen = null, big = false, s
     >
       <span
         style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
           fontFamily: 'var(--sans)',
           fontSize: 'var(--fs-caption)',
           fontWeight: 500,
@@ -49,6 +65,7 @@ function MetricCard({ label, value, suffix = '', goodWhen = null, big = false, s
         }}
       >
         {label}
+        {defKey && <MetricInfoTip defKey={defKey} lang={lang} />}
       </span>
       <span
         style={{
@@ -81,33 +98,34 @@ interface MetricsGridProps {
 export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
   const L = makeL(lang)
   const kpis: MetricCardProps[] = [
-    { label: L('総リターン', 'Total Return'), value: m.total_return_pct, suffix: '%', goodWhen: 'pos', big: true },
-    { label: L('シャープ比', 'Sharpe Ratio'), value: m.sharpe_ratio, goodWhen: 'gte1', big: true },
-    { label: L('最大DD', 'Max Drawdown'), value: m.max_drawdown_pct, suffix: '%', goodWhen: 'dd', big: true },
-    { label: L('勝率', 'Win Rate'), value: m.win_rate_pct, suffix: '%', goodWhen: 'wr', big: true },
+    { label: L('総リターン', 'Total Return'), value: m.total_return_pct, suffix: '%', goodWhen: 'pos', big: true, defKey: 'total_return_pct' },
+    { label: L('シャープ比', 'Sharpe Ratio'), value: m.sharpe_ratio, goodWhen: 'gte1', big: true, defKey: 'sharpe_ratio' },
+    { label: L('最大DD', 'Max Drawdown'), value: m.max_drawdown_pct, suffix: '%', goodWhen: 'dd', big: true, defKey: 'max_drawdown_pct' },
+    { label: L('勝率', 'Win Rate'), value: m.win_rate_pct, suffix: '%', goodWhen: 'wr', big: true, defKey: 'win_rate_pct' },
   ]
   const secondary: MetricCardProps[] = [
-    { label: 'CAGR', value: m.cagr_pct, suffix: '%', goodWhen: 'pos' },
-    { label: L('ソルティノ', 'Sortino'), value: m.sortino_ratio, goodWhen: 'gte1' },
-    { label: L('カルマー', 'Calmar'), value: m.calmar_ratio, goodWhen: 'pos' },
-    { label: 'Profit Factor', value: m.profit_factor, goodWhen: 'gte15' },
-    { label: L('取引数', 'Trades'), value: m.total_trades },
-    { label: L('平均保有', 'Avg Hold'), value: m.avg_holding_days, suffix: 'd' },
-    { label: L('オメガ比', 'Omega'), value: m.omega_ratio, goodWhen: 'gte1' },
-    { label: 'Tail Ratio', value: m.tail_ratio, goodWhen: 'gte1' },
-    { label: 'VaR 95%', value: m.var_95_pct, suffix: '%' },
-    { label: 'CVaR 95%', value: m.cvar_95_pct, suffix: '%' },
-    { label: L('市場露出', 'Exposure'), value: m.exposure_pct, suffix: '%' },
-    { label: L('利益月率', '+ Months'), value: m.positive_month_ratio, suffix: '%', goodWhen: 'wr' },
-    { label: L('最大連勝', 'Max Cons. W'), value: m.max_consecutive_wins },
-    { label: L('最大連敗', 'Max Cons. L'), value: m.max_consecutive_losses },
-    { label: L('平均利益%', 'Avg Win%'), value: m.avg_win_pct, suffix: '%', goodWhen: 'pos' },
-    { label: L('平均損失%', 'Avg Loss%'), value: m.avg_loss_pct, suffix: '%' },
-    { label: L('DD期間', 'DD Duration'), value: m.max_drawdown_duration_days, suffix: 'd' },
+    { label: 'CAGR', value: m.cagr_pct, suffix: '%', goodWhen: 'pos', defKey: 'cagr_pct' },
+    { label: L('ソルティノ', 'Sortino'), value: m.sortino_ratio, goodWhen: 'gte1', defKey: 'sortino_ratio' },
+    { label: L('カルマー', 'Calmar'), value: m.calmar_ratio, goodWhen: 'pos', defKey: 'calmar_ratio' },
+    { label: 'Profit Factor', value: m.profit_factor, goodWhen: 'gte15', defKey: 'profit_factor' },
+    { label: L('取引数', 'Trades'), value: m.total_trades, defKey: 'total_trades' },
+    { label: L('平均保有', 'Avg Hold'), value: m.avg_holding_days, suffix: 'd', defKey: 'avg_holding_days' },
+    { label: L('オメガ比', 'Omega'), value: m.omega_ratio, goodWhen: 'gte1', defKey: 'omega_ratio' },
+    { label: 'Tail Ratio', value: m.tail_ratio, goodWhen: 'gte1', defKey: 'tail_ratio' },
+    { label: 'VaR 95%', value: m.var_95_pct, suffix: '%', defKey: 'var_95_pct' },
+    { label: 'CVaR 95%', value: m.cvar_95_pct, suffix: '%', defKey: 'cvar_95_pct' },
+    { label: L('市場露出', 'Exposure'), value: m.exposure_pct, suffix: '%', defKey: 'exposure_pct' },
+    { label: L('利益月率', '+ Months'), value: m.positive_month_ratio, suffix: '%', goodWhen: 'wr', defKey: 'positive_month_ratio' },
+    { label: L('最大連勝', 'Max Cons. W'), value: m.max_consecutive_wins, defKey: 'max_consecutive_wins' },
+    { label: L('最大連敗', 'Max Cons. L'), value: m.max_consecutive_losses, defKey: 'max_consecutive_losses' },
+    { label: L('平均利益%', 'Avg Win%'), value: m.avg_win_pct, suffix: '%', goodWhen: 'pos', defKey: 'avg_win_pct' },
+    { label: L('平均損失%', 'Avg Loss%'), value: m.avg_loss_pct, suffix: '%', defKey: 'avg_loss_pct' },
+    { label: L('DD期間', 'DD Duration'), value: m.max_drawdown_duration_days, suffix: 'd', defKey: 'max_drawdown_duration_days' },
     {
       label: L('回復日数', 'Recovery'),
       value: m.recovery_days ?? '—',
       suffix: m.recovery_days ? 'd' : '',
+      defKey: 'recovery_days',
     },
   ]
   return (
@@ -121,7 +139,7 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
         }}
       >
         {kpis.map((c, i) => (
-          <MetricCard key={i} {...c} />
+          <MetricCard key={i} {...c} lang={lang} />
         ))}
       </div>
       {!compact && (
@@ -134,7 +152,7 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
           }}
         >
           {secondary.map((c, i) => (
-            <MetricCard key={i} {...c} />
+            <MetricCard key={i} {...c} lang={lang} />
           ))}
         </div>
       )}
@@ -161,12 +179,12 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
               gap: 8,
             }}
           >
-            <MetricCard label={L('アルファ α', 'Alpha α')} value={m.benchmark.alpha_pct} suffix="%" goodWhen="pos" />
-            <MetricCard label="Beta β" value={m.benchmark.beta} />
-            <MetricCard label="Info Ratio" value={m.benchmark.information_ratio} goodWhen="gte1" />
-            <MetricCard label={L('相関係数', 'Correlation')} value={m.benchmark.correlation} />
-            <MetricCard label="B/M Total Ret" value={m.benchmark.benchmark_total_return_pct} suffix="%" goodWhen="pos" />
-            <MetricCard label="B/M CAGR" value={m.benchmark.benchmark_cagr_pct} suffix="%" goodWhen="pos" />
+            <MetricCard label={L('アルファ α', 'Alpha α')} value={m.benchmark.alpha_pct} suffix="%" goodWhen="pos" defKey="alpha_pct" lang={lang} />
+            <MetricCard label="Beta β" value={m.benchmark.beta} defKey="beta" lang={lang} />
+            <MetricCard label="Info Ratio" value={m.benchmark.information_ratio} goodWhen="gte1" defKey="information_ratio" lang={lang} />
+            <MetricCard label={L('相関係数', 'Correlation')} value={m.benchmark.correlation} defKey="correlation" lang={lang} />
+            <MetricCard label="B/M Total Ret" value={m.benchmark.benchmark_total_return_pct} suffix="%" goodWhen="pos" defKey="benchmark_total_return_pct" lang={lang} />
+            <MetricCard label="B/M CAGR" value={m.benchmark.benchmark_cagr_pct} suffix="%" goodWhen="pos" defKey="benchmark_cagr_pct" lang={lang} />
           </div>
         </>
       )}
