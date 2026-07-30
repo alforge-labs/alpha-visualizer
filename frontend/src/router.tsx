@@ -4,6 +4,7 @@
 import { lazy, Suspense, type ComponentType, type ReactElement } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { RootLayout } from './components/RootLayout'
+import { RouteErrorScreen } from './components/RouteErrorScreen'
 import { Loading } from './design/primitives'
 
 // 各 Page を React.lazy でコード分割。
@@ -39,6 +40,9 @@ function PageFallback(): ReactElement {
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    // 子ルートの描画例外はここへバブルする。デフォルトの英語エラー画面に
+    // 落とさず、i18n + 回復導線付きの共通画面を出す (issue #389)
+    errorElement: <RouteErrorScreen />,
     children: [
       { path: '/', element: <Navigate to="/browse" replace /> },
       {
