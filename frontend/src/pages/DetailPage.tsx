@@ -157,6 +157,16 @@ export function DetailPage() {
     )
   }
 
+  // issue #361: 「IS / OOS」「WFO」は略語のままタブ名に登場するため、
+  // タブ直下の 1 行サブテキストで初級者向けの概念説明を常設する
+  const conceptNoteStyle = {
+    margin: '0 0 var(--space-4)',
+    fontFamily: 'var(--sans)',
+    fontSize: 13,
+    color: 'var(--text3)',
+    lineHeight: 1.6,
+  } as const
+
   const tabs: ReadonlyArray<readonly [DetailTab, string]> = [
     ['backtest', L('バックテスト', 'Backtest')],
     ['isoos', 'IS / OOS'],
@@ -263,6 +273,14 @@ export function DetailPage() {
               ) : (
                 <BacktestScreen data={backtest.data} compact={compact} lang={lang} />
               ))}
+            {tab === 'isoos' && (
+              <p style={conceptNoteStyle}>
+                {L(
+                  'IS（In-Sample）= 最適化に使った期間 / OOS（Out-of-Sample）= 検証用に取り置いた期間。OOS が IS より大きく悪化する戦略は過剰適合（カーブフィット）の疑いがあります。',
+                  'IS (In-Sample) = the period used for optimization / OOS (Out-of-Sample) = the held-out validation period. A strategy that degrades sharply in OOS is likely overfitted.',
+                )}
+              </p>
+            )}
             {tab === 'isoos' &&
               (backtest.status === 'ready' ? (
                 <ISOOSScreen data={backtest.data} compact={compact} lang={lang} />
@@ -273,6 +291,12 @@ export function DetailPage() {
               ))}
             {tab === 'wfo' && (
               <>
+                <p style={conceptNoteStyle}>
+                  {L(
+                    'WFO（ウォークフォワード最適化）= 期間をずらしながら最適化と検証を繰り返し、パラメータの頑健性を確認する手法。OOS 成績が安定していれば、その戦略は実運用でも崩れにくいと期待できます。',
+                    'WFO (Walk-Forward Optimization) repeatedly optimizes and validates on rolling windows to test parameter robustness. Stable OOS results suggest the strategy holds up in live trading.',
+                  )}
+                </p>
                 {strategyId && symbol && (
                   <JobRunnerCard
                     kind="wft"
