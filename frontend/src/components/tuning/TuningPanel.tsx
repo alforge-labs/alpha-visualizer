@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { api } from '../../api/client'
-import { useJobRunner } from '../../hooks/useJobRunner'
+import { useJobRunner, JOB_STATE_LOST_ERROR } from '../../hooks/useJobRunner'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { Button, ConfirmDialog } from '../../design/primitives'
@@ -305,7 +305,12 @@ export function TuningPanel({
             whiteSpace: 'pre-wrap',
           }}
         >
-          {error ?? saveError}
+          {error === JOB_STATE_LOST_ERROR
+            ? L(
+                'ジョブの状態が不明になりました（サーバー再起動の可能性があります）。もう一度実行してください。',
+                'Job state is unknown (the server may have restarted). Please run it again.',
+              )
+            : (error ?? saveError)}
         </p>
       )}
 

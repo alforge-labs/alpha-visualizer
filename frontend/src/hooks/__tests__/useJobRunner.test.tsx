@@ -1,13 +1,27 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../api/client', () => ({
-  api: { createJob: vi.fn(), cancelJob: vi.fn(), getJob: vi.fn() },
-}))
+vi.mock('../../api/client', () => {
+  // useJobRunner が instanceof ApiError で分岐するため mock にも含める
+  class ApiError extends Error {
+    readonly status: number
+    readonly url: string
+    constructor(message: string, status: number, url: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.url = url
+    }
+  }
+  return {
+    ApiError,
+    api: { createJob: vi.fn(), cancelJob: vi.fn(), getJob: vi.fn() },
+  }
+})
 
-import { api } from '../../api/client'
+import { api, ApiError } from '../../api/client'
 import type { JobSummary } from '../../api/types'
-import { useJobRunner } from '../useJobRunner'
+import { useJobRunner, JOB_STATE_LOST_ERROR } from '../useJobRunner'
 
 /** SSE をテスト内で駆動するための EventSource スタブ。 */
 class FakeEventSource {
@@ -151,5 +165,90 @@ describe('useJobRunner (issue #292)', () => {
 
     unmount()
     expect(FakeEventSource.instances[0]!.closed).toBe(true)
+  })
+})
+
+
+/**
+ * issue #355: ジョブ状態は in-process 保持のためサーバー再起動で消える。
+ * ポーリングフォールバック中の 404 は恒久的なのに、catch が空で
+ * running=true のまま 3 秒毎のリクエストを無期限に発行し続けていた。
+ * 404 は即打ち切り、その他エラーも連続 N 回で断念する。
+ */
+describe('useJobRunner poll fallback error handling (issue #355)', () => {
+  async function startAndFallbackToPolling() {
+    vi.mocked(api.createJob).mockResolvedValue(summary())
+    const { result } = renderHook(() => useJobRunner())
+    await act(async () => {
+      await result.current.start({ kind: 'optimize', strategy_id: 's1', symbol: 'AAPL' })
+    })
+    const es = FakeEventSource.instances[0]!
+    act(() => {
+      es.onerror?.()
+    })
+    return result
+  }
+
+  it('stops immediately and marks failed when polling hits 404', async () => {
+    vi.useFakeTimers()
+    try {
+      const result = await startAndFallbackToPolling()
+      vi.mocked(api.getJob).mockRejectedValue(
+        new ApiError('API 404: {"detail":"Not Found"}', 404, '/api/jobs/job-1'),
+      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000)
+      })
+      expect(result.current.running).toBe(false)
+      expect(result.current.status).toBe('failed')
+      expect(result.current.error).toBe(JOB_STATE_LOST_ERROR)
+      // 打ち切り後はポーリングを発行しない
+      const calls = vi.mocked(api.getJob).mock.calls.length
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(9000)
+      })
+      expect(vi.mocked(api.getJob).mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up after 5 consecutive non-404 failures', async () => {
+    vi.useFakeTimers()
+    try {
+      const result = await startAndFallbackToPolling()
+      vi.mocked(api.getJob).mockRejectedValue(new Error('Failed to fetch'))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000 * 5)
+      })
+      expect(result.current.running).toBe(false)
+      expect(result.current.status).toBe('failed')
+      expect(result.current.error).toBe(JOB_STATE_LOST_ERROR)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps polling through transient failures', async () => {
+    vi.useFakeTimers()
+    try {
+      const result = await startAndFallbackToPolling()
+      vi.mocked(api.getJob)
+        .mockRejectedValueOnce(new Error('Failed to fetch'))
+        .mockRejectedValueOnce(new Error('Failed to fetch'))
+        .mockResolvedValue({
+          ...summary({ status: 'running' }),
+          log_tail: '',
+          result: null,
+        } as never)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000 * 4)
+      })
+      // 一時的な失敗（連続上限未満）では諦めない
+      expect(result.current.running).toBe(true)
+      expect(result.current.status).toBe('running')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

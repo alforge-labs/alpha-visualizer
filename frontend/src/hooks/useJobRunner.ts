@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import type { CreateJobParams, JobStatus } from '../api/types'
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['succeeded', 'failed', 'cancelled'])
 
 /** SSE 切断時のポーリングフォールバック間隔（ms） */
 const POLL_FALLBACK_INTERVAL_MS = 3000
+
+/** 404 以外の取得失敗をこの回数連続したらポーリングを断念する (issue #355) */
+const POLL_MAX_CONSECUTIVE_FAILURES = 5
+
+/**
+ * ポーリング打ち切り時に error へ設定する識別子 (issue #355)。
+ *
+ * ジョブ状態は in-process 保持のためサーバー再起動で消え、その後の 404 は
+ * 恒久的。表示側（JobRunnerCard / TuningPanel）がこの識別子を表示言語の
+ * 文言へ写像する。
+ */
+export const JOB_STATE_LOST_ERROR = 'job_state_lost'
 
 interface SseEvent {
   type: 'snapshot' | 'log' | 'status'
@@ -82,10 +94,12 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
 
   const pollUntilTerminal = useCallback(
     (id: string) => {
+      let consecutiveFailures = 0
       pollRef.current = setInterval(() => {
         void (async () => {
           try {
             const detail = await api.getJob(id)
+            consecutiveFailures = 0
             if (detail.log_tail) setLogLines(detail.log_tail.split('\n'))
             if (TERMINAL_STATUSES.has(detail.status)) {
               // finish() が closeStream 経由で interval を止める
@@ -93,8 +107,18 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
               return
             }
             setStatus(detail.status as JobStatus)
-          } catch {
-            // 一時的な取得失敗はリトライで対処する（次のポーリングへ続行）
+          } catch (err) {
+            // サーバー再起動でジョブ状態が消えた後の 404 は恒久的。
+            // スピナーのまま無期限にリクエストし続けず即打ち切る (issue #355)。
+            if (err instanceof ApiError && err.status === 404) {
+              finish('failed', null, JOB_STATE_LOST_ERROR)
+              return
+            }
+            // 一時的な取得失敗はリトライで対処するが、連続上限で断念する
+            consecutiveFailures += 1
+            if (consecutiveFailures >= POLL_MAX_CONSECUTIVE_FAILURES) {
+              finish('failed', null, JOB_STATE_LOST_ERROR)
+            }
           }
         })()
       }, POLL_FALLBACK_INTERVAL_MS)
