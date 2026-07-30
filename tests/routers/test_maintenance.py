@@ -91,15 +91,23 @@ class TestOrphanRunsList:
         assert resp.json()["orphans"] == []
         assert resp.json()["count"] == 0
 
-    def test_forge未導入なら導線付きのエラーを返す(self, client_with_db: TestClient) -> None:
+    def test_forge未導入なら503と機械可読codeを返す(self, client_with_db: TestClient) -> None:
+        """forge 未導入は想定内の状態であり、サーバー障害（500）と区別できる
+        503 + 機械可読 code で返すこと (issue #358)。
+
+        code はフロントが言語別メッセージへ写像するキーなので安定させる
+        （detail の日英連結文字列そのものを UI に出さない）。
+        """
         with mock.patch("shutil.which", return_value=None):
             resp = client_with_db.get("/api/maintenance/orphan-runs")
 
-        assert resp.status_code >= 400
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["code"] == "forge_cli_not_found"
         # CodeQL py/incomplete-url-substring-sanitization 対策: 部分一致でなく
         # 末尾トークンの等価比較で funnel URL を検証する（他ルーターの既存テストと同規約。
         # 例: test_run.py::test_run_forge_not_found）
-        assert resp.json()["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"
+        assert body["detail"].rsplit(" ", 1)[-1] == "https://alforgelabs.com"
 
     def test_forgeが非ゼロ終了したらエラーにする(self, client_with_db: TestClient) -> None:
         # 成功に見せてはいけない。空一覧を返すと「掃除済み」と誤読される。

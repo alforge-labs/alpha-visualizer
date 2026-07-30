@@ -323,8 +323,9 @@ class TestRunRouter:
         assert resp.status_code == 200
 
     def test_run_forge_not_found(self, client_with_db: TestClient) -> None:
-        """forge コマンドが PATH にないとき 500 を返す。
+        """forge コマンドが PATH にないとき 503 + 機械可読 code を返す (issue #358)。
 
+        forge 未導入は想定内の状態でありサーバー障害（500）と区別する。
         forge 未導入ユーザーが Run を押した瞬間は AlphaForge 導入意欲が最も高い
         接点なので、エラーメッセージにインストール先（alforgelabs.com）を必ず
         含める（OSS → フルエンジンの送客導線）。
@@ -334,7 +335,8 @@ class TestRunRouter:
                 "/api/run",
                 json={"strategy_id": "test_strategy", "symbol": "AAPL"},
             )
-        assert resp.status_code == 500
+        assert resp.status_code == 503
+        assert resp.json()["code"] == "forge_cli_not_found"
         detail = resp.json()["detail"]
         assert "forge" in detail.lower()
         # CodeQL py/incomplete-url-substring-sanitization は substring/endswith

@@ -123,9 +123,12 @@ def create_app(
             exc.status_code,
             request.url.path,
         )
-        return JSONResponse(
-            status_code=exc.status_code, content={"detail": str(exc)}
-        )
+        content: dict[str, str] = {"detail": str(exc)}
+        # 機械可読 code を持つ例外はフロントが言語別表示に使えるよう付与する
+        # (issue #358)。
+        if exc.code is not None:
+            content["code"] = exc.code
+        return JSONResponse(status_code=exc.status_code, content=content)
 
     app.include_router(results_router.router, prefix="/api")
     app.include_router(strategies_router.router, prefix="/api")

@@ -38,6 +38,47 @@ export function normalizeErrorMessage(raw: string | null | undefined, lang: Lang
  * なっているエンドポイント（戦略複製など）で、生 JSON の露出と定型文への
  * 潰れ込みの両方を避けるために使う。
  */
+/**
+ * ApiError の生メッセージから機械可読 `code` を抽出する（無ければ null）。
+ *
+ * サーバーは想定内のエラー状態（forge CLI 未導入等）に安定した code を
+ * 付与する（issue #358）。文字列 detail のパターンマッチに頼らず、この
+ * code で UI 側の言語別メッセージへ写像する。
+ */
+export function extractApiErrorCode(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const jsonStart = raw.indexOf('{')
+  if (jsonStart < 0) return null
+  try {
+    const code = (JSON.parse(raw.slice(jsonStart)) as { code?: unknown }).code
+    return typeof code === 'string' && code !== '' ? code : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 機械可読 code を表示言語のみのメッセージへ写像する（issue #358）。
+ *
+ * サーバーの detail は curl 利用者向けに日英連結だが、UI では表示言語の
+ * 文言だけを出す。対応する code が無ければ null を返し、呼び出し側は
+ * `extractApiErrorDetail` へフォールバックする。
+ */
+export function messageForApiErrorCode(
+  raw: string | null | undefined,
+  lang: Lang,
+): string | null {
+  const L = makeL(lang)
+  const code = extractApiErrorCode(raw)
+  if (code === 'forge_cli_not_found') {
+    return L(
+      'forge コマンドが見つかりません。AlphaForge を導入してください — https://alforgelabs.com',
+      'forge command not found in PATH. Install AlphaForge — https://alforgelabs.com',
+    )
+  }
+  return null
+}
+
 export function extractApiErrorDetail(
   raw: string | null | undefined,
   lang: Lang,

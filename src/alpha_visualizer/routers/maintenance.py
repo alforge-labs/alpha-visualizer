@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.requests import Request
 
 from alpha_visualizer.dependencies import get_forge_config_dep
-from alpha_visualizer.errors import ExternalProcessError
+from alpha_visualizer.errors import ExternalProcessError, ForgeCliNotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.schemas.maintenance import (
     OrphanRunsResponse,
@@ -48,7 +48,7 @@ def _run_forge(argv: list[str], forge_cfg: ForgeConfig, timeout: int) -> dict[st
     """forge を同期実行し、stdout の JSON を返す。"""
     exe = resolve_forge_exe()
     if exe is None:
-        raise ExternalProcessError(FORGE_NOT_FOUND_MESSAGE)
+        raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
 
     try:
         proc = subprocess.run(

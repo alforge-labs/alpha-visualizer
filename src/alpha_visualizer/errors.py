@@ -14,6 +14,9 @@ class AlphaVisualizerError(Exception):
     """ドメイン例外の基底クラス。"""
 
     status_code: int = 500
+    #: フロントエンドが言語別メッセージへ写像するための機械可読コード（任意）。
+    #: 設定した例外はレスポンスに ``{"code": "..."}`` が追加される。
+    code: str | None = None
 
 
 class NotFoundError(AlphaVisualizerError):
@@ -32,6 +35,17 @@ class ExternalProcessError(AlphaVisualizerError):
     """外部プロセス（forge コマンド等）の実行失敗。"""
 
     status_code = 500
+
+
+class ForgeCliNotFoundError(AlphaVisualizerError):
+    """forge CLI が PATH に見つからない（未導入は想定内の状態）。
+
+    サーバー障害と区別できるよう 500 でなく 503 を返し、フロントエンドが
+    言語別の案内を出せるよう安定した機械可読 code を持つ (issue #358)。
+    """
+
+    status_code = 503
+    code = "forge_cli_not_found"
 
 
 class DataCorruptError(AlphaVisualizerError):
