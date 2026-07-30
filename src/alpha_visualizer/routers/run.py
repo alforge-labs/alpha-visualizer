@@ -13,9 +13,11 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import threading
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.requests import Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from alpha_visualizer.dependencies import (
@@ -26,6 +28,7 @@ from alpha_visualizer.errors import (
     DataCorruptError,
     ExternalProcessError,
     ForgeCliNotFoundError,
+    TooManyJobsError,
 )
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.repositories.backtest_results import BacktestResultsRepository
@@ -113,13 +116,39 @@ def _log_tail(stderr: str) -> str | None:
     return mask_home("\n".join(lines[-LOG_TAIL_MAX_LINES:]))
 
 
+#: 同期 /api/run の同時実行上限 (issue #391)。forge は CPU 重量級のため、
+#: 連打・並列呼び出しでスレッドプール分（既定 40）まで同時起動させない。
+#: 非同期ジョブ側の流量制御（services/jobs.py MAX_ACTIVE_JOBS）と対になる。
+MAX_CONCURRENT_RUNS = 2
+
+
 @router.post("/run", response_model=RunBacktestResponse)
 def run_backtest(
+    request: Request,
     body: RunBacktestRequest,
     forge_cfg: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
     bt_repo: Annotated[BacktestResultsRepository, Depends(get_backtest_results_repo)],
 ) -> RunBacktestResponse:
     """forge backtest run をサブプロセス実行し、run_id と実行ログ末尾を返す。"""
+    sem: threading.BoundedSemaphore = request.app.state.run_semaphore
+    if not sem.acquire(blocking=False):
+        raise TooManyJobsError(
+            f"同時に実行できるバックテストは {MAX_CONCURRENT_RUNS} 件までです。"
+            "実行中の処理が終わるまでお待ちください"
+            f" / Too many concurrent backtests (limit: {MAX_CONCURRENT_RUNS})."
+            " Please wait for the current run to finish"
+        )
+    try:
+        return _run_backtest_guarded(body, forge_cfg, bt_repo)
+    finally:
+        sem.release()
+
+
+def _run_backtest_guarded(
+    body: RunBacktestRequest,
+    forge_cfg: ForgeConfig,
+    bt_repo: BacktestResultsRepository,
+) -> RunBacktestResponse:
     forge_exe = resolve_forge_exe()
     if forge_exe is None:
         raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
