@@ -15,9 +15,32 @@ interface Props {
 
 type Tab = 'timeline' | 'equity'
 
+/** 2 つの ISO 日付間の概算月数（不正・逆順・欠損は null）。 */
+function monthsBetween(start: string, end: string): number | null {
+  if (!start || !end) return null
+  const s = new Date(start).getTime()
+  const e = new Date(end).getTime()
+  if (Number.isNaN(s) || Number.isNaN(e) || e <= s) return null
+  return Math.round((e - s) / 86_400_000 / 30.44)
+}
+
 export function WFOScreen({ data, compact, lang }: Props) {
   const [tab, setTab] = useState<Tab>('timeline')
   const L = makeL(lang)
+  // issue #353: サブタイトルをハードコードせず実データから導出する。
+  // 期間は先頭ウィンドウの日付から概算し、導出できない項目は表示しない
+  // （「ローリング」等の実行設定は API に無いため出さない）。
+  const firstWindow = data.windows[0]
+  const isMonths = firstWindow ? monthsBetween(firstWindow.is_start, firstWindow.is_end) : null
+  const oosMonths = firstWindow
+    ? monthsBetween(firstWindow.oos_start, firstWindow.oos_end)
+    : null
+  const subtitleParts = [
+    L(`${data.windows.length}ウィンドウ`, `${data.windows.length} Windows`),
+    ...(isMonths != null && oosMonths != null
+      ? [L(`IS ${isMonths}ヶ月 / OOS ${oosMonths}ヶ月`, `IS ${isMonths}M / OOS ${oosMonths}M`)]
+      : []),
+  ]
   // 非 sharpe 指標の WFT 結果は is_sharpe/oos_sharpe にその指標の値が入る
   // ため、ラベルを metric_name に合わせて切り替える（vis#303）
   const metricLabel = metricShortLabel(data.metric_name)
@@ -29,10 +52,7 @@ export function WFOScreen({ data, compact, lang }: Props) {
     <div data-testid="wfo-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
         title={L('ウォークフォーワード検証', 'Walk-Forward Optimization')}
-        subtitle={L(
-          '5ウィンドウ · IS 12ヶ月 / OOS 6ヶ月 · ローリング',
-          '5 Windows · IS 12M / OOS 6M · Rolling'
-        )}
+        subtitle={subtitleParts.join(' · ')}
       />
       <TabBar>
         {tabs.map(([id, label]) => (
