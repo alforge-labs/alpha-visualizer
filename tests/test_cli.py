@@ -147,3 +147,32 @@ def test_open_browser_waits_for_server_startup() -> None:
     failed.should_exit = True
     _open_browser_when_started(failed, "http://x", opened.append, poll_interval=0.01)
     assert opened == []
+
+def test_serve_non_loopback_bind_warns(tmp_path, monkeypatch) -> None:
+    """--host 0.0.0.0 では破壊的 API が認証なしで公開される旨を警告する (issue #388)。"""
+    import uvicorn
+
+    monkeypatch.setattr(uvicorn.Server, "run", lambda self: None)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["serve", "--forge-dir", str(tmp_path), "--host", "0.0.0.0", "--no-open"],
+    )
+    assert result.exit_code == 0
+    assert "警告" in result.output
+    assert "認証がなく" in result.output
+
+
+def test_serve_loopback_bind_does_not_warn(tmp_path, monkeypatch) -> None:
+    import uvicorn
+
+    monkeypatch.setattr(uvicorn.Server, "run", lambda self: None)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["serve", "--forge-dir", str(tmp_path), "--no-open"],
+    )
+    assert result.exit_code == 0
+    assert "警告" not in result.output

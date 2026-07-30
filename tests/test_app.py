@@ -458,3 +458,30 @@ def test_validation_error_detail_is_a_string(tmp_path: pathlib.Path) -> None:
     assert isinstance(detail, str)
     # フィールド位置と理由が読める形で含まれる
     assert "limit" in detail
+
+
+def test_dns_rebinding_host_header_is_rejected(tmp_path: pathlib.Path) -> None:
+    """未知の Host ヘッダは 400 で拒否すること (issue #388)。
+
+    127.0.0.1 バインドでも DNS rebinding で悪意ある Web ページから API を
+    叩ける余地があるため、TrustedHostMiddleware で loopback 系のみ許可する。
+    """
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    response = client.get("/health", headers={"Host": "evil.example.com"})
+    assert response.status_code == 400
+
+
+def test_loopback_hosts_are_allowed(tmp_path: pathlib.Path) -> None:
+    app = create_app(forge_dir=tmp_path)
+    client = TestClient(app)
+    for host in ("127.0.0.1", "localhost", "127.0.0.1:8000"):
+        assert client.get("/health", headers={"Host": host}).status_code == 200
+
+
+def test_allowed_hosts_override_disables_restriction(tmp_path: pathlib.Path) -> None:
+    """非 loopback バインド時（明示オプトイン）は CLI が allowed_hosts=['*'] を渡す。"""
+    app = create_app(forge_dir=tmp_path, allowed_hosts=["*"])
+    client = TestClient(app)
+    response = client.get("/health", headers={"Host": "evil.example.com"})
+    assert response.status_code == 200

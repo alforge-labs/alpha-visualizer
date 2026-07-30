@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -32,11 +33,19 @@ from alpha_visualizer.services.jobs import JobManager
 
 logger = logging.getLogger(__name__)
 
+#: 既定で許可する Host ヘッダ (issue #388)。loopback 系のみを許可し、
+#: DNS rebinding（悪意ある Web ページが自ドメインを 127.0.0.1 に解決させて
+#: ローカル API を叩く手口）を遮断する。"testserver" は
+#: fastapi.testclient.TestClient の既定 Host で、外部から名前解決できる
+#: ホスト名ではないため許可しても攻撃面にならない。
+DEFAULT_ALLOWED_HOSTS = ("127.0.0.1", "localhost", "::1", "testserver")
+
 
 def create_app(
     forge_dir: pathlib.Path | None = None,
     *,
     config: ForgeConfig | None = None,
+    allowed_hosts: list[str] | None = None,
 ) -> FastAPI:
     """FastAPI アプリを生成する。
 
@@ -80,6 +89,15 @@ def create_app(
     # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
     # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # DNS rebinding 対策 (issue #388)。未知の Host ヘッダは 400 で拒否する。
+    # 非 loopback バインドで公開する場合は CLI が明示警告のうえ ["*"] を渡す
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=(
+            list(DEFAULT_ALLOWED_HOSTS) if allowed_hosts is None else allowed_hosts
+        ),
+    )
 
     # SQLAlchemy Engine は起動時に 1 度だけ生成し、Repository から共有する。
     # backtest_results.db が存在する場合のみ Engine を作る。これは
