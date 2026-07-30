@@ -8,6 +8,7 @@ import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
 import { buildEquityCsv, downloadCsv } from '../lib/csv'
+import { fmtNumber } from '../lib/format'
 import { exportSvgAsPng } from '../lib/exportPng'
 import {
   EquityDrawdownPaneTV,
@@ -182,6 +183,25 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 <ShareCardXButton data={data} lang={lang} theme={chartTheme} />
               </div>
             </div>
+            {/* issue #362: 金額の規模感の前提を示す。initial_capital は
+                visualizer の DB に無いため、データから取れる事実
+                （開始時評価額 = equity 先頭値）と口座通貨建ての注記で代替する */}
+            {data.equity.values.length > 0 && (
+              <p
+                data-testid="capital-context-note"
+                style={{
+                  margin: '4px 0 6px',
+                  fontFamily: 'var(--sans)',
+                  fontSize: 'var(--fs-caption)',
+                  color: 'var(--text3)',
+                }}
+              >
+                {L(
+                  `開始時評価額 ${fmtNumber(data.equity.values[0], { decimals: 0 })} · 金額はバックテスト設定の初期資金に基づく口座通貨建て`,
+                  `Starting equity ${fmtNumber(data.equity.values[0], { decimals: 0 })} · amounts are in account currency based on the backtest initial capital`,
+                )}
+              </p>
+            )}
             <div data-testid="backtest-equity-chart-tv">
               <EquityDrawdownPaneTV
                 ref={tvHandleRef}
