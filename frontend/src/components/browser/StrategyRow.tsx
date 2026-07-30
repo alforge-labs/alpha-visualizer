@@ -146,8 +146,9 @@ export function StrategyRow({
           }}
         />
       </td>
-      <td style={{ ...TD_BASE, textAlign: 'left', paddingLeft: indent ? 40 : 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      {/* issue #366: RecipeRow と同じ truncation 列（余白吸収 + 指標列を画面内へ） */}
+      <td style={{ ...TD_BASE, textAlign: 'left', paddingLeft: indent ? 40 : 12, width: '100%', maxWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           <Link
             to={`/detail/${s.strategy_id}`}
             title={s.name}
@@ -236,7 +237,7 @@ export function StrategyRow({
       >
         {fmtNumber(s.latest_return_pct, { suffix: '%', decimals: 1 })}
       </td>
-      <td style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
+      <td className="u-col-hide-sm-down" style={{ ...TD_BASE, color: s.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
         {fmtNumber(s.latest_max_drawdown_pct, { suffix: '%', decimals: 1 })}
       </td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>

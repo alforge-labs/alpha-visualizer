@@ -285,6 +285,11 @@ a:focus-visible {
   .u-col-hide-md-down { display: none !important; }
 }
 
+/* issue #366: 375px では主要 2 指標（Sharpe・リターン）だけ残す */
+@media (max-width: 480px) {
+  .u-col-hide-sm-down { display: none !important; }
+}
+
 @media (max-width: 768px) {
   .u-drawer-md-down {
     position: fixed !important;

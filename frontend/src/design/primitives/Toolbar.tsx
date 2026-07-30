@@ -29,7 +29,18 @@ export function Toolbar({ leading, children, trailing, sticky = false }: Toolbar
       }}
     >
       {leading && <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>{leading}</div>}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+      {/* issue #366: 狭幅で子要素が潰れず折り返せるよう wrap を許可する */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-3)',
+          flexWrap: 'wrap',
+          rowGap: 'var(--space-2)',
+        }}
+      >
         {children}
       </div>
       {trailing && <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>{trailing}</div>}

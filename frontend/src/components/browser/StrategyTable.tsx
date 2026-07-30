@@ -150,6 +150,7 @@ function GroupHeaderRow({ group, collapsed, onToggle, lang }: GroupHeaderRowProp
       </td>
       <td style={{ ...TD_BASE, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>—</td>
       <td
+        className="u-col-hide-sm-down"
         style={{
           ...TD_BASE,
           color: agg.worstDrawdownPct == null ? 'var(--text3)' : 'var(--danger)',
@@ -304,11 +305,13 @@ export function StrategyTable({
               direction={sortDir}
               onSort={() => onSort('name')}
               align="left"
-              baseStyle={{ ...TH_BASE, color: sortKey === 'name' ? 'var(--text2)' : 'var(--text3)' }}
+              // issue #366: 名前列が余白を吸収する（幅は width:100% + セル側
+              // maxWidth:0 の truncation で制御し、指標列を画面内に収める）
+              baseStyle={{ ...TH_BASE, width: '100%', color: sortKey === 'name' ? 'var(--text2)' : 'var(--text3)' }}
             />
             <SortTh col="latest_sharpe" label="Sharpe" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_return_pct" label={L('リターン', 'Return')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <SortTh col="latest_max_drawdown_pct" label="Max DD" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+            <SortTh col="latest_max_drawdown_pct" label="Max DD" className="u-col-hide-sm-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_profit_factor" label="Profit F." className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="latest_win_rate_pct" label="Win %" className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
             <SortTh col="last_run_at" label={L('最終実行', 'Last run')} className="u-col-hide-md-down" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />

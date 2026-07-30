@@ -112,8 +112,10 @@ export function RecipeRow({
           }}
         />
       </td>
-      <td style={{ ...TD_BASE, textAlign: 'left' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      {/* issue #366: width:100% + maxWidth:0 で名前列が余白を吸収しつつ
+          収まらない分は truncation。chips は狭幅で名前の下へ折り返す */}
+      <td style={{ ...TD_BASE, textAlign: 'left', width: '100%', maxWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           {expandable ? (
             <button
               type="button"
@@ -234,7 +236,7 @@ export function RecipeRow({
       >
         {fmtNumber(best?.latest_return_pct, { suffix: '%', decimals: 1 })}
       </td>
-      <td style={{ ...TD_BASE, color: best?.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
+      <td className="u-col-hide-sm-down" style={{ ...TD_BASE, color: best?.latest_max_drawdown_pct == null ? 'var(--text3)' : 'var(--danger)' }}>
         {fmtNumber(best?.latest_max_drawdown_pct, { suffix: '%', decimals: 1 })}
       </td>
       <td className="u-col-hide-md-down" style={{ ...TD_BASE, color: 'var(--text2)' }}>
