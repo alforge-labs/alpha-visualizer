@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -54,6 +55,9 @@ def create_app(
     # 非同期ジョブ基盤（#292）。in-process 保持のため uvicorn 単一ワーカー前提。
     job_manager = JobManager(forge_config=config)
 
+    # 同期 /api/run の同時実行ガード (issue #391)。app 単位で共有する
+    run_semaphore = threading.BoundedSemaphore(run_router.MAX_CONCURRENT_RUNS)
+
     @asynccontextmanager
     async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
@@ -71,6 +75,7 @@ def create_app(
     )
     app.state.forge_config = config
     app.state.job_manager = job_manager
+    app.state.run_semaphore = run_semaphore
 
     # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
     # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。

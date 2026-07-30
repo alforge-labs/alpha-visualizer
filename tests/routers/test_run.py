@@ -358,3 +358,73 @@ class TestRunRouter:
             )
         assert resp.status_code == 500
         assert "Error: strategy not found" in resp.json()["detail"]
+
+
+class TestRunConcurrencyGuard:
+    """issue #391: POST /api/run の同時実行ガード。
+
+    連打・並列呼び出しでスレッドプール分（既定 40）まで CPU 重量級の
+    forge プロセスを同時起動できたため、非同期ジョブ側（MAX_ACTIVE_JOBS）と
+    同様にサーバー境界で流量制御し、上限超過は 429 を返す。
+    """
+
+    def test_run_returns_429_when_all_slots_are_busy(
+        self, client_with_db: TestClient
+    ) -> None:
+        from alpha_visualizer.routers.run import MAX_CONCURRENT_RUNS
+
+        sem = client_with_db.app.state.run_semaphore
+        # 実行中スロットをすべて占有した状態を再現する
+        for _ in range(MAX_CONCURRENT_RUNS):
+            assert sem.acquire(blocking=False)
+        try:
+            with mock.patch("shutil.which", return_value="/usr/local/bin/forge"):
+                resp = client_with_db.post(
+                    "/api/run",
+                    json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+                )
+        finally:
+            for _ in range(MAX_CONCURRENT_RUNS):
+                sem.release()
+
+        assert resp.status_code == 429
+        assert "同時に実行できる" in resp.json()["detail"]
+
+    def test_run_releases_the_slot_after_completion(
+        self, client_with_db: TestClient
+    ) -> None:
+        """正常終了・異常終了どちらでもスロットが漏れないこと。"""
+        stdout = '{"run_id": "run-xyz"}'
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch("subprocess.run", return_value=_proc(stdout=stdout)),
+        ):
+            ok = client_with_db.post(
+                "/api/run", json={"strategy_id": "test_strategy", "symbol": "AAPL"}
+            )
+        assert ok.status_code == 200
+
+        # forge 異常終了（500 経路）でも解放される
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/forge"),
+            mock.patch(
+                "subprocess.run", return_value=_proc(returncode=1, stderr="boom")
+            ),
+        ):
+            ng = client_with_db.post(
+                "/api/run", json={"strategy_id": "test_strategy", "symbol": "AAPL"}
+            )
+        assert ng.status_code >= 400
+
+        from alpha_visualizer.routers.run import MAX_CONCURRENT_RUNS
+
+        sem = client_with_db.app.state.run_semaphore
+        # 全スロットが解放済みであること（占有が漏れていれば途中で失敗する）
+        acquired = 0
+        try:
+            for _ in range(MAX_CONCURRENT_RUNS):
+                assert sem.acquire(blocking=False)
+                acquired += 1
+        finally:
+            for _ in range(acquired):
+                sem.release()
