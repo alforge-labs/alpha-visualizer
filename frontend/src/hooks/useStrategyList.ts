@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type SetURLSearchParams, useSearchParams } from 'react-router'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
@@ -74,6 +74,8 @@ export interface StrategyListState {
   groups: StrategyGroup[]
   loading: boolean
   error: string | null
+  /** 一覧の再取得（エラー時の再試行導線。issue #390） */
+  reload: () => void
   sortKey: SortKey
   sortDir: SortDir
   setSort: (key: SortKey) => void
@@ -194,10 +196,18 @@ function useStrategyData(): {
   error: string | null
   symbols: string[]
   timeframes: string[]
+  reload: () => void
 } {
   const [all, setAll] = useState<StrategyListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // 取得失敗時に全画面リロードへ頼らず再試行できるようにする (issue #390)
+  const [reloadToken, setReloadToken] = useState(0)
+  const reload = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    setReloadToken(t => t + 1)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -213,7 +223,7 @@ function useStrategyData(): {
         setLoading(false)
       })
     return () => { cancelled = true }
-  }, [])
+  }, [reloadToken])
 
   const symbols = useMemo(
     () => [...new Set(all.map(effectiveSymbol).filter((s): s is string => Boolean(s)))].sort(),
@@ -224,7 +234,7 @@ function useStrategyData(): {
     [all],
   )
 
-  return { all, loading, error, symbols, timeframes }
+  return { all, loading, error, symbols, timeframes, reload }
 }
 
 
@@ -354,7 +364,7 @@ function useCompareSelection(
 
 export function useStrategyList(): StrategyListState {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { all, loading, error, symbols, timeframes } = useStrategyData()
+  const { all, loading, error, symbols, timeframes, reload } = useStrategyData()
 
   const sortKey = toSortKey(searchParams.get('sort'))
   const sortDir = toSortDir(searchParams.get('dir'))
@@ -422,7 +432,7 @@ export function useStrategyList(): StrategyListState {
     recipeTotal: allRecipes.length,
     hiddenUnrunRecipeCount: includeUnrun ? 0 : unrunOnlyCount,
     includeUnrun,
-    groups, loading, error,
+    groups, loading, error, reload,
     sortKey, sortDir, setSort,
     groupBy, setGroupBy,
     symbols, timeframes,
