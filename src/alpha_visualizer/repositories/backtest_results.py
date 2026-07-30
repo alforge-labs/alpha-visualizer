@@ -282,6 +282,23 @@ class BacktestResultsRepository:
         with self._engine.connect() as conn:
             return conn.execute(stmt).all()
 
+    def find_latest_equity(self, strategy_id: str) -> tuple[str, str | None] | None:
+        """最新 run の ``(run_id, equity_curve_json)`` を返す (issue #387)。
+
+        sparkline 用に blob 1 列だけを読む。該当 run が無ければ ``None``。
+        """
+        rows = self._fetch_latest_rows(
+            [strategy_id],
+            (
+                backtest_results.c.strategy_id,
+                backtest_results.c.run_id,
+                backtest_results.c.equity_curve_json,
+            ),
+        )
+        if not rows:
+            return None
+        return rows[0].run_id, rows[0].equity_curve_json
+
     def find_latest_by_strategy_ids(
         self, strategy_ids: list[str]
     ) -> dict[str, BacktestResultRow]:

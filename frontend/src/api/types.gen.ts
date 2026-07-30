@@ -72,6 +72,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/strategies/{strategy_id}/sparkline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strategy Sparkline
+         * @description Browse 行ホバー用の軽量 sparkline (issue #387)。
+         *
+         *     最新 run の equity をダウンサンプルした値だけを返す。従来はフロントが
+         *     「run 一覧 → 約 2MB のフル詳細」を 2 連 fetch していた。
+         */
+        get: operations["get_strategy_sparkline_api_strategies__strategy_id__sparkline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/strategies/{strategy_id}": {
         parameters: {
             query?: never;
@@ -1218,6 +1241,19 @@ export interface components {
             log_tail?: string | null;
         };
         /**
+         * SparklineResponse
+         * @description Browse 行ホバー用の軽量 sparkline (issue #387)。
+         *
+         *     最新 run の equity をダウンサンプルした値だけを返し、
+         *     2MB 級のフル詳細を引かずに済ませる。
+         */
+        SparklineResponse: {
+            /** Run Id */
+            run_id: string;
+            /** Values */
+            values: number[];
+        };
+        /**
          * StrategyComparison
          * @description ``GET /api/strategies/compare`` の 1 件。equity / 比較指標を含む。
          */
@@ -1707,6 +1743,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StrategyComparison"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_strategy_sparkline_api_strategies__strategy_id__sparkline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strategy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SparklineResponse"];
                 };
             };
             /** @description Validation Error */

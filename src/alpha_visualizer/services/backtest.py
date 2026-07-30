@@ -298,6 +298,14 @@ def shape_equity(raw: list[Any] | None) -> tuple[list[str], list[float]]:
     return dates, values
 
 
+def downsample_values(values: list[float], max_points: int = 60) -> list[float]:
+    """始点・終点を保ちながら等間隔に間引く (issue #387 sparkline 用)。"""
+    if max_points < 2 or len(values) <= max_points:
+        return values
+    step = (len(values) - 1) / (max_points - 1)
+    return [values[round(i * step)] for i in range(max_points)]
+
+
 def is_cutoff(dates: list[str], oos_start: str | None) -> dict[str, Any]:
     if not oos_start or not dates:
         return {"date": None, "index": -1}

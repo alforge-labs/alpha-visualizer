@@ -210,6 +210,46 @@
         }
       }
     },
+    "/api/strategies/{strategy_id}/sparkline": {
+      "get": {
+        "summary": "Get Strategy Sparkline",
+        "description": "Browse 行ホバー用の軽量 sparkline (issue #387)。\n\n最新 run の equity をダウンサンプルした値だけを返す。従来はフロントが\n「run 一覧 → 約 2MB のフル詳細」を 2 連 fetch していた。",
+        "operationId": "get_strategy_sparkline_api_strategies__strategy_id__sparkline_get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SparklineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/strategies/{strategy_id}": {
       "get": {
         "summary": "Get Strategy",
@@ -2797,6 +2837,28 @@
           "parameters"
         ],
         "title": "SaveParametersResponse"
+      },
+      "SparklineResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "values"
+        ],
+        "title": "SparklineResponse",
+        "description": "Browse 行ホバー用の軽量 sparkline (issue #387)。\n\n最新 run の equity をダウンサンプルした値だけを返し、\n2MB 級のフル詳細を引かずに済ませる。"
       },
       "StrategyComparison": {
         "properties": {

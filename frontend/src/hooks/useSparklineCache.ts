@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 
-type SparklineEntry = number[] | 'loading' | 'empty'
+export type SparklineEntry = number[] | 'loading' | 'empty' | 'error'
 
 export interface SparklineCache {
   /** strategyId -> equity values（ロード中・空・データ） */
@@ -28,20 +28,18 @@ export function useSparklineCache(): SparklineCache {
 
     void (async () => {
       try {
-        const runs = await api.getStrategyRuns(strategyId)
-        const latest = runs[0]
-        if (!latest) {
-          setEntries(prev => ({ ...prev, [strategyId]: 'empty' }))
-          return
-        }
-        const detail = await api.getBacktest(latest.run_id)
-        const values = detail.equity?.values ?? []
+        // issue #387: 「run 一覧 → 2MB 級フル詳細」の 2 連 fetch でなく、
+        // ダウンサンプル済みの軽量 sparkline API を 1 回だけ叩く
+        const { values } = await api.getSparkline(strategyId)
         setEntries(prev => ({
           ...prev,
           [strategyId]: values.length > 0 ? values : 'empty',
         }))
-      } catch {
-        setEntries(prev => ({ ...prev, [strategyId]: 'empty' }))
+      } catch (err) {
+        // 404 = データなし。それ以外（ネットワーク断・5xx）は 'empty' に
+        // 丸めず 'error' として区別する（障害を不可視にしない。issue #387）
+        const isNoData = err instanceof ApiError && err.status === 404
+        setEntries(prev => ({ ...prev, [strategyId]: isNoData ? 'empty' : 'error' }))
       }
     })()
   }, [])

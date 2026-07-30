@@ -21,6 +21,8 @@ type S = components['schemas']
 export type Period = S['Period']
 // /health レスポンス（#399 でバージョン表示に利用）
 export type HealthResponse = S['HealthResponse']
+// Browse 行ホバー用の軽量 sparkline（#387）
+export type SparklineResponse = S['SparklineResponse']
 export type IsCutoff = S['IsCutoff']
 export type WFOWindow = S['WFOWindow']
 export type LivePeriod = S['LivePeriod']

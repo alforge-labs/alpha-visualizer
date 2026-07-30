@@ -212,6 +212,19 @@ export function StrategySlidePanel({ strategy: s, onClose, lang }: Props): React
               <Skeleton width={300} height={108} />
               <span style={SR_ONLY_STYLE}>{L('読み込み中…', 'Loading…')}</span>
             </span>
+          ) : sparkValues === 'error' ? (
+            // issue #387: 障害を「データなし」に見せない
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                color: 'var(--warn)',
+                letterSpacing: 'var(--tracking-mono)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {L('取得に失敗しました', 'Failed to load')}
+            </span>
           ) : (
             <span
               style={{

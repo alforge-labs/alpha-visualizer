@@ -12,6 +12,7 @@ vi.mock('../../../api/client', async (importOriginal) => {
       ...mod.api,
       getStrategyRuns: vi.fn(),
       getBacktest: vi.fn(),
+      getSparkline: vi.fn(),
     },
   }
 })
@@ -49,6 +50,9 @@ const ITEM: StrategyListItem = {
 beforeEach(() => {
   vi.mocked(api.getStrategyRuns).mockReset().mockResolvedValue([RUN])
   vi.mocked(api.getBacktest).mockReset().mockResolvedValue(DETAIL)
+  vi.mocked(api.getSparkline)
+    .mockReset()
+    .mockResolvedValue({ run_id: 'run-1', values: [1, 2, 3] })
 })
 
 describe('StrategySlidePanel', () => {
@@ -77,9 +81,11 @@ describe('StrategySlidePanel', () => {
     await waitFor(() => expect(screen.getByText('Sharpe 1.23')).toBeInTheDocument())
     await new Promise((resolve) => setTimeout(resolve, 300))
 
-    // 実行履歴（useStrategyRuns）で 1 回、sparkline の prefetch で 1 回の計 2 回が上限
-    expect(api.getStrategyRuns).toHaveBeenCalledTimes(2)
-    expect(api.getBacktest).toHaveBeenCalledTimes(1)
+    // 実行履歴（useStrategyRuns）で 1 回。sparkline は軽量 API 1 回で、
+    // フル詳細（getBacktest 約 2MB）は引かない (issue #387)
+    expect(api.getStrategyRuns).toHaveBeenCalledTimes(1)
+    expect(api.getSparkline).toHaveBeenCalledTimes(1)
+    expect(api.getBacktest).toHaveBeenCalledTimes(0)
   })
 })
 
