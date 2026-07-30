@@ -225,13 +225,22 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
                         const delta = sv != null && bv != null ? sv - bv : null
                         const improved =
                           delta == null || c.hb === null ? null : c.hb ? delta > 0 : delta < 0
-                        const sign = delta != null && delta >= 0 ? '+' : ''
                         return (
                           <td key={c.key} style={TD_DELTA}>
                             <span style={{ color: deltaColor(delta, improved), fontWeight: 600 }}>
                               {delta == null
                                 ? '—'
-                                : `${sign}${delta.toFixed(Math.abs(delta) > 99 ? 0 : 2)}${c.suffix}${
+                                : // issue #359: toFixed 直書きをやめ SSoT（fmtNumber）に寄せる。
+                                  // 整数の差分（取引数など）は小数を付けない。
+                                  `${fmtNumber(delta, {
+                                    decimals: Number.isInteger(delta)
+                                      ? 0
+                                      : Math.abs(delta) > 99
+                                        ? 0
+                                        : 2,
+                                    sign: true,
+                                    suffix: c.suffix,
+                                  })}${
                                     improved === true ? ' ↑' : improved === false ? ' ↓' : ''
                                   }`}
                             </span>

@@ -3,6 +3,7 @@ import { makeL } from '../../i18n/strings'
 import type { BacktestMetrics } from '../../api/types'
 import { evaluateGood, type GoodWhen } from './evaluate'
 import { MetricInfoTip } from './MetricInfoTip'
+import { fmtNumber } from '../../lib/format'
 
 interface MetricCardProps {
   label: string
@@ -30,14 +31,9 @@ function MetricCard({
   const isGood = evaluateGood(num, goodWhen)
   const valColor =
     isGood === true ? 'var(--success)' : isGood === false ? 'var(--danger)' : 'var(--text)'
-  const display =
-    num === null
-      ? String(value ?? '—')
-      : Math.abs(num) >= 100
-        ? num.toFixed(1)
-        : Math.abs(num) >= 10
-          ? num.toFixed(2)
-          : num.toFixed(3)
+  // issue #359: format.ts の SSoT 規約に従い toFixed 直書きをやめる。
+  // 整数（取引数・連勝数・DD 期間日数等）は小数なし + 桁区切りになる。
+  const display = num === null ? String(value ?? '—') : fmtNumber(num)
 
   return (
     <div

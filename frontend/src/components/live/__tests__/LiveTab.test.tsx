@@ -100,8 +100,9 @@ describe('<LiveTab />', () => {
 
     const diffs = screen.getAllByTestId('live-diff')
     const text = diffs.map((d) => d.textContent ?? '').join('|')
-    expect(text).toMatch(/\+1\.000/) // total_trades diff = +1
-    expect(text).toMatch(/\+10\.00%/) // win_rate diff = +10%
+    // issue #359: 整数 diff は小数を付けない
+    expect(text).toMatch(/\+1(\||$)/) // total_trades diff = +1
+    expect(text).toMatch(/\+10%/) // win_rate diff = +10%（issue #359: 整数は小数なし）
 
     // 全 diff が正のため var(--success) が含まれること
     const goodColors = diffs.map((d) => (d as HTMLElement).style.color)

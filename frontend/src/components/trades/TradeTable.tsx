@@ -140,9 +140,14 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
                     : 'var(--text)'
                   // issue #266: 数値は SSoT（fmtNumber）経由で桁区切り。
                   // color 列のみ正の符号 '+' を付ける（sign オプション）。
+                  // issue #359: 整数（# 列等）は「0.00」「1.00」にしない。
                   const display = isNum
                     ? fmtNumber(v, {
-                        decimals: Math.abs(v) >= 100 ? 1 : 2,
+                        decimals: Number.isInteger(v)
+                          ? 0
+                          : Math.abs(v) >= 100
+                            ? 1
+                            : 2,
                         sign: Boolean(c.color),
                       })
                     : String(v ?? '—')
