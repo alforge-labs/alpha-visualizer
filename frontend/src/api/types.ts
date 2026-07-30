@@ -81,6 +81,21 @@ export interface BacktestMetrics {
   skewness?: number
   excess_kurtosis?: number
   cvar_95_pct?: number
+  // コスト実績（issue #368。旧 run の metrics_json には存在しない）
+  total_commission_paid?: number
+  total_slippage_cost?: number
+  gross_return_pct?: number
+  net_return_pct?: number
+  // 資金管理・統計指標（issue #368）
+  kelly_criterion?: number
+  expectancy_pct?: number
+  payoff_ratio?: number
+  gain_to_pain_ratio?: number
+  ulcer_index?: number
+  serenity_index?: number
+  recovery_factor?: number
+  /** 勝率の 90% 信頼区間（ベータ分布・%表記） */
+  win_rate_ci?: { lower_pct: number; upper_pct: number }
   deflated_sharpe?: {
     probabilistic_sr: number
     deflated_sr: number

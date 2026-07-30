@@ -228,6 +228,105 @@ export const METRIC_DEFINITIONS: Record<string, MetricDef> = {
     description: '同期間のベンチマークの年率換算リターン。',
     descriptionEn: 'Benchmark CAGR over the same period.',
   },
+  // ---- コスト実績（issue #368） ----------------------------------------------
+  gross_return_pct: {
+    label: 'グロスリターン',
+    labelEn: 'Gross Return',
+    description: '手数料・スリッページを差し引く前のリターン。戦略ロジックそのものの稼ぐ力。',
+    descriptionEn:
+      'Return before commissions and slippage — the raw earning power of the strategy logic.',
+  },
+  net_return_pct: {
+    label: 'ネットリターン',
+    labelEn: 'Net Return',
+    description: '手数料・スリッページを差し引いた後の実際のリターン。総リターンと同じ値。',
+    descriptionEn:
+      'Return after commissions and slippage — what you actually keep. Equals Total Return.',
+  },
+  cost_drag_pct: {
+    label: 'コスト負担',
+    labelEn: 'Cost Drag',
+    description:
+      'グロス − ネット。取引コストがリターンを何%ポイント削ったか。取引回数が多い戦略ほど大きくなり、コスト負け耐性の判断材料になる。',
+    descriptionEn:
+      'Gross minus net: how many percentage points trading costs shaved off. Grows with trade frequency — a key check against being eaten by costs.',
+  },
+  total_commission_paid: {
+    label: '手数料合計',
+    labelEn: 'Commission',
+    description: '期間中に支払った売買手数料の合計額（通貨建て）。',
+    descriptionEn: 'Total commissions paid over the period (in currency).',
+  },
+  total_slippage_cost: {
+    label: 'スリッページ合計',
+    labelEn: 'Slippage',
+    description: '想定価格と約定価格の差（スリッページ）による損失合計額（通貨建て）。',
+    descriptionEn:
+      'Total cost from the gap between intended and filled prices (in currency).',
+  },
+  // ---- 上級指標（issue #368） --------------------------------------------------
+  kelly_criterion: {
+    label: 'Kelly 基準',
+    labelEn: 'Kelly',
+    description:
+      '理論上、資金の何%を 1 トレードに割り当てると長期成長が最大になるかの推計。実務ではこの 1/2〜1/4 に抑えるのが定石。負値はエッジなし。',
+    descriptionEn:
+      'Theoretical % of capital per trade that maximizes long-term growth. In practice use 1/2–1/4 of it. Negative means no edge.',
+    formula: 'W − (1 − W) / R',
+  },
+  expectancy_pct: {
+    label: '期待値/トレード',
+    labelEn: 'Expectancy',
+    description: '1 トレードあたりの期待リターン（%）。プラスであることがシステムの成立条件。',
+    descriptionEn:
+      'Expected return per trade (%). Must be positive for the system to work.',
+  },
+  payoff_ratio: {
+    label: 'Payoff レシオ',
+    labelEn: 'Payoff Ratio',
+    description:
+      '平均利益 ÷ 平均損失。1.0 超なら勝ちが負けより大きい。勝率とセットで評価する（低勝率でも Payoff が高ければ成立）。',
+    descriptionEn:
+      'Avg win / avg loss. Above 1.0 means wins outsize losses. Judge together with win rate.',
+  },
+  gain_to_pain_ratio: {
+    label: 'Gain/Pain',
+    labelEn: 'Gain/Pain',
+    description:
+      '月次リターンの合計 ÷ マイナス月の合計（絶対値）。1.0 超で良好。痛みに対して得た利益の比。',
+    descriptionEn:
+      'Sum of monthly returns divided by the absolute sum of losing months. Above 1.0 is good.',
+  },
+  ulcer_index: {
+    label: 'Ulcer Index',
+    labelEn: 'Ulcer Index',
+    description:
+      'ドローダウンの深さと長さを合成したストレス指標。小さいほど資産曲線が滑らか。',
+    descriptionEn:
+      'Stress metric combining drawdown depth and duration. Lower means a smoother equity curve.',
+  },
+  serenity_index: {
+    label: 'Serenity Index',
+    labelEn: 'Serenity Index',
+    description: 'リターンを Ulcer Index 由来のリスクで割った値。高いほど「穏やかに稼ぐ」戦略。',
+    descriptionEn:
+      'Return divided by Ulcer-based risk. Higher means the strategy earns calmly.',
+  },
+  recovery_factor: {
+    label: 'リカバリーファクター',
+    labelEn: 'Recovery Factor',
+    description: '総リターン ÷ 最大DD。ドローダウンから稼ぎ直す力。2〜3 以上なら良好。',
+    descriptionEn:
+      'Total return / Max DD — the power to earn back after drawdowns. 2–3+ is good.',
+  },
+  win_rate_ci: {
+    label: '勝率 90% CI',
+    labelEn: 'Win% 90% CI',
+    description:
+      '勝率の 90% 信頼区間（ベータ分布）。トレード数が少ないと区間が広くなり、表示勝率が偶然である可能性が高い。下限がなお 50% 超なら心強い。',
+    descriptionEn:
+      'The 90% credible interval of the win rate (Beta distribution). Few trades widen it; a lower bound above 50% is reassuring.',
+  },
   // ---- シグナル品質（SignalQualityBadge） -----------------------------------
   signal_quality_score: {
     label: '品質スコア',
