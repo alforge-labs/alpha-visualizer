@@ -120,7 +120,12 @@ export function ComparePage(): React.ReactElement {
         </div>
       </Toolbar>
 
+      {/* issue #396: 内部スクロールをキーボードで操作できるよう、
+          フォーカス可能な named region にする */}
       <div
+        role="region"
+        aria-label={L('比較コンテンツ', 'Comparison content')}
+        tabIndex={0}
         style={{
           flex: 1,
           overflowY: 'auto',

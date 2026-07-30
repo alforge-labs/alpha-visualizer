@@ -222,7 +222,14 @@ export function DetailPage() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      {/* issue #396: 内部スクロールをキーボードで操作できるよう、
+          フォーカス可能な named region にする */}
+      <div
+        role="region"
+        aria-label={L('戦略詳細コンテンツ', 'Strategy detail content')}
+        tabIndex={0}
+        style={{ flex: 1, overflowY: 'auto' }}
+      >
         <div
           style={{
             maxWidth: 'var(--container-wide)',
