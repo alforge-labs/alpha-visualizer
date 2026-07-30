@@ -1,10 +1,69 @@
 """alpha-vis CLI エントリーポイント"""
 
+import logging
 import pathlib
+import socket
+import time
+from collections.abc import Callable
+from typing import Any
 
 import click
 
 from alpha_visualizer import __version__
+
+
+def _setup_logging(level_name: str) -> None:
+    """アプリロガー（alpha_visualizer.*）を設定する (issue #392)。
+
+    未設定だと Python の lastResort ハンドラ（WARNING 以上・タイムスタンプ
+    なしの裸メッセージ）に落ち、コード中の INFO 診断（FORGE_CONFIG
+    フォールバック採用・run_id DB フォールバック等）がどこにも出ない。
+    """
+    level = getattr(logging, level_name.upper(), logging.INFO)
+    # force=True: 既に root ハンドラがある場合（テストランナー等）でも
+    # 指定レベル・書式で確実に再設定する
+    logging.basicConfig(
+        level=level,
+        # uvicorn の levelprefix と揃えた簡潔な書式
+        format="%(levelname)s:     %(name)s - %(message)s",
+        force=True,
+    )
+
+
+def _ensure_port_available(host: str, port: int) -> None:
+    """bind 前にポートの空きを確認し、使用中なら案内付きで失敗させる。
+
+    従来は uvicorn の bind 失敗より先にブラウザが開き、生の uvicorn エラーで
+    死んでいた (issue #392)。事前チェックには TOCTOU の余地があるが、
+    典型的な「前回の serve が残っている」ケースを親切に落とすには十分。
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError as exc:
+            raise click.ClickException(
+                f"ポート {port} は使用中です（別の alpha-vis serve が動いていませんか？）。"
+                "--port で別のポート番号を指定してください。"
+            ) from exc
+
+
+def _open_browser_when_started(
+    server: Any,
+    url: str,
+    opener: Callable[[str], object],
+    *,
+    poll_interval: float = 0.1,
+) -> None:
+    """uvicorn Server の bind 完了（started）を待ってからブラウザを開く。
+
+    起動に失敗した場合（should_exit）は開かない (issue #392)。
+    """
+    while not server.started:
+        if server.should_exit:
+            return
+        time.sleep(poll_interval)
+    opener(url)
 
 
 def _resolve_bundled_samples() -> pathlib.Path | None:
@@ -53,6 +112,14 @@ def cli() -> None:
 )
 @click.option("--no-open", "no_open", is_flag=True, default=False, help="ブラウザを自動で開かない")
 @click.option(
+    "--log-level",
+    "log_level",
+    default="info",
+    show_default=True,
+    type=click.Choice(["debug", "info", "warning", "error"], case_sensitive=False),
+    help="ログの冗長度（alpha_visualizer.* と uvicorn に適用）",
+)
+@click.option(
     "--use-bundled-samples",
     "use_bundled_samples",
     is_flag=True,
@@ -68,12 +135,16 @@ def serve(
     forge_config: str | None,
     no_open: bool,
     use_bundled_samples: bool,
+    log_level: str,
 ) -> None:
     """Web ダッシュボードを起動する"""
     import uvicorn
 
     from alpha_visualizer.app import create_app
     from alpha_visualizer.forge_config import ForgeConfig
+
+    _setup_logging(log_level)
+    _ensure_port_available(host, port)
 
     if use_bundled_samples:
         bundled = _resolve_bundled_samples()
@@ -109,9 +180,19 @@ def serve(
         "Powered by AlphaForge — フル機能のバックテスト/最適化エンジン: https://alforgelabs.com"
     )
 
+    # ブラウザは bind 成功後に開く (issue #392)。ポート衝突等で起動に
+    # 失敗したとき、別プロセスの画面や接続エラーを見せないため
+    uv_config = uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
+    server = uvicorn.Server(uv_config)
     if not no_open:
+        import threading
         import webbrowser
-        webbrowser.open(url)
 
-    uvicorn.run(app, host=host, port=port)
+        threading.Thread(
+            target=_open_browser_when_started,
+            args=(server, url, webbrowser.open),
+            daemon=True,
+        ).start()
+
+    server.run()
     click.echo("alpha-vis serve を停止しました。")
