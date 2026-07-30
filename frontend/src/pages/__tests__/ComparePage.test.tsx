@@ -92,3 +92,22 @@ describe('ComparePage empty selection (issue #327)', () => {
     expect(screen.queryByTestId('compare-empty')).not.toBeInTheDocument()
   })
 })
+
+/**
+ * issue #396: 100vh + 内部 div スクロールのレイアウトで、スクロール
+ * コンテナがフォーカス不能のためキーボード（End/PageDown/Space）で
+ * スクロールできなかった。tabIndex=0 + region ロールで到達可能にする。
+ */
+describe('ComparePage keyboard-scrollable region (issue #396)', () => {
+  it('exposes the scroll container as a focusable named region', async () => {
+    vi.mocked(api.compareStrategies).mockResolvedValue([])
+    render(
+      <MemoryRouter initialEntries={['/compare?ids=a,b']}>
+        <ComparePage />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.compareStrategies).toHaveBeenCalled())
+    const region = screen.getByRole('region', { name: '比較コンテンツ' })
+    expect(region).toHaveAttribute('tabindex', '0')
+  })
+})

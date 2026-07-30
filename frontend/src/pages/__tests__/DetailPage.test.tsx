@@ -117,3 +117,17 @@ describe('DetailPage の IS/OOS・WFO 概念説明 (issue #361)', () => {
     expect(screen.getByText(/パラメータの頑健性/)).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #396: 100vh + 内部 div スクロールのレイアウトで、スクロール
+ * コンテナがフォーカス不能のためキーボード（End/PageDown/Space）で
+ * スクロールできなかった。tabIndex=0 + region ロールで到達可能にする。
+ */
+describe('DetailPage keyboard-scrollable region (issue #396)', () => {
+  it('exposes the scroll container as a focusable named region', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    renderDetail('spy_test_v1')
+    const region = await screen.findByRole('region', { name: '戦略詳細コンテンツ' })
+    expect(region).toHaveAttribute('tabindex', '0')
+  })
+})
