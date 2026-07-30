@@ -11,6 +11,9 @@ import click
 
 from alpha_visualizer import __version__
 
+#: loopback とみなすバインド先 (issue #388)
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
 
 def _setup_logging(level_name: str) -> None:
     """アプリロガー（alpha_visualizer.*）を設定する (issue #392)。
@@ -160,7 +163,21 @@ def serve(
         forge_path = pathlib.Path(forge_dir).resolve()
         config_path = pathlib.Path(forge_config).resolve() if forge_config else None
     config = ForgeConfig.from_forge_dir(forge_path, config_path=config_path)
-    app = create_app(config=config)
+
+    # 非 loopback バインドは LAN の誰でも破壊的 API（結果削除・戦略上書き・
+    # forge 実行）を認証なしで叩ける (issue #388)。明示警告のうえ、
+    # Host ヘッダ制限（DNS rebinding 対策）も解除する（アクセス元の Host は
+    # バインド時点で確定できないため）。
+    if host in LOOPBACK_HOSTS:
+        app = create_app(config=config)
+    else:
+        click.secho(
+            f"⚠ 警告: --host {host} は LAN 全体へ公開されます。"
+            "この API には認証がなく、結果の削除・戦略定義の上書き・forge プロセス起動が"
+            "誰でも可能になります。信頼できるネットワークでのみ使用してください。",
+            fg="yellow",
+        )
+        app = create_app(config=config, allowed_hosts=["*"])
 
     url = f"http://{host}:{port}"
     click.echo(f"alpha-vis serve: {url}  (Ctrl+C で停止)")
