@@ -39,6 +39,23 @@ const GRID_KEYS = [
   'benchmark_cagr_pct',
 ] as const
 
+// コスト・上級指標セクションで表示される指標キー（issue #368）
+const COST_ADVANCED_KEYS = [
+  'gross_return_pct',
+  'net_return_pct',
+  'cost_drag_pct',
+  'total_commission_paid',
+  'total_slippage_cost',
+  'kelly_criterion',
+  'expectancy_pct',
+  'payoff_ratio',
+  'gain_to_pain_ratio',
+  'ulcer_index',
+  'serenity_index',
+  'recovery_factor',
+  'win_rate_ci',
+] as const
+
 // SignalQualityBadge で表示される指標キー
 const SIGNAL_KEYS = [
   'signal_quality_score',
@@ -54,7 +71,7 @@ function mustGet(key: string) {
 }
 
 describe('METRIC_DEFINITIONS の全指標カバレッジ (issue #360)', () => {
-  it.each([...GRID_KEYS, ...SIGNAL_KEYS])('%s に日英の説明がある', (key) => {
+  it.each([...GRID_KEYS, ...SIGNAL_KEYS, ...COST_ADVANCED_KEYS])('%s に日英の説明がある', (key) => {
     const def = mustGet(key)
     expect(def.description.length).toBeGreaterThan(0)
     expect(def.descriptionEn.length).toBeGreaterThan(0)

@@ -128,6 +128,31 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
       defKey: 'recovery_days',
     },
   ]
+  // コスト・上級指標は旧 run の metrics_json に存在しないためフィールド有無で出し分ける (issue #368)
+  const hasCosts = m.gross_return_pct != null && m.net_return_pct != null
+  const costDrag =
+    hasCosts && m.gross_return_pct != null && m.net_return_pct != null
+      ? m.gross_return_pct - m.net_return_pct
+      : null
+  const hasAdvanced =
+    m.kelly_criterion != null ||
+    m.expectancy_pct != null ||
+    m.payoff_ratio != null ||
+    m.gain_to_pain_ratio != null ||
+    m.ulcer_index != null ||
+    m.serenity_index != null ||
+    m.recovery_factor != null ||
+    m.win_rate_ci != null
+  const sectionHeadingStyle = {
+    fontFamily: 'var(--sans)',
+    fontSize: 'var(--fs-caption)',
+    fontWeight: 600,
+    color: 'var(--text3)',
+    letterSpacing: 'var(--tracking-caption)',
+    textTransform: 'uppercase',
+    paddingTop: 4,
+  } as const
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div
@@ -155,6 +180,70 @@ export function MetricsGrid({ metrics: m, compact, lang }: MetricsGridProps) {
             <MetricCard key={i} {...c} lang={lang} />
           ))}
         </div>
+      )}
+      {!compact && hasCosts && (
+        <>
+          <div style={sectionHeadingStyle}>{L('コスト', 'Costs')}</div>
+          <div
+            data-testid="cost-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(var(--cols-kpi-secondary), minmax(0,1fr))',
+              gap: 8,
+            }}
+          >
+            <MetricCard label={L('グロスリターン', 'Gross Return')} value={m.gross_return_pct} suffix="%" goodWhen="pos" defKey="gross_return_pct" lang={lang} />
+            <MetricCard label={L('ネットリターン', 'Net Return')} value={m.net_return_pct} suffix="%" goodWhen="pos" defKey="net_return_pct" lang={lang} />
+            <MetricCard label={L('コスト負担', 'Cost Drag')} value={costDrag} suffix="%" defKey="cost_drag_pct" lang={lang} />
+            <MetricCard label={L('手数料合計', 'Commission')} value={m.total_commission_paid} defKey="total_commission_paid" lang={lang} />
+            <MetricCard label={L('スリッページ合計', 'Slippage')} value={m.total_slippage_cost} defKey="total_slippage_cost" lang={lang} />
+          </div>
+        </>
+      )}
+      {!compact && hasAdvanced && (
+        <details data-testid="advanced-metrics">
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              fontWeight: 600,
+              color: 'var(--text3)',
+              letterSpacing: 'var(--tracking-caption)',
+              textTransform: 'uppercase',
+              padding: '4px 0',
+            }}
+          >
+            {L('上級指標（資金管理・統計）', 'Advanced (sizing & statistics)')}
+          </summary>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(var(--cols-kpi-secondary), minmax(0,1fr))',
+              gap: 8,
+              paddingTop: 8,
+            }}
+          >
+            {/* Kelly は資金比率（0.18 = 18%）で保存されるため % 表示に換算する */}
+            <MetricCard label={L('Kelly 基準', 'Kelly')} value={m.kelly_criterion != null ? m.kelly_criterion * 100 : null} suffix="%" defKey="kelly_criterion" lang={lang} />
+            <MetricCard label={L('期待値/トレード', 'Expectancy')} value={m.expectancy_pct} suffix="%" goodWhen="pos" defKey="expectancy_pct" lang={lang} />
+            <MetricCard label={L('Payoff レシオ', 'Payoff Ratio')} value={m.payoff_ratio} goodWhen="gte1" defKey="payoff_ratio" lang={lang} />
+            <MetricCard label="Gain/Pain" value={m.gain_to_pain_ratio} goodWhen="gte1" defKey="gain_to_pain_ratio" lang={lang} />
+            <MetricCard label="Ulcer Index" value={m.ulcer_index} defKey="ulcer_index" lang={lang} />
+            <MetricCard label="Serenity Index" value={m.serenity_index} defKey="serenity_index" lang={lang} />
+            <MetricCard label={L('リカバリーファクター', 'Recovery Factor')} value={m.recovery_factor} goodWhen="gte1" defKey="recovery_factor" lang={lang} />
+            <MetricCard
+              label={L('勝率 90% CI', 'Win% 90% CI')}
+              value={
+                m.win_rate_ci
+                  ? `${m.win_rate_ci.lower_pct}–${m.win_rate_ci.upper_pct}%`
+                  : null
+              }
+              defKey="win_rate_ci"
+              lang={lang}
+            />
+          </div>
+        </details>
       )}
       {!compact && m.benchmark && (
         <>
