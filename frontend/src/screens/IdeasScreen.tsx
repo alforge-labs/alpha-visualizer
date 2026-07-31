@@ -114,8 +114,8 @@ export function IdeasScreen({
             }}
           >
             {L(
-              'forge idea コマンドで蓄積した戦略アイデアを一覧します。ステータスやタグで絞り込み、リンク済み戦略の詳細に移動できます。',
-              'Browse strategy ideas added with forge idea. Filter by status or tag and jump to linked strategy details.',
+              '戦略アイデアを一覧します（この画面は閲覧専用です）。ステータスやタグで絞り込み、リンク済み戦略の詳細に移動できます。追加・編集は AlphaForge の forge idea コマンドで行います。',
+              'Browse strategy ideas (this screen is read-only). Filter by status or tag and jump to linked strategy details. Add or edit ideas with the forge idea command in AlphaForge.',
             )}
           </p>
         </div>

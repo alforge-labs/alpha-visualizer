@@ -51,7 +51,7 @@ export function WFOScreen({ data, compact, lang }: Props) {
   return (
     <div data-testid="wfo-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHeader
-        title={L('ウォークフォーワード検証', 'Walk-Forward Optimization')}
+        title={L('ウォークフォワード検証', 'Walk-Forward Optimization')}
         subtitle={subtitleParts.join(' · ')}
       />
       <TabBar>

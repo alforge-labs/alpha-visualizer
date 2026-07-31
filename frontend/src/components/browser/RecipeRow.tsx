@@ -199,6 +199,10 @@ export function RecipeRow({
           {recipe.timeframe ? <Chip>{recipe.timeframe}</Chip> : null}
           {expandable && (
             <span
+              title={L(
+                '試行 = 同じ戦略ベースのパラメータ違いのバリエーション',
+                'Trial = a parameter variation of the same base strategy',
+              )}
               style={{
                 flexShrink: 0,
                 fontFamily: 'var(--mono)',

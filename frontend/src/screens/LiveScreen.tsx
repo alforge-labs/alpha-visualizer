@@ -97,7 +97,7 @@ export function LiveScreen({
             }}
           >
             {L(
-              'ライブ / ペーパートレードの実績を一覧します。combine ポートフォリオ（position ベース）と戦略単位の実績の両方をバックテストと突き合わせて確認できます。',
+              'ライブ / ペーパートレードの実績を一覧します。合成ポートフォリオ（保有ポジションから算出）と戦略単位の実績の両方をバックテストと突き合わせて確認できます。',
               'Browse live / paper trading records. Both combine portfolios (position-based) and per-strategy records are shown with backtest comparison.',
             )}
           </p>

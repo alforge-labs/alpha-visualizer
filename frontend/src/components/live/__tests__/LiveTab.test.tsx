@@ -137,7 +137,7 @@ describe('<LiveTab />', () => {
       ...BASE_RESPONSE,
       backtest: null,
       diff: null,
-      warnings: ['対応する backtest run が見つかりません'],
+      warnings: ['対応するバックテスト実行が見つかりません'],
     }
     vi.mocked(api.getLive).mockResolvedValue(noBacktest)
     render(<LiveTab strategyId="strat_a" runId="bt_run_1" lang="en" />)
@@ -249,7 +249,7 @@ describe('<LiveTab /> position kind (combine portfolio)', () => {
     expect(screen.queryAllByTestId('live-summary-card')).toHaveLength(0)
     // 構成戦略とメタ情報
     expect(screen.getByText(/gld_bh_v1/)).toBeInTheDocument()
-    expect(screen.getByText(/receipts: 4/)).toBeInTheDocument()
+    expect(screen.getByText(/約定記録: 4/)).toBeInTheDocument()
   })
 
   it('renders equity sparkline when equity series exists', async () => {

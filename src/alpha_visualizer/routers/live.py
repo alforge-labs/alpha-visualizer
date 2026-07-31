@@ -157,16 +157,16 @@ async def get_live(
     diff: dict[str, Any] | None = None
     if period is None:
         warnings.append(
-            "live trades が無いため backtest との期間整合 diff は計算できません"
+            "ライブの取引記録が無いため、バックテストと期間をそろえた比較は計算できません"
         )
     else:
         record = _backtest_record_for_diff(repo, strategy_id, run_id)
         if record is None:
-            warnings.append("対応する backtest run が見つかりません")
+            warnings.append("対応するバックテスト実行が見つかりません")
         else:
             aligned = live_service.aligned_aggregates(record["trades"], period)
             if aligned is None:
-                warnings.append("対象期間に backtest trade が存在しません")
+                warnings.append("対象期間にバックテストの取引がありません")
                 backtest = {
                     "run_id": record["run_id"],
                     "period": period,

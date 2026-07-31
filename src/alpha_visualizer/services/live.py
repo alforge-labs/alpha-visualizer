@@ -211,7 +211,7 @@ def position_detail(portfolio_id: str, pos: dict[str, Any]) -> dict[str, Any]:
         "backtest": None,
         "diff": None,
         "warnings": [
-            "position ベースの combine portfolio のため trade 単位の backtest diff はありません"
+            "合成ポートフォリオ（保有ポジションから算出）のため、取引単位のバックテスト比較はありません"
         ],
     }
 

@@ -243,7 +243,9 @@ function MetaLine({ summary, warnings, lang }: MetaLineProps): ReactElement {
         color: 'var(--text3)',
       }}
     >
-      {summary.receipts_count != null && <span>receipts: {summary.receipts_count}</span>}
+      {summary.receipts_count != null && (
+        <span>{L('約定記録', 'receipts')}: {summary.receipts_count}</span>
+      )}
       {summary.updated_at && (
         <span>
           {L('更新', 'updated')}: {summary.updated_at.slice(0, 19).replace('T', ' ')}

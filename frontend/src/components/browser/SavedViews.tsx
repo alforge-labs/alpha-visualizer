@@ -114,7 +114,14 @@ export function SavedViews({ lang }: Props) {
           textTransform: 'uppercase',
         }}
       >
-        {L('レンズ', 'Lenses')}
+        <span
+          title={L(
+            'レンズ = ワンクリックで適用できる絞り込みプリセット',
+            'Lens = a one-click filter preset',
+          )}
+        >
+          {L('レンズ', 'Lenses')}
+        </span>
       </span>
       {VIEWS.map(view => {
         const active = isActive(view, searchParams)
