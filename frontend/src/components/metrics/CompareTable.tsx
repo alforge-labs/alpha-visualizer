@@ -241,7 +241,8 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
                                     sign: true,
                                     suffix: c.suffix,
                                   })}${
-                                    improved === true ? ' ↑' : improved === false ? ' ↓' : ''
+                                    // issue #367: 増減でなく良し悪しを表す記号に統一
+                                    improved === true ? ' ▲' : improved === false ? ' ▼' : ''
                                   }`}
                             </span>
                           </td>
@@ -255,6 +256,22 @@ export function CompareTable({ strategies, lang }: CompareTableProps): React.Rea
           </tbody>
         </table>
       </div>
+      {strategies.length > 1 && (
+        <p
+          style={{
+            margin: 'var(--space-2) 0 0',
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            color: 'var(--text3)',
+            textAlign: 'right',
+          }}
+        >
+          {L(
+            '▲ = ベースより改善 · ▼ = ベースより悪化（Δ = 各戦略 − ベース）',
+            '▲ = better than base · ▼ = worse than base (Δ = strategy − base)',
+          )}
+        </p>
+      )}
     </Card>
   )
 }

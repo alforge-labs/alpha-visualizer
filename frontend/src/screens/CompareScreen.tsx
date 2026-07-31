@@ -63,6 +63,32 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
 
   const winner = selectBestSharpe(data) ?? data[0]!
 
+  // issue #367: ベース銘柄だけでなく比較の前提（全銘柄・データ期間・
+  // 期間差異）をヘッダーで明示する
+  const symbols = [...new Set(data.map(s => s.symbol).filter(Boolean))]
+  const symbolLabel =
+    symbols.length === 0
+      ? symbol
+      : symbols.length <= 3
+        ? symbols.join(' / ')
+        : L(`${symbols.length} 銘柄`, `${symbols.length} symbols`)
+  const ranges = data
+    .map(s => s.equity)
+    .filter((e): e is NonNullable<typeof e> => Boolean(e && e.dates.length > 0))
+    .map(e => [e.dates[0]!, e.dates[e.dates.length - 1]!] as const)
+  const toYm = (d: string): string => d.slice(0, 7)
+  const periodLabel =
+    ranges.length > 0
+      ? `${toYm([...ranges].sort((a, b) => a[0].localeCompare(b[0]))[0]![0])} 〜 ${toYm(
+          [...ranges].sort((a, b) => b[1].localeCompare(a[1]))[0]![1],
+        )}`
+      : L('全期間', 'Full period')
+  // 開始月または終了月が戦略間でずれていたら期間差異ありとみなす
+  const periodsDiffer =
+    ranges.length > 1 &&
+    (new Set(ranges.map(r => toYm(r[0]))).size > 1 ||
+      new Set(ranges.map(r => toYm(r[1]))).size > 1)
+
   const distributionDatasets = data
     .filter(s => s.daily_returns)
     .map((s, i) => ({
@@ -75,7 +101,7 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       <SectionHeader
         title={L('戦略比較', 'Strategy comparison')}
-        subtitle={`${symbol} · ${L('全期間', 'Full period')} · ${data.length} ${L('戦略', 'strategies')}`}
+        subtitle={`${symbolLabel} · ${periodLabel} · ${data.length} ${L('戦略', 'strategies')}`}
         right={
           <div
             style={{
@@ -114,6 +140,22 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
           </div>
         }
       />
+
+      {periodsDiffer && (
+        <p
+          style={{
+            margin: 'calc(-1 * var(--space-4)) 0 0',
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            color: 'var(--text3)',
+          }}
+        >
+          {L(
+            '※ 戦略ごとに実行期間が異なります。各系列は自身の開始日を起点に正規化して重ねているため、期間の重なりに注意して比較してください。',
+            'Note: the strategies were run over different periods. Each series is normalized from its own start date, so mind the overlap when comparing.',
+          )}
+        </p>
+      )}
 
       {/* メイン: 2/3 (左 chart) + 1/3 (右 stat 縦積み) — 1024px 以下では縦積み */}
       <div
