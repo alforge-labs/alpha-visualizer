@@ -109,3 +109,38 @@ describe('<CompareScreen /> null metrics on side cards (issue #352)', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4)
   })
 })
+
+/**
+ * issue #367: ヘッダーがベース銘柄のみで、別銘柄・別期間の比較で
+ * 前提が読み取れなかった。全銘柄・データ期間・期間差異の注記を表示する。
+ */
+describe('<CompareScreen /> header context (issue #367)', () => {
+  it('全銘柄とデータ期間をヘッダーに表示する', () => {
+    const mixed = [
+      { ...STRATS[0], symbol: 'SPY' },
+      { ...STRATS[1], symbol: 'QQQ' },
+    ] as unknown as StrategyComparison[]
+    render(<CompareScreen data={mixed} lang="ja" symbol="SPY" />)
+    // ベース銘柄だけでなく比較対象の銘柄も見える
+    expect(screen.getByText(/SPY \/ QQQ/)).toBeInTheDocument()
+    // データ期間（equity の日付範囲）が明示される
+    expect(screen.getByText(/2020-01/)).toBeInTheDocument()
+  })
+
+  it('実行期間が異なる戦略を含む場合は注記を表示する', () => {
+    const mismatched = [
+      { ...STRATS[0] },
+      {
+        ...STRATS[1],
+        equity: { dates: ['2022-06-01', '2022-06-02'], values: [100, 101] },
+      },
+    ] as unknown as StrategyComparison[]
+    render(<CompareScreen data={mismatched} lang="ja" symbol="SPY" />)
+    expect(screen.getByText(/実行期間が異なります/)).toBeInTheDocument()
+  })
+
+  it('期間が揃っている場合は注記を出さない', () => {
+    render(<CompareScreen data={STRATS} lang="ja" symbol="SPY" />)
+    expect(screen.queryByText(/実行期間が異なります/)).not.toBeInTheDocument()
+  })
+})
