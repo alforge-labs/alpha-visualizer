@@ -145,6 +145,26 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           )}
         </p>
       )}
+      {/* issue #382: この run の使用パラメータ（forge#1356 で保存）。
+          チューニング試行の再現に必要な情報を run 単位で常設表示する */}
+      {data.params && Object.keys(data.params).length > 0 && (
+        <p
+          data-testid="run-params"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            color: 'var(--text3)',
+            letterSpacing: 'var(--tracking-mono)',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {L('使用パラメータ: ', 'Parameters: ')}
+          {Object.entries(data.params)
+            .map(([k, v]) => `${k}=${String(v)}`)
+            .join(' · ')}
+        </p>
+      )}
       <TabBar bordered>
         {tabs.map(([id, label]) => (
           <Tab key={id} active={tab === id} onClick={() => setTab(id)} small>

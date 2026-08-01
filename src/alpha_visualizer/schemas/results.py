@@ -156,6 +156,8 @@ class BacktestDetail(BaseModel):
     # FX キャリー近似（vis#308）。None = キャリー計上なし → JSON からキーごと除外
     # （forge --json の「キー有無 = 計上有無」契約をレスポンスでも保つ）
     carry_adjusted: CarryAdjusted | None = None
+    # 実行時に使用した戦略パラメータ（vis#382）。None = 旧 forge 記録で不明
+    params: dict[str, Any] | None = None
 
     @model_serializer(mode="wrap")
     def _serialize_with_optional_regime(self, handler):

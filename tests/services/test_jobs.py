@@ -249,11 +249,13 @@ class TestJobLifecycle:
         assert manager.get(second.job_id).status == "queued"
 
         await manager.cancel(first.job_id)
-        await manager.wait_terminal(first.job_id, timeout=10)
+        # CI（特に --cov 計測下・issue #393）ではプロセス終了〜スロット解放が
+        # 10 秒を超えることがあるため、待ちには余裕を持たせる
+        await manager.wait_terminal(first.job_id, timeout=30)
         # 1 本目が終わればスロットが空き、2 本目が動き出す
-        await manager.wait_status(second.job_id, "running", timeout=10)
+        await manager.wait_status(second.job_id, "running", timeout=30)
         await manager.cancel(second.job_id)
-        await manager.wait_terminal(second.job_id, timeout=10)
+        await manager.wait_terminal(second.job_id, timeout=30)
 
     async def test_timeout_kills_job(self, tmp_path: pathlib.Path) -> None:
         stub = _make_stub(tmp_path, "sleep 30\n")

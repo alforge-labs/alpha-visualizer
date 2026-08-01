@@ -559,6 +559,10 @@ export interface components {
             /** Source */
             source?: string | null;
             carry_adjusted?: components["schemas"]["CarryAdjusted"] | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            } | null;
         } & {
             [key: string]: unknown;
         };
