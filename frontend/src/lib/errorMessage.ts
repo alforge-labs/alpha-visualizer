@@ -72,8 +72,8 @@ export function messageForApiErrorCode(
   const code = extractApiErrorCode(raw)
   if (code === 'forge_cli_not_found') {
     return L(
-      'forge コマンドが見つかりません。AlphaForge を導入してください — https://alforgelabs.com',
-      'forge command not found in PATH. Install AlphaForge — https://alforgelabs.com',
+      'alpha-forge コマンドが見つかりません。AlphaForge を導入してください — https://alforgelabs.com',
+      'alpha-forge command not found in PATH. Install AlphaForge — https://alforgelabs.com',
     )
   }
   return null
