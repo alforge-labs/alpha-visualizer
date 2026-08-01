@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // `lightweight-charts` 全体をモック化する。jsdom には Canvas が無く createChart は実行できないため。
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
   const removeMock = vi.fn()
   const removeSeriesMock = vi.fn()
   const takeScreenshotMock = vi.fn(() => globalThis.document?.createElement?.('canvas'))
+  const priceScaleApplyOptionsMock = vi.fn()
   const attachPrimitiveMock = vi.fn()
   const detachPrimitiveMock = vi.fn()
   const addSeriesMock = vi.fn(() => ({
@@ -28,6 +29,8 @@ const mocks = vi.hoisted(() => {
     removeSeries: removeSeriesMock,
     applyOptions: applyOptionsMock,
     takeScreenshot: takeScreenshotMock,
+    // issue #378: Lin/Log スケール切替が呼ぶ API
+    priceScale: () => ({ applyOptions: priceScaleApplyOptionsMock }),
     // issue #318: 双方向 viewport sync が購読する API
     timeScale: () => ({
       setVisibleRange: setVisibleRangeMock,
@@ -51,6 +54,7 @@ const mocks = vi.hoisted(() => {
     createSeriesMarkersMock,
     attachPrimitiveMock,
     detachPrimitiveMock,
+    priceScaleApplyOptionsMock,
   }
 })
 
@@ -60,6 +64,7 @@ vi.mock('lightweight-charts', () => ({
   HistogramSeries: 'HistogramSeriesDef',
   ColorType: { Solid: 'solid' },
   LineStyle: { Dotted: 0, Dashed: 1, Solid: 2 },
+  PriceScaleMode: { Normal: 'normal-mode', Logarithmic: 'log-mode' },
   createChart: mocks.createChartMock,
   createSeriesMarkers: mocks.createSeriesMarkersMock,
 }))
@@ -77,6 +82,7 @@ const {
   createSeriesMarkersMock,
   attachPrimitiveMock,
   detachPrimitiveMock,
+  priceScaleApplyOptionsMock,
 } = mocks
 
 import { EquityDrawdownPaneTV } from '../EquityDrawdownPaneTV'
@@ -562,5 +568,31 @@ describe('EquityDrawdownPaneTV', () => {
       })
       expect(overlaySetDataCall).toBeDefined()
     })
+  })
+})
+
+/**
+ * issue #378: 長期 equity のリニア表示では初期の値動きが潰れ、複利成長の
+ * 一貫性が判断できない。Log トグルで価格軸を対数モードへ切り替える。
+ */
+describe('EquityDrawdownPaneTV log scale (issue #378)', () => {
+  it('Log トグルで priceScale が対数モードに切り替わる', () => {
+    render(
+      <EquityDrawdownPaneTV
+        equity={sampleEquity}
+        dates={sampleDates}
+        drawdown={sampleDrawdown}
+        isCutoffIdx={-1}
+        lang="ja"
+      />,
+    )
+    const toggle = screen.getByRole('button', { name: 'Log' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    // priceScale('right').applyOptions が対数モードで呼ばれている
+    expect(priceScaleApplyOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'log-mode' }),
+    )
   })
 })
