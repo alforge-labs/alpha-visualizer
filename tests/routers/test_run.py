@@ -428,3 +428,19 @@ class TestRunConcurrencyGuard:
         finally:
             for _ in range(acquired):
                 sem.release()
+
+
+class TestStrategyIdValidation:
+    """issue #394: strategy_id の規約を duplicate と統一する。
+
+    `-` 始まり等の値が forge の argv でオプションと誤解釈される余地を
+    API 境界で塞ぐ（symbol は `--` 防御済みで非対称だった）。
+    """
+
+    def test_ハイフン始まりの_strategy_id_は_422(
+        self, client_with_db: TestClient
+    ) -> None:
+        resp = client_with_db.post(
+            "/api/run", json={"strategy_id": "--strategy-file", "symbol": "AAPL"}
+        )
+        assert resp.status_code == 422

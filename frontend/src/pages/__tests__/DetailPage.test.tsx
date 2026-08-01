@@ -167,3 +167,24 @@ describe('DetailPage の ?tab= 初期タブ (issue #365)', () => {
     expect(screen.queryByText(/戦略定義が見つかりません/)).not.toBeInTheDocument()
   })
 })
+
+/**
+ * issue #394-3: WFO / Optimize を持たない戦略で Detail を開くたびに
+ * 正常系 404 がコンソールへ積まれていた。タブを初めて開くまでフェッチしない。
+ */
+describe('DetailPage lazy WFO/Optimize fetch (issue #394)', () => {
+  it('初期表示では getWFO / getOptimize を呼ばず、タブを開いたら呼ぶ', async () => {
+    vi.mocked(api.getStrategyRuns).mockResolvedValue([])
+    // 先行テストの呼び出し履歴を消す（beforeEach は挙動のみ再設定するため）
+    vi.mocked(api.getWFO).mockClear()
+    vi.mocked(api.getOptimize).mockClear()
+    renderDetail('spy_test_v1')
+    await waitFor(() => expect(api.getStrategyRuns).toHaveBeenCalled())
+    expect(api.getWFO).not.toHaveBeenCalled()
+    expect(api.getOptimize).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'WFO' }))
+    await waitFor(() => expect(api.getWFO).toHaveBeenCalledTimes(1))
+    expect(api.getOptimize).not.toHaveBeenCalled()
+  })
+})

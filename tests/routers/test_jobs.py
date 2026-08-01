@@ -316,3 +316,16 @@ class TestJobsRouter:
     def test_sse_unknown_job_returns_404(self, jobs_client: TestClient) -> None:
         resp = jobs_client.get("/api/jobs/job-unknown/events")
         assert resp.status_code == 404
+
+
+class TestJobStrategyIdValidation:
+    """issue #394: ジョブ作成も run と同じ strategy_id 規約で検証する。"""
+
+    def test_ハイフン始まりの_strategy_id_は_422(
+        self, client_with_db: TestClient
+    ) -> None:
+        resp = client_with_db.post(
+            "/api/jobs",
+            json={"kind": "optimize", "strategy_id": "-x", "symbol": "AAPL"},
+        )
+        assert resp.status_code == 422

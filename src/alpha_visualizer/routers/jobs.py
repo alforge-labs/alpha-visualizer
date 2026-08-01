@@ -46,7 +46,8 @@ class CreateJobRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     kind: Literal["backtest", "optimize", "wft"]
-    strategy_id: str = Field(min_length=1)
+    # duplicate と同じ規約（issue #394）。forge argv への素通しを境界で塞ぐ
+    strategy_id: str = Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
     symbol: str = Field(min_length=1)
     # trials は optimize、windows は wft でのみ意味を持つ（他 kind では無視）
     trials: int | None = Field(default=None, ge=1, le=1000)

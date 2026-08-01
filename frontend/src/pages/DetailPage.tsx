@@ -63,8 +63,20 @@ export function DetailPage() {
   const [strategyReload, setStrategyReload] = useState(0)
 
   const backtest = useBacktest({ runId, reloadToken })
-  const wfo = useWFO(strategyId ?? null, wfoReload)
-  const optimize = useOptimize(strategyId ?? null, optimizeReload, optimizeRunId)
+  // issue #394: WFO / Optimize はタブを初めて開くまでフェッチしない。
+  // 未実行の戦略で Detail を開くたびに正常系 404 がコンソールへ積まれる
+  // ノイズを避ける（一度開いたらラッチして以後は保持）。
+  // ラッチは render 中の状態調整パターン（React 公式の adjust-state）で行う
+  const [wfoRequested, setWfoRequested] = useState(false)
+  if (tab === 'wfo' && !wfoRequested) setWfoRequested(true)
+  const [optimizeRequested, setOptimizeRequested] = useState(false)
+  if (tab === 'optimize' && !optimizeRequested) setOptimizeRequested(true)
+  const wfo = useWFO(wfoRequested ? (strategyId ?? null) : null, wfoReload)
+  const optimize = useOptimize(
+    optimizeRequested ? (strategyId ?? null) : null,
+    optimizeReload,
+    optimizeRunId,
+  )
   const strategyDetail = useStrategyDetail(
     tab === 'strategy' ? (strategyId ?? null) : null,
     strategyReload,
