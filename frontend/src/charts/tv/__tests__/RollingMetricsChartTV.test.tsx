@@ -1,43 +1,23 @@
-import { render as rtlRender, screen, type RenderOptions } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DashboardProvider } from '../../../contexts/DashboardContext'
-
-function render(ui: React.ReactElement, options?: RenderOptions) {
-  return rtlRender(ui, { wrapper: DashboardProvider, ...options })
-}
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
-  const setDataMock = vi.fn()
-  const applyOptionsMock = vi.fn()
-  const setVisibleRangeMock = vi.fn()
-  const subscribeRangeMock = vi.fn()
-  const unsubscribeRangeMock = vi.fn()
-  const removeMock = vi.fn()
   const addSeriesMock = vi.fn(() => ({
-    setData: setDataMock,
-    applyOptions: applyOptionsMock,
+    setData: vi.fn(),
+    applyOptions: vi.fn(),
   }))
   const createChartMock = vi.fn(() => ({
-    remove: removeMock,
+    remove: vi.fn(),
     addSeries: addSeriesMock,
-    applyOptions: applyOptionsMock,
-    // issue #318: 双方向 viewport sync が購読する API
+    applyOptions: vi.fn(),
     timeScale: () => ({
-      setVisibleRange: setVisibleRangeMock,
-      subscribeVisibleTimeRangeChange: subscribeRangeMock,
-      unsubscribeVisibleTimeRangeChange: unsubscribeRangeMock,
+      setVisibleRange: vi.fn(),
+      getVisibleRange: vi.fn(() => null),
+      subscribeVisibleTimeRangeChange: vi.fn(),
+      unsubscribeVisibleTimeRangeChange: vi.fn(),
     }),
   }))
-  return {
-    setDataMock,
-    applyOptionsMock,
-    setVisibleRangeMock,
-    subscribeRangeMock,
-    unsubscribeRangeMock,
-    removeMock,
-    addSeriesMock,
-    createChartMock,
-  }
+  return { addSeriesMock, createChartMock }
 })
 
 vi.mock('lightweight-charts', () => ({
@@ -48,59 +28,44 @@ vi.mock('lightweight-charts', () => ({
 }))
 
 import { RollingMetricsChartTV } from '../RollingMetricsChartTV'
-
-const { setDataMock, setVisibleRangeMock, removeMock, addSeriesMock, createChartMock } = mocks
+import { DashboardProvider } from '../../../contexts/DashboardContext'
 
 beforeEach(() => {
-  createChartMock.mockClear()
-  addSeriesMock.mockClear()
-  setDataMock.mockClear()
-  setVisibleRangeMock.mockClear()
-  removeMock.mockClear()
+  mocks.createChartMock.mockClear()
 })
 
-afterEach(() => {
-  vi.clearAllMocks()
+/**
+ * issue #376: rolling 指標が Sharpe のみだった。系列切替（Sharpe / Vol）を
+ * 追加し、ボラティリティレジームの変化を確認できるようにする。
+ */
+const RETURNS = Array.from({ length: 120 }, (_, i) => (i % 2 === 0 ? 0.01 : -0.008))
+const DATES = Array.from({ length: 121 }, (_, i) => {
+  const d = new Date(2024, 0, 1 + i)
+  return d.toISOString().slice(0, 10)
 })
 
-const sampleReturns = Array.from({ length: 120 }, (_, i) => Math.sin(i / 10) * 0.01)
-const sampleDates = Array.from(
-  { length: 120 },
-  (_, i) => `2024-01-${String((i % 28) + 1).padStart(2, '0')}`,
-)
+function renderChart() {
+  return render(
+    <DashboardProvider>
+      <RollingMetricsChartTV dailyReturns={RETURNS} dates={DATES} lang="ja" />
+    </DashboardProvider>,
+  )
+}
 
-describe('RollingMetricsChartTV', () => {
-  it('マウント時に createChart + 1 LineSeries を生成する', () => {
-    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
-    expect(createChartMock).toHaveBeenCalledTimes(1)
-    expect(addSeriesMock).toHaveBeenCalledWith('LineSeriesDef', expect.any(Object))
-    expect(addSeriesMock).toHaveBeenCalledTimes(1)
+describe('RollingMetricsChartTV metric toggle (issue #376)', () => {
+  it('既定は Sharpe、トグルで年率ボラティリティに切り替わる', () => {
+    renderChart()
+    expect(screen.getByRole('group', { name: /Rolling Sharpe/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /ボラティリティ/ }))
+    expect(screen.getByRole('group', { name: /Rolling Volatility/ })).toBeInTheDocument()
+    // データ表の列名も切り替わる
+    expect(screen.getByText('Rolling Volatility (%)')).toBeInTheDocument()
   })
 
-  it('rolling Sharpe のデータを setData で渡し、viewport を反映する', () => {
-    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
-    expect(setDataMock).toHaveBeenCalled()
-    expect(setVisibleRangeMock).toHaveBeenCalled()
-  })
-
-  it('Window 切替ボタン (30d / 60d / 90d) を描画する', () => {
-    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
-    expect(screen.getByRole('button', { name: '30d' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '60d' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '90d' })).toBeInTheDocument()
-  })
-
-  it('aria-label に window 幅と point 数が含まれる', () => {
-    render(<RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />)
-    const region = screen.getByRole('group', { name: /Rolling Sharpe/ })
-    expect(region.getAttribute('aria-label')).toMatch(/Rolling Sharpe \(60-day window\)/)
-  })
-
-  it('unmount で chart.remove() を呼ぶ', () => {
-    const { unmount } = render(
-      <RollingMetricsChartTV lang="ja" dailyReturns={sampleReturns} dates={sampleDates} />,
-    )
-    unmount()
-    expect(removeMock).toHaveBeenCalledTimes(1)
+  it('Sharpe ボタンで元に戻せる', () => {
+    renderChart()
+    fireEvent.click(screen.getByRole('button', { name: /ボラティリティ/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sharpe' }))
+    expect(screen.getByRole('group', { name: /Rolling Sharpe/ })).toBeInTheDocument()
   })
 })

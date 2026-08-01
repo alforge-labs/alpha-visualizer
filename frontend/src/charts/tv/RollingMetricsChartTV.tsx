@@ -9,7 +9,7 @@ import {
 import { useDashboard } from '../../contexts/DashboardContext'
 import { RANGE_N } from '../../contexts/dashboardConstants'
 import { useChartTheme } from '../../design/useChartTheme'
-import { computeRollingSharpe } from '../../lib/rolling'
+import { computeRollingSharpe, computeRollingVolatility } from '../../lib/rolling'
 import { ChartDataTable } from '../../design/primitives/ChartDataTable'
 import { useSyncedTimeRange } from '../../hooks/useSyncedTimeRange'
 import { chartThemeToOptions } from './theme'
@@ -18,6 +18,13 @@ import { toLineData } from './data'
 
 const WINDOWS = [30, 60, 90] as const
 type WindowOption = (typeof WINDOWS)[number]
+
+// issue #376: rolling 指標の系列切替（Sharpe / 年率ボラティリティ）
+type MetricOption = 'sharpe' | 'vol'
+const METRIC_TITLES: Record<MetricOption, string> = {
+  sharpe: 'Rolling Sharpe',
+  vol: 'Rolling Volatility (%)',
+}
 
 export interface RollingMetricsChartTVProps {
   dailyReturns: number[]
@@ -32,14 +39,18 @@ function buildSlicedSeries(
   dates: string[],
   win: WindowOption,
   rangeBars: number,
+  metric: MetricOption,
 ): { dates: string[]; values: number[] } {
-  const sharpe = computeRollingSharpe(dailyReturns, win)
-  const n = sharpe.length
+  const series =
+    metric === 'vol'
+      ? computeRollingVolatility(dailyReturns, win)
+      : computeRollingSharpe(dailyReturns, win)
+  const n = series.length
   const start = Math.max(0, n - Math.min(rangeBars, n))
   const slicedDates: string[] = []
   const slicedValues: number[] = []
   for (let i = start; i < n; i++) {
-    const v = sharpe[i]
+    const v = series[i]
     if (v == null) continue
     const d = dates[i + 1] ?? dates[i]
     if (!d) continue
@@ -55,6 +66,7 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
   const { selectedRange } = useDashboard()
   const theme = useChartTheme()
   const [win, setWin] = useState<WindowOption>(60)
+  const [metric, setMetric] = useState<MetricOption>('sharpe')
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -63,8 +75,8 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null)
 
   const sliced = useMemo(
-    () => buildSlicedSeries(dailyReturns, dates, win, RANGE_N[selectedRange]),
-    [dailyReturns, dates, win, selectedRange],
+    () => buildSlicedSeries(dailyReturns, dates, win, RANGE_N[selectedRange], metric),
+    [dailyReturns, dates, win, selectedRange, metric],
   )
 
   const lineData = useMemo(() => toLineData(sliced.dates, sliced.values), [sliced])
@@ -119,10 +131,43 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
     <div
       data-testid="rolling-metrics-tv"
       role="group"
-      aria-label={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
+      aria-label={`${METRIC_TITLES[metric]} (${win}-day window), ${lineData.length} points`}
       style={{ position: 'relative' }}
     >
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+        {(
+          [
+            ['sharpe', 'Sharpe'],
+            ['vol', L('ボラティリティ', 'Volatility')],
+          ] as const
+        ).map(([value, label]) => {
+          const active = metric === value
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setMetric(value)}
+              style={{
+                height: 24,
+                padding: '0 10px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 'var(--fs-mono-sm)',
+                fontWeight: 600,
+                letterSpacing: 'var(--tracking-mono)',
+                background: active ? 'var(--accent-bg)' : 'transparent',
+                border: active ? '1px solid var(--accent-glow)' : '1px solid var(--border)',
+                color: active ? 'var(--accent)' : 'var(--text3)',
+                transition: 'all var(--motion-fast)',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+        <span aria-hidden="true" style={{ width: 8 }} />
         {WINDOWS.map((w) => {
           const active = w === win
           return (
@@ -154,8 +199,8 @@ export function RollingMetricsChartTV(props: RollingMetricsChartTVProps) {
 
       <ChartDataTable
         label={L('データ表', 'Data table')}
-        caption={`Rolling Sharpe (${win}-day window), ${lineData.length} points`}
-        columns={['Date', 'Rolling Sharpe']}
+        caption={`${METRIC_TITLES[metric]} (${win}-day window), ${lineData.length} points`}
+        columns={['Date', METRIC_TITLES[metric]]}
         rows={lineData.map((d) => [String(d.time), d.value.toFixed(2)])}
       />
     </div>

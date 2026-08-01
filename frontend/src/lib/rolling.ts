@@ -33,3 +33,30 @@ export function computeRollingSharpe(
   }
   return result
 }
+
+/**
+ * 日次リターン列から rolling ボラティリティ（年率化・%）を計算する。
+ *
+ * - ``window`` 個未満の点は ``null``
+ * - 年率化係数は ``sqrt(252)``（営業日想定）。値は % 表記（0.15 → 15 ではなく
+ *   リターン 1% = 0.01 を入力すると出力はたとえば 22.4 のような % 値）
+ *
+ * @param returns 日次リターン (decimal)
+ * @param window ローリング窓幅
+ * @returns ``returns`` と同じ長さの配列。``null`` が入る箇所がある
+ */
+export function computeRollingVolatility(
+  returns: readonly number[],
+  window: number,
+): (number | null)[] {
+  const result: (number | null)[] = new Array(returns.length).fill(null)
+  if (window < 2 || window > returns.length) return result
+  for (let i = window - 1; i < returns.length; i++) {
+    const slice = returns.slice(i - window + 1, i + 1)
+    const m = slice.reduce((a, b) => a + b, 0) / window
+    const variance =
+      slice.reduce((a, b) => a + (b - m) ** 2, 0) / (window - 1)
+    result[i] = Math.sqrt(variance) * ANNUALIZATION_FACTOR * 100
+  }
+  return result
+}

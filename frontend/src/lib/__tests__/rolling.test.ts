@@ -43,3 +43,25 @@ describe('computeRollingSharpe', () => {
     expect(input).toEqual(snapshot)
   })
 })
+
+describe('computeRollingVolatility (issue #376)', () => {
+  it('window 未満は null、以降は年率化ボラティリティ（%）を返す', async () => {
+    const { computeRollingVolatility } = await import('../rolling')
+    const result = computeRollingVolatility([0.01, -0.01, 0.01], 2)
+    expect(result[0]).toBeNull()
+    // std([0.01, -0.01]) = 0.0141421…（標本標準偏差）→ ×√252×100
+    expect(result[1]).toBeCloseTo(0.014142135 * Math.sqrt(252) * 100, 3)
+  })
+
+  it('一定リターンではボラティリティ 0', async () => {
+    const { computeRollingVolatility } = await import('../rolling')
+    const result = computeRollingVolatility([0.01, 0.01, 0.01], 2)
+    expect(result[1]).toBe(0)
+    expect(result[2]).toBe(0)
+  })
+
+  it('window が系列長を超える場合はすべて null', async () => {
+    const { computeRollingVolatility } = await import('../rolling')
+    expect(computeRollingVolatility([0.01], 5)).toEqual([null])
+  })
+})
