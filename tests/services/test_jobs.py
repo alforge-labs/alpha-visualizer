@@ -138,6 +138,31 @@ class TestJobLifecycle:
         assert record.error is not None
         assert "strategy not found" in record.error
 
+    async def test_eula_not_accepted_job_reports_guidance(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """EULA 未同意で落ちたジョブも同意手順を案内する。
+
+        ジョブ（optimize / WFT / backtest）も同期実行系と同じく
+        stdin=DEVNULL で forge を起動するため同意プロンプトに応答できない。
+        EULA プロンプトは stdout に出る一方、ジョブのログは stderr 由来なので、
+        ログ末尾だけを error にする実装では "Aborted!" しか残らない。
+        """
+        stub = _make_stub(
+            tmp_path,
+            'echo "EULA に同意しますか? [y/n] (n): "\n'
+            'echo "Aborted!" >&2\n'
+            "exit 1\n",
+        )
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(kind="backtest", strategy_id="s1", symbol="AAPL")
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "failed"
+        assert record.error is not None
+        assert "Aborted!" not in record.error
+        assert "alpha-forge system doctor" in record.error
+
     async def test_log_masks_home_directory(self, tmp_path: pathlib.Path) -> None:
         """ログ行のホームパスは ~ にマスクされる（/api/run と同じ漏洩対策）"""
         stub = _make_stub(tmp_path, 'echo "saved to $HOME/data/x.parquet" >&2\n')

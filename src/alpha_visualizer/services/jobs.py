@@ -34,6 +34,7 @@ from alpha_visualizer.services.forge_cli import (
     mask_home,
     parse_json_lenient,
     resolve_forge_exe,
+    translate_forge_failure,
 )
 
 logger = logging.getLogger(__name__)
@@ -629,10 +630,17 @@ class JobManager:
             await self._finish(record, "cancelled", returncode=proc.returncode)
             return
 
+        stdout_text = stdout_buf.decode("utf-8", errors="replace")
+
         if proc.returncode != 0:
+            # 既知の失敗（EULA 未同意等）は次の一歩を示す案内に変換する。
+            # ログ（stderr 由来）だけでは EULA プロンプト本体を拾えないため、
+            # stdout も合わせて判定する。
             _, tail = self.log_since(record.job_id, max(0, record.log_seq - 5))
+            log_text = "\n".join(tail)
             error = (
-                "\n".join(tail)
+                translate_forge_failure(stdout_text, log_text)
+                or log_text
                 or "ジョブの実行に失敗しました / Job execution failed"
             )
             await self._finish(
@@ -640,7 +648,6 @@ class JobManager:
             )
             return
 
-        stdout_text = stdout_buf.decode("utf-8", errors="replace")
         data = parse_json_lenient(stdout_text)
         result = _compact_result(data) if data is not None else None
         await self._finish(record, "succeeded", returncode=0, result=result)

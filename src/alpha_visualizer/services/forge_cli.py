@@ -32,6 +32,18 @@ FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE = (
 )
 
 
+# forge は導入済みだが EULA に同意していないケース。forge は同意プロンプトを
+# 対話で出すが、visualizer は stdin=DEVNULL で起動するため応答できず Click が
+# Abort する（stderr は "Aborted!" のみで、利用者には何も伝わらない）。EULA は
+# 改訂のたびに再同意が必要になるので、初回導入時だけの問題ではない。
+FORGE_EULA_NOT_ACCEPTED_MESSAGE = (
+    "AlphaForge の使用許諾契約（EULA）に同意していないため実行できません。"
+    "ターミナルで `alpha-forge system doctor` を実行し、EULA に同意してください"
+    " / AlphaForge EULA has not been accepted. Run `alpha-forge system doctor`"
+    " in a terminal and accept the EULA"
+)
+
+
 #: AlphaForge CLI の実行ファイル名。v0.5.0 で ``forge`` から改名され、インストーラ
 #: （alforge-labs/install.sh）は旧 ``forge`` symlink を削除する。旧名へのフォール
 #: バックは張らない — ``forge`` は Foundry（Solidity 開発ツール）のコマンド名でも
@@ -42,6 +54,25 @@ FORGE_EXE_NAME = "alpha-forge"
 def resolve_forge_exe() -> str | None:
     """PATH 上の alpha-forge 実行ファイルを解決する（無ければ None）。"""
     return shutil.which(FORGE_EXE_NAME)
+
+
+def translate_forge_failure(stdout: str, stderr: str) -> str | None:
+    """forge の失敗出力を、利用者が次の一歩を踏める案内へ変換する。
+
+    該当パターンが無ければ ``None`` を返す。呼び出し側は生の出力にフォール
+    バックすること（ここで既定文言に丸めると、原因不明の失敗がすべて同じ
+    メッセージになり調査できなくなる）。
+
+    stdout / stderr を両方受け取るのは、EULA プロンプトが rich パネルとして
+    stdout に出る一方、Click の "Aborted!" は stderr に出るため。どちらか
+    片方だけを見る実装では取りこぼす。
+    """
+    haystack = f"{stdout}\n{stderr}".lower()
+    if "eula" in haystack:
+        return FORGE_EULA_NOT_ACCEPTED_MESSAGE
+    if "no such command" in haystack:
+        return FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE
+    return None
 
 
 def build_forge_env(forge_cfg: ForgeConfig) -> dict[str, str]:

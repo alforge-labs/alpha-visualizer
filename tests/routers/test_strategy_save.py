@@ -93,3 +93,32 @@ class TestSaveStrategyParameters:
             )
         assert resp.status_code == 500
         assert "validation failed" in resp.json()["detail"]
+
+    def test_save_eula_not_accepted_returns_guidance(
+        self, client_with_strategies: TestClient
+    ) -> None:
+        """EULA 未同意は生の "Aborted!" ではなく同意手順を案内する。
+
+        パラメータ書き戻しも stdin=DEVNULL で forge を起動するため同意
+        プロンプトに応答できない。上の検証エラーと違い "Aborted!" は利用者に
+        何も伝えないので、そのまま表面化させてはいけない。
+        """
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/alpha-forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=_proc(
+                    returncode=1,
+                    stdout="EULA に同意しますか? [y/n] (n): ",
+                    stderr="\nAborted!",
+                ),
+            ),
+        ):
+            resp = client_with_strategies.post(
+                "/api/strategies/test_strategy/parameters",
+                json={"parameters": {"period": 30}},
+            )
+        assert resp.status_code == 500
+        detail = resp.json()["detail"]
+        assert "Aborted!" not in detail
+        assert "alpha-forge system doctor" in detail

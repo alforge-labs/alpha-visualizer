@@ -52,6 +52,7 @@ from alpha_visualizer.services.forge_cli import (
     build_forge_env,
     mask_home,
     resolve_forge_exe,
+    translate_forge_failure,
 )
 from alpha_visualizer.services.tuning import build_duplicate_file, build_override_file
 
@@ -404,7 +405,11 @@ def _delegate_forge_strategy_save(
     log_tail = mask_home("\n".join(tail_lines)) if tail_lines else None
 
     if proc.returncode != 0:
-        raise ExternalProcessError(log_tail or failure_message)
+        # 既知の失敗（EULA 未同意等）は生の Click 出力ではなく次の一歩を示す
+        # 案内に変換する。forge の検証エラーは従来どおりそのまま表面化させる
+        # （スキーマの SSoT は forge 側にあるため）。
+        guidance = translate_forge_failure(proc.stdout or "", proc.stderr or "")
+        raise ExternalProcessError(guidance or log_tail or failure_message)
     return log_tail
 
 
