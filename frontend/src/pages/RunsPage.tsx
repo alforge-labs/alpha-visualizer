@@ -43,7 +43,12 @@ export function RunsPage(): ReactElement {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'run_at', dir: -1 })
   const [page, setPage] = useState(0)
 
-  const all = state.status === 'ready' ? state.data : []
+  // useMemo の依存を毎レンダー変えないよう、条件分岐自体も memo 化する
+  // （react-hooks/exhaustive-deps 警告対応・#374 のフォローアップ）
+  const all = useMemo(
+    () => (state.status === 'ready' ? state.data : []),
+    [state],
+  )
 
   const symbols = useMemo(
     () => [...new Set(all.map((r) => r.symbol).filter((s): s is string => Boolean(s)))].sort(),

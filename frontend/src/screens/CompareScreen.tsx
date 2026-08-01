@@ -12,6 +12,7 @@ import { downloadCompareShareCard } from '../lib/shareCard'
 import { buildCompareShareTweetText, openXIntent } from '../lib/shareTweet'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { CorrelationHeatmap } from '../components/charts/CorrelationHeatmap'
+import { PortfolioComposer } from '../components/metrics/PortfolioComposer'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
 
@@ -353,6 +354,9 @@ export function CompareScreen({ data, lang, symbol }: Props): React.ReactElement
 
       {/* 末尾: 戦略間相関ヒートマップ（issue #55） */}
       <CorrelationHeatmap strategies={data} lang={lang} />
+
+      {/* issue #375: 相関の先の「合成したらどうなるか」を確認する */}
+      <PortfolioComposer strategies={data} lang={lang} />
     </div>
   )
 }
