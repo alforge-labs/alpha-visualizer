@@ -125,6 +125,24 @@ describe('<LivePositionView /> assembly (Task 13)', () => {
     expect(props?.overlays).toEqual([])
   })
 
+  it('主系列の凡例ラベルを言語に応じて渡す', () => {
+    // WHY: ライブ画面は equity に指数・バックテストを重ねる。凡例の既定ラベルは
+    // 'Strategy'（バックテスト画面向け）なので、そのままだと主系列が「戦略の
+    // バックテスト曲線」に見え、実運用の成績と取り違える。
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: {},
+      equity: [['2026-06-04T00:00:00', 1_000_000]],
+    } as unknown as LiveSummary
+
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+    expect(equityPaneProps.current?.equityLabel).toBe('ライブ')
+
+    render(<LivePositionView summary={summary} warnings={[]} lang="en" />)
+    expect(equityPaneProps.current?.equityLabel).toBe('Live')
+  })
+
   it('ベンチマークがあれば overlays に指数系列を equity と同じインデックスで積む', () => {
     const summary = {
       strategy_id: 'pf_1',

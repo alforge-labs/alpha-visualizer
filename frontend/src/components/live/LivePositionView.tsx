@@ -179,6 +179,9 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
               drawdown={drawdown}
               isCutoffIdx={0}
               overlays={overlays}
+              // 既定の 'Strategy' はバックテスト画面向けの名前。ここでの主系列は
+              // 実運用の成績なので、比較系列（指数・バックテスト）と取り違えない名前にする
+              equityLabel={L('ライブ', 'Live')}
               lang={lang}
             />
           </div>
