@@ -1229,6 +1229,18 @@
                 "type": "null"
               }
             ]
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
           }
         },
         "additionalProperties": true,

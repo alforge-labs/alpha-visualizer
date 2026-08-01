@@ -40,7 +40,7 @@ _ALL_COLUMNS: Final = (
 
 # forge 側の ALTER TABLE で後付けされる列（旧 forge が書いた DB には存在しない。
 # DTO のフィールド名と一致させること — 実在する列のみ SELECT に含める）
-_OPTIONAL_COLUMNS: Final = ("source", "carry_adjusted_json")
+_OPTIONAL_COLUMNS: Final = ("source", "carry_adjusted_json", "params_json")
 
 # 一覧系（/api/results・/api/strategies）で使うスカラー列のみ。
 # metrics_json / equity_curve_json 等の blob 列を含めない (issue #384):
@@ -95,6 +95,7 @@ class BacktestResultRow:
     source: str | None = None
     # FX キャリー近似の {"metrics", "note"} JSON（vis#308）。列が無い DB では常に None
     carry_adjusted_json: str | None = None
+    params_json: str | None = None
 
 
 @dataclass(frozen=True)

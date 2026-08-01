@@ -54,6 +54,9 @@ backtest_results = Table(
     # {"metrics": {...}, "note": "..."}。NULL = キャリー計上なし。source と同じく
     # 後付け列のため Repository 側で有無を検出する
     Column("carry_adjusted_json", Text),
+    # 実行時に使用した戦略パラメータ（forge#1356・vis#382）。NULL = 旧 forge の
+    # 記録で不明。後付け列のため Repository 側で有無を検出する
+    Column("params_json", Text),
 )
 
 optimization_runs = Table(

@@ -232,3 +232,33 @@ describe('BacktestScreen custom benchmark (issue #370)', () => {
     expect(await screen.findByText(/価格データを取得できません/)).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #382: 「どのパラメータで実行したか」が UI に出ず試行を再現できなかった。
+ * forge#1356 が保存する params を run 単位で常設表示する。
+ */
+describe('BacktestScreen run params (issue #382)', () => {
+  it('params がある run は使用パラメータを表示する', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen
+          data={{ ...MOCK_BACKTEST, params: { period: 20, threshold: 1.5 } }}
+          compact={false}
+          lang="ja"
+        />
+      </MemoryRouter>,
+    )
+    const line = screen.getByTestId('run-params')
+    expect(line.textContent).toContain('period=20')
+    expect(line.textContent).toContain('threshold=1.5')
+  })
+
+  it('params が無い run（旧 forge 記録）は表示しない', () => {
+    render(
+      <MemoryRouter>
+        <BacktestScreen data={MOCK_BACKTEST} compact={false} lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByTestId('run-params')).not.toBeInTheDocument()
+  })
+})

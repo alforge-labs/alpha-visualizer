@@ -625,3 +625,37 @@ class TestListResultsPagination:
     ) -> None:
         assert client_with_three_runs.get("/api/results?limit=0").status_code == 422
         assert client_with_three_runs.get("/api/results?offset=-1").status_code == 422
+
+
+class TestRunParams:
+    """実行時パラメータの露出（vis#382・forge#1356）。
+
+    チューニング試行 run の再現には「どのパラメータで実行したか」が必要。
+    forge が保存した params_json を BacktestDetail.params として返す。
+    """
+
+    def test_params_がある_run_は_detail_に含まれる(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        db_path = tmp_path / "data" / "results" / "backtest_results.db"
+        db_path.parent.mkdir(parents=True)
+        build_backtest_db(db_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE backtest_results SET params_json = ?",
+                ('{"period": 20, "threshold": 1.5}',),
+            )
+        client = TestClient(create_app(forge_dir=tmp_path))
+
+        runs = client.get("/api/results").json()
+        run_id = runs[0]["run_id"]
+        resp = client.get(f"/api/results/{run_id}")
+        assert resp.status_code == 200
+        assert resp.json()["params"] == {"period": 20, "threshold": 1.5}
+
+    def test_params_が無い_run_は_null(self, client_with_three_runs: TestClient) -> None:
+        runs = client_with_three_runs.get("/api/results").json()
+        run_id = runs[0]["run_id"]
+        resp = client_with_three_runs.get(f"/api/results/{run_id}")
+        assert resp.status_code == 200
+        assert resp.json()["params"] is None

@@ -218,6 +218,8 @@ export interface BacktestDetail {
   source?: string | null
   /** FX キャリー近似（キー無し = キャリー計上なし・vis#308） */
   carry_adjusted?: CarryAdjusted | null
+  /** 実行時に使用した戦略パラメータ（vis#382）。null/欠損 = 旧 forge 記録で不明 */
+  params?: Record<string, unknown> | null
 }
 
 export interface StrategyRun {
