@@ -11,6 +11,7 @@ interface NavItem {
 const ITEMS: readonly NavItem[] = [
   { to: '/browse', ja: 'ブラウズ', en: 'Browse' },
   { to: '/compare', ja: '比較', en: 'Compare' },
+  { to: '/runs', ja: '実行一覧', en: 'Runs' },
   { to: '/ideas', ja: 'アイデア', en: 'Ideas' },
   { to: '/live', ja: 'ライブ', en: 'Live' },
   { to: '/maintenance', ja: '整理', en: 'Maintenance' },
