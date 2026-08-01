@@ -23,6 +23,8 @@ export type Period = S['Period']
 export type HealthResponse = S['HealthResponse']
 // Browse 行ホバー用の軽量 sparkline（#387）
 export type SparklineResponse = S['SparklineResponse']
+// 全 run 横断一覧（#374 Runs ページ）
+export type BacktestSummary = S['BacktestSummary']
 export type IsCutoff = S['IsCutoff']
 export type WFOWindow = S['WFOWindow']
 export type LivePeriod = S['LivePeriod']

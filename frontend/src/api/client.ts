@@ -1,4 +1,4 @@
-import type { BacktestDetail, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { BacktestDetail, BacktestSummary, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -54,6 +54,9 @@ export const api = {
   // Browse 行ホバー用の軽量 sparkline（#387）。フル詳細 2MB を引かない
   getSparkline: (strategyId: string): Promise<SparklineResponse> =>
     request<SparklineResponse>(`/strategies/${encodeURIComponent(strategyId)}/sparkline`),
+
+  // 全 run 横断一覧（#374 Runs ページ）。スカラー列のみの軽量応答（#384）
+  listResults: (): Promise<BacktestSummary[]> => request<BacktestSummary[]>('/results'),
 
   // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）
   getHealth: (): Promise<HealthResponse> => requestUrl<HealthResponse>('/health'),

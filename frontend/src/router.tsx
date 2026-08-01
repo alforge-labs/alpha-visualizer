@@ -58,6 +58,10 @@ export const router = createBrowserRouter([
         element: lazyRoute(() => import('./pages/ComparePage'), 'ComparePage'),
       },
       {
+        path: '/runs',
+        element: lazyRoute(() => import('./pages/RunsPage'), 'RunsPage'),
+      },
+      {
         path: '/ideas',
         element: lazyRoute(() => import('./pages/IdeasPage'), 'IdeasPage'),
       },
