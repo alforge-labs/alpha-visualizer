@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { StrategyComparison } from '../../api/types'
@@ -32,7 +32,7 @@ const STRATS = [
     profit_factor: 1.6,
     total_trades: 40,
     is_baseline: true,
-    equity: { dates: ['2020-01-02', '2020-01-03'], values: [100, 110] },
+    equity: { dates: ['2020-01-02', '2020-01-03', '2020-01-06'], values: [100, 110, 104.5] },
     daily_returns: [0.1, -0.05],
   },
   {
@@ -48,7 +48,7 @@ const STRATS = [
     profit_factor: 0.9,
     total_trades: 31,
     is_baseline: false,
-    equity: { dates: ['2020-01-02', '2020-01-03'], values: [100, 96] },
+    equity: { dates: ['2020-01-02', '2020-01-03', '2020-01-06'], values: [100, 96, 96.96] },
     daily_returns: [-0.02, 0.01],
   },
 ] as unknown as StrategyComparison[]
@@ -142,5 +142,35 @@ describe('<CompareScreen /> header context (issue #367)', () => {
   it('期間が揃っている場合は注記を出さない', () => {
     render(<CompareScreen data={STRATS} lang="ja" symbol="SPY" />)
     expect(screen.queryByText(/実行期間が異なります/)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #375: 相関表示まであるのに合成が無かった。ウェイト指定の
+ * 加重合成（毎日リバランス想定）の統計とエクイティを表示する。
+ */
+describe('<CompareScreen /> portfolio composer (issue #375)', () => {
+  it('2 戦略以上で合成セクションと統計を表示する', () => {
+    render(<CompareScreen data={STRATS} lang="ja" symbol="SPY" />)
+    const section = screen.getByTestId('portfolio-composer')
+    expect(section).toBeInTheDocument()
+    expect(screen.getByText('ポートフォリオ合成')).toBeInTheDocument()
+    // 等ウェイト初期値の入力が戦略ごとにある
+    expect(screen.getByLabelText('SMA v1 のウェイト')).toBeInTheDocument()
+    expect(screen.getByLabelText('RSI v1 のウェイト')).toBeInTheDocument()
+    // 合成統計（Sharpe / Max DD / 共通期間）
+    const stats = screen.getByTestId('portfolio-stats')
+    expect(stats.textContent).toContain('Sharpe')
+    expect(stats.textContent).toContain('Max DD')
+    expect(screen.getByText(/共通期間 \d+ 日/)).toBeInTheDocument()
+  })
+
+  it('ウェイト変更で構成比が更新される', () => {
+    render(<CompareScreen data={STRATS} lang="ja" symbol="SPY" />)
+    const input = screen.getByLabelText('SMA v1 のウェイト')
+    fireEvent.change(input, { target: { value: '3' } })
+    // 3 : 1 → 75% / 25%
+    expect(screen.getByText('75%')).toBeInTheDocument()
+    expect(screen.getByText('25%')).toBeInTheDocument()
   })
 })

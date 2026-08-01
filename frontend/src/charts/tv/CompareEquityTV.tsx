@@ -24,6 +24,8 @@ export interface CompareEquityTVSeries {
 
 export interface CompareEquityTVProps {
   series: CompareEquityTVSeries[]
+  /** 同一画面に複数置く場合の識別子（issue #375 ポートフォリオ合成用） */
+  testId?: string
   height?: number
   /** 時間軸ロケールの切替（issue #315） */
   lang: Lang
@@ -41,7 +43,7 @@ function makeNormalizedLineData(s: CompareEquityTVSeries): LineData[] {
 }
 
 export function CompareEquityTV(props: CompareEquityTVProps) {
-  const { series, height = 320, lang } = props
+  const { series, testId = 'compare-equity-tv', height = 320, lang } = props
   const theme = useChartTheme()
 
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -138,7 +140,7 @@ export function CompareEquityTV(props: CompareEquityTVProps) {
 
   return (
     <div
-      data-testid="compare-equity-tv"
+      data-testid={testId}
       role="group"
       aria-label={`Compare equity chart, ${series.length} strategies`}
       style={{ position: 'relative' }}
