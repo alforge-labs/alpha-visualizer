@@ -38,6 +38,7 @@ from alpha_visualizer.services.forge_cli import (
     mask_home,
     parse_json_lenient,
     resolve_forge_exe,
+    translate_forge_failure,
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,11 @@ def _run_backtest_guarded(
         ) from exc
 
     if proc.returncode != 0:
+        # 既知の失敗（EULA 未同意等）は生の Click 出力ではなく次の一歩を示す
+        # 案内に変換する。プロンプト本体は stdout に出るため両方を渡す。
+        guidance = translate_forge_failure(proc.stdout or "", proc.stderr or "")
+        if guidance is not None:
+            raise ExternalProcessError(guidance)
         # 成功時 log_tail と同じ末尾丸め＋ホームパスマスクを通し、
         # 長大なトレースバックでレスポンスが膨らまないようにする。
         detail = (

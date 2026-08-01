@@ -115,6 +115,35 @@ class TestRunRouter:
         assert detail.endswith("line-59")
         assert "line-9\n" not in detail
 
+    def test_run_eula_not_accepted_returns_guidance(
+        self, client_with_db: TestClient
+    ) -> None:
+        """EULA 未同意は生の "Aborted!" ではなく同意手順を案内する。
+
+        /api/run も maintenance と同じく stdin=DEVNULL で forge を起動するため
+        同意プロンプトに応答できない。プロンプト本体は stdout に出るので、
+        失敗時に stderr しか見ない実装では検出できない。
+        """
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/alpha-forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=_proc(
+                    returncode=1,
+                    stdout="EULA に同意しますか? [y/n] (n): ",
+                    stderr="\nAborted!",
+                ),
+            ),
+        ):
+            resp = client_with_db.post(
+                "/api/run",
+                json={"strategy_id": "test_strategy", "symbol": "AAPL"},
+            )
+        assert resp.status_code == 500
+        detail = resp.json()["detail"]
+        assert "Aborted!" not in detail
+        assert "alpha-forge system doctor" in detail
+
     def test_run_falls_back_to_db_when_stdout_not_json(
         self, client_with_db: TestClient
     ) -> None:

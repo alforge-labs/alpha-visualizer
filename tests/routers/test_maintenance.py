@@ -125,6 +125,40 @@ class TestOrphanRunsList:
 
         assert resp.status_code >= 400
 
+    def test_EULA未同意の場合は同意手順を案内する(
+        self, client_with_db: TestClient
+    ) -> None:
+        """forge は導入済みだが EULA に同意していないケース。
+
+        visualizer は stdin=DEVNULL で forge を起動するため同意プロンプトに
+        応答できず、Click が "Aborted!" だけを残して落ちる。この文字列は
+        利用者に何も伝えないので、ターミナルで同意するという次の一歩まで
+        示すメッセージに変換する。EULA は改訂のたびに再同意が必要になるため
+        初回導入時だけの問題ではない。
+        """
+        eula_stdout = (
+            "╭── AlphaForge エンドユーザー使用許諾契約 (EULA) — 初回起動時の確認 ──╮\n"
+            "│ 本ソフトウェアの利用には EULA への同意が必要です。                  │\n"
+            "╰────────────────────────────────────────────────────────────────────╯\n"
+            "EULA に同意しますか? [y/n] (n): "
+        )
+        with (
+            mock.patch("shutil.which", return_value="/usr/local/bin/alpha-forge"),
+            mock.patch(
+                "subprocess.run",
+                return_value=_proc(returncode=1, stdout=eula_stdout, stderr="\nAborted!"),
+            ),
+        ):
+            resp = client_with_db.get("/api/maintenance/orphan-runs")
+
+        assert resp.status_code >= 400
+        detail = resp.json()["detail"]
+        # 生の Click 出力をそのまま出していない
+        assert "Aborted!" not in detail
+        # 同意手順（実行すべきコマンド）まで示している
+        assert "EULA" in detail
+        assert "alpha-forge system doctor" in detail
+
     def test_forgeにサブコマンドが無い場合はアップデートを促すメッセージを返す(
         self, client_with_db: TestClient
     ) -> None:
