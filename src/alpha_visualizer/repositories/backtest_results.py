@@ -280,7 +280,7 @@ class BacktestResultsRepository:
         stmt = select(*projected).where(subq.c.rn == 1)
 
         with self._engine.connect() as conn:
-            return conn.execute(stmt).all()
+            return list(conn.execute(stmt).all())
 
     def find_latest_equity(self, strategy_id: str) -> tuple[str, str | None] | None:
         """最新 run の ``(run_id, equity_curve_json)`` を返す (issue #387)。

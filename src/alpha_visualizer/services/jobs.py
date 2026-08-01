@@ -14,6 +14,7 @@ forge CLI（backtest / optimize / walk-forward）をバックグラウンドプ�
 from __future__ import annotations
 
 import asyncio
+import builtins
 import logging
 import os
 import pathlib
@@ -269,7 +270,9 @@ class JobManager:
         """新しい順のジョブ一覧。"""
         return [self._jobs[jid] for jid in reversed(self._order)]
 
-    def log_since(self, job_id: str, since_seq: int) -> tuple[int, list[str]]:
+    # メソッド名 ``list`` がクラススコープで組み込み list を隠すため、
+    # ここでは builtins 経由で参照する（mypy valid-type 対策・issue #393）
+    def log_since(self, job_id: str, since_seq: int) -> tuple[int, builtins.list[str]]:
         """通算 seq ``since_seq`` 以降のログ行を返す。
 
         Returns:

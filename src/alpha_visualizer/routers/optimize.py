@@ -70,7 +70,7 @@ def _parse_trial(
     metrics: dict[str, float] = {}
     for k, v in trial.items():
         try:
-            fv = float(v)  # type: ignore[arg-type]
+            fv = float(v)
         except (TypeError, ValueError):
             continue
         if k in _METRIC_KEYS:

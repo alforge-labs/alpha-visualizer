@@ -129,9 +129,8 @@ def load_ohlc(
 
     bars: list[dict[str, Any]] = []
     has_volume = "volume" in df.columns
-    for ts, row in df.iterrows():
-        if not isinstance(ts, pd.Timestamp):
-            ts = pd.Timestamp(ts)
+    for ts_raw, row in df.iterrows():
+        ts = ts_raw if isinstance(ts_raw, pd.Timestamp) else pd.Timestamp(str(ts_raw))
         bar: dict[str, Any] = {
             "time": _format_time(ts),
             "open": _none_if_nan(float(row["open"])) if "open" in df.columns else None,

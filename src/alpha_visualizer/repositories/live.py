@@ -145,7 +145,7 @@ class LiveDataRepository:
             return []
         try:
             with self._engine.connect() as conn:
-                return conn.execute(stmt).all()
+                return list(conn.execute(stmt).all())
         except OperationalError as exc:
             msg = str(exc).lower()
             if "no such table" in msg:
