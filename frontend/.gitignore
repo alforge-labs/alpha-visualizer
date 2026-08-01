@@ -30,3 +30,6 @@ storybook-static
 e2e/visual/__snapshots__/darwin/
 e2e/visual/__snapshots__/win32/
 playwright-report-visual/
+
+# vitest coverage 出力 (issue #393)
+coverage/
