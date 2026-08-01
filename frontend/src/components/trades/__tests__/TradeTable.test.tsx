@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { Trade } from '../../../api/types'
 import { TradeTable } from '../TradeTable'
 
@@ -114,5 +114,25 @@ describe('TradeTable filters & paging (issue #371)', () => {
     })
     // 20 件が 1 ページに収まりページャが消える
     expect(screen.queryByRole('button', { name: '次のページ' })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * issue #381: 大負け取引の局面を見るのに日付を覚えて手スクロールが必要だった。
+ * 行クリック → onJumpToTrade（チャートの該当期間へ）を追加する。
+ */
+describe('TradeTable jump to chart (issue #381)', () => {
+  it('行クリックで onJumpToTrade が該当取引で呼ばれる', () => {
+    const onJump = vi.fn()
+    render(<TradeTable trades={trades} lang="ja" onJumpToTrade={onJump} />)
+    fireEvent.click(screen.getByText('long').closest('tr')!)
+    expect(onJump).toHaveBeenCalledTimes(1)
+    expect(onJump.mock.calls[0]![0].id).toBe(1)
+  })
+
+  it('onJumpToTrade 未指定なら行はクリック導線を持たない', () => {
+    render(<TradeTable trades={trades} lang="ja" />)
+    const row = screen.getByText('long').closest('tr')!
+    expect(row).not.toHaveAttribute('title')
   })
 })

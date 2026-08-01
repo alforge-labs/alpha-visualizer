@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useContext, useMemo, useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { RUN_SOURCE_STRATEGY_FILE } from '../constants/runSource'
@@ -9,7 +9,7 @@ import { api } from '../api/client'
 import { compareWithBenchmark } from '../lib/benchmark'
 import { fmtNumber as fmtNum } from '../lib/format'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
-import { DashboardProvider } from '../contexts/DashboardContext'
+import { DashboardProvider, DashboardContext, type SyncedTimeRange } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
 import { buildEquityCsv, downloadCsv } from '../lib/csv'
 import { fmtNumber } from '../lib/format'
@@ -476,7 +476,11 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
           </div>
           <div>
             <SectionLabel>{L('取引一覧', 'Trade List')}</SectionLabel>
-            <TradeTable trades={data.trades} lang={lang} />
+            <JumpableTradeTable
+              trades={data.trades}
+              lang={lang}
+              onShowOverview={() => setTab('overview')}
+            />
           </div>
         </div>
       )}
@@ -539,4 +543,40 @@ export function BacktestScreen(props: Props) {
       <BacktestScreenInner {...props} />
     </DashboardProvider>
   )
+}
+
+
+/**
+ * 取引一覧 + チャートジャンプ（issue #381）。
+ *
+ * 行クリックで entry/exit ± 7 日を共有 viewport（issue #318 の同期範囲）に
+ * 設定し、概要タブ（エクイティ + 取引マーカー）へ切り替える。
+ * DashboardContext を使うため BacktestScreen 本体でなく Provider 配下の
+ * 子コンポーネントとして実装する。
+ */
+function JumpableTradeTable({
+  trades,
+  lang,
+  onShowOverview,
+}: {
+  trades: BacktestDetail['trades']
+  lang: Lang
+  onShowOverview: () => void
+}): React.ReactElement {
+  const ctx = useContext(DashboardContext)
+
+  const handleJump = (t: BacktestDetail['trades'][number]): void => {
+    if (!t.entry_date || !t.exit_date) return
+    const PAD_MS = 7 * 86_400_000
+    const from = new Date(new Date(t.entry_date).getTime() - PAD_MS)
+    const to = new Date(new Date(t.exit_date).getTime() + PAD_MS)
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return
+    ctx?.setSyncedTimeRange({
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10),
+    } as SyncedTimeRange)
+    onShowOverview()
+  }
+
+  return <TradeTable trades={trades} lang={lang} onJumpToTrade={handleJump} />
 }

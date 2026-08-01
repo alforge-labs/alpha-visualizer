@@ -29,6 +29,8 @@ interface Col {
 interface TradeTableProps {
   trades: Trade[]
   lang: Lang
+  /** 行クリックでチャートの該当期間へジャンプ（issue #381）。未指定なら行は非クリック */
+  onJumpToTrade?: (trade: Trade) => void
 }
 
 const PAGE_SIZES = [15, 50, 100] as const
@@ -36,7 +38,7 @@ const PAGE_SIZES = [15, 50, 100] as const
 type DirFilter = 'all' | 'long' | 'short'
 type ResultFilter = 'all' | 'win' | 'loss'
 
-export function TradeTable({ trades, lang }: TradeTableProps) {
+export function TradeTable({ trades, lang, onJumpToTrade }: TradeTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'id', dir: 1 })
   const [page, setPage] = useState(0)
   // issue #371: 方向・勝敗・期間フィルタとページサイズ選択
@@ -263,7 +265,16 @@ export function TradeTable({ trades, lang }: TradeTableProps) {
           </thead>
           <tbody>
             {paged.map((t, i) => (
-              <tr key={t.id}>
+              <tr
+                key={t.id}
+                onClick={onJumpToTrade ? () => onJumpToTrade(t) : undefined}
+                title={
+                  onJumpToTrade
+                    ? L('クリックでチャートの該当期間を表示', 'Click to view this period on the chart')
+                    : undefined
+                }
+                style={onJumpToTrade ? { cursor: 'pointer' } : undefined}
+              >
                 {COLS.map((c) => {
                   const v = t[c.key] as string | number
                   const isNum = typeof v === 'number'
