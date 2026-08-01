@@ -10,13 +10,15 @@ authors = [
     { name = "alforge-labs" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Framework :: FastAPI",
     "Intended Audience :: Financial and Insurance Industry",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
@@ -34,7 +36,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/alforge-labs/alpha-visualizer"
 Repository = "https://github.com/alforge-labs/alpha-visualizer"
-Documentation = "https://alforgelabs.com/ja/docs/alpha-visualizer/"
+# PyPI は国際的な入口のため言語ニュートラル（英語）側へ（issue #402）
+Documentation = "https://alforgelabs.com/en/docs/alpha-visualizer/"
 Issues = "https://github.com/alforge-labs/alpha-visualizer/issues"
 Changelog = "https://github.com/alforge-labs/alpha-visualizer/blob/main/CHANGELOG.md"
 "X (Twitter)" = "https://x.com/Alforge_bot"
