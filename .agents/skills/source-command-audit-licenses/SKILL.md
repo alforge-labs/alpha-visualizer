@@ -42,7 +42,8 @@ GPL/AGPL 混入がないことを確認した上で `THIRDPARTY_LICENSES.txt` �
 
    - ライセンス名に `GPL` または `AGPL` を含むパッケージ
    - ただし以下は**開発専用（dev）**のため除外して判定する:
-     - `pytest`, `ruff`, `httpx`, `bump-my-version`, `hypothesis`（devツール）
+     - `pytest`, `pytest-cov`, `ruff`, `httpx`, `bump-my-version`, `hypothesis`,
+       `mypy`, `pandas-stubs`, `types-pyyaml`（devツール）
      - `pip-licenses`, `prettytable`（監査ツール）
    - 除外リストは `pyproject.toml` の `[dependency-groups]` と乖離しやすいので、
      実行時に必ず突合し、乖離があればこのファイルも更新すること。
@@ -81,7 +82,8 @@ Step 1・Step 2 で問題がなければ以下を実行する。
 
    DEV_ONLY = {
        "alpha-visualizer",
-       "pytest", "ruff", "httpx", "bump-my-version", "hypothesis",
+       "pytest", "pytest-cov", "ruff", "httpx", "bump-my-version", "hypothesis",
+       "mypy", "pandas-stubs", "types-pyyaml",
        "pip-licenses", "prettytable",
    }
 
