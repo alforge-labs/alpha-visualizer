@@ -58,7 +58,9 @@ class RunBacktestRequest(BaseModel):
     # 場合も extra="ignore"（明示）で互換を保つ。
     model_config = ConfigDict(extra="ignore")
 
-    strategy_id: str = Field(min_length=1)
+    # duplicate と同じ規約（issue #394）。`-` 始まり等が forge の argv で
+    # オプションと誤解釈される余地を境界で塞ぐ
+    strategy_id: str = Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
     symbol: str = Field(min_length=1)
 
 

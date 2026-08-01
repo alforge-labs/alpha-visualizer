@@ -29,6 +29,7 @@ from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
 from alpha_visualizer.routers import wfo as wfo_router
 from alpha_visualizer.schemas.health import HealthResponse
+from alpha_visualizer.services.forge_cli import mask_home
 from alpha_visualizer.services.jobs import JobManager
 
 logger = logging.getLogger(__name__)
@@ -196,7 +197,8 @@ def create_app(
     app.include_router(historical_router.router, prefix="/api")
     app.include_router(maintenance_router.router, prefix="/api")
 
-    forge_dir_str = str(config.forge_dir)
+    # ホーム配下の絶対パスはユーザー名を晒さない（mask_home ポリシー・issue #394）
+    forge_dir_str = mask_home(str(config.forge_dir))
 
     @app.get("/health")
     async def health() -> HealthResponse:
