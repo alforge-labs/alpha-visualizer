@@ -197,6 +197,7 @@ export function PortfolioComposer({ strategies, lang }: Props): ReactElement | n
             </span>
           </div>
           <CompareEquityTV
+            testId="portfolio-equity-tv"
             series={[
               {
                 id: '__portfolio__',
