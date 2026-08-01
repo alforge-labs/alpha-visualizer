@@ -6,6 +6,12 @@ alpha-visualizer の全バージョン変更履歴です。
 
 > **License Change Notice (v0.6.0+):** v0.6.0 以降、ライセンスは MIT から Apache-2.0 に変更されました。v0.5.0 以前のリリースは引き続き MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。
 
+> **⚠ 破壊的変更の履歴 / Breaking changes:**
+> - **v1.0.0**: 安定版 GA。以降は semver に従います / Stable GA; semver applies from here on.
+> - **v0.3.0**: CLI コマンド名を `vis` から `alpha-vis` にリネーム（macOS 標準 `/usr/bin/vis` との衝突回避）。旧名は使えません / The CLI was renamed from `vis` to `alpha-vis`; the old name no longer works.
+
+_(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
+
 """
 body = """
 {% if version %}
@@ -30,6 +36,10 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_parsers = [
+  # リリース作業コミットはユーザー向け変更ではないので除外する (issue #401)
+  { message = "^chore: バージョン .* にバンプ", skip = true },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^docs: CHANGELOG を", skip = true },
   { message = "^feat", group = "新機能" },
   { message = "^fix", group = "バグ修正" },
   { message = "^refactor", group = "リファクタリング" },
