@@ -39,6 +39,12 @@ function PageFallback(): ReactElement {
 
 export const router = createBrowserRouter([
   {
+    // 印刷用フルレポート (issue #373)。ナビ・フッター無しの自己完結ビュー
+    path: '/detail/:strategyId/report',
+    element: lazyRoute(() => import('./pages/ReportPage'), 'ReportPage'),
+    errorElement: <RouteErrorScreen />,
+  },
+  {
     element: <RootLayout />,
     // 子ルートの描画例外はここへバブルする。デフォルトの英語エラー画面に
     // 落とさず、i18n + 回復導線付きの共通画面を出す (issue #389)

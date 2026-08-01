@@ -290,6 +290,11 @@ a:focus-visible {
   .u-col-hide-sm-down { display: none !important; }
 }
 
+/* issue #373: 印刷（PDF 保存）時に操作 UI を隠す */
+@media print {
+  .u-no-print { display: none !important; }
+}
+
 @media (max-width: 768px) {
   .u-drawer-md-down {
     position: fixed !important;
