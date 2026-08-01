@@ -20,6 +20,9 @@ export interface RecipeRowProps {
   onToggleCompare: (id: string) => void
   onHover: (id: string | null) => void
   sparkValues: number[] | 'loading' | 'empty' | 'error' | undefined
+  /** お気に入り（issue #379） */
+  starred: boolean
+  onToggleStar: (key: string) => void
   lang: Lang
 }
 
@@ -33,6 +36,8 @@ export function RecipeRow({
   onToggleCompare,
   onHover,
   sparkValues,
+  starred,
+  onToggleStar,
   lang,
 }: RecipeRowProps): React.ReactElement {
   const L = makeL(lang)
@@ -161,6 +166,32 @@ export function RecipeRow({
           ) : (
             <span aria-hidden style={{ flexShrink: 0, width: 20 }} />
           )}
+          {/* issue #379: お気に入り。運用中の数戦略へフィルタ操作なしで到達する */}
+          <button
+            type="button"
+            aria-pressed={starred}
+            aria-label={
+              starred
+                ? L(`${recipe.name}（${recipe.key}）のスターを外す`, `Unstar ${recipe.name} (${recipe.key})`)
+                : L(`${recipe.name}（${recipe.key}）にスターを付ける`, `Star ${recipe.name} (${recipe.key})`)
+            }
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleStar(recipe.key)
+            }}
+            style={{
+              flexShrink: 0,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              fontSize: 14,
+              lineHeight: 1,
+              color: starred ? 'var(--warn)' : 'var(--text3)',
+            }}
+          >
+            {starred ? '★' : '☆'}
+          </button>
           <Link
             to={`/detail/${target.strategy_id}`}
             title={recipe.name}

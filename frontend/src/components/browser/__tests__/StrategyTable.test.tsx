@@ -43,6 +43,8 @@ function renderTable(strategyTotal: number, recipes: Recipe[] = [], hiddenUnrunR
         onSelect={vi.fn()}
         compareIds={[]}
         onToggleCompare={vi.fn()}
+        starredKeys={new Set<string>()}
+        onToggleStar={vi.fn()}
         lang="ja"
       />
     </MemoryRouter>,

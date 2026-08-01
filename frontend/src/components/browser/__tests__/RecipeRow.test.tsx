@@ -60,6 +60,8 @@ function renderRecipe(recipe = threeVariantRecipe(), expanded = false, onToggleE
           onSelect={vi.fn()}
           compareIds={[]}
           onToggleCompare={vi.fn()}
+          starred={false}
+          onToggleStar={vi.fn()}
           onHover={vi.fn()}
           sparkValues={undefined}
           lang="ja"
@@ -227,5 +229,42 @@ describe('RecipeRow compare checkbox aria-label (issue #397)', () => {
     const label = checkbox.getAttribute('aria-label') ?? ''
     // 同名戦略が複数銘柄にあっても SR で区別できるよう ID を含める
     expect(label).toContain('amd_v1')
+  })
+})
+
+/**
+ * issue #379: レシピ行のスター。クリックで onToggleStar(recipe.key) を呼び、
+ * 行選択（onSelect）は発火しない。
+ */
+describe('RecipeRow star button (issue #379)', () => {
+  it('スターの toggle と行クリック抑止', () => {
+    const recipe = threeVariantRecipe()
+    const onToggleStar = vi.fn()
+    const onSelect = vi.fn()
+    render(
+      <MemoryRouter>
+        <table><tbody>
+          <RecipeRow
+            recipe={recipe}
+            expanded={false}
+            onToggleExpand={vi.fn()}
+            selectedId={null}
+            onSelect={onSelect}
+            compareIds={[]}
+            onToggleCompare={vi.fn()}
+            starred={false}
+            onToggleStar={onToggleStar}
+            onHover={vi.fn()}
+            sparkValues={undefined}
+            lang="ja"
+          />
+        </tbody></table>
+      </MemoryRouter>,
+    )
+    const star = screen.getByRole('button', { name: /スターを付ける/ })
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    star.click()
+    expect(onToggleStar).toHaveBeenCalledWith(recipe.key)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })
