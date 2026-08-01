@@ -16,8 +16,8 @@ from alpha_visualizer.forge_config import ForgeConfig
 # forge 未導入ユーザーが実行系機能に触れた瞬間は AlphaForge 導入意欲が
 # 最も高い接点なので、インストール先への導線を必ず含める。
 FORGE_NOT_FOUND_MESSAGE = (
-    "forge コマンドが見つかりません。AlphaForge を導入してください"
-    " / forge command not found in PATH. Install AlphaForge"
+    "alpha-forge コマンドが見つかりません。AlphaForge を導入してください"
+    " / alpha-forge command not found in PATH. Install AlphaForge"
     " — https://alforgelabs.com"
 )
 
@@ -32,9 +32,16 @@ FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE = (
 )
 
 
+#: AlphaForge CLI の実行ファイル名。v0.5.0 で ``forge`` から改名され、インストーラ
+#: （alforge-labs/install.sh）は旧 ``forge`` symlink を削除する。旧名へのフォール
+#: バックは張らない — ``forge`` は Foundry（Solidity 開発ツール）のコマンド名でも
+#: あり、無関係なバイナリへ backtest 引数を渡す事故のほうが重い。
+FORGE_EXE_NAME = "alpha-forge"
+
+
 def resolve_forge_exe() -> str | None:
-    """PATH 上の forge 実行ファイルを解決する（無ければ None）。"""
-    return shutil.which("forge")
+    """PATH 上の alpha-forge 実行ファイルを解決する（無ければ None）。"""
+    return shutil.which(FORGE_EXE_NAME)
 
 
 def build_forge_env(forge_cfg: ForgeConfig) -> dict[str, str]:

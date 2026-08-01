@@ -68,11 +68,13 @@ describe('extractApiErrorDetail (issue #301)', () => {
 
 describe('messageForApiErrorCode (issue #358)', () => {
   const raw =
-    'API 503: {"detail":"forge コマンドが見つかりません。AlphaForge を導入してください / forge command not found in PATH. Install AlphaForge — https://alforgelabs.com","code":"forge_cli_not_found"}'
+    'API 503: {"detail":"alpha-forge コマンドが見つかりません。AlphaForge を導入してください / alpha-forge command not found in PATH. Install AlphaForge — https://alforgelabs.com","code":"forge_cli_not_found"}'
 
   it('maps forge_cli_not_found to a single-language message (ja)', () => {
     const msg = messageForApiErrorCode(raw, 'ja')
-    expect(msg).toContain('forge コマンドが見つかりません')
+    // PATH 上の実行ファイル名は `alpha-forge`（v0.5.0 で `forge` から改名）。
+    // 存在しない `forge` を名指しすると、ユーザーが誤った名前で PATH を確認する。
+    expect(msg).toContain('alpha-forge コマンドが見つかりません')
     expect(msg).not.toContain('not found in PATH')
     expect(msg).toContain('https://alforgelabs.com')
   })
