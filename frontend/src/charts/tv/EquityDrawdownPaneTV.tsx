@@ -45,6 +45,13 @@ export interface EquityOverlay {
   dashed?: boolean
 }
 
+/** 凡例 1 件分。色・線種は対応する系列に実際に適用したものと同じ値を入れる。 */
+interface SeriesLegendEntry {
+  label: string
+  color: string
+  dashed: boolean
+}
+
 export interface EquityDrawdownPaneTVProps {
   equity: number[]
   dates: string[]
@@ -54,6 +61,11 @@ export interface EquityDrawdownPaneTVProps {
   showBenchmark?: boolean
   /** equity と並走する追加比較系列（issue の多系列比較・任意本数） */
   overlays?: EquityOverlay[]
+  /**
+   * 凡例に出す主系列（equity）の名前。主系列が何を指すかは画面ごとに違う
+   * （バックテスト = 戦略の成績 / ライブ = 実際の運用成績）ため呼び出し側が決める。
+   */
+  equityLabel?: string
   compact?: boolean
   /** レジーム背景バンドの元データ（issue #317） */
   regimeSeries?: RegimeSeries | null
@@ -78,6 +90,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     benchmark,
     showBenchmark = false,
     overlays,
+    equityLabel = 'Strategy',
     compact = false,
     regimeSeries,
     showRegime = false,
@@ -112,6 +125,22 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   }, [points])
 
   const overlayCount = overlays?.length ?? 0
+
+  /**
+   * overlay のラベル → パレット位置。**系列の生成と凡例が共有する唯一の割り当て**。
+   *
+   * 色は配列位置ではなく**ラベル**で決める。配列位置で決めると、ラベルはそのままで
+   * 並び順だけ変わったときに系列の色が入れ替わり、線の色で系列を識別している画面では
+   * 同じものが別物に見える。ソート済みユニークラベルの位置を使うことで、並び替えに
+   * 対して安定させる。
+   *
+   * ここを 1 箇所に集約するのは、凡例が系列と別ロジックで色を決めると両者が食い違う
+   * ため（凡例の存在価値は色と系列名の対応付けだけにあり、ずれた凡例は無いより悪い）。
+   */
+  const overlayColorIndexByLabel = useMemo(() => {
+    const labels = [...new Set((overlays ?? []).map((o) => o.label))].sort()
+    return new Map(labels.map((label, idx) => [label, idx] as const))
+  }, [overlays])
 
   const { equityData, benchmarkData, overlayData, drawdownData, markers } = useMemo(() => {
     const conv = fromViewportPoints(points, overlayCount)
@@ -240,16 +269,8 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
       }
     }
 
-    // 色は配列位置ではなく**ラベル**で決める。配列位置で決めると、ラベルは
-    // そのままで並び順だけ変わったときに系列の色が入れ替わり、線の色で系列を
-    // 識別している画面では同じものが別物に見える。ソート済みユニークラベルの
-    // 位置を使うことで、並び替えに対して安定させる。
-    const colorIndexByLabel = new Map(
-      [...wantedLabels].sort().map((label, idx) => [label, idx]),
-    )
-
     wanted.forEach((overlay) => {
-      const colorIndex = colorIndexByLabel.get(overlay.label) ?? 0
+      const colorIndex = overlayColorIndexByLabel.get(overlay.label) ?? 0
       const options = overlayLineOptions(theme, colorIndex, overlay.color, overlay.dashed)
       const existing = map.get(overlay.label)
       if (existing) {
@@ -258,7 +279,7 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
         map.set(overlay.label, chart.addSeries(LineSeries, options, 0))
       }
     })
-  }, [overlays, theme])
+  }, [overlays, overlayColorIndexByLabel, theme])
 
   // issue #317: レジーム背景バンドの attach/detach。
   // primitive は bands をクロージャに持つため、series/表示切替/テーマが変わったら
@@ -331,6 +352,50 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   )
 
   // 凡例は DOM 側に描く（canvas 内に描くとテキスト検索・SR 到達性が失われるため）
+
+  /**
+   * equity + 比較系列の凡例。
+   *
+   * 比較系列が 1 本も無い画面（IS/OOS・レポート）では線が equity 1 本しかなく、
+   * 凡例は操作行を圧迫するだけなので出さない。色・線種は系列に渡すオプションを
+   * そのまま引くので、系列側の色決定を変えても凡例が置き去りにならない。
+   */
+  const seriesLegend = useMemo<SeriesLegendEntry[]>(() => {
+    // 重複ラベルは系列側が label キーの Map で後勝ちに統合する。凡例だけ 2 件
+    // 並ぶと、描かれていない線が存在するように見えるので同じ規則で潰す。
+    const uniqueOverlays = [...new Map((overlays ?? []).map((o) => [o.label, o])).values()]
+    if (!showBenchmark && uniqueOverlays.length === 0) return []
+
+    const entries: SeriesLegendEntry[] = [
+      {
+        label: equityLabel,
+        color: equityAreaOptions(theme, isPositive).lineColor ?? theme.text3,
+        dashed: false,
+      },
+    ]
+    if (showBenchmark) {
+      entries.push({
+        label: 'Buy & Hold',
+        color: benchmarkLineOptions(theme).color ?? theme.text3,
+        dashed: true,
+      })
+    }
+    for (const overlay of uniqueOverlays) {
+      const options = overlayLineOptions(
+        theme,
+        overlayColorIndexByLabel.get(overlay.label) ?? 0,
+        overlay.color,
+        overlay.dashed,
+      )
+      entries.push({
+        label: overlay.label,
+        color: options.color ?? theme.text3,
+        dashed: Boolean(overlay.dashed),
+      })
+    }
+    return entries
+  }, [overlays, overlayColorIndexByLabel, showBenchmark, equityLabel, theme, isPositive])
+
   const regimeLegend = useMemo(() => {
     if (!showRegime || !regimeSeries) return []
     return createRegimeBandsPrimitive(regimeSeries, theme.series, REGIME_BAND_ALPHA).legend()
@@ -407,20 +472,33 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
         >
           Log
         </button>
-        {showBenchmark && (
+        {seriesLegend.length > 0 && (
           <div
+            data-testid="series-legend"
             style={{
               marginLeft: 12,
               display: 'flex',
               gap: 12,
               alignItems: 'center',
+              flexWrap: 'wrap',
               fontFamily: 'var(--mono)',
               fontSize: 'var(--fs-mono-sm)',
               color: 'var(--text3)',
             }}
           >
-            <span style={{ color: theme.accent }}>━━ Strategy</span>
-            <span>╌╌ Buy &amp; Hold</span>
+            {seriesLegend.map((e) => (
+              <span key={e.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span
+                  data-testid={`series-legend-swatch-${e.label}`}
+                  aria-hidden="true"
+                  style={{
+                    width: 16,
+                    borderTop: `2px ${e.dashed ? 'dashed' : 'solid'} ${e.color}`,
+                  }}
+                />
+                {e.label}
+              </span>
+            ))}
           </div>
         )}
         {regimeLegend.length > 0 && (

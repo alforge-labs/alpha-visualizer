@@ -596,3 +596,115 @@ describe('EquityDrawdownPaneTV log scale (issue #378)', () => {
     )
   })
 })
+
+/**
+ * 系列凡例。ライブ画面は overlays（指数・バックテスト）で 3 本の線を重ねて描くが、
+ * 凡例が無いためどの線が何かを判別できなかった。
+ */
+describe('EquityDrawdownPaneTV series legend', () => {
+  const baseProps = {
+    lang: 'ja' as const,
+    equity: sampleEquity,
+    dates: sampleDates,
+    drawdown: sampleDrawdown,
+    isCutoffIdx: 15,
+  }
+
+  function overlayColors(): string[] {
+    return addSeriesMock.mock.calls
+      .filter((args) => (args as unknown[])[0] === 'LineSeriesDef')
+      .map((args) => ((args as unknown[])[1] as { color?: string }).color ?? '')
+  }
+
+  it('overlays の各ラベルを凡例に表示する', () => {
+    render(
+      <EquityDrawdownPaneTV
+        {...baseProps}
+        overlays={[
+          { label: '指数（Buy & Hold）', values: sampleEquity },
+          { label: 'バックテスト', values: sampleEquity, dashed: true },
+        ]}
+      />,
+    )
+    const legend = screen.getByTestId('series-legend')
+    expect(legend).toHaveTextContent('指数（Buy & Hold）')
+    expect(legend).toHaveTextContent('バックテスト')
+  })
+
+  it('凡例の色は実際に系列へ渡した色と一致する', () => {
+    // WHY: 凡例の存在価値は「線の色 → 系列名」の対応付けだけにある。色が
+    // 食い違った凡例は、無いより悪い（別系列を読み違えたまま判断される）。
+    // 実際、統合前の凡例は Strategy を theme.accent 固定で描いていたが、
+    // equity 線は success/danger で描かれており一致していなかった。
+    render(
+      <EquityDrawdownPaneTV
+        {...baseProps}
+        overlays={[
+          { label: 'QQQ', values: sampleEquity },
+          { label: 'BT', values: sampleEquity, dashed: true },
+        ]}
+      />,
+    )
+    const [qqqColor, btColor] = overlayColors()
+    expect(qqqColor).toBeTruthy()
+    expect(btColor).toBeTruthy()
+
+    const swatchOf = (label: string) =>
+      screen.getByTestId(`series-legend-swatch-${label}`)
+    expect(swatchOf('QQQ')).toHaveStyle({ borderTopColor: qqqColor })
+    expect(swatchOf('BT')).toHaveStyle({ borderTopColor: btColor })
+    // dashed 指定は線種としても凡例に反映する（色だけでは 2 系列を区別しにくい）
+    expect(swatchOf('BT')).toHaveStyle({ borderTopStyle: 'dashed' })
+    expect(swatchOf('QQQ')).toHaveStyle({ borderTopStyle: 'solid' })
+  })
+
+  it('主系列のラベルは equityLabel で差し替えられる', () => {
+    // WHY: 主系列が何かは画面ごとに違う（バックテスト = Strategy / ライブ = 実績）。
+    // 比較系列だけ名前が付いて主系列が無名だと、どれが自分の成績か分からない。
+    render(
+      <EquityDrawdownPaneTV
+        {...baseProps}
+        equityLabel="ライブ"
+        overlays={[{ label: 'QQQ', values: sampleEquity }]}
+      />,
+    )
+    expect(screen.getByTestId('series-legend')).toHaveTextContent('ライブ')
+  })
+
+  it('比較系列が無ければ凡例を出さない', () => {
+    // WHY: 線が 1 本しかない画面（IS/OOS・レポート）で凡例を出しても情報量は
+    // 増えず、チャート上部の操作行を圧迫するだけ。
+    render(<EquityDrawdownPaneTV {...baseProps} />)
+    expect(screen.queryByTestId('series-legend')).not.toBeInTheDocument()
+  })
+
+  it('showBenchmark 時は Buy & Hold を凡例に含む', () => {
+    render(
+      <EquityDrawdownPaneTV
+        {...baseProps}
+        benchmark={sampleEquity.map((v) => v * 0.9)}
+        showBenchmark
+      />,
+    )
+    const legend = screen.getByTestId('series-legend')
+    expect(legend).toHaveTextContent('Strategy')
+    expect(legend).toHaveTextContent('Buy & Hold')
+  })
+
+  it('重複ラベルの overlays は凡例にも 1 件だけ出す', () => {
+    // WHY: 系列側は label をキーにした Map で 1 本に統合される。凡例だけ 2 件
+    // 並ぶと、描かれていない線が存在するように見える。
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    render(
+      <EquityDrawdownPaneTV
+        {...baseProps}
+        overlays={[
+          { label: 'QQQ', values: sampleEquity },
+          { label: 'QQQ', values: sampleEquity.map((v) => v * 2) },
+        ]}
+      />,
+    )
+    expect(screen.getAllByTestId('series-legend-swatch-QQQ')).toHaveLength(1)
+    warn.mockRestore()
+  })
+})
