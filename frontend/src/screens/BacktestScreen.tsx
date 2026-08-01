@@ -1,9 +1,13 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { RUN_SOURCE_STRATEGY_FILE } from '../constants/runSource'
 import type { BacktestDetail } from '../api/types'
 import { useLiveAvailability } from '../hooks/useLiveAvailability'
+import { useFetchByKey } from '../hooks/useFetchByKey'
+import { api } from '../api/client'
+import { compareWithBenchmark } from '../lib/benchmark'
+import { fmtNumber as fmtNum } from '../lib/format'
 import { SectionLabel, Tab, TabBar } from '../design/primitives'
 import { DashboardProvider } from '../contexts/DashboardContext'
 import { useChartTheme } from '../design/useChartTheme'
@@ -98,6 +102,26 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
   const skew = data.metrics.deflated_sharpe?.skewness
   const kurt = data.metrics.deflated_sharpe?.excess_kurtosis
   const showBuyHold = data.buy_hold_equity.length > 0
+
+  // issue #370: 任意ベンチマーク。銘柄を適用すると OHLC を取得し、
+  // 正規化オーバーレイ + 対ベンチ指標をフロント側で計算する
+  const [benchInput, setBenchInput] = useState('')
+  const [benchSymbol, setBenchSymbol] = useState<string | null>(null)
+  const benchKey =
+    benchSymbol && data.equity.dates.length > 1
+      ? `${benchSymbol}::${data.equity.dates[0]!.slice(0, 10)}::${data.equity.dates[
+          data.equity.dates.length - 1
+        ]!.slice(0, 10)}`
+      : null
+  const benchState = useFetchByKey(benchKey, fetchBenchmarkBars)
+  const benchComparison = useMemo(() => {
+    if (benchState.status !== 'ready') return null
+    return compareWithBenchmark({
+      equityDates: data.equity.dates,
+      equityValues: data.equity.values,
+      benchBars: benchState.data,
+    })
+  }, [benchState, data.equity])
 
   return (
     <div data-testid="backtest-screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
@@ -205,6 +229,121 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 )}
               </p>
             )}
+            {/* issue #370: 任意ベンチマークの選択とオーバーレイ・対ベンチ指標 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                margin: '2px 0 6px',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--sans)',
+                  fontSize: 'var(--fs-caption)',
+                  fontWeight: 500,
+                  color: 'var(--text3)',
+                  letterSpacing: 'var(--tracking-caption)',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {L('ベンチマーク', 'Benchmark')}
+              </span>
+              <input
+                aria-label={L('ベンチマーク銘柄', 'Benchmark symbol')}
+                placeholder={L('例: SPY', 'e.g. SPY')}
+                value={benchInput}
+                onChange={(e) => setBenchInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && benchInput.trim()) setBenchSymbol(benchInput.trim())
+                }}
+                style={{
+                  width: 100,
+                  padding: '4px 8px',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text)',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 'var(--fs-mono-sm)',
+                }}
+              />
+              <button
+                type="button"
+                style={exportBtnS}
+                disabled={!benchInput.trim()}
+                onClick={() => setBenchSymbol(benchInput.trim())}
+              >
+                {L('適用', 'Apply')}
+              </button>
+              {benchSymbol && (
+                <button
+                  type="button"
+                  style={exportBtnS}
+                  onClick={() => {
+                    setBenchSymbol(null)
+                    setBenchInput('')
+                  }}
+                >
+                  {L('解除', 'Clear')}
+                </button>
+              )}
+              {benchSymbol && benchState.status === 'loading' && (
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-mono-sm)', color: 'var(--text3)' }}>
+                  …
+                </span>
+              )}
+              {benchSymbol && (benchState.status === 'no_data' || benchState.status === 'error') && (
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 'var(--fs-caption)', color: 'var(--warn)' }}>
+                  {L(
+                    `${benchSymbol} の価格データを取得できません（forge のデータディレクトリに必要です）`,
+                    `No price data for ${benchSymbol} (needs to exist in the forge data directory)`,
+                  )}
+                </span>
+              )}
+            </div>
+            {benchComparison && (
+              <div
+                data-testid="benchmark-stats"
+                style={{
+                  display: 'flex',
+                  gap: 20,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  margin: '0 0 8px',
+                  padding: '8px 12px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 'var(--fs-mono-sm)',
+                  color: 'var(--text2)',
+                }}
+              >
+                <span>
+                  vs {benchSymbol}
+                </span>
+                <span>β {fmtNum(benchComparison.beta, { decimals: 2 })}</span>
+                <span>
+                  α {fmtNum(benchComparison.alphaPct, { decimals: 1, suffix: '%', sign: true })}
+                  {L('（年率）', ' (ann.)')}
+                </span>
+                <span>IR {fmtNum(benchComparison.informationRatio, { decimals: 2 })}</span>
+                <span>
+                  {L('超過リターン', 'Excess')}{' '}
+                  {fmtNum(benchComparison.excessReturnPct, { decimals: 1, suffix: '%', sign: true })}
+                </span>
+                <span style={{ color: 'var(--text3)' }}>
+                  {L(
+                    `${benchComparison.alignedDays} 営業日・日次リターンから算出`,
+                    `${benchComparison.alignedDays} trading days, from daily returns`,
+                  )}
+                </span>
+              </div>
+            )}
             <div data-testid="backtest-equity-chart-tv">
               <EquityDrawdownPaneTV
                 ref={tvHandleRef}
@@ -213,8 +352,14 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 dates={data.equity.dates}
                 drawdown={data.drawdown}
                 isCutoffIdx={data.is_cutoff.index}
-                benchmark={showBuyHold ? data.buy_hold_equity : undefined}
-                showBenchmark={showBuyHold}
+                benchmark={
+                  benchComparison
+                    ? benchComparison.benchmarkEquity
+                    : showBuyHold
+                      ? data.buy_hold_equity
+                      : undefined
+                }
+                showBenchmark={Boolean(benchComparison) || showBuyHold}
                 compact={compact}
                 regimeSeries={data.regime_series}
                 showRegime={showRegime}
@@ -359,6 +504,13 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
       )}
     </div>
   )
+}
+
+/** ベンチマーク OHLC の取得（useFetchByKey 用・key = symbol::start::end） */
+async function fetchBenchmarkBars(key: string): Promise<{ time: string; close: number }[]> {
+  const [symbol, start, end] = key.split('::')
+  const res = await api.getHistorical(symbol!, '1d', { start, end })
+  return res.bars.map((b) => ({ time: String(b.time), close: b.close }))
 }
 
 export function BacktestScreen(props: Props) {
