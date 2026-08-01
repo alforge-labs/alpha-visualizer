@@ -81,8 +81,12 @@ dev = [
     "bump-my-version>=0.32.0",
     "httpx>=0.28.1",
     "hypothesis>=6.152.4",
+    "mypy>=2.3.0",
+    "pandas-stubs>=3.0.5.260730",
     "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
     "ruff>=0.15.12",
+    "types-pyyaml>=6.0.12.20260724",
 ]
 
 [tool.bumpversion]
@@ -110,3 +114,20 @@ replace = '__version__ = "{new_version}"'
 filename = "frontend/openapi.json"
 search = '"version": "{current_version}"'
 replace = '"version": "{new_version}"'
+
+# --- 静的型チェック (issue #393) ---------------------------------------------
+[tool.mypy]
+files = ["src/alpha_visualizer"]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+# --- カバレッジ (issue #393) --------------------------------------------------
+[tool.coverage.run]
+source = ["src/alpha_visualizer"]
+
+[tool.coverage.report]
+# 現状 93%。しきい値は退行検出用で、目標値ではない
+fail_under = 90
+show_missing = false

@@ -26,8 +26,12 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check src/ tests/
 
-      - name: Test (pytest)
-        run: uv run pytest tests/ -q
+      - name: Type check (mypy)
+        run: uv run mypy
+
+      - name: Test (pytest + coverage)
+        # fail_under は pyproject.toml [tool.coverage.report] で管理 (issue #393)
+        run: uv run pytest tests/ -q --cov
 
   frontend:
     runs-on: ubuntu-latest
@@ -55,8 +59,9 @@ jobs:
       - name: Lint (eslint)
         run: pnpm run lint
 
-      - name: Test (vitest)
-        run: pnpm run test:ci
+      - name: Test (vitest + coverage)
+        # しきい値は frontend/vite.config.ts の test.coverage.thresholds (issue #393)
+        run: pnpm run test:coverage
 
       - name: Build (tsc -b && vite build)
         run: pnpm run build

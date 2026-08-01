@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import threading
+from typing import cast
 
 from fastapi import Request
 from sqlalchemy import Engine
@@ -81,8 +82,13 @@ def get_engine_dep(request: Request) -> Engine | None:
 
 
 def get_backtest_results_repo(request: Request) -> BacktestResultsRepository:
-    """``BacktestResultsRepository`` を共有 Engine から構築して返す。"""
-    return BacktestResultsRepository(_resolve_engine(request))
+    """``BacktestResultsRepository`` を共有 Engine から構築して返す。
+
+    Engine が ``None``（DB 不在）のまま渡る経路は、各 router が
+    ``config.forge_db.exists()`` で 404 ガードしてクエリを発行しない契約
+    （``get_engine_dep`` の docstring 参照）。cast はその契約の表明。
+    """
+    return BacktestResultsRepository(cast(Engine, _resolve_engine(request)))
 
 
 def get_strategies_repo(request: Request) -> StrategiesRepository:
@@ -104,7 +110,8 @@ def get_strategies_repo(request: Request) -> StrategiesRepository:
 
 def get_optimization_repo(request: Request) -> OptimizationRepository:
     """``OptimizationRepository`` を共有 Engine から構築して返す。"""
-    return OptimizationRepository(_resolve_engine(request))
+    # cast の理由は get_backtest_results_repo の docstring 参照
+    return OptimizationRepository(cast(Engine, _resolve_engine(request)))
 
 
 def get_job_manager(request: Request) -> JobManager:

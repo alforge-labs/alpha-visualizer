@@ -65,5 +65,18 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // issue #393: カバレッジ退行の検出。しきい値は現状実測（lines 78% 前後）から
+    // 数 pt 下に置いた「下限」で、目標値ではない。実測を上げたら引き上げる
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/**/__tests__/**', 'src/mock/**', 'src/**/*.stories.tsx'],
+      thresholds: {
+        lines: 71,
+        statements: 69,
+        functions: 62,
+        branches: 61,
+      },
+    },
   },
 })

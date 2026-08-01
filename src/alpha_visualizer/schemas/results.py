@@ -158,7 +158,7 @@ class BacktestDetail(BaseModel):
     carry_adjusted: CarryAdjusted | None = None
 
     @model_serializer(mode="wrap")
-    def _serialize_with_optional_regime(self, handler):  # type: ignore[no-untyped-def]
+    def _serialize_with_optional_regime(self, handler):
         """regime_series / regime_breakdown / carry_adjusted は None の場合 JSON から除外する。
 
         他のフィールド（is_metrics / oos_metrics 等）の None は既存挙動を保つため
