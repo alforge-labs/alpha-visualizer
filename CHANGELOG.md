@@ -11,7 +11,7 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
-## [unreleased]
+## [1.3.0] - 2026-08-01
 
 
 ### CI/CD
@@ -28,10 +28,25 @@ _(EN) Entries below are generated from Conventional Commits (Japanese). Group na
 - UI 文言の平易化・統一（snake_case 露出/独自用語/CLI 前提文言/表記ゆれ） (#439)
 
 
+- PyPI メタデータを更新（Production/Stable・Python 3.12–3.14・Doc URL 英語入口） (#457)
+
+
+- API 境界の小粒改善（strategy_id 規約統一・/health の mask_home・WFO/Optimize 遅延フェッチ） (#456)
+
+
+- CodeQL py/empty-except 指摘に対応（フォールバック意図のコメントを明記） (#459)
+
+
+- audit-licenses の DEV_ONLY を新 dev 依存に追従し THIRDPARTY_LICENSES.txt を再生成 (#460)
+
+
 
 ### ドキュメント
 
 - README に同梱サンプルの導線・Live/Ideas スクショ・FAQ リンクを追加する (#410)
+
+
+- CHANGELOG からリリース作業ノイズを除外し破壊的変更の履歴と英語注記を追加 (#458)
 
 
 
@@ -185,6 +200,9 @@ _(EN) Entries below are generated from Conventional Commits (Japanese). Group na
 
 
 - 最適化ビューにパラメータ重要度（Spearman 順位相関）バーを追加 (#454)
+
+
+- 取引一覧の行クリックで該当期間へチャートジャンプ（共有 viewport + 概要タブ切替） (#455)
 
 
 
