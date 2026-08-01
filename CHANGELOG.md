@@ -11,6 +11,15 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.3.1] - 2026-08-01
+
+
+### バグ修正
+
+- forge CLI の実行ファイル名を alpha-forge に修正して実行系機能を復旧 (#461)
+
+
+
 ## [1.3.0] - 2026-08-01
 
 
