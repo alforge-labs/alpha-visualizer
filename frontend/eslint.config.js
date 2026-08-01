@@ -15,7 +15,7 @@ export default defineConfig([
   ]),
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['e2e/**', 'playwright.config.ts'],
+    ignores: ['e2e/**', 'playwright.config.ts', 'coverage/**'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
