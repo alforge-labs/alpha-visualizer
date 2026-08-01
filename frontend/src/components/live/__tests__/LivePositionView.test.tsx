@@ -182,6 +182,44 @@ describe('<LivePositionView /> assembly (Task 13)', () => {
     expect(overlays[0]?.values).toEqual([1_000_000, 1_020_000])
   })
 
+  it('指数は主系列と混同しない色・線種を明示指定する', () => {
+    // WHY: ライブ equity は success（緑 #4A723A）/ danger（赤）で描かれる。
+    // overlay の色をパレット任せにすると、ラベルのソート順で 2 色目の
+    // steel(#5B7A8C) が指数に当たる。steel は緑と ΔE 44.6 しか離れておらず
+    // （他の系列ペアは 67〜75）、明度も L* 49.5 vs 43.9 と近いため、細い線では
+    // 見分けられない。緑からも赤からも離れた mauve を固定で割り当て、さらに
+    // 破線にして色以外の手がかりでも区別できるようにする。
+    const summary = {
+      strategy_id: 'pf_1',
+      kind: 'position' as const,
+      metrics: {},
+      equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 995_000],
+      ] as [string, number][],
+      benchmark_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_020_000],
+      ] as [string, number][],
+      backtest_equity: [
+        ['2026-06-04T00:00:00', 1_000_000],
+        ['2026-06-05T00:00:00', 1_010_000],
+      ] as [string, number][],
+    } as unknown as LiveSummary
+
+    render(<LivePositionView summary={summary} warnings={[]} lang="ja" />)
+    const overlays = equityPaneProps.current?.overlays ?? []
+    const index = overlays.find((o) => o.label === '指数（Buy & Hold）')
+    const backtest = overlays.find((o) => o.label === 'バックテスト')
+
+    // mauve（ChartTheme.series の 5 色目）。steel が当たらないことが要点
+    expect(index?.color).toBe('#7B5380')
+    expect(index?.dashed).toBe(true)
+    // バックテストは既定パレット（accent 橙）のまま。緑とは十分離れている
+    expect(backtest?.color).toBeUndefined()
+    expect(backtest?.dashed).toBeFalsy()
+  })
+
   it('overlay で除外された系列は KPI の超過リターンにも使われない（Finding 1: チャートと KPI の判定を統一）', () => {
     // WHY: buildOverlay がチャート描画を弾く系列を、KPI 行（超過リターン）が
     // 生の summary.benchmark_equity / backtest_equity をそのまま受け取って

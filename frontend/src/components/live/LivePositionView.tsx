@@ -78,10 +78,25 @@ function admitComparisonSeries(
   return series
 }
 
+/**
+ * `ChartTheme.series`（accent / steel / moss / umber / mauve）における mauve の位置。
+ *
+ * 指数の色をパレット任せにすると、ラベルのソート順で 2 色目の steel が当たる。
+ * ライブ equity は success（緑 #4A723A）/ danger（赤）で描かれ、steel(#5B7A8C) は
+ * 緑と ΔE 44.6 しか離れていない（他の系列ペアは 67〜75）。明度も L* 49.5 vs 43.9 と
+ * 近いため、細い線では主系列と見分けられない。緑からも赤からも離れた mauve
+ * （ΔE 67.7）を固定で割り当てる。
+ */
+const MAUVE_SERIES_INDEX = 4
+
 /** 許容済み系列（`admitComparisonSeries` 通過後）を overlay 形式に変換する。 */
-function toOverlay(label: string, series: [string, number][] | null): EquityOverlay | null {
+function toOverlay(
+  label: string,
+  series: [string, number][] | null,
+  style?: Pick<EquityOverlay, 'color' | 'dashed'>,
+): EquityOverlay | null {
   if (!series) return null
-  return { label, values: series.map(([, v]) => v) }
+  return { label, values: series.map(([, v]) => v), ...style }
 }
 
 /**
@@ -115,7 +130,13 @@ export function LivePositionView({ summary, warnings, lang }: Props): ReactEleme
   const acceptedBacktest = admitComparisonSeries(backtestLabel, summary.backtest_equity, values.length)
 
   const overlays: EquityOverlay[] = [
-    toOverlay(benchmarkLabel, acceptedBenchmark),
+    // 指数だけは色と線種を明示する（理由は MAUVE_SERIES_INDEX のコメント）。
+    // 破線は色以外の手がかりでの区別も兼ねる（バックテスト画面の Buy & Hold と同じ扱い）
+    toOverlay(benchmarkLabel, acceptedBenchmark, {
+      color: theme.series[MAUVE_SERIES_INDEX],
+      dashed: true,
+    }),
+    // バックテストは既定パレット（accent 橙）のまま。equity の緑・赤とは十分離れている
     toOverlay(backtestLabel, acceptedBacktest),
   ].filter((o): o is EquityOverlay => o != null)
 
