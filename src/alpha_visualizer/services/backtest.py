@@ -327,7 +327,7 @@ def _segment_years(dates: list[str], n_bars: int) -> float:
             if days > 0:
                 return days / 365.25
         except ValueError:
-            pass
+            pass  # 日付が ISO 形式でない場合は 252 営業日換算へフォールバック
     return max(n_bars - 1, 1) / 252.0
 
 
