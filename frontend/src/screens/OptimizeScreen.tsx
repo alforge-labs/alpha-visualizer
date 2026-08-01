@@ -6,6 +6,8 @@ import { SectionHeader, SectionLabel, Tab, TabBar } from '../design/primitives'
 import { OptimizeScatter } from '../components/charts/OptimizeScatter'
 import { OptimizeHeatmap } from '../components/charts/OptimizeHeatmap'
 import { metricOptions, numericParamNames } from '../lib/optimizeHeatmap'
+import { computeParamImportance } from '../lib/paramImportance'
+import { fmtNumber as fmtNumImp } from '../lib/format'
 import { fmtNumber } from '../lib/format'
 
 interface Props {
@@ -53,6 +55,9 @@ export function OptimizeScreen({ data, compact, lang, onSelectRun }: Props) {
       : data.metric_name
 
   const top10 = topTrials(data.trials, 10)
+  // issue #380: パラメータ重要度（Spearman |ρ|）。散布図を 1 軸ずつ
+  // 切り替えなくても「どのパラメータが効いているか」を要約する
+  const importances = useMemo(() => computeParamImportance(data.trials), [data.trials])
   const allParamKeys = paramNames
   const metricLabel = data.metric_name.replace(/_/g, ' ')
   const bestMetricLabel =
@@ -265,6 +270,77 @@ export function OptimizeScreen({ data, compact, lang, onSelectRun }: Props) {
 
           {/* 上位 10 試行テーブル */}
           <div style={{ marginTop: compact ? 'var(--space-5)' : 'var(--space-6)' }}>
+            {importances.length > 0 && (
+              <div data-testid="param-importance" style={{ marginBottom: 20 }}>
+                <SectionLabel>{L('パラメータ重要度', 'Parameter Importance')}</SectionLabel>
+                <p
+                  style={{
+                    margin: '2px 0 8px',
+                    fontFamily: 'var(--sans)',
+                    fontSize: 'var(--fs-caption)',
+                    color: 'var(--text3)',
+                  }}
+                >
+                  {L(
+                    `${metricLabel} との Spearman 順位相関の強さ |ρ|。単調な関連の目安であり因果ではありません`,
+                    `|Spearman ρ| against ${metricLabel}. A guide to monotonic association, not causation`,
+                  )}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 560 }}>
+                  {importances.map((imp) => (
+                    <div key={imp.param} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        style={{
+                          width: 140,
+                          flexShrink: 0,
+                          fontFamily: 'var(--mono)',
+                          fontSize: 'var(--fs-mono-sm)',
+                          color: 'var(--text2)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          textAlign: 'right',
+                        }}
+                        title={imp.param}
+                      >
+                        {imp.param}
+                      </span>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 12,
+                          background: 'var(--surface-2)',
+                          borderRadius: 'var(--radius-sm)',
+                          overflow: 'hidden',
+                        }}
+                        role="img"
+                        aria-label={`${imp.param}: |ρ| ${imp.abs.toFixed(2)}`}
+                      >
+                        <div
+                          style={{
+                            width: `${Math.round(imp.abs * 100)}%`,
+                            height: '100%',
+                            background: imp.rho >= 0 ? 'var(--success)' : 'var(--danger)',
+                            opacity: 0.75,
+                          }}
+                        />
+                      </div>
+                      <span
+                        style={{
+                          width: 64,
+                          flexShrink: 0,
+                          fontFamily: 'var(--mono)',
+                          fontSize: 'var(--fs-mono-sm)',
+                          color: 'var(--text3)',
+                        }}
+                      >
+                        {fmtNumImp(imp.rho, { decimals: 2, sign: true })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <SectionLabel>{L('上位 10 トライアル', 'Top 10 Trials')}</SectionLabel>
             <div style={{ overflowX: 'auto', marginTop: 8 }}>
               <table
