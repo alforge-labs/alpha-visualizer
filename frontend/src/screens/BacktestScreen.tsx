@@ -19,6 +19,7 @@ import { RollingMetricsChartTV } from '../charts/tv/RollingMetricsChartTV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
 import { HoldingPeriodChart } from '../components/charts/HoldingPeriodChart'
+import { SubperiodMetrics } from '../components/metrics/SubperiodMetrics'
 import { MAEMFEScatter } from '../components/charts/MAEMFEScatter'
 import { DrawdownDetailChart } from '../components/charts/DrawdownDetailChart'
 import { VaRChart } from '../components/charts/VaRChart'
@@ -224,6 +225,13 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
       {tab === 'metrics' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* issue #377: 期間プリセットで選択期間の主要指標を再計算 */}
+          <SubperiodMetrics
+            dates={data.equity.dates}
+            equity={data.equity.values}
+            returns={data.daily_returns}
+            lang={lang}
+          />
           <MetricsGrid metrics={data.metrics} compact={compact} lang={lang} />
           {data.carry_adjusted && (
             <CarryAdjustedCard carry={data.carry_adjusted} lang={lang} />
