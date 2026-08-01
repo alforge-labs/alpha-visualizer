@@ -44,3 +44,31 @@ describe('ISOOSScreen subtitle (issue #353)', () => {
     expect(screen.getByText(/2023-06-30/)).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #364-1: OOS 劣化警告に snake_case の生キー（sharpe_ratio 等）が
+ * そのまま露出していた。METRIC_DEFINITIONS のラベルへ写像する。
+ */
+describe('ISOOSScreen degradation labels (issue #364)', () => {
+  it('劣化警告は指標ラベルで表示し snake_case を出さない', () => {
+    const data = makeDetail(70, 100)
+    // oos が is の 8 割未満 → sharpe_ratio / win_rate_pct が劣化判定になる
+    ;(data as { is_metrics: object }).is_metrics = {
+      sharpe_ratio: 2.0,
+      win_rate_pct: 60,
+      profit_factor: 1.5,
+    }
+    ;(data as { oos_metrics: object }).oos_metrics = {
+      sharpe_ratio: 1.0,
+      win_rate_pct: 40,
+      profit_factor: 1.4,
+    }
+    render(<ISOOSScreen data={data} compact={false} lang="ja" />)
+    const warning = screen.getByText(/OOS劣化が検出されました/)
+    expect(warning.textContent).toContain('Sharpe Ratio')
+    // win_rate_pct の SSoT ラベルは 'Win%'（METRIC_DEFINITIONS）
+    expect(warning.textContent).toContain('Win%')
+    expect(warning.textContent).not.toContain('sharpe_ratio')
+    expect(warning.textContent).not.toContain('win_rate_pct')
+  })
+})

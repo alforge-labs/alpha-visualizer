@@ -4,6 +4,7 @@ import type { BacktestDetail, BacktestMetrics } from '../api/types'
 import { SectionHeader, SectionLabel } from '../design/primitives'
 import { EquityDrawdownPaneTV } from '../charts/tv/EquityDrawdownPaneTV'
 import { ISOOSMetrics } from '../components/metrics/ISOOSMetrics'
+import { METRIC_DEFINITIONS } from '../constants/metricDefinitions'
 
 interface Props {
   data: BacktestDetail
@@ -143,9 +144,14 @@ export function ISOOSScreen({ data, compact, lang }: Props) {
               lineHeight: 1.5,
             }}
           >
+            {/* issue #364: snake_case の生キーでなく指標ラベルで表示する */}
             {L(
-              `OOS劣化が検出されました: ${degMetrics.join(', ')}`,
-              `OOS degradation detected: ${degMetrics.join(', ')}`
+              `OOS劣化が検出されました: ${degMetrics
+                .map((k) => METRIC_DEFINITIONS[k]?.label ?? k)
+                .join('、')}`,
+              `OOS degradation detected: ${degMetrics
+                .map((k) => METRIC_DEFINITIONS[k]?.labelEn ?? k)
+                .join(', ')}`
             )}
           </span>
         </div>

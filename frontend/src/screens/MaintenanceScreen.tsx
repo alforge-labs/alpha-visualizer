@@ -209,9 +209,10 @@ export function MaintenanceScreen({
             lineHeight: 1.55,
           }}
         >
+          {/* issue #364: strategies.db 等の内部用語を出さず UI 語彙で説明する */}
           {L(
-            'strategies.db に定義が無い孤児バックテスト結果（過去に削除・改名した戦略の残骸）を一覧し、選択して削除します。',
-            'List orphan backtest results (leftovers from deleted or renamed strategies) that have no matching strategy definition, and delete the ones you select.',
+            '削除・改名された戦略の残りのバックテスト結果（孤児データ）を一覧し、選択して削除します。',
+            'List leftover backtest results from deleted or renamed strategies (orphan data), and delete the ones you select.',
           )}
         </p>
         <p
@@ -225,10 +226,36 @@ export function MaintenanceScreen({
           }}
         >
           {L(
-            '削除は元に戻せません。また、孤児は必ずしも不要なデータではありません（strategy delete は --with-results を付けない限り結果を意図的に残します）。削除前に内容をよく確認してください。',
-            'Deletion cannot be undone. Orphans are not necessarily unwanted data — strategy delete intentionally keeps results unless run with --with-results. Review carefully before deleting.',
+            '削除は元に戻せません。また、残っている結果は意図的に保存されている場合もあります（AlphaForge で戦略を削除しても、結果は既定で残ります）。削除前に内容をよく確認してください。',
+            'Deletion cannot be undone. Leftover results may have been kept on purpose (deleting a strategy in AlphaForge keeps its results by default). Review carefully before deleting.',
           )}
         </p>
+        <details style={{ margin: '8px 0 0 0', maxWidth: 720 }}>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+              color: 'var(--text3)',
+            }}
+          >
+            {L('CLI での挙動（上級者向け）', 'CLI behavior (advanced)')}
+          </summary>
+          <p
+            style={{
+              margin: '6px 0 0 0',
+              fontFamily: 'var(--mono)',
+              fontSize: 'var(--fs-mono-sm)',
+              color: 'var(--text3)',
+              lineHeight: 1.6,
+            }}
+          >
+            {L(
+              'alpha-forge strategy delete は --with-results を付けない限り結果を残します。この画面の削除は forge backtest prune-orphans に委譲されます。',
+              'alpha-forge strategy delete keeps results unless run with --with-results. Deletion here delegates to forge backtest prune-orphans.',
+            )}
+          </p>
+        </details>
       </header>
 
       <div

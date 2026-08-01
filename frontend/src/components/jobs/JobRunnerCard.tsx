@@ -84,7 +84,7 @@ export function JobRunnerCard({
     ? L('最適化を実行', 'Run optimization')
     : L('ウォークフォワードテストを実行', 'Run walk-forward test')
   const optionLabel = isOptimize
-    ? L('トライアル数（空欄 = forge 既定）', 'Trials (empty = forge default)')
+    ? L('トライアル数（空欄 = 推奨値で自動）', 'Trials (empty = recommended default)')
     : L('ウィンドウ数（空欄 = 既定 5）', 'Windows (empty = default 5)')
 
   const statusLabels: Record<string, string> = {

@@ -137,7 +137,7 @@ class TestLiveRouter:
         assert body["live"]["period"] is None
         assert body["backtest"] is None
         assert body["diff"] is None
-        assert any("trade" in w for w in body["warnings"])
+        assert any("比較は計算できません" in w for w in body["warnings"])
 
     def test_get_live_with_period_and_aligned_diff(
         self, tmp_path: pathlib.Path
@@ -312,7 +312,7 @@ class TestLiveRouter:
         body = response.json()
         assert body["backtest"] is None
         assert body["diff"] is None
-        assert any("backtest" in w for w in body["warnings"])
+        assert any("バックテスト実行が見つかりません" in w for w in body["warnings"])
 
     def test_get_live_position_based_summary(self, tmp_path: pathlib.Path) -> None:
         """position ベース portfolio は metrics/equity を summary に載せ、trades 空。"""
@@ -343,7 +343,7 @@ class TestLiveRouter:
         assert body["live"]["period"] is None
         assert body["backtest"] is None
         assert body["diff"] is None
-        assert any("position" in w for w in body["warnings"])
+        assert any("合成ポートフォリオ" in w for w in body["warnings"])
 
     def test_get_live_position_summary_includes_equity_comparison_fields(
         self, tmp_path: pathlib.Path

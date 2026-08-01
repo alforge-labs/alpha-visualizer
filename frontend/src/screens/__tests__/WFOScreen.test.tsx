@@ -57,3 +57,15 @@ describe('WFOScreen subtitle (issue #353)', () => {
     expect(screen.queryByText(/IS .*ヶ月/)).not.toBeInTheDocument()
   })
 })
+
+/**
+ * issue #364-7: 「ウォークフォーワード」（長音）と「ウォークフォワード」の
+ * 表記ゆれを後者に統一する。
+ */
+describe('WFOScreen terminology (issue #364)', () => {
+  it('タイトルは「ウォークフォワード」表記に統一されている', () => {
+    render(<WFOScreen data={makeData(3)} compact={false} lang="ja" />)
+    expect(screen.getByText('ウォークフォワード検証')).toBeInTheDocument()
+    expect(screen.queryByText(/ウォークフォーワード/)).not.toBeInTheDocument()
+  })
+})
