@@ -3,6 +3,7 @@ import { type SetURLSearchParams, useSearchParams } from 'react-router'
 import { api } from '../api/client'
 import type { StrategyListItem } from '../api/types'
 import { updateParam } from '../lib/searchParams'
+import { useStarredStrategies } from './useStarredStrategies'
 import { buildRecipes, effectiveSymbol, type Recipe } from '../lib/recipes'
 
 export type SortKey = 'name' | 'latest_sharpe' | 'latest_return_pct' | 'latest_max_drawdown_pct' | 'latest_profit_factor' | 'latest_win_rate_pct' | 'last_run_at'
@@ -85,6 +86,9 @@ export interface StrategyListState {
   timeframes: string[]
   selectedId: string | null
   setSelectedId: (id: string | null) => void
+  /** お気に入り（issue #379）。key はレシピ key */
+  starredKeys: ReadonlySet<string>
+  toggleStar: (key: string) => void
   compareIds: string[]
   toggleCompareId: (id: string) => void
   removeCompareId: (id: string) => void
@@ -398,7 +402,15 @@ export function useStrategyList(): StrategyListState {
     [filteredRecipes, includeUnrun],
   )
 
-  const recipes = useSortedRecipes(visibleRecipes, sortKey, sortDir)
+  // お気に入り（issue #379）。?starred=1 でスター付きレシピのみに絞る
+  const { starredKeys, toggleStar } = useStarredStrategies()
+  const starredOnly = searchParams.get('starred') === '1'
+  const starredFiltered = useMemo(
+    () => (starredOnly ? visibleRecipes.filter(r => starredKeys.has(r.key)) : visibleRecipes),
+    [visibleRecipes, starredOnly, starredKeys],
+  )
+
+  const recipes = useSortedRecipes(starredFiltered, sortKey, sortDir)
   const groups = useGrouping(recipes, groupBy)
 
   // 分母もカバレッジ表の入力も、フィルタに依らない全体のレシピ
@@ -437,6 +449,7 @@ export function useStrategyList(): StrategyListState {
     groupBy, setGroupBy,
     symbols, timeframes,
     selectedId, setSelectedId,
+    starredKeys, toggleStar,
     ...compare,
   }
 }

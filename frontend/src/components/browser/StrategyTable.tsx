@@ -22,6 +22,9 @@ interface Props {
   onSelect: (id: string) => void
   compareIds: string[]
   onToggleCompare: (id: string) => void
+  /** お気に入り（issue #379） */
+  starredKeys: ReadonlySet<string>
+  onToggleStar: (key: string) => void
   lang: Lang
   groups?: StrategyGroup[]   // 与えられたらグループモード。1 グループ以下なら見出しを出さず recipes をそのまま描画
   /** フッタに出す件数（Task 4 で `StrategyTableFooter` が使う） */
@@ -178,6 +181,8 @@ export function StrategyTable({
   onSelect,
   compareIds,
   onToggleCompare,
+  starredKeys,
+  onToggleStar,
   lang,
   groups,
   recipeTotal,
@@ -238,6 +243,8 @@ export function StrategyTable({
         onToggleCompare={onToggleCompare}
         onHover={setHoveredId}
         sparkValues={recipe.best ? sparkline.entries[recipe.best.strategy_id] : undefined}
+        starred={starredKeys.has(recipe.key)}
+        onToggleStar={onToggleStar}
         lang={lang}
       />
     )

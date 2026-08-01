@@ -87,6 +87,8 @@ describe('Responsive styles (issue #54)', () => {
           onSelect={() => {}}
           compareIds={[]}
           onToggleCompare={() => {}}
+          starredKeys={new Set<string>()}
+          onToggleStar={() => {}}
           lang="ja"
         />
       </MemoryRouter>,
@@ -127,6 +129,8 @@ describe('Responsive styles (issue #54)', () => {
           onSelect={() => {}}
           compareIds={[]}
           onToggleCompare={() => {}}
+          starredKeys={new Set<string>()}
+          onToggleStar={() => {}}
           lang="ja"
         />
       </MemoryRouter>,
@@ -169,6 +173,8 @@ describe('Responsive styles (issue #54)', () => {
           onSelect={() => {}}
           compareIds={[]}
           onToggleCompare={() => {}}
+          starredKeys={new Set<string>()}
+          onToggleStar={() => {}}
           lang="ja"
         />
       </MemoryRouter>,

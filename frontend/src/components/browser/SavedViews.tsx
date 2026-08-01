@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 
-type ViewKey = 'all' | 'high_sharpe' | 'recent' | 'risky'
+type ViewKey = 'all' | 'starred' | 'high_sharpe' | 'recent' | 'risky'
 
 interface ViewDef {
   key: ViewKey
@@ -18,6 +18,10 @@ const VIEWS: readonly ViewDef[] = [
     params: {},
   },
   {
+    key: 'starred',
+    params: { starred: '1' },
+  },
+  {
     key: 'high_sharpe',
     params: { sharpe_min: '1.5', sort: 'latest_sharpe', dir: 'desc' },
   },
@@ -31,7 +35,7 @@ const VIEWS: readonly ViewDef[] = [
   },
 ] as const
 
-const FILTER_KEYS = ['q', 'symbol', 'tf', 'sharpe_min', 'dd_max', 'include_unrun', 'sort', 'dir', 'selected', 'compare'] as const
+const FILTER_KEYS = ['q', 'symbol', 'tf', 'sharpe_min', 'dd_max', 'include_unrun', 'sort', 'dir', 'selected', 'compare', 'starred'] as const
 
 interface Props {
   lang: Lang
@@ -41,6 +45,7 @@ function viewLabel(key: ViewKey, lang: Lang): string {
   const L = makeL(lang)
   switch (key) {
     case 'all':         return L('すべて',         'All')
+    case 'starred':     return L('スター',         'Starred')
     case 'high_sharpe': return L('高 Sharpe',      'High Sharpe')
     case 'recent':      return L('最近実行',       'Recent')
     case 'risky':       return L('要注意',         'Risky')
@@ -51,6 +56,7 @@ function viewDescription(key: ViewKey, lang: Lang): string {
   const L = makeL(lang)
   switch (key) {
     case 'all':         return L('フィルタなし',                       'No filter')
+    case 'starred':     return L('スターを付けた戦略のみ',              'Only starred strategies')
     case 'high_sharpe': return L('Sharpe 1.5 以上を Sharpe 降順で',    'Sharpe ≥ 1.5, sorted by Sharpe')
     case 'recent':      return L('最終実行が新しい順',                 'Sorted by last run desc')
     case 'risky':       return L('Max DD が深い順',                    'Sorted by deepest drawdown')

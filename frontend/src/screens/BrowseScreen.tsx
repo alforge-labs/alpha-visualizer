@@ -184,6 +184,8 @@ export function BrowseScreen({
             onSelect={onSelect}
             compareIds={list.compareIds}
             onToggleCompare={list.toggleCompareId}
+            starredKeys={list.starredKeys}
+            onToggleStar={list.toggleStar}
             lang={lang}
           />
         )}
