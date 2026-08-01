@@ -9,6 +9,7 @@ import {
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
   type Time,
+  PriceScaleMode,
 } from 'lightweight-charts'
 
 import { RANGES } from '../../contexts/dashboardConstants'
@@ -88,6 +89,9 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
   const theme = useChartTheme()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  // issue #378: 対数スケール切替。長期 equity の複利成長（傾きの一貫性）を
+  // 確認できるようにする（lightweight-charts の PriceScaleMode 切替のみ）
+  const [logScale, setLogScale] = useState(false)
   // hook に渡すには再レンダーを起こす必要があるため、ref とは別に state でも保持する
   const [chartApi, setChartApi] = useState<IChartApi | null>(null)
   const equitySeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
@@ -169,6 +173,13 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
     // create-once: theme / isPositive の更新は別 effect で applyOptions する。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // issue #378: Lin/Log スケール切替（equity ペインの価格軸のみ）
+  useEffect(() => {
+    chartRef.current?.priceScale('right').applyOptions({
+      mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
+    })
+  }, [logScale])
 
   // テーマ / 言語変更で chart / series の見た目だけ更新（再マウントしない）。
   useEffect(() => {
@@ -369,6 +380,33 @@ export function EquityDrawdownPaneTV(props: EquityDrawdownPaneTVProps) {
             </button>
           )
         })}
+        <button
+          type="button"
+          aria-pressed={logScale}
+          title={
+            logScale
+              ? 'リニアスケールに戻す / Switch to linear scale'
+              : '対数スケールで表示 / Switch to log scale'
+          }
+          onClick={() => setLogScale((v) => !v)}
+          style={{
+            height: 24,
+            padding: '0 10px',
+            marginLeft: 8,
+            background: logScale ? 'var(--accent-bg)' : 'transparent',
+            border: logScale ? '1px solid var(--accent-glow)' : '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+            fontWeight: 600,
+            letterSpacing: 'var(--tracking-mono)',
+            color: logScale ? 'var(--accent)' : 'var(--text3)',
+            transition: 'all var(--motion-fast)',
+          }}
+        >
+          Log
+        </button>
         {showBenchmark && (
           <div
             style={{
