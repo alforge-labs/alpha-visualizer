@@ -113,6 +113,8 @@ export interface BacktestMetrics {
     warning: string | null
   }
   annual_returns: Record<string, number>
+  /** 年次 MaxDD（年→負数 %）。forge metrics_json 由来（#383 で表示に使用） */
+  annual_max_drawdown?: Record<string, number>
   benchmark?: {
     alpha_pct: number
     beta: number
