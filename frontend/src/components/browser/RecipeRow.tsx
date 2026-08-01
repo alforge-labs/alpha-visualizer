@@ -116,7 +116,12 @@ export function RecipeRow({
           type="checkbox"
           checked={inCompare}
           disabled={best == null || maxCompareReached}
-          aria-label={L(`${recipe.name} の最良試行を比較に追加`, `Add the best trial of ${recipe.name} to compare`)}
+          // issue #397: 同名戦略が複数銘柄にあっても一意になるよう、
+          // StrategyRow と同じ規約で ID を含める
+          aria-label={L(
+            `${recipe.name}（${best?.strategy_id ?? recipe.key}）の最良試行を比較に追加`,
+            `Add the best trial of ${recipe.name} (${best?.strategy_id ?? recipe.key}) to compare`,
+          )}
           onChange={() => { if (best) onToggleCompare(best.strategy_id) }}
           style={{
             cursor: best == null || maxCompareReached ? 'not-allowed' : 'pointer',

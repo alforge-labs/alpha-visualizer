@@ -213,3 +213,19 @@ describe('<RecipeRow />', () => {
     expect(screen.queryByText('2026-06-01')).toBeNull()
   })
 })
+
+/**
+ * issue #397: 同名戦略が複数銘柄にあると比較チェックボックスの aria-label が
+ * 完全に同一になり SR で区別できなかった。StrategyRow と同じく best の
+ * strategy_id を含めて一意化する。
+ */
+describe('RecipeRow compare checkbox aria-label (issue #397)', () => {
+  it('aria-label に best の strategy_id を含めて一意化する', () => {
+    const recipe = threeVariantRecipe()
+    renderRecipe(recipe)
+    const checkbox = screen.getByRole('checkbox')
+    const label = checkbox.getAttribute('aria-label') ?? ''
+    // 同名戦略が複数銘柄にあっても SR で区別できるよう ID を含める
+    expect(label).toContain('amd_v1')
+  })
+})
