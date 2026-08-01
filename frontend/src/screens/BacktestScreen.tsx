@@ -18,6 +18,7 @@ import { MonthlyHeatmapV } from '../charts/visx/MonthlyHeatmapV'
 import { RollingMetricsChartTV } from '../charts/tv/RollingMetricsChartTV'
 import { ReturnDistributionChart } from '../components/charts/ReturnDistributionChart'
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
+import { HoldingPeriodChart } from '../components/charts/HoldingPeriodChart'
 import { MAEMFEScatter } from '../components/charts/MAEMFEScatter'
 import { DrawdownDetailChart } from '../components/charts/DrawdownDetailChart'
 import { VaRChart } from '../components/charts/VaRChart'
@@ -287,6 +288,10 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
 
       {tab === 'trades' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <SectionLabel>{L('保有期間分布', 'Holding Period Distribution')}</SectionLabel>
+            <HoldingPeriodChart trades={data.trades} lang={lang} compact={compact} />
+          </div>
           <div>
             <SectionLabel>{L('取引一覧', 'Trade List')}</SectionLabel>
             <TradeTable trades={data.trades} lang={lang} />
