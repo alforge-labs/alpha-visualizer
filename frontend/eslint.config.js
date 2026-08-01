@@ -12,10 +12,12 @@ export default defineConfig([
     'test-results',
     // Storybook ビルド成果物（vendor 化された runtime）
     'storybook-static',
+    // vitest coverage 出力 (issue #393)
+    'coverage',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['e2e/**', 'playwright.config.ts', 'coverage/**'],
+    ignores: ['e2e/**', 'playwright.config.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
