@@ -20,6 +20,7 @@ import { ReturnDistributionChart } from '../components/charts/ReturnDistribution
 import { WeekdayPerformanceChart } from '../components/charts/WeekdayPerformanceChart'
 import { HoldingPeriodChart } from '../components/charts/HoldingPeriodChart'
 import { SubperiodMetrics } from '../components/metrics/SubperiodMetrics'
+import { AnnualSummaryTable } from '../components/charts/AnnualSummaryTable'
 import { MAEMFEScatter } from '../components/charts/MAEMFEScatter'
 import { DrawdownDetailChart } from '../components/charts/DrawdownDetailChart'
 import { VaRChart } from '../components/charts/VaRChart'
@@ -250,6 +251,14 @@ function BacktestScreenInner({ data, compact, lang }: Props) {
                 benchmarkReturns={data.benchmark_annual_returns}
                 lang={lang}
                 compact={compact}
+              />
+              {/* issue #383: バーだけでは正確な年次比較がしにくいため数表を常設 */}
+              <AnnualSummaryTable
+                annualReturns={data.metrics.annual_returns}
+                benchmarkReturns={data.benchmark_annual_returns}
+                annualMaxDrawdown={data.metrics.annual_max_drawdown}
+                trades={data.trades}
+                lang={lang}
               />
             </div>
           )}
