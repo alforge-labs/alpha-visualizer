@@ -210,6 +210,13 @@ export function DetailPage() {
         onBack={() => navigate(-1)}
         onRun={requestRun}
         onAddToCompare={handleAddToCompare}
+        onOpenReport={() =>
+          navigate(
+            `/detail/${encodeURIComponent(strategyId ?? '')}/report${
+              runId ? `?run_id=${encodeURIComponent(runId)}` : ''
+            }`,
+          )
+        }
         running={btRunning}
         canRun={Boolean(symbol && strategyId)}
       />

@@ -19,6 +19,8 @@ interface DetailToolbarProps {
   onBack: () => void
   onRun: () => void
   onAddToCompare: () => void
+  /** フルレポート（印刷用ビュー #373）を開く */
+  onOpenReport: () => void
   running: boolean
   canRun: boolean
 }
@@ -34,6 +36,7 @@ export function DetailToolbar({
   onBack,
   onRun,
   onAddToCompare,
+  onOpenReport,
   running,
   canRun,
 }: DetailToolbarProps) {
@@ -43,6 +46,7 @@ export function DetailToolbar({
   // OverflowMenu に集約する（issue #54）。
   const overflowItems: OverflowMenuItem[] = [
     { label: L('比較に追加', 'Add to compare'), onClick: onAddToCompare },
+    { label: L('フルレポートを開く', 'Open full report'), onClick: onOpenReport },
     {
       label: lang === 'ja' ? 'English に切替' : 'Switch to 日本語',
       onClick: () => onSetLang(lang === 'ja' ? 'en' : 'ja'),
