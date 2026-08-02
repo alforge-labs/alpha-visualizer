@@ -1,4 +1,4 @@
-import type { BacktestDetail, BacktestSummary, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -117,6 +117,18 @@ export const api = {
 
   cancelJob: (jobId: string): Promise<JobSummary> =>
     request<JobSummary>(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }),
+
+  // AI 戦略開発（agent）バックエンド検出・ジョブ作成（vis Task 9）。
+  // 観察・キャンセルは既存 /api/jobs 系（cancelJob / getJob / SSE）を共用する。
+  getAgentBackends: (): Promise<AgentBackendsResponse> =>
+    request<AgentBackendsResponse>('/agent/backends'),
+
+  createAgentJob: (params: CreateAgentJobParams): Promise<JobSummary> =>
+    request<JobSummary>('/agent/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    }),
 
   saveStrategyParameters: (
     strategyId: string,
