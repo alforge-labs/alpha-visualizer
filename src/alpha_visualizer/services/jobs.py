@@ -28,6 +28,14 @@ from typing import Any, Literal
 
 from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.services.agent_cli import (
+    AGENT_NOT_FOUND_MESSAGES,
+    AgentBackend,
+    build_agent_argv,
+    resolve_agent_exe,
+    translate_agent_failure,
+)
+from alpha_visualizer.services.agent_events import extract_final_text, format_agent_event
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
     build_forge_env,
@@ -39,7 +47,7 @@ from alpha_visualizer.services.forge_cli import (
 
 logger = logging.getLogger(__name__)
 
-JobKind = Literal["backtest", "optimize", "wft"]
+JobKind = Literal["backtest", "optimize", "wft", "agent"]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
@@ -48,6 +56,8 @@ DEFAULT_JOB_TIMEOUT_SEC = 3600
 JOB_TIMEOUT_ENV = "ALPHA_VIS_JOB_TIMEOUT"
 DEFAULT_JOB_CONCURRENCY = 1
 JOB_CONCURRENCY_ENV = "ALPHA_VIS_JOB_CONCURRENCY"
+DEFAULT_AGENT_TIMEOUT_SEC = 1800
+AGENT_TIMEOUT_ENV = "ALPHA_VIS_AGENT_TIMEOUT"
 
 # ログはジョブごとに末尾 MAX 行のみ保持（seq は通算なので SSE 再接続にも耐える）
 LOG_MAX_LINES = 500
@@ -212,6 +222,10 @@ class JobRecord:
     # チューニング実行（#293）: パラメータ差し替え済み一時戦略 JSON のパス。
     # ジョブ終了時に削除される。
     strategy_file: str | None = None
+    # agent ジョブ（AI 戦略開発）専用。forge ジョブでは常に None。
+    goal: str | None = None
+    backend: str | None = None
+    prompt: str | None = None
     status: JobStatus = "queued"
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -239,6 +253,8 @@ class JobManager:
         concurrency: int | None = None,
         timeout_sec: int | None = None,
         max_active: int | None = None,
+        agent_resolver: Callable[[AgentBackend], str | None] = resolve_agent_exe,
+        agent_timeout_sec: int | None = None,
     ) -> None:
         self._forge_config = forge_config
         self._forge_resolver = forge_resolver
@@ -248,6 +264,10 @@ class JobManager:
         )
         self._timeout_sec = timeout_sec or _env_int(
             JOB_TIMEOUT_ENV, DEFAULT_JOB_TIMEOUT_SEC
+        )
+        self._agent_resolver = agent_resolver
+        self._agent_timeout_sec = agent_timeout_sec or _env_int(
+            AGENT_TIMEOUT_ENV, DEFAULT_AGENT_TIMEOUT_SEC
         )
         self._jobs: dict[str, JobRecord] = {}
         self._order: list[str] = []  # 作成順（古い→新しい）
@@ -341,6 +361,9 @@ class JobManager:
         trials: int | None = None,
         windows: int | None = None,
         strategy_file: str | None = None,
+        goal: str | None = None,
+        backend: str | None = None,
+        prompt: str | None = None,
     ) -> JobRecord:
         """ジョブを登録し、バックグラウンド実行タスクを起動する。
 
@@ -365,6 +388,9 @@ class JobManager:
             trials=trials,
             windows=windows,
             strategy_file=strategy_file,
+            goal=goal,
+            backend=backend,
+            prompt=prompt,
             created_at=datetime.now(UTC),
         )
         self._jobs[job_id] = record
@@ -508,20 +534,39 @@ class JobManager:
                 )
 
     async def _execute(self, record: JobRecord) -> None:
-        forge_exe = self._forge_resolver()
-        if forge_exe is None:
-            await self._finish(record, "failed", error=FORGE_NOT_FOUND_MESSAGE)
-            return
+        stdout_line_handler: Callable[[str], str | None] | None = None
+        cwd: str | None = None
+        if record.kind == "agent":
+            backend: AgentBackend = "codex" if record.backend == "codex" else "claude"
+            exe = self._agent_resolver(backend)
+            if exe is None:
+                await self._finish(
+                    record, "failed", error=AGENT_NOT_FOUND_MESSAGES[backend]
+                )
+                return
+            argv = build_agent_argv(exe, backend, record.prompt or "")
+            timeout_sec = self._agent_timeout_sec
+            # エージェントの相対パス操作をワークスペース内に固定する（権限モデル）
+            cwd = str(self._forge_config.forge_dir)
 
-        argv = build_argv(
-            forge_exe,
-            record.kind,
-            record.strategy_id,
-            record.symbol,
-            record.trials,
-            record.windows,
-            strategy_file=record.strategy_file,
-        )
+            def stdout_line_handler(line: str) -> str | None:
+                return format_agent_event(backend, line)
+        else:
+            forge_exe = self._forge_resolver()
+            if forge_exe is None:
+                await self._finish(record, "failed", error=FORGE_NOT_FOUND_MESSAGE)
+                return
+            argv = build_argv(
+                forge_exe,
+                record.kind,
+                record.strategy_id,
+                record.symbol,
+                record.trials,
+                record.windows,
+                strategy_file=record.strategy_file,
+            )
+            timeout_sec = self._timeout_sec
+
         spawn_kwargs: dict[str, Any] = {}
         if os.name == "posix":
             # キャンセル/タイムアウト時にプロセスグループごと kill できるようにする
@@ -534,6 +579,7 @@ class JobManager:
             # EULA 未同意時の Confirm.ask() ハングを fail-fast にする（/api/run と同じ）
             stdin=subprocess.DEVNULL,
             env=build_forge_env(self._forge_config),
+            cwd=cwd,
             **spawn_kwargs,
         )
         self._procs[record.job_id] = proc
@@ -551,12 +597,29 @@ class JobManager:
 
         async def _pump_stdout() -> None:
             assert proc.stdout is not None
+            buf = b""
             while True:
                 chunk = await proc.stdout.read(65536)
                 if not chunk:
+                    if buf and stdout_line_handler is not None:
+                        formatted = stdout_line_handler(
+                            buf.decode("utf-8", errors="replace")
+                        )
+                        if formatted is not None:
+                            await self._append_log(record, formatted)
                     return
                 if len(stdout_buf) < STDOUT_MAX_BYTES:
                     stdout_buf.extend(chunk)
+                if stdout_line_handler is None:
+                    continue
+                buf += chunk
+                *complete, buf = buf.split(b"\n")
+                for raw in complete:
+                    formatted = stdout_line_handler(
+                        raw.decode("utf-8", errors="replace")
+                    )
+                    if formatted is not None:
+                        await self._append_log(record, formatted)
 
         # 行分割は readline() でなくチャンク読みで自前処理する:
         # StreamReader.readline() は改行なしの 64KiB 超で ValueError を投げ、
@@ -595,7 +658,7 @@ class JobManager:
 
         timed_out = False
         try:
-            await asyncio.wait_for(proc.wait(), timeout=self._timeout_sec)
+            await asyncio.wait_for(proc.wait(), timeout=timeout_sec)
         except TimeoutError:
             timed_out = True
             _signal_process_tree(proc, force=True)
@@ -620,8 +683,8 @@ class JobManager:
                 "failed",
                 returncode=proc.returncode,
                 error=(
-                    f"ジョブが {self._timeout_sec} 秒以内に完了しませんでした"
-                    f" / Job did not finish within {self._timeout_sec} seconds"
+                    f"ジョブが {timeout_sec} 秒以内に完了しませんでした"
+                    f" / Job did not finish within {timeout_sec} seconds"
                 ),
             )
             return
@@ -638,14 +701,33 @@ class JobManager:
             # stdout も合わせて判定する。
             _, tail = self.log_since(record.job_id, max(0, record.log_seq - 5))
             log_text = "\n".join(tail)
-            error = (
-                translate_forge_failure(stdout_text, log_text)
-                or log_text
-                or "ジョブの実行に失敗しました / Job execution failed"
-            )
+            if record.kind == "agent":
+                backend = "codex" if record.backend == "codex" else "claude"
+                error = (
+                    translate_agent_failure(backend, stdout_text, log_text)
+                    or log_text
+                    or "エージェントの実行に失敗しました / Agent execution failed"
+                )
+            else:
+                error = (
+                    translate_forge_failure(stdout_text, log_text)
+                    or log_text
+                    or "ジョブの実行に失敗しました / Job execution failed"
+                )
             await self._finish(
                 record, "failed", returncode=proc.returncode, error=error
             )
+            return
+
+        if record.kind == "agent":
+            backend = "codex" if record.backend == "codex" else "claude"
+            final_text = extract_final_text(backend, stdout_text)
+            data = parse_json_lenient(final_text) if final_text else None
+            result = _compact_result(data) if data is not None else None
+            # ジョブ一覧から生成物へ辿れるよう、判明した strategy_id を書き戻す
+            if result is not None and isinstance(result.get("strategy_id"), str):
+                record.strategy_id = result["strategy_id"]
+            await self._finish(record, "succeeded", returncode=0, result=result)
             return
 
         data = parse_json_lenient(stdout_text)

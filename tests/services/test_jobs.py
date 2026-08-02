@@ -356,3 +356,117 @@ class TestJobLifecycle:
 
         ids = [r.job_id for r in manager.list()]
         assert ids.index(second.job_id) < ids.index(first.job_id)
+
+
+def _agent_manager(
+    tmp_path: pathlib.Path,
+    agent_stub: str | None,
+    *,
+    timeout_sec: int = 10,
+) -> JobManager:
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    return JobManager(
+        forge_config=cfg,
+        forge_resolver=lambda: "/bin/true",  # agent ジョブでは使われない
+        agent_resolver=lambda backend: agent_stub,
+        concurrency=1,
+        agent_timeout_sec=timeout_sec,
+    )
+
+
+class TestAgentJob:
+    """agent ジョブ種: stdout=JSONL イベント・整形ログ・結果抽出。"""
+
+    CLAUDE_LINES = (
+        'echo \'{"type": "system", "subtype": "init"}\'\n'
+        "echo '{\"type\": \"assistant\", \"message\": {\"content\":"
+        " [{\"type\": \"text\", \"text\": \"working\"}]}}'\n"
+        "echo '{\"type\": \"result\", \"subtype\": \"success\", \"result\":"
+        " \"{\\\"strategy_id\\\": \\\"new_s1\\\", \\\"run_id\\\": \\\"run-7\\\"}\"}'\n"
+    )
+
+    async def test_agent_job_formats_log_and_extracts_result(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        stub = _make_stub(tmp_path, self.CLAUDE_LINES)
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="CL=F",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["strategy_id"] == "new_s1"
+        assert record.result["run_id"] == "run-7"
+        # 整形済みログが流れ、生 JSON はログに載らない
+        _, lines = manager.log_since(job.job_id, 0)
+        joined = "\n".join(lines)
+        assert "working" in joined
+        assert '"type": "system"' not in joined
+
+    async def test_agent_job_backfills_strategy_id(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """WHY: 起動時は戦略が未存在のため strategy_id="" で作る。完了時に
+        結果から書き戻さないと、ジョブ一覧でどの戦略を作ったのか辿れない。"""
+        stub = _make_stub(tmp_path, self.CLAUDE_LINES)
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="CL=F",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.strategy_id == "new_s1"
+
+    async def test_agent_job_runs_in_forge_dir(self, tmp_path: pathlib.Path) -> None:
+        """WHY: cwd がワークスペースでないと、エージェントの相対パス操作が
+        サーバー起動ディレクトリを汚す（権限モデルの前提が崩れる）。"""
+        stub = _make_stub(tmp_path, "pwd > cwd-marker.txt\n")
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        await manager.wait_terminal(job.job_id, timeout=10)
+        marker = tmp_path / "cwd-marker.txt"
+        assert marker.exists()
+        assert marker.read_text().strip() == str(tmp_path.resolve())
+
+    async def test_agent_cli_not_found_fails_with_guidance(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        manager = _agent_manager(tmp_path, None)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "failed"
+        assert record.error is not None and "claude" in record.error
+
+    async def test_agent_login_failure_is_translated(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        stub = _make_stub(
+            tmp_path, 'echo "Invalid API key. Please run /login" >&2\nexit 1\n'
+        )
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "failed"
+        assert record.error is not None
+        assert "ログイン" in record.error or "log in" in record.error
+
+    async def test_forge_jobs_are_unaffected(self, tmp_path: pathlib.Path) -> None:
+        """回帰ガード: 既存 forge ジョブの stdout=結果 JSON 契約は不変。"""
+        stub = _make_stub(tmp_path, 'printf \'{"run_id": "r1"}\'\n')
+        manager = _manager(tmp_path, stub)
+        job = await manager.create(kind="backtest", strategy_id="s1", symbol="AAPL")
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "succeeded"
+        assert record.result == {"run_id": "r1"}
