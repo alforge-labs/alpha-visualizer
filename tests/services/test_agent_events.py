@@ -95,6 +95,20 @@ class TestExtractFinalTextClaude:
     def test_no_result_event_returns_none(self) -> None:
         assert extract_final_text("claude", CLAUDE_ASSISTANT) is None
 
+    def test_returns_last_result_event_when_multiple(self) -> None:
+        """WHY: リトライや複数ターンで result イベントが複数回出うる。最後の
+        イベントが最終状態であり、最初を返す退行はステールな結果を GUI に流す。
+        """
+        first_result = json.dumps(
+            {"type": "result", "subtype": "success", "result": "first"}
+        )
+        second_result = json.dumps(
+            {"type": "result", "subtype": "success", "result": "second"}
+        )
+        stdout = "\n".join([first_result, CLAUDE_ASSISTANT, second_result])
+        text = extract_final_text("claude", stdout)
+        assert text == "second"
+
 
 CODEX_MESSAGE = json.dumps(
     {
@@ -115,3 +129,23 @@ class TestCodexEvents:
 
     def test_unknown_event_is_suppressed(self) -> None:
         assert format_agent_event("codex", '{"type": "turn.started"}') is None
+
+    def test_returns_last_agent_message_when_multiple(self) -> None:
+        """WHY: 複数ターンでいくつか agent_message が出うる。最後のメッセージ
+        が最終状態であり、最初を返す退行はステールな結果を GUI に流す。
+        """
+        first_message = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": "first result"},
+            }
+        )
+        second_message = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": "second result"},
+            }
+        )
+        stdout = "\n".join([first_message, second_message])
+        text = extract_final_text("codex", stdout)
+        assert text == "second result"
