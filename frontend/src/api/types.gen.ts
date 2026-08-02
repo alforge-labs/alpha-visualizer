@@ -426,6 +426,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/backends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agent Backends
+         * @description エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。
+         */
+        get: operations["list_agent_backends_api_agent_backends_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Agent Job
+         * @description クイック戦略開発ジョブを起動する。
+         *
+         *     実行前に「機能有効・forge 導入済み・agent CLI 導入済み」を確認して
+         *     fail-fast する（エージェント起動後に判明すると原因がログの奥に埋まる）。
+         */
+        post: operations["create_agent_job_api_agent_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -447,6 +490,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentBackendInfo
+         * @description エージェントバックエンド 1 件の検出結果。
+         */
+        AgentBackendInfo: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "claude" | "codex";
+            /** Available */
+            available: boolean;
+            /** Version */
+            version: string | null;
+        };
+        /**
+         * AgentBackendsResponse
+         * @description 検出結果と機能の有効状態。enabled=False は非 loopback 公開中。
+         */
+        AgentBackendsResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Backends */
+            backends: components["schemas"]["AgentBackendInfo"][];
+        };
         /**
          * BacktestDetail
          * @description ``GET /api/results/{run_id}`` 詳細レスポンス。
@@ -657,6 +725,18 @@ export interface components {
             values: number[];
         } & {
             [key: string]: unknown;
+        };
+        /** CreateAgentJobRequest */
+        CreateAgentJobRequest: {
+            /** Goal */
+            goal: string;
+            /** Symbol */
+            symbol?: string | null;
+            /**
+             * Backend
+             * @enum {string}
+             */
+            backend: "claude" | "codex";
         };
         /** CreateJobRequest */
         CreateJobRequest: {
@@ -2336,6 +2416,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PruneOrphansResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_agent_backends_api_agent_backends_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBackendsResponse"];
+                };
+            };
+        };
+    };
+    create_agent_job_api_agent_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
                 };
             };
             /** @description Validation Error */
