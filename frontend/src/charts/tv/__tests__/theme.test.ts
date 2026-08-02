@@ -108,3 +108,32 @@ describe('benchmarkLineOptions', () => {
     expect(opts.lineStyle).toBeDefined()
   })
 })
+
+describe('chartThemeToOptions のホイール操作', () => {
+  it('ホイールをチャートに奪わせない', () => {
+    // WHY: チャートはスクロールする画面の途中に埋め込まれている。lightweight-charts に
+    // `handleScroll: true` / `handleScale: true` を渡すと mouseWheel ハンドラまで有効になり、
+    // チャート上でホイールを回してもページが動かず、時間軸の拡大縮小になってしまう。
+    // ページを読み進める操作が奪われるほうが、チャートをホイールでズームできることより
+    // 明確に困る（ズームは軸ドラッグ・ピンチ・レンジボタンで代替できる）。
+    const opts = chartThemeToOptions(sampleTheme, 'ja')
+    expect(opts.handleScroll).toMatchObject({ mouseWheel: false })
+    expect(opts.handleScale).toMatchObject({ mouseWheel: false })
+  })
+
+  it('ホイール以外の操作手段は残す', () => {
+    // WHY: mouseWheel を切るために `handleScroll: false` としてしまうと、ドラッグでの
+    // パンやピンチズームまで死ぬ。無効化はホイールだけに限定する。
+    const opts = chartThemeToOptions(sampleTheme, 'ja')
+    expect(opts.handleScroll).toMatchObject({
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: true,
+    })
+    expect(opts.handleScale).toMatchObject({
+      pinch: true,
+      axisPressedMouseMove: true,
+      axisDoubleClickReset: true,
+    })
+  })
+})

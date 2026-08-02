@@ -707,4 +707,14 @@ describe('EquityDrawdownPaneTV series legend', () => {
     expect(screen.getAllByTestId('series-legend-swatch-QQQ')).toHaveLength(1)
     warn.mockRestore()
   })
+
+  it('createChart にホイール無効の設定が届く', () => {
+    // WHY: theme.ts 側の単体テストは「関数がその値を返すこと」しか見ておらず、
+    // チャート生成時に展開し忘れたり後から上書きしたりすれば効かなくなる。
+    // 実際に createChart へ渡る最終オプションまで固定する。
+    render(<EquityDrawdownPaneTV {...baseProps} />)
+    const options = (createChartMock.mock.calls[0] as unknown[])[1] as Record<string, unknown>
+    expect(options.handleScroll).toMatchObject({ mouseWheel: false, pressedMouseMove: true })
+    expect(options.handleScale).toMatchObject({ mouseWheel: false, pinch: true })
+  })
 })
