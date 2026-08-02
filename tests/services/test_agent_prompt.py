@@ -31,6 +31,16 @@ class TestBuildAgentPrompt:
         assert "run_id" in prompt
 
     def test_requires_workspace_only_constraint(self) -> None:
+        """WHY: エージェントが workspace 外の操作を行わないよう制約を明記。
+        この指示が消えるとエージェントが任意の shell コマンドを実行しうる。"""
         prompt = build_agent_prompt("goal", "CL=F", STRATS)
-        assert "alpha-forge" in prompt
-        assert "workspace" in prompt.lower()
+        assert "Work only inside this workspace" in prompt
+        assert "The only shell command" in prompt
+
+    def test_forbids_modifying_existing_strategies(self) -> None:
+        """WHY: エージェントが既存戦略を上書きしないよう指示。
+        この制約が消えるとエージェントが既存戦略を破壊しうる（安全制約の生命線）。"""
+        prompt = build_agent_prompt("goal", "CL=F", STRATS)
+        assert "Never overwrite or" in prompt
+        assert "modify existing strategy files" in prompt
+        assert "Do not modify or delete anything you did not create" in prompt
