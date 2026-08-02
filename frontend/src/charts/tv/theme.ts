@@ -89,8 +89,25 @@ export function chartThemeToOptions(theme: ChartTheme, lang: Lang): DeepPartial<
     rightPriceScale: {
       borderColor: theme.border,
     },
-    handleScroll: true,
-    handleScale: true,
+    // チャートはスクロールする画面の途中に埋め込まれている。`true`（= 全ハンドラ有効）に
+    // すると mouseWheel まで有効になり、チャート上でホイールを回してもページが動かず
+    // 時間軸の拡大縮小になってしまう。ページを読み進める操作を奪われるほうが、ホイールで
+    // ズームできないことより明確に困るため、**ホイールだけ**を無効化する。
+    // `handleScroll: false` のように丸ごと切るとドラッグでのパンやピンチズームまで
+    // 死ぬので、代替手段（ドラッグ・軸ドラッグ・ピンチ・ダブルクリックリセット・
+    // EquityDrawdownPaneTV のレンジボタン）は残す。
+    handleScroll: {
+      mouseWheel: false,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: true,
+    },
+    handleScale: {
+      mouseWheel: false,
+      pinch: true,
+      axisPressedMouseMove: true,
+      axisDoubleClickReset: true,
+    },
   }
 }
 
