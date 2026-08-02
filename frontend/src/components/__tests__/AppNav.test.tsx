@@ -37,4 +37,39 @@ describe('AppNav (issue #263)', () => {
     )
     expect(screen.getByRole('link', { name: '整理' })).toHaveAttribute('href', '/maintenance')
   })
+
+  /** Task 10: showDevelop 未指定/false のときは「開発」項目を出さない（既定は非表示）。 */
+  it('does not render the Develop link when showDevelop is omitted', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('link', { name: '開発' })).toBeNull()
+  })
+
+  /** Task 10: showDevelop=true のとき「開発」項目がライブの後・整理の前に出る。 */
+  it('renders the Develop link between Live and Maintenance when showDevelop is true', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" showDevelop />
+      </MemoryRouter>,
+    )
+    const links = screen.getAllByRole('link').map((l) => l.textContent)
+    const liveIndex = links.indexOf('ライブ')
+    const developIndex = links.indexOf('開発')
+    const maintenanceIndex = links.indexOf('整理')
+    expect(developIndex).toBeGreaterThan(liveIndex)
+    expect(developIndex).toBeLessThan(maintenanceIndex)
+    expect(screen.getByRole('link', { name: '開発' })).toHaveAttribute('href', '/develop')
+  })
+
+  it('renders the Develop link label in English when lang=en', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="en" showDevelop />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Develop' })).toHaveAttribute('href', '/develop')
+  })
 })

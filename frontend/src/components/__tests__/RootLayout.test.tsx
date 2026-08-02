@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, it, expect, vi } from 'vitest'
 import { RootLayout } from '../RootLayout'
@@ -23,9 +23,13 @@ vi.mock('../../api/client', () => {
       getHealth: vi
         .fn()
         .mockResolvedValue({ status: 'ok', forge_dir: '/tmp/forge', version: '9.9.9' }),
+      // Task 10: RootLayout が useAgentBackends() を呼び showDevelop へ反映する
+      getAgentBackends: vi.fn().mockResolvedValue({ enabled: false, backends: [] }),
     },
   }
 })
+
+import { api } from '../../api/client'
 
 /**
  * issue #260: <main> ランドマークと skip-link が無く、キーボード/SR 利用者が
@@ -71,5 +75,36 @@ describe('RootLayout (issue #260)', () => {
         'https://alforgelabs.com/?utm_source=alpha-visualizer&utm_medium=footer',
     )
     expect(link).toBeDefined()
+  })
+})
+
+/**
+ * Task 10: 「開発」ナビ項目は `useAgentBackends().data?.enabled` に連動する。
+ * 非 loopback 公開中や検出失敗時（enabled: false）はナビにも出さない。
+ */
+describe('RootLayout — AppNav showDevelop wiring (Task 10)', () => {
+  it('does not render the Develop nav link when agent backends are disabled', async () => {
+    render(
+      <MemoryRouter>
+        <RootLayout />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.getAgentBackends).toHaveBeenCalled())
+    expect(screen.queryByRole('link', { name: '開発' })).toBeNull()
+  })
+
+  it('renders the Develop nav link once agent backends report enabled: true', async () => {
+    vi.mocked(api.getAgentBackends).mockResolvedValue({
+      enabled: true,
+      backends: [{ id: 'claude', available: true, version: '1.0.0' }],
+    })
+    render(
+      <MemoryRouter>
+        <RootLayout />
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: '開発' })).toHaveAttribute('href', '/develop'),
+    )
   })
 })
