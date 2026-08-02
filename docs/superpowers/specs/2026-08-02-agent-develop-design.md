@@ -110,7 +110,8 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
    両方未検出ならフォームの代わりに導入案内カードを表示
 2. `POST /api/agent/jobs {goal, symbol?, backend}`:
    - Pydantic バリデーション（goal 非空・長さ上限、backend は enum）
-   - `resolve_forge_exe()` と対象 CLI の存在を事前確認 → 無ければ 424 + 導入案内
+   - `resolve_forge_exe()` と対象 CLI の存在を事前確認 → 無ければ 503（`agent_cli_not_found` /
+     `forge_cli_not_found` の code 付き。既存 `ForgeCliNotFoundError` 規約に準拠） + 導入案内
    - `JobManager.create(kind="agent")` → 202 `{job_id}`
 3. 実行中: stream-json → 人間可読ログ → 既存 SSE（snapshot → log → status）
 4. 終了: exit code と最終出力を評価。`parse_json_lenient` で `{strategy_id,
@@ -121,8 +122,8 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 
 | 失敗モード | 応答 |
 |---|---|
-| CLI 未検出 | 424 + 導入 URL（`FORGE_NOT_FOUND_MESSAGE` と同パターンの定数を `agent_cli.py` に定義） |
-| forge 未導入 / EULA 未同意 | ジョブ投入前に検出して 424。実行中に発生した場合は既存 `translate_forge_failure` でログ変換 |
+| CLI 未検出 | 503（`agent_cli_not_found` code 付き。既存 `ForgeCliNotFoundError` 規約に準拠） + 導入 URL（`FORGE_NOT_FOUND_MESSAGE` と同パターンの定数を `agent_cli.py` に定義） |
+| forge 未導入 / EULA 未同意 | ジョブ投入前に検出して 503（`forge_cli_not_found` code 付き）。実行中に発生した場合は既存 `translate_forge_failure` でログ変換 |
 | CLI 認証切れ | stderr パターンを `translate_agent_failure`（新設）で「ターミナルで `claude` / `codex` にログインしてください」へ変換 |
 | ハング | env `ALPHA_VIS_AGENT_TIMEOUT`（既定 1800 秒）でタイムアウト → 既存プロセスツリー kill → status failed + ログ末尾。`claude -p` のハングは既知事象のためタイムアウトは必須 |
 | 結果 JSON 抽出失敗 | ジョブ自体は completed、result 無し。GUI は「完了しましたが結果を特定できませんでした。ログを確認してください」を表示（silent fail にしない） |
@@ -133,7 +134,7 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 - **単体**（pytest）: argv 構築（両バックエンド）・プロンプト組み立て・
   stream-json ログ変換・`translate_agent_failure`・検出（`shutil.which` を
   monkeypatch）
-- **API**（pytest + TestClient）: バリデーション 422、CLI/forge 未検出 424、
+- **API**（pytest + TestClient）: バリデーション 422、CLI/forge 未検出 503、
   非 loopback 403、ジョブライフサイクル（サブプロセスを「数行ログ+結果 JSON を
   出力する偽エージェントスクリプト」に差し替え。既存 jobs テストのパターン踏襲）
 - **フロントエンド**（vitest）: フォーム・ライブログ・完了サマリ・未検出カード・

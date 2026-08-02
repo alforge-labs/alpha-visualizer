@@ -219,6 +219,34 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await settle(page)
         await page.screenshot({ path: filePath })
       })
+
+      // develop: AI 戦略開発ビュー（フォーム表示状態）
+      // フィクスチャサーバーの /api/agent/backends は導入済み CLI の実機検出結果を
+      // そのまま返すため、実行環境依存で撮影結果が揺れる。README 用スクリーン
+      // ショットは常に「両バックエンド利用可能」のフォーム状態で固定したいので
+      // page.route でモックする。
+      // DevelopScreen は他画面と異なり SettingsToggles（言語切替ボタン）を
+      // 持たないため switchLanguage は使えない。strategy-signal-tv.spec.ts と
+      // 同じ `?lang=en` クエリオーバーライド（useTheme.ts の readUrlOverrides）で
+      // 言語を指定する。
+      test('develop', async ({ page }) => {
+        await page.route('**/api/agent/backends', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              enabled: true,
+              backends: [
+                { id: 'claude', available: true, version: '2.1.220 (Claude Code)' },
+                { id: 'codex', available: true, version: 'codex-cli 0.145.0' },
+              ],
+            }),
+          }),
+        )
+        const suffix = lang === 'en' ? '?lang=en' : ''
+        await page.goto(`/develop${suffix}`)
+        await captureViewport(page, lang, 'develop', 700)
+      })
     })
   }
 })

@@ -25,6 +25,7 @@
 - **Live** — Period-aligned diff between backtest and live execution
 - **Ideas** — Exploration idea board with status / tag filters
 - **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db)
+- **Develop (Agent Develop)** — Enter a goal and your local Claude Code / Codex CLI develops a strategy automatically (see below)
 - **Theme & i18n** — Dark/Light modes, English/Japanese UI toggle
 - **Export & share** — CSV / PNG export, social share card (OGP-sized PNG with equity curve + headline metrics), URL-based state sharing for Browse
 
@@ -80,6 +81,28 @@ The browser opens **http://127.0.0.1:8000**. Press `Ctrl+C` to stop.
 
 If `alpha-vis serve --forge-dir /path/to/A` seems to be reading a different DB than expected, this environment variable is almost always the cause. Run `unset FORGE_CONFIG` to clear it.
 
+## AI Strategy Development (Agent Develop)
+
+The GUI's "Develop" view (`/develop`) lets you enter a free-text goal, an optional target symbol, and a backend (Claude Code / Codex CLI). It then launches your locally installed `claude` / `codex` CLI headlessly to automatically: create a strategy JSON, validate it with `alpha-forge backtest run`, and show a link to the new strategy once it's done.
+
+> **⚠️ About external communication**: This feature launches your own `claude` / `codex` CLI as-is. Those CLIs communicate with Anthropic / OpenAI. alpha-visualizer itself never handles, stores, or transmits API keys.
+
+**Permission model**
+
+- The agent only operates inside the forge workspace (claude: `--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`; codex: `--sandbox workspace-write`)
+- If the server is bound to a non-loopback address (e.g. `alpha-vis serve --host 0.0.0.0`), this feature is disabled entirely, so it can't be used to run arbitrary-code-like operations over the LAN
+
+**Prerequisites**
+
+- `claude` (Claude Code) or `codex` (Codex CLI) must be on `PATH` and already authenticated
+- `alpha-forge` must be installed
+
+**Environment Variable**
+
+| Variable | Role |
+|---|---|
+| `ALPHA_VIS_AGENT_TIMEOUT` | Timeout in seconds for an agent job (default `1800`). On timeout, the whole process tree is killed and the job is marked failed |
+
 ## Screenshots
 
 | Detail | Compare |
@@ -97,6 +120,10 @@ If `alpha-vis serve --forge-dir /path/to/A` seems to be reading a different DB t
 | Live (backtest vs. live diff) | Ideas (exploration board) |
 |---|---|
 | ![Live](docs/screenshots/en/live.png) | ![Ideas](docs/screenshots/en/ideas.png) |
+
+**Develop — AI strategy development**
+
+![Develop](docs/screenshots/en/develop.png)
 
 ## Troubleshooting
 

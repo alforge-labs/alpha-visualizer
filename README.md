@@ -25,6 +25,7 @@
 - **Live** — バックテストとライブ実績の期間整合 diff
 - **Ideas** — 探索アイデアの一覧（ステータス・タグフィルタ）
 - **Maintenance** — 孤児バックテスト結果（strategies.db に定義の無い実行結果）の一覧・選択削除
+- **Develop（AI 戦略開発）** — ゴールを入力するとローカルの Claude Code / Codex CLI が戦略を自動開発（詳細は下記）
 - **テーマ切替** — ダーク/ライトモード、日英バイリンガル UI
 - **エクスポート** — CSV / PNG エクスポート、SNS シェアカード（equity curve＋主要指標入り OGP サイズ PNG）、URL 共有（Browse の selectedId / compareIds 同期）
 
@@ -80,6 +81,28 @@ alpha-vis serve --no-open
 
 開発時に予期せぬ `forge.yaml` が参照されている場合は `unset FORGE_CONFIG` で解除してください。手元で `alpha-vis serve --forge-dir /path/to/A` を打ったのに別ディレクトリの DB が読まれているときは、ほぼこの環境変数が原因です。
 
+## AI 戦略開発（Agent Develop）
+
+GUI の「開発」ビュー（`/develop`）にゴール文（自由記述）・対象銘柄（任意）・バックエンド（Claude Code / Codex CLI）を入力すると、ローカルにインストール済みの `claude` / `codex` CLI をヘッドレスで起動し、戦略 JSON の作成 → `alpha-forge backtest run` による検証 → 完了後に新戦略へのリンク表示、までを自動実行します。
+
+> **⚠️ 外部通信について**: 本機能はユーザー自身の `claude` / `codex` CLI をそのまま起動します。これらの CLI は Anthropic / OpenAI と通信します。alpha-visualizer 自体は API キーの入力・保存・送信を一切行いません。
+
+**権限モデル**
+
+- エージェントは forge ワークスペース内でのみ動作します（claude: `--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`、codex: `--sandbox workspace-write`）
+- 非 loopback バインド（`alpha-vis serve --host 0.0.0.0` 等）で起動している場合、この機能自体が無効化されます（LAN 越しに任意コード実行に近い操作をされないようにするため）
+
+**前提条件**
+
+- `claude`（Claude Code）または `codex`（Codex CLI）が PATH にあり、認証済みであること
+- `alpha-forge` が導入済みであること
+
+**環境変数**
+
+| 変数名 | 役割 |
+|---|---|
+| `ALPHA_VIS_AGENT_TIMEOUT` | エージェントジョブのタイムアウト秒数（既定 `1800`）。ハング時はプロセスツリーごと kill してジョブを失敗扱いにする |
+
 ## スクリーンショット
 
 | Detail | Compare |
@@ -97,6 +120,10 @@ alpha-vis serve --no-open
 | Live（バックテスト×ライブ実績 diff） | Ideas（探索アイデアボード） |
 |---|---|
 | ![Live](docs/screenshots/ja/live.png) | ![Ideas](docs/screenshots/ja/ideas.png) |
+
+**Develop — AI 戦略開発**
+
+![Develop](docs/screenshots/ja/develop.png)
 
 ## 困ったときは
 
