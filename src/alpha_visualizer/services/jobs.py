@@ -548,8 +548,16 @@ class JobManager:
             timeout_sec = self._agent_timeout_sec
             # エージェントの相対パス操作をワークスペース内に固定する（権限モデル）
             cwd = str(self._forge_config.forge_dir)
+            # 最終結果（type=result 等）は stream-json の最後に来るため、
+            # STDOUT_MAX_BYTES 到達で stdout_buf が打ち切られると結果だけを
+            # 静かに失う。行分割はバッファ上限と無関係に行われるので、ここで
+            # 行ごとに逐次抽出し、最後に見つかった値を独立して保持する。
+            final_text_holder: list[str] = []
 
             def stdout_line_handler(line: str) -> str | None:
+                final = extract_final_text(backend, line)
+                if final is not None:
+                    final_text_holder[:] = [final]
                 return format_agent_event(backend, line)
         else:
             forge_exe = self._forge_resolver()
@@ -720,8 +728,7 @@ class JobManager:
             return
 
         if record.kind == "agent":
-            backend = "codex" if record.backend == "codex" else "claude"
-            final_text = extract_final_text(backend, stdout_text)
+            final_text = final_text_holder[-1] if final_text_holder else None
             data = parse_json_lenient(final_text) if final_text else None
             result = _compact_result(data) if data is not None else None
             # ジョブ一覧から生成物へ辿れるよう、判明した strategy_id を書き戻す

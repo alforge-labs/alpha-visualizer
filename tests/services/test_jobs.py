@@ -13,6 +13,7 @@ import pytest
 
 from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.services import jobs
 from alpha_visualizer.services.jobs import JobManager, build_argv
 
 pytestmark = pytest.mark.anyio
@@ -461,6 +462,38 @@ class TestAgentJob:
         assert record.status == "failed"
         assert record.error is not None
         assert "ログイン" in record.error or "log in" in record.error
+
+    async def test_agent_result_survives_stdout_truncation(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: type=result イベントは stream-json の最後に来るため、
+        STDOUT_MAX_BYTES 到達で stdout_buf が打ち切られると、結果だけを
+        静かに失って succeeded になる（Fail Loud 違反）。行分割はバッファ上限と
+        無関係に行われることを保証し、この劣化を防ぐ。"""
+        monkeypatch.setattr(jobs, "STDOUT_MAX_BYTES", 1024)
+        noise = "\n".join(
+            "printf '{\"type\": \"assistant\", \"message\": {\"content\":"
+            f' [{{"type": "text", "text": "noise-{i:03d}-'
+            '0123456789012345678901234567890123456789"}]}}\\n\''
+            for i in range(50)
+        )
+        body = (
+            noise + "\n"
+            "echo '{\"type\": \"result\", \"subtype\": \"success\", \"result\":"
+            ' "{\\"strategy_id\\": \\"new_s1\\", \\"run_id\\": \\"run-7\\"}"}\'\n'
+        )
+        stub = _make_stub(tmp_path, body)
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="CL=F",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["strategy_id"] == "new_s1"
+        assert record.result["run_id"] == "run-7"
 
     async def test_forge_jobs_are_unaffected(self, tmp_path: pathlib.Path) -> None:
         """回帰ガード: 既存 forge ジョブの stdout=結果 JSON 契約は不変。"""
