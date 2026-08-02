@@ -94,6 +94,8 @@ def build_agent_argv(exe: str, backend: AgentBackend, prompt: str) -> list[str]:
         # forge ワークスペースは git リポジトリとは限らない
         "--skip-git-repo-check",
         "--json",
+        # --: prompt が - で始まる場合に clap パーサに CLI フラグと誤認されるのを防ぐ
+        "--",
         prompt,
     ]
 
