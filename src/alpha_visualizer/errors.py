@@ -75,3 +75,25 @@ class ConflictError(AlphaVisualizerError):
     """既存リソースと衝突するリクエスト（例: 複製先 strategy_id が既に存在）。"""
 
     status_code = 409
+
+
+class AgentDisabledError(AlphaVisualizerError):
+    """AI 戦略開発機能が無効（非 loopback バインドで公開中）。
+
+    エージェント起動は任意コード実行に近い操作のため、LAN 公開時は
+    エンドポイントごと拒否する（設計: specs/2026-08-02-agent-develop-design.md）。
+    """
+
+    status_code = 403
+    code = "agent_disabled"
+
+
+class AgentCliNotFoundError(AlphaVisualizerError):
+    """エージェント CLI（claude / codex）が PATH に見つからない。
+
+    forge 未導入（ForgeCliNotFoundError）と同じく想定内の状態なので
+    503 + 機械可読 code で返し、フロントが導入案内を出せるようにする。
+    """
+
+    status_code = 503
+    code = "agent_cli_not_found"
