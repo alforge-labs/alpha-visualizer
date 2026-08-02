@@ -11,6 +11,15 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.3.5] - 2026-08-02
+
+
+### バグ修正
+
+- チャート上のホイールでページがスクロールしない問題を直す (#465)
+
+
+
 ## [1.3.4] - 2026-08-01
 
 
