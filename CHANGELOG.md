@@ -19,9 +19,6 @@ _(EN) Entries below are generated from Conventional Commits (Japanese). Group na
 - **deps**: Python 依存 4 件をまとめて更新 (#478)
 
 
-- CHANGELOG 生成で PR #479 が落ちる問題を直す
-
-
 
 ### バグ修正
 

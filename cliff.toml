@@ -47,6 +47,8 @@ commit_parsers = [
   { message = "^chore: バージョン .* にバンプ", skip = true },
   { message = "^chore\\(release\\)", skip = true },
   { message = "^docs: CHANGELOG を", skip = true },
+  # CHANGELOG 生成そのものの保守も利用者向け変更ではない
+  { message = "^chore: CHANGELOG ", skip = true },
   { message = "^feat", group = "新機能" },
   { message = "^fix", group = "バグ修正" },
   { message = "^refactor", group = "リファクタリング" },
