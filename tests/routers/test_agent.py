@@ -88,10 +88,28 @@ class TestAgentBackends:
         assert by_id["codex"]["available"] is False
         assert by_id["codex"]["version"] is None
 
-    def test_disabled_when_non_loopback(self, tmp_path: pathlib.Path) -> None:
+    def test_disabled_when_non_loopback(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: 無効時は CLI 検出・``--version`` 実行を一切行わず 403 で
+        遮断する（検出結果の開示自体が任意コード実行の下調べに使われうる
+        ため）。スパイで「呼ばれたら fail」にし、検出が実行されないことを
+        実証する（従来は本物の CLI --version を実行してしまっていた）。
+        """
+
+        def fail_if_called(*_args: object, **_kwargs: object) -> None:
+            raise AssertionError("agent_enabled=False なのに検出処理が呼ばれた")
+
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_agent_exe", fail_if_called
+        )
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.agent_version", fail_if_called
+        )
         with _client(tmp_path, agent_stub=None, agent_enabled=False) as client:
-            body = client.get("/api/agent/backends").json()
-        assert body["enabled"] is False
+            resp = client.get("/api/agent/backends")
+        assert resp.status_code == 403
+        assert resp.json()["code"] == "agent_disabled"
 
 
 class TestCreateAgentJob:

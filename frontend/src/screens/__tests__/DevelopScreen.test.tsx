@@ -23,6 +23,7 @@ function renderScreen(overrides: Partial<DevelopScreenProps> = {}) {
     lang: 'ja',
     theme: 'light',
     backends: BOTH_AVAILABLE,
+    backendsLoading: false,
     running: false,
     status: null,
     logLines: [],
@@ -50,6 +51,15 @@ describe('<DevelopScreen />', () => {
     const enToggle = screen.getByRole('radio', { name: /English/ })
     await userEvent.click(enToggle)
     expect(onSetLang).toHaveBeenCalledWith('en')
+  })
+
+  // 検証 0.5: backendsLoading: true → localhost 案内もフォームも出さず、中立の
+  // ローディング表示のみを出す（初回 fetch 解決前の誤案内防止、issue 2026-08-02）
+  it('backendsLoading が true のとき localhost 案内が出ず、ローディング表示が出る', () => {
+    renderScreen({ backendsLoading: true, backends: null })
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByText(/localhost/)).toBeNull()
+    expect(screen.queryByLabelText(/ゴール/)).toBeNull()
   })
 
   // 検証 1: backends.enabled === false → localhost 限定の案内が出てフォームが出ない

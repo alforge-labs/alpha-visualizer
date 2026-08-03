@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactElement } from 'react'
 import { Link } from 'react-router'
 import type { AgentBackendsResponse, JobStatus } from '../api/types'
-import { Button, ErrorBanner } from '../design/primitives'
+import { Button, ErrorBanner, Loading } from '../design/primitives'
 import type { Theme } from '../hooks/useTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
@@ -18,6 +18,8 @@ export interface DevelopScreenProps {
   lang: Lang
   theme: Theme
   backends: AgentBackendsResponse | null
+  /** useAgentBackends() の初回 fetch 中は true。localhost 案内より優先して中立のローディング表示を出す。 */
+  backendsLoading: boolean
   running: boolean
   status: JobStatus | null
   logLines: string[]
@@ -355,15 +357,18 @@ function CompletionPanel({
  * AI 戦略開発画面（Presentational、Task 10）。
  *
  * `useAgentBackends` / `useAgentRunner` の結果を props としてのみ受け取り、
- * fetch やジョブ購読は一切行わない（ADR-0001）。`backends.enabled === false`
- * （非 loopback 公開中）または `backends === null`（未取得・取得失敗）の場合は
- * フォームを出さずに localhost 限定の案内のみを表示する。ナビ側の
- * `showDevelop` 非表示だけに頼らず、直接 URL アクセス時もここでガードする。
+ * fetch やジョブ購読は一切行わない（ADR-0001）。`backendsLoading === true`
+ * （初回 fetch 中）は案内でもフォームでもなく中立のローディング表示を出す。
+ * `backends.enabled === false`（非 loopback 公開中）または
+ * `backends === null`（未取得・取得失敗）の場合はフォームを出さずに
+ * localhost 限定の案内のみを表示する。ナビ側の `showDevelop` 非表示だけに
+ * 頼らず、直接 URL アクセス時もここでガードする。
  */
 export function DevelopScreen({
   lang,
   theme,
   backends,
+  backendsLoading,
   running,
   status,
   logLines,
@@ -374,6 +379,27 @@ export function DevelopScreen({
   onSetLang,
   onSetTheme,
 }: DevelopScreenProps): ReactElement {
+  const L = makeL(lang)
+
+  if (backendsLoading) {
+    return (
+      <div
+        data-testid="develop-screen"
+        style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}
+      >
+        <Header lang={lang} theme={theme} onSetLang={onSetLang} onSetTheme={onSetTheme} />
+        <div style={BODY_STYLE}>
+          <Loading label={L('読み込み中…', 'Loading…')} />
+        </div>
+      </div>
+    )
+  }
+
+  // サーバー側は無効時（非 loopback 公開中）に GET /api/agent/backends 自体を
+  // 403 で返すため（AgentDisabledError）、useAgentBackends は catch して
+  // data=null に縮退する。よって通常は下の `!backends` 側に入り、
+  // `backends.enabled === false` は到達しない想定だが、フォールバック値や
+  // 将来のサーバー実装変更に備えて防御的に残す。
   if (!backends || !backends.enabled) {
     return (
       <div

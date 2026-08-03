@@ -102,6 +102,15 @@ describe('<DevelopPage />', () => {
     await waitFor(() => expect(screen.getByLabelText(/ゴール/)).toBeInTheDocument())
   })
 
+  it('loading 中は localhost 案内が出ない（初回 fetch 解決前の誤案内防止）', () => {
+    // 解決しない Promise で fetch 未解決状態を固定し、loading=true のまま検証する。
+    vi.mocked(api.getAgentBackends).mockImplementation(() => new Promise(() => {}))
+    renderPage()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByText(/localhost/)).toBeNull()
+    expect(screen.queryByLabelText(/ゴール/)).toBeNull()
+  })
+
   it('enabled: false のとき localhost 限定の案内を表示する（直接 URL アクセスのガード）', async () => {
     vi.mocked(api.getAgentBackends).mockResolvedValue({ enabled: false, backends: [] })
     renderPage()

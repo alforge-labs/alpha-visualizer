@@ -47,7 +47,15 @@ AGENT_DISABLED_MESSAGE = (
 
 @router.get("/agent/backends", response_model=AgentBackendsResponse)
 async def list_agent_backends(request: Request) -> AgentBackendsResponse:
-    """エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。"""
+    """エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。
+
+    無効時（非 loopback 公開中）は CLI 検出・``--version`` 実行を一切行わず
+    403 を返す（設計: docs/superpowers/specs/2026-08-02-agent-develop-design.md
+    セキュリティ設計 #3）。検出結果の開示自体が任意コード実行の下調べに
+    使われうるため、POST と同様にエンドポイント冒頭で遮断する。
+    """
+    if not request.app.state.agent_enabled:
+        raise AgentDisabledError(AGENT_DISABLED_MESSAGE)
     backends: list[AgentBackendInfo] = []
     for backend in get_args(AgentBackend):
         exe = resolve_agent_exe(backend)
@@ -55,9 +63,7 @@ async def list_agent_backends(request: Request) -> AgentBackendsResponse:
         backends.append(
             AgentBackendInfo(id=backend, available=exe is not None, version=version)
         )
-    return AgentBackendsResponse(
-        enabled=bool(request.app.state.agent_enabled), backends=backends
-    )
+    return AgentBackendsResponse(enabled=True, backends=backends)
 
 
 @router.post("/agent/jobs", response_model=JobSummary, status_code=202)

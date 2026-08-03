@@ -436,6 +436,11 @@ export interface paths {
         /**
          * List Agent Backends
          * @description エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。
+         *
+         *     無効時（非 loopback 公開中）は CLI 検出・``--version`` 実行を一切行わず
+         *     403 を返す（設計: docs/superpowers/specs/2026-08-02-agent-develop-design.md
+         *     セキュリティ設計 #3）。検出結果の開示自体が任意コード実行の下調べに
+         *     使われうるため、POST と同様にエンドポイント冒頭で遮断する。
          */
         get: operations["list_agent_backends_api_agent_backends_get"];
         put?: never;

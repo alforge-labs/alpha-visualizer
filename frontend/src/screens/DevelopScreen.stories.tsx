@@ -41,6 +41,7 @@ export const DefaultJa: Story = {
     lang: 'ja',
     theme: 'light',
     backends: BOTH_AVAILABLE,
+    backendsLoading: false,
     running: false,
     status: null,
     logLines: [],
