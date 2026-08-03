@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, get_args
 
 from fastapi import APIRouter, Depends, Request
@@ -45,6 +46,11 @@ AGENT_DISABLED_MESSAGE = (
 )
 
 
+async def _version_or_none(exe: str | None) -> str | None:
+    """検出できた実行ファイルにだけ ``--version`` を叩く（gather 用の薄い包み）。"""
+    return await agent_version(exe) if exe is not None else None
+
+
 @router.get("/agent/backends", response_model=AgentBackendsResponse)
 async def list_agent_backends(request: Request) -> AgentBackendsResponse:
     """エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。
@@ -56,14 +62,18 @@ async def list_agent_backends(request: Request) -> AgentBackendsResponse:
     """
     if not request.app.state.agent_enabled:
         raise AgentDisabledError(AGENT_DISABLED_MESSAGE)
-    backends: list[AgentBackendInfo] = []
-    for backend in get_args(AgentBackend):
-        exe = resolve_agent_exe(backend)
-        version = await agent_version(exe) if exe is not None else None
-        backends.append(
+    ids: tuple[AgentBackend, ...] = get_args(AgentBackend)
+    exes = [resolve_agent_exe(backend) for backend in ids]
+    # --version は並列に叩く: 直列だと両方が詰まったときタイムアウト 2 回分
+    # （最悪 10 秒）ナビの表示がブロックされる
+    versions = await asyncio.gather(*(_version_or_none(exe) for exe in exes))
+    return AgentBackendsResponse(
+        enabled=True,
+        backends=[
             AgentBackendInfo(id=backend, available=exe is not None, version=version)
-        )
-    return AgentBackendsResponse(enabled=True, backends=backends)
+            for backend, exe, version in zip(ids, exes, versions, strict=True)
+        ],
+    )
 
 
 @router.post("/agent/jobs", response_model=JobSummary, status_code=202)
@@ -85,15 +95,14 @@ async def create_agent_job(
     if resolve_agent_exe(body.backend) is None:
         raise AgentCliNotFoundError(AGENT_NOT_FOUND_MESSAGES[body.backend])
 
-    # forge.yaml 存在チェック（services/forge_cli.py の build_forge_env と同じ規約）
-    forge_yaml = cfg.forge_dir / "forge.yaml"
-    forge_config_path = forge_yaml if forge_yaml.exists() else None
-
     prompt = build_agent_prompt(
         goal=body.goal,
         symbol=body.symbol,
         strategies_dir=cfg.strategies_dir,
-        forge_config_path=forge_config_path,
+        # ForgeConfig が解決した実パスを使う。<forge_dir>/forge.yaml 規約を
+        # ここで再実装すると、別置き yaml 運用（--forge-config / FORGE_CONFIG）
+        # ではピンが効かず、ログインシェル rc の上書き問題が再発する
+        forge_config_path=cfg.config_path,
     )
     record = await manager.create(
         kind="agent",

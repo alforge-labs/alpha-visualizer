@@ -27,6 +27,7 @@ vi.mock('../../api/client', () => {
 
 import { api } from '../../api/client'
 import type { AgentBackendsResponse, JobSummary } from '../../api/types'
+import { resetAgentBackendsCache } from '../../hooks/useAgentBackends'
 import { DevelopPage } from '../DevelopPage'
 
 /** SSE をテスト内で駆動するための EventSource スタブ（TuningPanel.test.tsx / useAgentRunner.test.ts と同じ形）。 */
@@ -77,6 +78,10 @@ function jobSummary(overrides: Partial<JobSummary> = {}): JobSummary {
 beforeEach(() => {
   FakeEventSource.instances = []
   vi.stubGlobal('EventSource', FakeEventSource)
+  // useAgentBackends は検出結果をモジュール内で共有する（RootLayout と
+  // DevelopPage の二重 fetch を避けるため）。テスト間で持ち越すと、次の
+  // テストが自前のモック応答ではなく前のテストの結果を見てしまう
+  resetAgentBackendsCache()
   vi.mocked(api.getAgentBackends).mockReset()
   vi.mocked(api.createAgentJob).mockReset()
   vi.mocked(api.cancelJob).mockReset()

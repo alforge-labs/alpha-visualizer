@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { resetAgentBackendsCache } from '../../hooks/useAgentBackends'
 import { RootLayout } from '../RootLayout'
 
 // AppFooter が /health からバージョンを取得するため（issue #399）、
@@ -30,6 +31,13 @@ vi.mock('../../api/client', () => {
 })
 
 import { api } from '../../api/client'
+
+beforeEach(() => {
+  // useAgentBackends は検出結果をモジュール内で共有する（RootLayout と
+  // DevelopPage の二重 fetch を避けるため）。持ち越すと、あとから
+  // mockResolvedValue を差し替えても前の結果が使われてしまう
+  resetAgentBackendsCache()
+})
 
 /**
  * issue #260: <main> ランドマークと skip-link が無く、キーボード/SR 利用者が

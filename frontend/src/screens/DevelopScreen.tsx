@@ -292,9 +292,25 @@ function RunningPanel({
   const L = makeL(lang)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxWidth: 720 }}>
-      <pre style={LOG_STYLE} aria-label={L('ジョブログ', 'Job log')}>
-        {logLines.join('\n')}
-      </pre>
+      {/*
+        実行は数分かかり、画面上の変化はログの追記だけ。ライブリージョンに
+        しないと、スクリーンリーダー利用者には進行中なのか止まったのか
+        分からない（issue #473）。
+        1 行を 1 要素にしているのは aria-atomic="false" と組み合わせて
+        「追記された行だけ」を読み上げさせるため。全行を 1 つのテキスト
+        ノードにすると、追記のたびに全文が読み直されて実用に耐えない。
+      */}
+      <div
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
+        aria-label={L('ジョブログ', 'Job log')}
+        style={LOG_STYLE}
+      >
+        {logLines.map((line, i) => (
+          <div key={`${i}:${line}`}>{line}</div>
+        ))}
+      </div>
       <div>
         <Button variant="subtle" size="sm" onClick={onCancel}>
           {L('キャンセル', 'Cancel')}
@@ -319,13 +335,39 @@ function CompletionPanel({
   if (status === 'succeeded') {
     const strategyId =
       result && typeof result.strategy_id === 'string' ? result.strategy_id : null
+    const summary =
+      result && typeof result.summary === 'string' && result.summary.trim()
+        ? result.summary.trim()
+        : null
     if (strategyId) {
       return (
-        <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 'var(--fs-body)' }}>
-          <Link to={`/detail/${strategyId}`} style={{ color: 'var(--accent)' }}>
-            {L(`結果を見る: ${strategyId}`, `View result: ${strategyId}`)}
-          </Link>
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 'var(--fs-body)' }}>
+            {/* strategy_id はエージェント出力由来の未検証文字列。エンコード
+                しないと予約文字で別ルートへのリンクになり、成果物へ辿れない */}
+            <Link
+              to={`/detail/${encodeURIComponent(strategyId)}`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L(`結果を見る: ${strategyId}`, `View result: ${strategyId}`)}
+            </Link>
+          </p>
+          {/* エージェントは {strategy_id, run_id, summary} を返す契約。
+              summary（何を作ったのかの 1 行）まで出して初めて完了表示になる */}
+          {summary && (
+            <p
+              data-testid="develop-summary"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--sans)',
+                fontSize: 'var(--fs-body)',
+                color: 'var(--text2)',
+              }}
+            >
+              {summary}
+            </p>
+          )}
+        </div>
       )
     }
     // succeeded なのに result から strategy_id を特定できないケース。ログを

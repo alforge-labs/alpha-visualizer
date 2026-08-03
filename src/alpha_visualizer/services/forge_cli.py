@@ -82,13 +82,15 @@ def build_forge_env(forge_cfg: ForgeConfig) -> dict[str, str]:
       非対話化する。EULA 未同意時の Confirm.ask() はこれでは防げない（非対話
       同意は ``FORGE_ACCEPT_EULA`` のみ）ため、呼び出し側は必ず
       ``stdin=DEVNULL`` でハングせず即座に失敗させること。
-    - ``FORGE_CONFIG``: forge_dir に forge.yaml があればそれを明示する。
+    - ``FORGE_CONFIG``: ForgeConfig が解決した forge.yaml があればそれを明示する。
     """
     env = os.environ.copy()
     env["FORGE_NONINTERACTIVE"] = "1"
-    forge_yaml = forge_cfg.forge_dir / "forge.yaml"
-    if forge_yaml.exists():
-        env["FORGE_CONFIG"] = str(forge_yaml)
+    # 解決済みの forge.yaml を使う（<forge_dir>/forge.yaml 規約に限らず、
+    # --forge-config 指定や FORGE_CONFIG 由来の別置き yaml もここに入る）。
+    # 規約を再実装すると、別置き運用でサーバーと子プロセスの設定がずれる。
+    if forge_cfg.config_path is not None:
+        env["FORGE_CONFIG"] = str(forge_cfg.config_path)
     return env
 
 

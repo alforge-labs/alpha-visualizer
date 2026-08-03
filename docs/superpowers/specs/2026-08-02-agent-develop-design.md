@@ -76,7 +76,7 @@ GUI「開発」ビュー
 claude -p "<prompt>" \
   --output-format stream-json \
   --permission-mode dontAsk \
-  --allowedTools "Read,Write,Edit,Bash(alpha-forge *)" \
+  --allowedTools "Read(//<forge_dir>/**),Edit(//<forge_dir>/**),Glob,Grep,Bash(alpha-forge *)" \
   --max-turns 50
 
 codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
@@ -84,6 +84,11 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 
 - claude: `dontAsk` により許可外ツールは自動拒否（ヘッドレスで承認プロンプトが
   出ずハングしない）。ファイル操作+alpha-forge CLI のみ許可
+- claude の読み書きはワークスペース配下にパススコープする（#472 で強化）。
+  `Edit` ルールは Write を含むファイル編集ツール全体に適用される一方、
+  `Write(path)` 形式はファイルパーミッション判定の対象外で効かない。実測でも
+  スコープ無しではワークスペース外への書き込みが通り、スコープ付きでは拒否
+  されることを確認済み
 - codex: `workspace-write` は OS レベルサンドボックス。書き込みは cwd 配下限定、
   ネットワークは既定で遮断される
 - **実装時に検証すること**: codex exec のイベント出力フラグ（`--json` の有無と
@@ -95,7 +100,10 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 1. **API キー不使用** — 認証・課金は各 CLI の既存ログインに完全委譲。
    visualizer はキーの保存・入力 UI を持たない
 2. **ワークスペース限定** — 上記 CLI 起動仕様の通り。visualizer 独自の
-   サンドボックスは実装しない（CLI 標準機能に委譲）
+   サンドボックスは実装しない（CLI 標準機能に委譲）。エージェントに渡す env は
+   `build_forge_env` なので `FORGE_NONINTERACTIVE=1` が継承され、エージェント発の
+   alpha-forge 破壊的操作の確認プロンプトは自動確認になる。操作範囲が
+   ワークスペース内に閉じている前提で許容する（README 日英にも明記）
 3. **非 loopback bind 時は機能無効** — `/api/agent/*` は 403 を返し、GUI は
    「開発」ビューを表示しない。エージェント起動は任意コード実行に近い操作で
    あり、LAN 公開サーバーの UI から他者が踏める状態にしない

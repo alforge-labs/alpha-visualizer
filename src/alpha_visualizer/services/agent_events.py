@@ -16,6 +16,11 @@ from alpha_visualizer.services.agent_cli import AgentBackend
 # ログ 1 行の最大長（超過は切り詰め。SSE とメモリ保護）
 LINE_MAX_CHARS = 500
 
+# codex が完了した item を載せて流すイベント種。codex は同じ item を
+# ``item.started`` でも流すため、item の有無だけで判定すると同じメッセージが
+# 二重にログへ出て、さらに部分テキストが最終結果として抽出されうる。
+CODEX_COMPLETED_EVENT = "item.completed"
+
 
 def _parse(line: str) -> dict[str, Any] | None:
     try:
@@ -47,9 +52,17 @@ def _format_claude(data: dict[str, Any]) -> str | None:
     return " ".join(parts) if parts else None
 
 
-def _format_codex(data: dict[str, Any]) -> str | None:
+def _codex_completed_item(data: dict[str, Any]) -> dict[str, Any] | None:
+    """完了イベントの item を返す（それ以外は None）。"""
+    if data.get("type") != CODEX_COMPLETED_EVENT:
+        return None
     item = data.get("item")
-    if not isinstance(item, dict):
+    return item if isinstance(item, dict) else None
+
+
+def _format_codex(data: dict[str, Any]) -> str | None:
+    item = _codex_completed_item(data)
+    if item is None:
         return None
     if item.get("type") == "agent_message" and item.get("text"):
         return _clip(str(item["text"]))
@@ -84,9 +97,9 @@ def extract_final_text(backend: AgentBackend, stdout: str) -> str | None:
             if data.get("type") == "result" and isinstance(data.get("result"), str):
                 final = data["result"]
         else:
-            item = data.get("item")
+            item = _codex_completed_item(data)
             if (
-                isinstance(item, dict)
+                item is not None
                 and item.get("type") == "agent_message"
                 and isinstance(item.get("text"), str)
             ):
