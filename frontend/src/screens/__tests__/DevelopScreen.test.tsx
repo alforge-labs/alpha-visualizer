@@ -142,12 +142,55 @@ describe('<DevelopScreen />', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
+  // 検証 5.5: 実行中ログはライブリージョンとして支援技術に通知される（issue #473）
+  it('実行中のログ領域が log ロールのライブリージョンになっている', () => {
+    renderScreen({
+      running: true,
+      status: 'running',
+      logLines: ['[claude] planning...'],
+    })
+    // WHY: 実行は数分かかり、画面上の変化はログの追記だけ。ライブリージョンに
+    // しないとスクリーンリーダー利用者には進行しているのか止まったのか分からない
+    const log = screen.getByRole('log', { name: /ジョブログ/ })
+    expect(log).toHaveAttribute('aria-live', 'polite')
+    // 全文再読み上げを避けるため追記分のみを通知する（aria-atomic は false）
+    expect(log).toHaveAttribute('aria-atomic', 'false')
+  })
+
   // 検証 6: result.strategy_id があるとき /detail/<strategy_id> へのリンクが出る
   it('succeeded かつ result.strategy_id があるとき /detail/<strategy_id> へのリンクが出る', () => {
     renderScreen({ status: 'succeeded', result: { strategy_id: 'cl_hmm_bb_rsi_v1' } })
     const links = screen.getAllByRole('link')
     const detailLink = links.find((l) => l.getAttribute('href') === '/detail/cl_hmm_bb_rsi_v1')
     expect(detailLink).toBeDefined()
+  })
+
+  // 検証 6.5: result.summary の表示（issue #475）
+  it('succeeded かつ result.summary があるとき、リンクと一緒に要約を表示する', () => {
+    // WHY: エージェントは {strategy_id, run_id, summary} を返す契約だが、
+    // 完了パネルはリンクしか出しておらず「何を作ったのか」が読み取れなかった
+    renderScreen({
+      status: 'succeeded',
+      result: { strategy_id: 'cl_x', summary: 'RSI 逆張りに ATR フィルタを追加' },
+    })
+    expect(screen.getByText(/RSI 逆張りに ATR フィルタを追加/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /cl_x/ })).toBeInTheDocument()
+  })
+
+  it('summary が無いときは要約を出さずリンクだけを表示する', () => {
+    renderScreen({ status: 'succeeded', result: { strategy_id: 'cl_x' } })
+    expect(screen.getByRole('link', { name: /cl_x/ })).toBeInTheDocument()
+    expect(screen.queryByTestId('develop-summary')).toBeNull()
+  })
+
+  it('strategy_id に URL 予約文字が含まれてもリンク先が壊れない', () => {
+    // WHY: strategy_id はエージェント出力由来の未検証文字列。エンコードしないと
+    // 別ルートへのリンクになり、GUI から成果物へ辿れなくなる
+    renderScreen({ status: 'succeeded', result: { strategy_id: 'a/b?c' } })
+    expect(screen.getByRole('link', { name: /a\/b\?c/ })).toHaveAttribute(
+      'href',
+      '/detail/a%2Fb%3Fc',
+    )
   })
 
   it('succeeded だが result が無いとき、結果不明メッセージを表示する（silent fail 禁止）', () => {
