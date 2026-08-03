@@ -3,8 +3,10 @@ import type { ReactElement } from 'react'
 import { Link } from 'react-router'
 import type { AgentBackendsResponse, JobStatus } from '../api/types'
 import { Button, ErrorBanner } from '../design/primitives'
+import type { Theme } from '../hooks/useTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { SettingsToggles } from '../components/SettingsToggles'
 
 type AgentBackendId = 'claude' | 'codex'
 
@@ -14,6 +16,7 @@ type AgentBackendInfo = AgentBackendsResponse['backends'][number]
 
 export interface DevelopScreenProps {
   lang: Lang
+  theme: Theme
   backends: AgentBackendsResponse | null
   running: boolean
   status: JobStatus | null
@@ -22,6 +25,8 @@ export interface DevelopScreenProps {
   error: string | null
   onStart: (goal: string, symbol: string, backend: AgentBackendId) => void
   onCancel: () => void
+  onSetLang: (l: Lang) => void
+  onSetTheme: (t: Theme) => void
 }
 
 // 導入導線 URL。backend/services/agent_cli.py の AGENT_NOT_FOUND_MESSAGES と同じ
@@ -35,6 +40,10 @@ const HEADER_STYLE = {
   padding: 'var(--space-6) var(--space-7) var(--space-5)',
   background: 'var(--bg)',
   borderBottom: '1px solid var(--border)',
+  display: 'flex',
+  alignItems: 'flex-start' as const,
+  justifyContent: 'space-between' as const,
+  gap: 'var(--space-4)',
 } as const
 
 const TITLE_STYLE = {
@@ -102,17 +111,27 @@ const LOG_STYLE = {
   borderRadius: 'var(--radius-sm)',
 }
 
-function Header({ lang }: { lang: Lang }): ReactElement {
+interface HeaderProps {
+  lang: Lang
+  theme: Theme
+  onSetLang: (l: Lang) => void
+  onSetTheme: (t: Theme) => void
+}
+
+function Header({ lang, theme, onSetLang, onSetTheme }: HeaderProps): ReactElement {
   const L = makeL(lang)
   return (
     <header style={HEADER_STYLE}>
-      <h1 style={TITLE_STYLE}>{L('AI 戦略開発', 'Agent Develop')}</h1>
-      <p style={DESC_STYLE}>
-        {L(
-          'ローカルの Claude Code / Codex CLI を使って戦略を自動開発します。CLI は外部（Anthropic / OpenAI）と通信します。',
-          'Uses your local Claude Code / Codex CLI to automatically develop strategies. The CLI communicates with external services (Anthropic / OpenAI).',
-        )}
-      </p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h1 style={TITLE_STYLE}>{L('AI 戦略開発', 'Agent Develop')}</h1>
+        <p style={DESC_STYLE}>
+          {L(
+            'ローカルの Claude Code / Codex CLI を使って戦略を自動開発します。CLI は外部（Anthropic / OpenAI）と通信します。',
+            'Uses your local Claude Code / Codex CLI to automatically develop strategies. The CLI communicates with external services (Anthropic / OpenAI).',
+          )}
+        </p>
+      </div>
+      <SettingsToggles lang={lang} onSetLang={onSetLang} theme={theme} onSetTheme={onSetTheme} />
     </header>
   )
 }
@@ -343,6 +362,7 @@ function CompletionPanel({
  */
 export function DevelopScreen({
   lang,
+  theme,
   backends,
   running,
   status,
@@ -351,6 +371,8 @@ export function DevelopScreen({
   error,
   onStart,
   onCancel,
+  onSetLang,
+  onSetTheme,
 }: DevelopScreenProps): ReactElement {
   if (!backends || !backends.enabled) {
     return (
@@ -358,7 +380,7 @@ export function DevelopScreen({
         data-testid="develop-screen"
         style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}
       >
-        <Header lang={lang} />
+        <Header lang={lang} theme={theme} onSetLang={onSetLang} onSetTheme={onSetTheme} />
         <LocalhostOnlyNotice lang={lang} />
       </div>
     )
@@ -371,7 +393,7 @@ export function DevelopScreen({
       data-testid="develop-screen"
       style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}
     >
-      <Header lang={lang} />
+      <Header lang={lang} theme={theme} onSetLang={onSetLang} onSetTheme={onSetTheme} />
       <div style={BODY_STYLE}>
         {availableBackends.length === 0 ? (
           <InstallGuidanceCard lang={lang} />

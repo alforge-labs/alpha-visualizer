@@ -39,6 +39,7 @@ type Story = StoryObj<typeof meta>
 export const DefaultJa: Story = {
   args: {
     lang: 'ja',
+    theme: 'light',
     backends: BOTH_AVAILABLE,
     running: false,
     status: null,
@@ -47,6 +48,8 @@ export const DefaultJa: Story = {
     error: null,
     onStart: () => {},
     onCancel: () => {},
+    onSetLang: () => {},
+    onSetTheme: () => {},
   },
 }
 

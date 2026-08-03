@@ -20,8 +20,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
  * Render は DevelopScreen に委譲する（ADR-0001）。
  */
 export function DevelopPage(): ReactElement {
-  const { settings } = useViewerSettings()
-  const { lang } = settings
+  const { settings, update } = useViewerSettings()
+  const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? 'AI 戦略開発' : 'Agent Develop')
   const { data: backends } = useAgentBackends()
   const runner = useAgentRunner()
@@ -29,6 +29,7 @@ export function DevelopPage(): ReactElement {
   return (
     <DevelopScreen
       lang={lang}
+      theme={theme}
       backends={backends}
       running={runner.running}
       status={runner.status}
@@ -39,6 +40,11 @@ export function DevelopPage(): ReactElement {
         void runner.start({ goal, symbol: symbol || null, backend })
       }
       onCancel={() => void runner.cancel()}
+      onSetLang={(l) => update('lang', l)}
+      onSetTheme={(t) => {
+        update('theme', t)
+        update('variation', t === 'dark' ? 'lab' : 'atelier')
+      }}
     />
   )
 }

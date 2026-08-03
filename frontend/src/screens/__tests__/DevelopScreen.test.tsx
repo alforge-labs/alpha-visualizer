@@ -17,8 +17,11 @@ const BOTH_AVAILABLE: AgentBackendsResponse = {
 function renderScreen(overrides: Partial<DevelopScreenProps> = {}) {
   const onStart = vi.fn()
   const onCancel = vi.fn()
+  const onSetLang = vi.fn()
+  const onSetTheme = vi.fn()
   const props: DevelopScreenProps = {
     lang: 'ja',
+    theme: 'light',
     backends: BOTH_AVAILABLE,
     running: false,
     status: null,
@@ -27,6 +30,8 @@ function renderScreen(overrides: Partial<DevelopScreenProps> = {}) {
     error: null,
     onStart,
     onCancel,
+    onSetLang,
+    onSetTheme,
     ...overrides,
   }
   render(
@@ -34,10 +39,19 @@ function renderScreen(overrides: Partial<DevelopScreenProps> = {}) {
       <DevelopScreen {...props} />
     </MemoryRouter>,
   )
-  return { onStart, onCancel }
+  return { onStart, onCancel, onSetLang, onSetTheme }
 }
 
 describe('<DevelopScreen />', () => {
+  // 検証 0: SettingsToggles（言語切替 UI）がレンダリングされる（他画面は個別に
+  // レンダリングしているが Develop 画面だけ欠落していた不具合の再発防止）
+  it('SettingsToggles（言語切替 UI）がレンダリングされ、クリックで onSetLang が呼ばれる', async () => {
+    const { onSetLang } = renderScreen()
+    const enToggle = screen.getByRole('radio', { name: /English/ })
+    await userEvent.click(enToggle)
+    expect(onSetLang).toHaveBeenCalledWith('en')
+  })
+
   // 検証 1: backends.enabled === false → localhost 限定の案内が出てフォームが出ない
   it('backends.enabled が false のとき localhost 限定の案内が出てフォームが出ない', () => {
     renderScreen({ backends: { enabled: false, backends: [] } })
