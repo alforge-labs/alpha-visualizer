@@ -35,6 +35,13 @@ trim = true
 conventional_commits = true
 filter_unconventional = true
 split_commits = false
+commit_preprocessors = [
+  # PR #479 は squash マージ時にコミットメッセージへ Conventional Commits の
+  # 型を付け忘れたため、そのままでは filter_unconventional で CHANGELOG から
+  # 落ちる。中身は権限強化（ワークスペース外への書き込みを塞いだ）や a11y
+  # 改善を含む利用者向け変更なので、履歴は書き換えず生成時にだけ型を補う。
+  { pattern = "^AI 戦略開発 v1 のフォローアップ", replace = "fix: AI 戦略開発 v1 のフォローアップ" },
+]
 commit_parsers = [
   # リリース作業コミットはユーザー向け変更ではないので除外する (issue #401)
   { message = "^chore: バージョン .* にバンプ", skip = true },
