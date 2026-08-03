@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import pathlib
 import stat
+import textwrap
 import time
 from collections.abc import Iterator
 
@@ -99,6 +101,36 @@ class TestAgentBackends:
         assert by_id["codex"]["available"] is False
         assert by_id["codex"]["version"] is None
 
+    def test_versions_are_probed_in_parallel(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: claude / codex の --version を直列 await すると、両方が詰まった
+        ときタイムアウト 2 回分（最悪 10 秒）ナビの表示がブロックされる。
+        並列なら最悪 1 回分で済む。"""
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_agent_exe",
+            lambda backend: f"/bin/{backend}",
+        )
+        in_flight = 0
+        peak = 0
+
+        async def fake_version(exe: str) -> str:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.05)
+            in_flight -= 1
+            return "1.0.0"
+
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.agent_version", fake_version
+        )
+        with _client(tmp_path, agent_stub=None) as client:
+            body = client.get("/api/agent/backends").json()
+
+        assert peak == 2, "version 検出が直列になっている"
+        assert [b["version"] for b in body["backends"]] == ["1.0.0", "1.0.0"]
+
     def test_disabled_when_non_loopback(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -148,6 +180,73 @@ class TestCreateAgentJob:
             "/api/agent/jobs", json={"goal": "g", "backend": "gemini"}
         )
         assert resp.status_code == 422
+
+    # NOTE: "--json" のような「-」始まりの値はこの pattern を通る。argv では
+    # 必ず "--" の後ろに置く契約（build_argv）で無害化しており、ここで弾く
+    # 対象はシェルメタ文字・空白・パス区切りを含む値。
+    @pytest.mark.parametrize(
+        "symbol",
+        ["CL=F; rm -rf /", "$(whoami)", "`id`", "AA PL", "../../etc/passwd", "a\nb"],
+    )
+    def test_malformed_symbol_is_422(
+        self, agent_client: TestClient, symbol: str
+    ) -> None:
+        """WHY: symbol はエージェントのプロンプトへそのまま埋め込まれ、
+        エージェントはそれを alpha-forge のコマンドラインに使う。境界での
+        形式制限がこの経路唯一のサニタイズであり、緩めると外部入力が
+        シェル引数として下流に流れる。"""
+        resp = agent_client.post(
+            "/api/agent/jobs",
+            json={"goal": "g", "symbol": symbol, "backend": "claude"},
+        )
+        assert resp.status_code == 422
+
+    def test_prompt_pins_forge_config_when_forge_yaml_exists(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: ログインシェルの rc が FORGE_CONFIG を別ワークスペースへ
+        書き換える実測事例（#470）への対策。forge.yaml があるときは必ず
+        プロンプトでピン留めされることをルーター経由で保証する。"""
+        (tmp_path / "forge.yaml").write_text(
+            textwrap.dedent(
+                """
+                report:
+                  output_path: ./data/results
+                strategies:
+                  path: ./data/strategies
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        stub = _make_stub(tmp_path, AGENT_BODY)
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_forge_exe", lambda: "/bin/true"
+        )
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_agent_exe", lambda backend: stub
+        )
+        with _client(tmp_path, agent_stub=stub) as client:
+            job_id = client.post(
+                "/api/agent/jobs", json={"goal": "g", "backend": "claude"}
+            ).json()["job_id"]
+            record = client.app.state.job_manager.get(job_id)  # type: ignore[attr-defined]
+            assert record is not None
+            assert record.prompt is not None
+            assert f"FORGE_CONFIG={tmp_path / 'forge.yaml'}" in record.prompt
+
+    def test_prompt_has_no_config_pin_without_forge_yaml(
+        self, agent_client: TestClient
+    ) -> None:
+        """WHY: forge.yaml が無いワークスペースで存在しないパスをピンすると、
+        エージェントの全コマンドが設定読み込みで失敗する。"""
+        job_id = agent_client.post(
+            "/api/agent/jobs", json={"goal": "g", "backend": "claude"}
+        ).json()["job_id"]
+        record = agent_client.app.state.job_manager.get(job_id)  # type: ignore[attr-defined]
+        assert record is not None
+        assert record.prompt is not None
+        assert "FORGE_CONFIG=" not in record.prompt
 
     def test_disabled_returns_403_with_code(self, tmp_path: pathlib.Path) -> None:
         """WHY: 非 loopback 公開時の遮断が権限モデルの最後の砦。"""

@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import pathlib
 import stat
+from typing import get_args
 
 import pytest
 
 from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services import jobs
+from alpha_visualizer.services.forge_cli import FORGE_EULA_NOT_ACCEPTED_MESSAGE
 from alpha_visualizer.services.jobs import JobManager, build_argv
 
 pytestmark = pytest.mark.anyio
@@ -503,3 +505,107 @@ class TestAgentJob:
         record = await manager.wait_terminal(job.job_id, timeout=10)
         assert record.status == "succeeded"
         assert record.result == {"run_id": "r1"}
+
+    async def test_agent_forge_failure_is_translated(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """WHY: エージェントは alpha-forge CLI を呼ぶため、EULA 未同意のような
+        forge 側の失敗がそのまま agent ジョブの失敗として表面化する。agent 用の
+        変換だけでは案内に届かず、利用者は生ログから同意方法を推測できない
+        （設計のエラー処理表が両方の変換を要求している）。"""
+        stub = _make_stub(tmp_path, 'echo "EULA has not been accepted"\nexit 1\n')
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "failed"
+        assert record.error == FORGE_EULA_NOT_ACCEPTED_MESSAGE
+
+    async def test_agent_giant_stdout_line_does_not_break_later_events(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: 改行の来ない巨大な 1 行で stdout 行バッファが際限なく伸びる
+        （stderr 側には STDERR_LINE_MAX の同種ガードがある）。上限で切り捨てた
+        あと、後続の result イベントの解釈が壊れないことまで保証する。"""
+        monkeypatch.setattr(jobs, "STDOUT_LINE_MAX", 1024)
+        body = (
+            # 改行を挟まない 5000 文字。上限（1024）を大きく超える
+            "awk 'BEGIN{for(i=0;i<5000;i++)printf \"x\"}'\n"
+            "echo ''\n"
+            "echo '{\"type\": \"result\", \"subtype\": \"success\", \"result\":"
+            " \"{\\\"strategy_id\\\": \\\"new_s1\\\"}\"}'\n"
+        )
+        stub = _make_stub(tmp_path, body)
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["strategy_id"] == "new_s1"
+        # 巨大行は JSON ではないため、切り出された断片もログには載らない
+        _, lines = manager.log_since(job.job_id, 0)
+        assert "xxxx" not in "\n".join(lines)
+
+
+class TestCodexAgentJob:
+    """codex バックエンドの統合（argv・イベント整形・結果抽出）。
+
+    WHY: 既存の agent 統合テストは claude 形式のみで、codex は単体テスト
+    （argv 構築・イベント整形）しか通っていなかった。JobManager を経由した
+    経路で初めて分かる齟齬（argv の受け渡し・cwd・結果抽出の接続）を押さえる。
+    """
+
+    CODEX_LINES = (
+        # 完了前の部分イベント。ログにも最終結果にも出てはいけない
+        "echo '{\"type\": \"item.started\", \"item\": {\"type\":"
+        ' "agent_message", "text": "partial-should-not-appear"}}\'\n'
+        "echo '{\"type\": \"item.completed\", \"item\": {\"type\":"
+        ' "command_execution", "command": "alpha-forge backtest run"}}\'\n'
+        "echo '{\"type\": \"item.completed\", \"item\": {\"type\":"
+        ' "agent_message", "text":'
+        " \"{\\\"strategy_id\\\": \\\"cx_s1\\\", \\\"run_id\\\": \\\"run-42\\\"}\"}}'\n"
+    )
+
+    async def test_codex_job_passes_sandbox_argv_and_extracts_result(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        stub = _make_stub(
+            tmp_path, 'printf "%s\\n" "$@" > argv.txt\n' + self.CODEX_LINES
+        )
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="CL=F",
+            goal="g", backend="codex", prompt="p",
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+
+        assert record.status == "succeeded"
+        assert record.result is not None
+        assert record.result["strategy_id"] == "cx_s1"
+        assert record.result["run_id"] == "run-42"
+        # サンドボックス指定が実際にプロセスへ渡っている（build_agent_argv の
+        # 単体テストだけでは JobManager 側の取り違えを検出できない）
+        argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
+        assert argv[0] == "exec"
+        assert argv[argv.index("--sandbox") + 1] == "workspace-write"
+        assert argv[-1] == "p"
+
+        _, lines = manager.log_since(job.job_id, 0)
+        joined = "\n".join(lines)
+        assert "[cmd: alpha-forge backtest run]" in joined
+        assert "partial-should-not-appear" not in joined
+
+
+def test_forge_job_kind_excludes_agent() -> None:
+    """WHY: build_argv に "agent" を渡すと wft 分岐に落ち、まったく別の
+    forge サブコマンドの argv を組んでしまう。型で受理しないことを保証する
+    （検証者は mypy。ここでは両 Literal の関係が崩れていないことを押さえる）。
+    """
+    assert "agent" not in get_args(jobs.ForgeJobKind)
+    assert set(get_args(jobs.JobKind)) == set(get_args(jobs.ForgeJobKind)) | {"agent"}

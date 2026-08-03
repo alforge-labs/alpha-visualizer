@@ -24,11 +24,13 @@ class TestBuildAgentPrompt:
         assert "choose" in prompt.lower()
 
     def test_requires_final_json_contract(self) -> None:
-        """WHY: 最終行の {strategy_id, run_id} JSON が GUI への結果反映の生命線。
-        この契約が消えるとジョブは成功しても GUI に何も出ない。"""
+        """WHY: 最終行の {strategy_id, run_id, summary} JSON が GUI への結果反映の
+        生命線。この契約が消えるとジョブは成功しても GUI に何も出ない。summary は
+        完了パネルの説明文として表示されるため、同じ理由でここに含める。"""
         prompt = build_agent_prompt("goal", "CL=F", STRATS)
         assert "strategy_id" in prompt
         assert "run_id" in prompt
+        assert "summary" in prompt
 
     def test_requires_workspace_only_constraint(self) -> None:
         """WHY: エージェントが workspace 外の操作を行わないよう制約を明記。

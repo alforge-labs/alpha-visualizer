@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, get_args
 
 from fastapi import APIRouter, Depends, Request
@@ -45,6 +46,11 @@ AGENT_DISABLED_MESSAGE = (
 )
 
 
+async def _version_or_none(exe: str | None) -> str | None:
+    """検出できた実行ファイルにだけ ``--version`` を叩く（gather 用の薄い包み）。"""
+    return await agent_version(exe) if exe is not None else None
+
+
 @router.get("/agent/backends", response_model=AgentBackendsResponse)
 async def list_agent_backends(request: Request) -> AgentBackendsResponse:
     """エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。
@@ -56,14 +62,18 @@ async def list_agent_backends(request: Request) -> AgentBackendsResponse:
     """
     if not request.app.state.agent_enabled:
         raise AgentDisabledError(AGENT_DISABLED_MESSAGE)
-    backends: list[AgentBackendInfo] = []
-    for backend in get_args(AgentBackend):
-        exe = resolve_agent_exe(backend)
-        version = await agent_version(exe) if exe is not None else None
-        backends.append(
+    ids: tuple[AgentBackend, ...] = get_args(AgentBackend)
+    exes = [resolve_agent_exe(backend) for backend in ids]
+    # --version は並列に叩く: 直列だと両方が詰まったときタイムアウト 2 回分
+    # （最悪 10 秒）ナビの表示がブロックされる
+    versions = await asyncio.gather(*(_version_or_none(exe) for exe in exes))
+    return AgentBackendsResponse(
+        enabled=True,
+        backends=[
             AgentBackendInfo(id=backend, available=exe is not None, version=version)
-        )
-    return AgentBackendsResponse(enabled=True, backends=backends)
+            for backend, exe, version in zip(ids, exes, versions, strict=True)
+        ],
+    )
 
 
 @router.post("/agent/jobs", response_model=JobSummary, status_code=202)

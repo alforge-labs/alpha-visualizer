@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import shutil
 import subprocess
 from typing import Literal
@@ -30,8 +31,15 @@ AGENT_NOT_FOUND_MESSAGES: dict[AgentBackend, str] = {
     ),
 }
 
-# 認証切れの stderr/stdout に現れる語。login への導線に変換する
-_LOGIN_MARKERS = ("/login", "not logged in", "invalid api key", "codex login")
+# 認証切れの stderr/stdout に現れる語。login への導線に変換する。
+# バックエンドごとに分けるのは、CLI ごとに文言が違ううえ、共通語彙で判定すると
+# 一方の失敗にもう一方固有の語が混ざったときに誤った復旧手順を案内するため。
+# 素の "/login" は使わない: エージェントが書いたパス（src/routes/login.ts 等）に
+# 現れて、本当の失敗原因を認証案内で置き換えてしまう。
+_LOGIN_MARKERS: dict[AgentBackend, tuple[str, ...]] = {
+    "claude": ("run /login", "invalid api key", "not logged in"),
+    "codex": ("codex login", "not logged in", "invalid api key"),
+}
 
 AGENT_LOGIN_MESSAGES: dict[AgentBackend, str] = {
     "claude": (
@@ -53,6 +61,8 @@ CLAUDE_MAX_TURNS = 50
 CLAUDE_ALLOWED_TOOLS = "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"
 
 VERSION_TIMEOUT_SEC = 5
+# kill 後に子プロセスを回収する待ち時間（回収できなくても検出は続行する）
+KILL_WAIT_SEC = 1.0
 
 
 def resolve_agent_exe(backend: AgentBackend) -> str | None:
@@ -109,7 +119,7 @@ def translate_agent_failure(
     translate_forge_failure と同じ契約）。
     """
     haystack = f"{stdout}\n{stderr}".lower()
-    if any(marker in haystack for marker in _LOGIN_MARKERS):
+    if any(marker in haystack for marker in _LOGIN_MARKERS[backend]):
         return AGENT_LOGIN_MESSAGES[backend]
     return None
 
@@ -124,10 +134,22 @@ async def agent_version(exe: str) -> str | None:
             stderr=asyncio.subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
         )
+    except OSError:
+        return None
+    try:
         stdout, _ = await asyncio.wait_for(
             proc.communicate(), timeout=VERSION_TIMEOUT_SEC
         )
-    except (OSError, TimeoutError):
+    except TimeoutError:
+        # asyncio の wait_for はタイムアウトしても子プロセスを残す。この関数は
+        # GET /api/agent/backends のたびに呼ばれるため、ハングするバイナリが
+        # 1 つあると呼び出し回数だけプロセスがリークする。必ず後始末する。
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        # kill だけでは stdout パイプ（transport）が残り、GC 時に閉じられる
+        # 順序次第で "Event loop is closed" を送出する。communicate で回収する。
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(proc.communicate(), timeout=KILL_WAIT_SEC)
         return None
     line = stdout.decode("utf-8", errors="replace").strip().splitlines()
     return line[0] if line else None

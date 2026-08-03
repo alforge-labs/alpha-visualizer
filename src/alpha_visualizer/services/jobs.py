@@ -1,11 +1,21 @@
-"""非同期ジョブ基盤（GUI化 Wave B, #292）。
+"""非同期ジョブ基盤（GUI化 Wave B, #292 / AI 戦略開発 #470）。
 
-forge CLI（backtest / optimize / walk-forward）をバックグラウンドプロセスとして
-起動・監視する in-process ジョブマネージャ。uvicorn 単一ワーカー前提で、
-ジョブ状態はプロセスメモリにのみ保持する（サーバー再起動で消える）。
+外部 CLI をバックグラウンドプロセスとして起動・監視する in-process ジョブ
+マネージャ。扱う CLI は 2 種類ある:
+
+- forge ジョブ（backtest / optimize / wft）: alpha-forge CLI
+- agent ジョブ: claude / codex のヘッドレス CLI（AI 戦略開発）
+
+uvicorn 単一ワーカー前提で、ジョブ状態はプロセスメモリにのみ保持する
+（サーバー再起動で消える）。
 
 設計メモ:
-- 進捗ログ = stderr の行ストリーム（forge の --json 契約では stdout は結果 JSON）
+- 進捗ログの源は kind で異なる。forge は stderr のみ（--json 契約では stdout は
+  結果 JSON）。agent は stdout の JSONL イベントを整形したものが主で、stderr も
+  併せて載せる
+- 結果の取り出しも kind で異なる。forge は stdout 全体の JSON、agent は
+  stdout イベント列から抽出した最終テキスト内の JSON
+- agent ジョブのみ cwd を forge ワークスペースに固定する（権限モデル）
 - 同時実行数は Semaphore で制御（既定 1、``ALPHA_VIS_JOB_CONCURRENCY``）
 - キャンセルは terminate → 猶予後 kill の 2 段階
 - 結果はスカラーのみに圧縮して保持（equity_curve 等の巨大配列は捨てる）
@@ -47,6 +57,10 @@ from alpha_visualizer.services.forge_cli import (
 
 logger = logging.getLogger(__name__)
 
+# forge CLI で実行するジョブ種。build_argv はこれだけを受理する:
+# "agent" を渡せてしまうと wft 分岐に落ち、まったく別の forge サブコマンドの
+# argv を静かに組んでしまうため、型で受け付けない。
+ForgeJobKind = Literal["backtest", "optimize", "wft"]
 JobKind = Literal["backtest", "optimize", "wft", "agent"]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
@@ -68,6 +82,9 @@ MAX_JOBS_KEPT = 50
 MAX_ACTIVE_JOBS = 20
 # stdout（結果 JSON）の取り込み上限。これを超える分は切り捨てる
 STDOUT_MAX_BYTES = 20 * 1024 * 1024
+# stdout の行分割バッファ上限。改行の来ない巨大な 1 行でバッファが際限なく
+# 伸びるのを防ぐ（stderr 側の STDERR_LINE_MAX と対になるガード）
+STDOUT_LINE_MAX = 1024 * 1024
 # terminate 後にプロセスが残った場合の kill までの猶予秒
 CANCEL_KILL_GRACE_SEC = 5.0
 
@@ -118,7 +135,7 @@ def _env_int(name: str, default: int) -> int:
 
 def build_argv(
     forge_exe: str,
-    kind: JobKind,
+    kind: ForgeJobKind,
     strategy_id: str,
     symbol: str,
     trials: int | None,
@@ -628,6 +645,15 @@ class JobManager:
                     )
                     if formatted is not None:
                         await self._append_log(record, formatted)
+                if len(buf) > STDOUT_LINE_MAX:
+                    # 改行の来ない巨大行はイベント JSON として解釈できないため、
+                    # stderr 側（生ログを切り出して残す）と違い捨てる。残骸は
+                    # 次の改行までが 1 行として渡り、非 JSON なのでログに載らない。
+                    logger.warning(
+                        "job %s の stdout に改行の無い巨大な行があるため切り捨てます",
+                        record.job_id,
+                    )
+                    buf = b""
 
         # 行分割は readline() でなくチャンク読みで自前処理する:
         # StreamReader.readline() は改行なしの 64KiB 超で ValueError を投げ、
@@ -713,6 +739,10 @@ class JobManager:
                 backend = "codex" if record.backend == "codex" else "claude"
                 error = (
                     translate_agent_failure(backend, stdout_text, log_text)
+                    # エージェントは alpha-forge CLI を呼ぶため、EULA 未同意など
+                    # forge 側の失敗も agent ジョブの失敗として表面化する。
+                    # agent 用の変換だけでは案内に届かない（設計のエラー処理表）
+                    or translate_forge_failure(stdout_text, log_text)
                     or log_text
                     or "エージェントの実行に失敗しました / Agent execution failed"
                 )

@@ -130,6 +130,30 @@ class TestCodexEvents:
     def test_unknown_event_is_suppressed(self) -> None:
         assert format_agent_event("codex", '{"type": "turn.started"}') is None
 
+    def test_incomplete_item_event_is_suppressed(self) -> None:
+        """WHY: codex は完了前にも item を載せたイベントを流す。item の有無だけで
+        判定すると、同じメッセージがログに二重に出るうえ、部分テキストが最終
+        結果として抽出され GUI に不完全な JSON が渡る。完了イベントに限定する。
+        """
+        partial = json.dumps(
+            {
+                "type": "item.started",
+                "item": {"type": "agent_message", "text": '{"strategy_id": "cl_ne'},
+            }
+        )
+        assert format_agent_event("codex", partial) is None
+        assert extract_final_text("codex", partial) is None
+
+    def test_completed_event_wins_over_preceding_partial(self) -> None:
+        """WHY: 部分イベントを拾うと、後から来る完了イベントより前の不完全な
+        テキストが混ざる。完了分のみを最終結果とする。"""
+        partial = json.dumps(
+            {"type": "item.started", "item": {"type": "agent_message", "text": "part"}}
+        )
+        stdout = "\n".join([partial, CODEX_MESSAGE])
+        text = extract_final_text("codex", stdout)
+        assert text is not None and '"strategy_id"' in text
+
     def test_returns_last_agent_message_when_multiple(self) -> None:
         """WHY: 複数ターンでいくつか agent_message が出うる。最後のメッセージ
         が最終状態であり、最初を返す退行はステールな結果を GUI に流す。
