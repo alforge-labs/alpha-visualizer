@@ -47,8 +47,19 @@ def _client(
 
 
 @pytest.fixture()
-def agent_client(tmp_path: pathlib.Path) -> Iterator[TestClient]:
+def agent_client(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
     stub = _make_stub(tmp_path, AGENT_BODY)
+    # WHY: ルーターはモジュール関数 resolve_forge_exe / resolve_agent_exe を
+    # 直接呼んで実 PATH を引くため、patch しないとテスト結果が実行マシンの
+    # CLI 導入状況に依存する（CI には無い・開発機にはある）。
+    monkeypatch.setattr(
+        "alpha_visualizer.routers.agent.resolve_forge_exe", lambda: "/bin/true"
+    )
+    monkeypatch.setattr(
+        "alpha_visualizer.routers.agent.resolve_agent_exe", lambda backend: stub
+    )
     with _client(tmp_path, agent_stub=stub) as client:
         yield client
 
@@ -151,6 +162,12 @@ class TestCreateAgentJob:
     def test_agent_cli_missing_returns_503_with_code(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # WHY: forge チェックを実 PATH 依存にしないため通過させ、agent
+        # チェックに到達させる（CI には alpha-forge も無く、patch しないと
+        # forge_cli_not_found で落ちてしまう）。
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_forge_exe", lambda: "/bin/true"
+        )
         monkeypatch.setattr(
             "alpha_visualizer.routers.agent.resolve_agent_exe", lambda backend: None
         )
