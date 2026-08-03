@@ -11,6 +11,30 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.4.0] - 2026-08-03
+
+
+### その他
+
+- **deps**: Python 依存 4 件をまとめて更新 (#478)
+
+
+- CHANGELOG 生成で PR #479 が落ちる問題を直す
+
+
+
+### バグ修正
+
+- AI 戦略開発 v1 のフォローアップ 6 件（権限強化・堅牢化・a11y・完了表示・検出取得・テスト） (#479)
+
+
+
+### 新機能
+
+- AI 戦略開発（Agent Develop）v1 (#471)
+
+
+
 ## [1.3.5] - 2026-08-02
 
 
