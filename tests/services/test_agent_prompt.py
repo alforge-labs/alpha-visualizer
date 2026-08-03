@@ -44,3 +44,16 @@ class TestBuildAgentPrompt:
         assert "Never overwrite or" in prompt
         assert "modify existing strategy files" in prompt
         assert "Do not modify or delete anything you did not create" in prompt
+
+    def test_forge_config_path_pinning_when_specified(self) -> None:
+        """WHY: ログインシェルの rc 再読込で FORGE_CONFIG が別ワークスペースへ上書きされることへの対策。
+        この指示が消えるとエージェントが既存ユーザーのワークスペース設定で起動し、別ワークスペースを
+        参照・破壊しうる。実測事例あり。"""
+        config_path = pathlib.Path("/ws/forge.yaml")
+        prompt = build_agent_prompt("goal", "CL=F", STRATS, forge_config_path=config_path)
+        assert f"FORGE_CONFIG={config_path} alpha-forge" in prompt
+
+    def test_forge_config_path_omitted_when_none(self) -> None:
+        """FORGE_CONFIG 明示指示が無い場合は空文字で省略される（テンプレートに埋め込まれない）。"""
+        prompt = build_agent_prompt("goal", "CL=F", STRATS, forge_config_path=None)
+        assert "FORGE_CONFIG" not in prompt
