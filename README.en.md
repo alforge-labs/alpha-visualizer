@@ -96,6 +96,7 @@ The GUI's "Develop" view (`/develop`) lets you enter a free-text goal, an option
 
 - `claude` (Claude Code) or `codex` (Codex CLI) must be on `PATH` and already authenticated
 - `alpha-forge` must be installed
+- **Known limitation of the codex backend**: `--sandbox workspace-write` blocks network access, so it cannot fetch price data for a symbol that isn't already cached (observed: it fails at DNS resolution). Run a backtest for the target symbol once beforehand to cache the data, or use the claude backend instead (claude restricts what tools the agent can run, but doesn't block the alpha-forge CLI's own network access)
 
 **Environment Variable**
 
