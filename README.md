@@ -89,7 +89,7 @@ GUI の「開発」ビュー（`/develop`）にゴール文（自由記述）・
 
 **権限モデル**
 
-- エージェントは forge ワークスペース内でのみ動作します（claude: `--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`、codex: `--sandbox workspace-write`）
+- claude バックエンドはツール許可リスト（`--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`）と作業ディレクトリ固定・プロンプト指示によって forge ワークスペース内に留まるよう制約します（OS レベルのサンドボックスではありません）。一方 codex バックエンドは `--sandbox workspace-write` という OS レベルのサンドボックスでファイルアクセスを制限します
 - 非 loopback バインド（`alpha-vis serve --host 0.0.0.0` 等）で起動している場合、この機能自体が無効化されます（LAN 越しに任意コード実行に近い操作をされないようにするため）
 
 **前提条件**

@@ -89,7 +89,7 @@ The GUI's "Develop" view (`/develop`) lets you enter a free-text goal, an option
 
 **Permission model**
 
-- The agent only operates inside the forge workspace (claude: `--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`; codex: `--sandbox workspace-write`)
+- The claude backend is constrained to the forge workspace via a tool allowlist (`--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`), a fixed working directory, and prompt instructions — this is not an OS-level sandbox. The codex backend, by contrast, restricts file access via `--sandbox workspace-write`, which is an OS-level sandbox
 - If the server is bound to a non-loopback address (e.g. `alpha-vis serve --host 0.0.0.0`), this feature is disabled entirely, so it can't be used to run arbitrary-code-like operations over the LAN
 
 **Prerequisites**
