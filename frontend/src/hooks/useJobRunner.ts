@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { CreateJobParams, JobStatus } from '../api/types'
+import type { CreateAgentJobParams, CreateJobParams, JobStatus, JobSummary } from '../api/types'
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['succeeded', 'failed', 'cancelled'])
 
@@ -28,9 +28,9 @@ interface SseEvent {
   error?: string | null
 }
 
-export interface UseJobRunnerResult {
+export interface UseJobRunnerResult<P = CreateJobParams> {
   /** ジョブを起動して SSE 購読を開始する。作成 API が失敗したら false */
-  start: (params: CreateJobParams) => Promise<boolean>
+  start: (params: P) => Promise<boolean>
   /** 実行中ジョブのキャンセルを要求する */
   cancel: () => Promise<void>
   jobId: string | null
@@ -43,13 +43,21 @@ export interface UseJobRunnerResult {
 }
 
 /**
- * 非同期ジョブ（optimize / WFT / backtest）の起動・進捗購読・キャンセルを担うフック。
+ * 非同期ジョブ（optimize / WFT / backtest / agent）の起動・進捗購読・
+ * キャンセルを担うフックの共通実装。
  *
  * 進捗は SSE（/api/jobs/{id}/events）で受け、切断時は getJob ポーリングに
  * フォールバックする（ジョブ自体はサーバー側で継続しているため）。
  * issue #292 (GUI化 Wave B)。
+ *
+ * ジョブ作成 API だけがジョブ種によって異なる（POST /api/jobs vs
+ * POST /api/agent/jobs）ため `createFn` として注入し、観察・キャンセルの
+ * ロジックは `useJobRunner` / `useAgentRunner` で完全に共有する（Task 9）。
  */
-export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRunnerResult {
+function useJobRunnerCore<P>(
+  createFn: (params: P) => Promise<JobSummary>,
+  onFinished?: (status: JobStatus) => void,
+): UseJobRunnerResult<P> {
   const [jobId, setJobId] = useState<string | null>(null)
   const [status, setStatus] = useState<JobStatus | null>(null)
   const [logLines, setLogLines] = useState<string[]>([])
@@ -127,7 +135,7 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
   )
 
   const start = useCallback(
-    async (params: CreateJobParams): Promise<boolean> => {
+    async (params: P): Promise<boolean> => {
       closeStream()
       setJobId(null)
       setStatus(null)
@@ -136,7 +144,7 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
       setError(null)
       setRunning(true)
       try {
-        const job = await api.createJob(params)
+        const job = await createFn(params)
         setJobId(job.job_id)
         setStatus(job.status as JobStatus)
 
@@ -169,7 +177,7 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
         return false
       }
     },
-    [closeStream, finish, pollUntilTerminal],
+    [closeStream, createFn, finish, pollUntilTerminal],
   )
 
   const cancel = useCallback(async (): Promise<void> => {
@@ -182,4 +190,24 @@ export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRu
   }, [jobId])
 
   return { start, cancel, jobId, status, logLines, result, error, running }
+}
+
+/**
+ * 非同期ジョブ（optimize / WFT / backtest）の起動・進捗購読・キャンセルを担うフック。
+ * issue #292 (GUI化 Wave B)。
+ */
+export function useJobRunner(onFinished?: (status: JobStatus) => void): UseJobRunnerResult {
+  return useJobRunnerCore(api.createJob, onFinished)
+}
+
+/**
+ * AI 戦略開発（agent）ジョブの起動・進捗購読・キャンセルを担うフック。
+ * ジョブ作成は POST /api/agent/jobs（`api.createAgentJob`）を使う点だけが
+ * `useJobRunner` と異なり、SSE 購読・ポーリングフォールバック・キャンセルは
+ * `useJobRunnerCore` を共有する（Task 9）。
+ */
+export function useAgentRunner(
+  onFinished?: (status: JobStatus) => void,
+): UseJobRunnerResult<CreateAgentJobParams> {
+  return useJobRunnerCore(api.createAgentJob, onFinished)
 }

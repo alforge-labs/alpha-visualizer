@@ -1029,6 +1029,64 @@
         }
       }
     },
+    "/api/agent/backends": {
+      "get": {
+        "summary": "List Agent Backends",
+        "description": "エージェントバックエンドの検出結果を返す（GUI の選択肢構築用）。\n\n無効時（非 loopback 公開中）は CLI 検出・``--version`` 実行を一切行わず\n403 を返す（設計: docs/superpowers/specs/2026-08-02-agent-develop-design.md\nセキュリティ設計 #3）。検出結果の開示自体が任意コード実行の下調べに\n使われうるため、POST と同様にエンドポイント冒頭で遮断する。",
+        "operationId": "list_agent_backends_api_agent_backends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentBackendsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/jobs": {
+      "post": {
+        "summary": "Create Agent Job",
+        "description": "クイック戦略開発ジョブを起動する。\n\n実行前に「機能有効・forge 導入済み・agent CLI 導入済み」を確認して\nfail-fast する（エージェント起動後に判明すると原因がログの奥に埋まる）。",
+        "operationId": "create_agent_job_api_agent_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -1050,6 +1108,63 @@
   },
   "components": {
     "schemas": {
+      "AgentBackendInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex"
+            ],
+            "title": "Id"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "available",
+          "version"
+        ],
+        "title": "AgentBackendInfo",
+        "description": "エージェントバックエンド 1 件の検出結果。"
+      },
+      "AgentBackendsResponse": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "backends": {
+            "items": {
+              "$ref": "#/components/schemas/AgentBackendInfo"
+            },
+            "type": "array",
+            "title": "Backends"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "backends"
+        ],
+        "title": "AgentBackendsResponse",
+        "description": "検出結果と機能の有効状態。enabled=False は非 loopback 公開中。"
+      },
       "BacktestDetail": {
         "properties": {
           "run_id": {
@@ -1478,6 +1593,44 @@
         "type": "object",
         "title": "ComparisonEquityCurve",
         "description": "``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"
+      },
+      "CreateAgentJobRequest": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9=.^_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "backend": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex"
+            ],
+            "title": "Backend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goal",
+          "backend"
+        ],
+        "title": "CreateAgentJobRequest"
       },
       "CreateJobRequest": {
         "properties": {

@@ -18,6 +18,7 @@ from alpha_visualizer import __version__
 from alpha_visualizer.db import get_engine
 from alpha_visualizer.errors import AlphaVisualizerError
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.routers import agent as agent_router
 from alpha_visualizer.routers import historical as historical_router
 from alpha_visualizer.routers import ideas as ideas_router
 from alpha_visualizer.routers import jobs as jobs_router
@@ -47,6 +48,7 @@ def create_app(
     *,
     config: ForgeConfig | None = None,
     allowed_hosts: list[str] | None = None,
+    agent_enabled: bool = True,
 ) -> FastAPI:
     """FastAPI アプリを生成する。
 
@@ -56,6 +58,7 @@ def create_app(
       （後方互換）
 
     両方渡された場合は ``config`` が優先される。
+    ``agent_enabled`` は AI 戦略開発 API の有効状態（非 loopback 公開時は CLI が False を渡す）。
     """
     if config is None:
         if forge_dir is None:
@@ -86,6 +89,7 @@ def create_app(
     app.state.forge_config = config
     app.state.job_manager = job_manager
     app.state.run_semaphore = run_semaphore
+    app.state.agent_enabled = agent_enabled
 
     # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
     # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。
@@ -196,6 +200,7 @@ def create_app(
     app.include_router(live_router.router, prefix="/api")
     app.include_router(historical_router.router, prefix="/api")
     app.include_router(maintenance_router.router, prefix="/api")
+    app.include_router(agent_router.router, prefix="/api")
 
     # ホーム配下の絶対パスはユーザー名を晒さない（mask_home ポリシー・issue #394）
     forge_dir_str = mask_home(str(config.forge_dir))

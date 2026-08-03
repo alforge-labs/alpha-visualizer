@@ -17,12 +17,21 @@ const ITEMS: readonly NavItem[] = [
   { to: '/maintenance', ja: '整理', en: 'Maintenance' },
 ]
 
+// AI 戦略開発（/develop）は localhost 限定機能（backends.enabled）のため、
+// 既定の ITEMS には含めず showDevelop で条件表示する（Task 10）。
+const DEVELOP_ITEM: NavItem = { to: '/develop', ja: '開発', en: 'Develop' }
+
 /**
  * 常設のグローバルナビ（issue #263）。Browse/Compare/Ideas/Live/Maintenance への
  * 導線を全画面で提供し、`<nav>` ランドマークと aria-current で現在地を AT に伝える。
+ *
+ * `showDevelop` は `RootLayout` が `useAgentBackends().data?.enabled` から渡す。
+ * 非 loopback 公開中や未検出時は「開発」項目自体を出さない（Task 10）。
  */
-export function AppNav({ lang }: { lang: Lang }) {
+export function AppNav({ lang, showDevelop = false }: { lang: Lang; showDevelop?: boolean }) {
   const L = makeL(lang)
+  // ライブの後・整理の前に挿入する（ITEMS[4]=live, ITEMS[5]=maintenance）
+  const items = showDevelop ? [...ITEMS.slice(0, 5), DEVELOP_ITEM, ...ITEMS.slice(5)] : ITEMS
   return (
     <nav
       aria-label={L('メインナビゲーション', 'Main navigation')}
@@ -35,7 +44,7 @@ export function AppNav({ lang }: { lang: Lang }) {
         background: 'var(--bg)',
       }}
     >
-      {ITEMS.map((it) => (
+      {items.map((it) => (
         <NavLink
           key={it.to}
           to={it.to}

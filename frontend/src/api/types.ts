@@ -41,6 +41,9 @@ export type HistoricalResponse = S['HistoricalResponse']
 export type OrphanRunItem = S['OrphanRunItem']
 export type OrphanRunsResponse = S['OrphanRunsResponse']
 export type PruneOrphansResponse = S['PruneOrphansResponse']
+// AI 戦略開発（agent）バックエンド検出・ジョブ作成（vis Task 9）
+export type AgentBackendsResponse = S['AgentBackendsResponse']
+export type CreateAgentJobParams = S['CreateAgentJobRequest']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
 

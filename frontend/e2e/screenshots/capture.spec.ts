@@ -143,6 +143,24 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
     test.describe(`lang=${lang}`, () => {
       test.beforeEach(async ({ page }) => {
         await clearViewerSettings(page)
+        // /api/agent/backends はフィクスチャの静的データではなく、実機の
+        // `shutil.which("claude"/"codex")` 検出結果をそのまま返す実装のため、
+        // モックしないと撮影マシンの CLI 導入有無でナビの「開発」タブ表示
+        // （RootLayout が全画面で呼ぶ）が揺れ、develop 以外の PNG も撮影環境
+        // 依存になってしまう。全撮影を決定的にするため describe 共通で固定する。
+        await page.route('**/api/agent/backends', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              enabled: true,
+              backends: [
+                { id: 'claude', available: true, version: '2.1.220 (Claude Code)' },
+                { id: 'codex', available: true, version: 'codex-cli 0.145.0' },
+              ],
+            }),
+          }),
+        )
       })
 
       // hero: ヘッダー＋表＋フッタが収まる縦長 viewport
@@ -218,6 +236,15 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await ensureDir(filePath)
         await settle(page)
         await page.screenshot({ path: filePath })
+      })
+
+      // develop: AI 戦略開発ビュー（フォーム表示状態）
+      // /api/agent/backends の固定モックは describe 共通の beforeEach で
+      // 適用済み（両バックエンド利用可能なフォーム状態を撮影）。
+      test('develop', async ({ page }) => {
+        await page.goto('/develop')
+        await setLang(page, lang)
+        await captureViewport(page, lang, 'develop', 700)
       })
     })
   }
