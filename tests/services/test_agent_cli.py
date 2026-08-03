@@ -11,6 +11,7 @@ from alpha_visualizer.services.agent_cli import (
     AGENT_NOT_FOUND_MESSAGES,
     agent_version,
     build_agent_argv,
+    build_claude_allowed_tools,
     resolve_agent_exe,
     translate_agent_failure,
 )
@@ -47,22 +48,45 @@ class TestResolveAgentExe:
         assert resolve_agent_exe("claude") is None
 
 
+WS = pathlib.Path("/tmp/ws")
+
+
 class TestBuildAgentArgv:
     def test_claude_restricts_tools_and_denies_by_default(self) -> None:
         """WHY: dontAsk + allowedTools がワークスペース限定の権限モデルの本体。
         ここが欠けると Web UI のボタン一つで無制限のエージェントが走る。"""
-        argv = build_agent_argv("/bin/claude", "claude", "do it")
+        argv = build_agent_argv("/bin/claude", "claude", "do it", WS)
         assert argv[0] == "/bin/claude"
         assert argv[1:3] == ["-p", "do it"]
         assert "--permission-mode" in argv
         assert argv[argv.index("--permission-mode") + 1] == "dontAsk"
         allowed = argv[argv.index("--allowedTools") + 1]
         assert "Bash(alpha-forge *)" in allowed
-        assert "Read" in allowed and "Write" in allowed and "Edit" in allowed
         # stream-json は -p では --verbose 必須の版がある
         assert "--output-format" in argv and "stream-json" in argv
         assert "--verbose" in argv
         assert "--max-turns" in argv
+
+    def test_claude_scopes_file_tools_to_the_workspace(self) -> None:
+        """WHY: cwd 固定とプロンプト指示だけでは、絶対パスを使う読み書きを
+        ワークスペース内に閉じ込められない（悪意あるゴール文を貼られた場合の
+        経路）。読み書きはパススコープ付きのルールで縛る。"""
+        allowed = build_claude_allowed_tools(WS)
+        assert "Read(//tmp/ws/**)" in allowed
+        # Edit ルールがファイル編集ツール全体（Write / NotebookEdit を含む）を
+        # 覆う。Write(path) 形式はファイルパーミッション判定の対象外で効かない
+        assert "Edit(//tmp/ws/**)" in allowed
+        assert "Write(" not in allowed
+        # スコープ無しの素の Read / Edit が残っていないこと（残ると全域許可に戻る）
+        assert "Read," not in allowed and allowed != "Read"
+        assert "Edit," not in allowed
+
+    def test_claude_allowed_tools_uses_the_actual_workspace(self) -> None:
+        """WHY: 定数化して別ディレクトリのスコープを渡すと、防御が別の場所に
+        かかって実質無効になる。渡したワークスペースが反映されることを固定する。"""
+        allowed = build_claude_allowed_tools(pathlib.Path("/var/data/other-ws"))
+        assert "Read(//var/data/other-ws/**)" in allowed
+        assert "/tmp/ws" not in allowed
 
     def test_codex_uses_workspace_write_sandbox(self) -> None:
         """WHY: workspace-write が OS レベルの書き込み制限・ネットワーク遮断を担う。
@@ -71,7 +95,7 @@ class TestBuildAgentArgv:
         ``--dangerously-bypass-approvals-and-sandbox`` のような危険フラグが
         後から紛れ込んでも検出できない（サンドボックスが無効化される）。
         """
-        assert build_agent_argv("/bin/codex", "codex", "do it") == [
+        assert build_agent_argv("/bin/codex", "codex", "do it", WS) == [
             "/bin/codex",
             "exec",
             "--sandbox",
@@ -88,7 +112,7 @@ class TestBuildAgentArgv:
         --dangerously-skip-permissions）の混入を検出できる形で固定する。
         値そのものは他テストが意味づけて検証しているため、ここではフラグ
         集合のみを完全一致で押さえる。"""
-        argv = build_agent_argv("/bin/claude", "claude", "do it")
+        argv = build_agent_argv("/bin/claude", "claude", "do it", WS)
         assert {a for a in argv if a.startswith("--")} == {
             "--output-format",
             "--verbose",

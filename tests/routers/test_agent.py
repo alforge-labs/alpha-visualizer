@@ -235,6 +235,42 @@ class TestCreateAgentJob:
             assert record.prompt is not None
             assert f"FORGE_CONFIG={tmp_path / 'forge.yaml'}" in record.prompt
 
+    def test_prompt_pins_forge_config_for_out_of_tree_yaml(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: forge.yaml は --forge-config や FORGE_CONFIG でワークスペースの
+        外に置ける。<forge_dir>/forge.yaml 規約でピンを組み立てていると、
+        別置き運用ではピンが付かず rc の上書き問題が再発する。"""
+        forge_dir = tmp_path / "workspace"
+        forge_dir.mkdir()
+        external_yaml = tmp_path / "elsewhere" / "forge.yaml"
+        external_yaml.parent.mkdir()
+        external_yaml.write_text("report:\n  output_path: ./data/results\n", encoding="utf-8")
+        stub = _make_stub(tmp_path, AGENT_BODY)
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_forge_exe", lambda: "/bin/true"
+        )
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_agent_exe", lambda backend: stub
+        )
+        config = ForgeConfig.from_forge_dir(forge_dir, config_path=external_yaml)
+        app = create_app(config=config, agent_enabled=True)
+        app.state.job_manager = JobManager(
+            forge_config=config,
+            forge_resolver=lambda: "/bin/true",
+            agent_resolver=lambda backend: stub,
+            concurrency=1,
+            agent_timeout_sec=30,
+        )
+        with TestClient(app) as client:
+            job_id = client.post(
+                "/api/agent/jobs", json={"goal": "g", "backend": "claude"}
+            ).json()["job_id"]
+            record = client.app.state.job_manager.get(job_id)  # type: ignore[attr-defined]
+            assert record is not None
+            assert record.prompt is not None
+            assert f"FORGE_CONFIG={external_yaml}" in record.prompt
+
     def test_prompt_has_no_config_pin_without_forge_yaml(
         self, agent_client: TestClient
     ) -> None:

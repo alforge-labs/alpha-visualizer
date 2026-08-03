@@ -561,10 +561,11 @@ class JobManager:
                     record, "failed", error=AGENT_NOT_FOUND_MESSAGES[backend]
                 )
                 return
-            argv = build_agent_argv(exe, backend, record.prompt or "")
+            workspace = self._forge_config.forge_dir
+            argv = build_agent_argv(exe, backend, record.prompt or "", workspace)
             timeout_sec = self._agent_timeout_sec
             # エージェントの相対パス操作をワークスペース内に固定する（権限モデル）
-            cwd = str(self._forge_config.forge_dir)
+            cwd = str(workspace)
             # 最終結果（type=result 等）は stream-json の最後に来るため、
             # STDOUT_MAX_BYTES 到達で stdout_buf が打ち切られると結果だけを
             # 静かに失う。行分割はバッファ上限と無関係に行われるので、ここで

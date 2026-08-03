@@ -44,6 +44,10 @@ class ForgeConfig:
     ideas_json: pathlib.Path
     live_dir: pathlib.Path
     historical_dir: pathlib.Path
+    # 実際に読み込んだ forge.yaml の絶対パス（見つからなければ None）。
+    # 上の探索順序 1〜3 のどれで見つかったかに関わらずここに入るため、
+    # 「<forge_dir>/forge.yaml がある場合」という規約を各所で再実装せずに済む。
+    config_path: pathlib.Path | None = None
 
     @classmethod
     def from_forge_dir(
@@ -111,6 +115,7 @@ class ForgeConfig:
             ideas_json=ideas_json,
             live_dir=live_dir,
             historical_dir=historical_dir,
+            config_path=yaml_path,
         )
 
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import pathlib
 import shutil
 import subprocess
 from typing import Literal
@@ -56,9 +57,37 @@ AGENT_LOGIN_MESSAGES: dict[AgentBackend, str] = {
 # 少なすぎると検証の反復が途中で切れ、多すぎると暴走時の課金が膨らむ。
 CLAUDE_MAX_TURNS = 50
 
-# ワークスペース限定・ツール絞りの本体（設計の権限モデル）。
-# Glob / Grep は読み取り専用の探索ツールで、既存戦略のスキーマ学習に必要。
-CLAUDE_ALLOWED_TOOLS = "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"
+def _workspace_rule_path(workspace: pathlib.Path) -> str:
+    """Claude Code の permission rule 用の絶対パスパターンを作る。
+
+    ルート起点の絶対パスは ``//`` プレフィックスで書く規約（例:
+    ``//Users/alice/ws/**``）。実パスは先頭に ``/`` を含むため重複を除く。
+    """
+    return "//" + str(workspace).lstrip("/") + "/**"
+
+
+def build_claude_allowed_tools(workspace: pathlib.Path) -> str:
+    """ワークスペース配下に限定した allowedTools 文字列を組む（権限モデルの本体）。
+
+    - ファイル読み書きはパススコープ付きにする。cwd 固定とプロンプト指示だけ
+      では、絶対パスを使う操作をワークスペース内に閉じ込められない
+    - 編集側は ``Edit(...)`` で表す。``Edit`` ルールはファイルを編集する
+      ビルトインツール全体（Write / NotebookEdit を含む）に適用される一方、
+      ``Write(path)`` 形式はファイルパーミッション判定の対象外で効かない
+    - ``Read`` ルールはファイルを読むビルトインツール全体に適用されるため、
+      探索用の Glob / Grep はツール名のみ許可すれば読み取り範囲も従う
+    - Bash は alpha-forge CLI のみ（設計の権限モデル）
+    """
+    scope = _workspace_rule_path(workspace)
+    return ",".join(
+        [
+            f"Read({scope})",
+            f"Edit({scope})",
+            "Glob",
+            "Grep",
+            "Bash(alpha-forge *)",
+        ]
+    )
 
 VERSION_TIMEOUT_SEC = 5
 # kill 後に子プロセスを回収する待ち時間（回収できなくても検出は続行する）
@@ -70,11 +99,15 @@ def resolve_agent_exe(backend: AgentBackend) -> str | None:
     return shutil.which(AGENT_EXE_NAMES[backend])
 
 
-def build_agent_argv(exe: str, backend: AgentBackend, prompt: str) -> list[str]:
+def build_agent_argv(
+    exe: str, backend: AgentBackend, prompt: str, workspace: pathlib.Path
+) -> list[str]:
     """backend に応じたヘッドレス実行 argv を構築する。
 
-    作業ディレクトリは呼び出し側が subprocess の ``cwd`` で forge ワーク
-    スペースに固定する前提（-C / --add-dir はここでは渡さない）。
+    作業ディレクトリは呼び出し側が subprocess の ``cwd`` で ``workspace`` に
+    固定する前提（-C / --add-dir はここでは渡さない）。``workspace`` は
+    claude のツール許可のスコープにも使う（codex は OS サンドボックスが
+    cwd 基準で同じ範囲を担保するため引数として使わない）。
     """
     if backend == "claude":
         return [
@@ -91,7 +124,7 @@ def build_agent_argv(exe: str, backend: AgentBackend, prompt: str) -> list[str]:
             "--permission-mode",
             "dontAsk",
             "--allowedTools",
-            CLAUDE_ALLOWED_TOOLS,
+            build_claude_allowed_tools(workspace),
             "--max-turns",
             str(CLAUDE_MAX_TURNS),
         ]

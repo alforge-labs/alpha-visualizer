@@ -95,15 +95,14 @@ async def create_agent_job(
     if resolve_agent_exe(body.backend) is None:
         raise AgentCliNotFoundError(AGENT_NOT_FOUND_MESSAGES[body.backend])
 
-    # forge.yaml 存在チェック（services/forge_cli.py の build_forge_env と同じ規約）
-    forge_yaml = cfg.forge_dir / "forge.yaml"
-    forge_config_path = forge_yaml if forge_yaml.exists() else None
-
     prompt = build_agent_prompt(
         goal=body.goal,
         symbol=body.symbol,
         strategies_dir=cfg.strategies_dir,
-        forge_config_path=forge_config_path,
+        # ForgeConfig が解決した実パスを使う。<forge_dir>/forge.yaml 規約を
+        # ここで再実装すると、別置き yaml 運用（--forge-config / FORGE_CONFIG）
+        # ではピンが効かず、ログインシェル rc の上書き問題が再発する
+        forge_config_path=cfg.config_path,
     )
     record = await manager.create(
         kind="agent",

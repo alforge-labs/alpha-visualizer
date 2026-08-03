@@ -89,7 +89,8 @@ The GUI's "Develop" view (`/develop`) lets you enter a free-text goal, an option
 
 **Permission model**
 
-- The claude backend is constrained to the forge workspace via a tool allowlist (`--permission-mode dontAsk` + `--allowedTools "Read,Write,Edit,Glob,Grep,Bash(alpha-forge *)"`), a fixed working directory, and prompt instructions — this is not an OS-level sandbox. The codex backend, by contrast, restricts file access via `--sandbox workspace-write`, which is an OS-level sandbox
+- The claude backend is constrained to the forge workspace via a tool allowlist (`--permission-mode dontAsk` + `--allowedTools "Read(//<workspace>/**),Edit(//<workspace>/**),Glob,Grep,Bash(alpha-forge *)"`), a fixed working directory, and prompt instructions. File reads and writes are scoped to paths under the workspace, and anything outside is denied automatically (the `Edit` rule covers all file-editing tools, including Write). Note that this is the CLI's own permission check, not an OS-level sandbox. The codex backend, by contrast, restricts file access via `--sandbox workspace-write`, which is an OS-level sandbox
+- The only shell command allowed is `alpha-forge`. Processes the agent starts inherit `FORGE_NONINTERACTIVE=1`, so alpha-forge's confirmation prompts for destructive operations are auto-confirmed — an accepted trade-off given that those operations stay inside the workspace
 - If the server is bound to a non-loopback address (e.g. `alpha-vis serve --host 0.0.0.0`), this feature is disabled entirely, so it can't be used to run arbitrary-code-like operations over the LAN
 
 **Prerequisites**
