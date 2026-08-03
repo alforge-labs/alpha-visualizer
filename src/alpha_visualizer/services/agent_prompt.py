@@ -51,7 +51,7 @@ def build_agent_prompt(
     WHY (forge_config_path): codex エージェントはログインシェル（/bin/zsh -lc）で実行するため、
     ユーザーの ~/.zshrc で無条件に `export FORGE_CONFIG=<ユーザーの別ワークスペース>/forge.yaml` が
     再読込される場合がある。サーバーが正しく渡した FORGE_CONFIG が上書きされ、別ワークスペースを参照した
-    実測事例への対策（https://github.com/ysakae/alpha-visualizer/issues/XXX）。
+    実測事例への対策（https://github.com/alforge-labs/alpha-visualizer/issues/470）。
     forge_config_path が非 None のとき、各 alpha-forge コマンドに明示的に FORGE_CONFIG を
     プレフィックスするよう指示する。
     """
