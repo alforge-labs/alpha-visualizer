@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import { api } from '../api/client'
-import type { DataListResponse } from '../api/types'
+import type { DataListResponse, JobStatus } from '../api/types'
 import { useFetchByKey } from '../hooks/useFetchByKey'
+import { useDataJobRunner } from '../hooks/useJobRunner'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { makeL } from '../i18n/strings'
@@ -19,15 +20,25 @@ function bytesToKb(bytes: number): string {
   return fmtNumber(bytes / 1024, { decimals: 0, suffix: ' KB' })
 }
 
+// 取得フォームの期間・足の選択肢。値は forge CLI にそのまま渡る。
+// 既定 5y: forge 既定（1y）はバックテストには短いことが多く、初中級者が
+// 「データが足りない」で詰まるのを避ける。
+const PERIOD_OPTIONS = ['1y', '2y', '5y', 'max'] as const
+const INTERVAL_OPTIONS = ['1d', '1h', '4h', '1wk'] as const
+
+/** 進捗パネルに表示するログ末尾の行数。 */
+const LOG_TAIL_LINES = 8
+
 /**
- * データ管理画面（issue #484）。
+ * データ管理画面（issue #484 / #485）。
  *
  * 保有ヒストリカルデータの存在・鮮度を確認する手段が CLI（`alpha-forge
  * data list`）にしか無く、未取得銘柄はチャートが no_data になるだけで理由が
  * 分からなかった。一覧は `GET /api/data`（forge CLI 委譲）から取得し、
  * TTL 24h を超えたデータには「要更新」バッジを出す。
  *
- * 本画面は参照専用。GUI からの取得・更新ジョブは issue #485 で追加する。
+ * 取得・一括更新（issue #485）は `POST /api/data/jobs` で非同期実行し、
+ * SSE で進捗を表示する。完了したら一覧を再取得する。
  */
 export function DataPage(): ReactElement {
   const { settings, update } = useViewerSettings()
@@ -38,6 +49,25 @@ export function DataPage(): ReactElement {
   const [reloadToken, setReloadToken] = useState(0)
   const state = useFetchByKey('datasets', fetchDatasets, { reloadToken })
   const [query, setQuery] = useState('')
+
+  const [symbol, setSymbol] = useState('')
+  const [period, setPeriod] = useState<string>('5y')
+  const [interval, setInterval] = useState<string>('1d')
+
+  const onJobFinished = useCallback((status: JobStatus) => {
+    // 成功時のみ一覧を再取得する（失敗時に再取得すると、エラー表示と同時に
+    // 一覧が動いて「何かが変わった」ように見えてしまう）
+    if (status === 'succeeded') setReloadToken((t) => t + 1)
+  }, [])
+  const runner = useDataJobRunner(onJobFinished)
+
+  const startFetch = useCallback(() => {
+    void runner.start({ action: 'fetch', symbol: symbol.trim(), period, interval })
+  }, [runner, symbol, period, interval])
+
+  const startUpdate = useCallback(() => {
+    void runner.start({ action: 'update' })
+  }, [runner])
 
   const all = useMemo(
     () => (state.status === 'ready' ? state.data.datasets : []),
@@ -134,6 +164,125 @@ export function DataPage(): ReactElement {
           onRetry={() => setReloadToken((t) => t + 1)}
         />
       )}
+
+      {/* 取得フォーム（issue #485）。一覧の有無に依らず常時使えるようにする */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          padding: 'var(--space-3) var(--space-4)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface)',
+          marginBottom: 'var(--space-4)',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text2)' }}>
+          {L('データ取得', 'Fetch data')}
+        </span>
+        <input
+          aria-label={L('取得する銘柄', 'Symbol to fetch')}
+          placeholder="CL=F"
+          value={symbol}
+          disabled={runner.running}
+          style={{ ...inputS, width: 140 }}
+          onChange={(e) => setSymbol(e.target.value)}
+        />
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 'var(--fs-caption)', color: 'var(--text3)' }}>
+          {L('期間', 'Period')}
+          <select
+            aria-label={L('期間', 'Period')}
+            value={period}
+            disabled={runner.running}
+            style={{ ...inputS, cursor: 'pointer' }}
+            onChange={(e) => setPeriod(e.target.value)}
+          >
+            {PERIOD_OPTIONS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 'var(--fs-caption)', color: 'var(--text3)' }}>
+          {L('足', 'Interval')}
+          <select
+            aria-label={L('足', 'Interval')}
+            value={interval}
+            disabled={runner.running}
+            style={{ ...inputS, cursor: 'pointer' }}
+            onChange={(e) => setInterval(e.target.value)}
+          >
+            {INTERVAL_OPTIONS.map((iv) => (
+              <option key={iv} value={iv}>{iv}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          onClick={startFetch}
+          disabled={runner.running || symbol.trim() === ''}
+          style={{
+            ...inputS,
+            cursor: runner.running || symbol.trim() === '' ? 'default' : 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {L('取得', 'Fetch')}
+        </button>
+        {state.status === 'ready' && all.length > 0 && (
+          <button
+            onClick={startUpdate}
+            disabled={runner.running}
+            title={L('保存済みの全データを差分更新します', 'Incrementally update all stored datasets')}
+            style={{ ...inputS, cursor: runner.running ? 'default' : 'pointer', marginLeft: 'auto' }}
+          >
+            {L('すべて更新', 'Update all')}
+          </button>
+        )}
+      </div>
+
+      {runner.running && (
+        <div
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-2)',
+            marginBottom: 'var(--space-4)',
+            fontFamily: 'var(--mono)',
+            fontSize: 'var(--fs-mono-sm)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'var(--space-2)' }}>
+            <span style={{ color: 'var(--text2)' }}>
+              {L('実行中…', 'Running…')}
+            </span>
+            <button
+              onClick={() => void runner.cancel()}
+              style={{ ...inputS, cursor: 'pointer', marginLeft: 'auto' }}
+            >
+              {L('キャンセル', 'Cancel')}
+            </button>
+          </div>
+          {/* aria-live: ログ更新をスクリーンリーダーに伝える（#473 と同方針） */}
+          <pre
+            aria-live="polite"
+            style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text3)', maxHeight: 160, overflowY: 'auto' }}
+          >
+            {runner.logLines.slice(-LOG_TAIL_LINES).join('\n')}
+          </pre>
+        </div>
+      )}
+
+      {!runner.running && runner.status === 'failed' && runner.error && (
+        <ErrorBanner
+          // JobManager の error は translate 済みの利用者向け文言（日英連結）
+          message={runner.error}
+          retryLabel={L('再試行', 'Retry')}
+          onRetry={startFetch}
+        />
+      )}
+
       {state.status === 'loading' && <Loading label={L('読み込み中…', 'Loading…')} />}
 
       {state.status === 'ready' && all.length === 0 && (
@@ -150,25 +299,12 @@ export function DataPage(): ReactElement {
           <p style={{ margin: '0 0 var(--space-2)', fontWeight: 600 }}>
             {L('まだデータがありません。', 'No historical data yet.')}
           </p>
-          <p style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-caption)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--fs-caption)' }}>
             {L(
-              'ターミナルで次のコマンドを実行すると取得できます（GUI からの取得は今後追加予定です）:',
-              'Run the following command in a terminal to fetch data (fetching from the GUI is planned):',
+              '上の「データ取得」フォームに銘柄（例: CL=F、SPY、6758.T）を入力して取得してください。',
+              'Enter a symbol (e.g. CL=F, SPY, 6758.T) in the fetch form above to download data.',
             )}
           </p>
-          <code
-            style={{
-              display: 'inline-block',
-              padding: '6px 10px',
-              background: 'var(--surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--fs-mono-sm)',
-            }}
-          >
-            alpha-forge data fetch SPY --period 5y
-          </code>
         </div>
       )}
 

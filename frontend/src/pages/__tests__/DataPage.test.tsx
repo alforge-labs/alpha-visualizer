@@ -1,9 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../api/client', () => ({
-  api: { listDatasets: vi.fn() },
+  api: {
+    listDatasets: vi.fn(),
+    createDataJob: vi.fn(),
+    cancelJob: vi.fn(),
+    getJob: vi.fn(),
+  },
   ApiError: class ApiError extends Error {
     status: number
     url: string
@@ -18,8 +23,46 @@ vi.mock('../../api/client', () => ({
 
 import { api } from '../../api/client'
 import { ApiError } from '../../api/client'
+import type { JobSummary } from '../../api/types'
 import { resetViewerSettingsStoreForTest } from '../../hooks/useTheme'
 import { DataPage } from '../DataPage'
+
+/** SSE をテスト内で駆動するための EventSource スタブ（DevelopPage.test.tsx と同じ形）。 */
+class FakeEventSource {
+  static instances: FakeEventSource[] = []
+  url: string
+  onmessage: ((ev: { data: string }) => void) | null = null
+  onerror: (() => void) | null = null
+  closed = false
+
+  constructor(url: string) {
+    this.url = url
+    FakeEventSource.instances.push(this)
+  }
+
+  close(): void {
+    this.closed = true
+  }
+
+  emit(payload: unknown): void {
+    this.onmessage?.({ data: JSON.stringify(payload) })
+  }
+}
+
+function dataJobSummary(overrides: Partial<JobSummary> = {}): JobSummary {
+  return {
+    job_id: 'job-data-1',
+    kind: 'data_fetch',
+    strategy_id: '',
+    symbol: 'CL=F',
+    status: 'queued',
+    created_at: '2026-08-05T00:00:00Z',
+    started_at: null,
+    finished_at: null,
+    error: null,
+    ...overrides,
+  }
+}
 
 const DATASETS = {
   datasets: [
@@ -54,7 +97,16 @@ beforeEach(() => {
   // node 環境には無い（undefined）ため optional chaining で両対応する。
   globalThis.localStorage?.clear()
   resetViewerSettingsStoreForTest()
+  FakeEventSource.instances = []
+  vi.stubGlobal('EventSource', FakeEventSource)
   vi.mocked(api.listDatasets).mockReset().mockResolvedValue(DATASETS as never)
+  vi.mocked(api.createDataJob).mockReset()
+  vi.mocked(api.cancelJob).mockReset()
+  vi.mocked(api.getJob).mockReset()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 function renderPage() {
@@ -75,7 +127,8 @@ describe('DataPage (issue #484)', () => {
     renderPage()
     expect(await screen.findByText('SPY')).toBeInTheDocument()
     expect(screen.getByText('QQQ')).toBeInTheDocument()
-    expect(screen.getByText('4h')).toBeInTheDocument()
+    // '4h' は取得フォームの select option にも存在するため、テーブルセル側を検証する
+    expect(screen.getAllByText('4h').some((el) => el.closest('td') !== null)).toBe(true)
     expect(screen.getByText('1,306')).toBeInTheDocument()
     expect(screen.getByText(/2021-03-23/)).toBeInTheDocument()
   })
@@ -98,12 +151,12 @@ describe('DataPage (issue #484)', () => {
     expect(screen.getByText(/1 \/ 2 件/)).toBeInTheDocument()
   })
 
-  it('データ0件のときは取得コマンドの案内を表示する', async () => {
+  it('データ0件のときは取得フォームへの案内を表示する', async () => {
     vi.mocked(api.listDatasets).mockResolvedValueOnce({ datasets: [], count: 0 } as never)
     renderPage()
     expect(await screen.findByText(/まだデータがありません/)).toBeInTheDocument()
-    // GUI 取得（issue #485）が入るまでは CLI コマンドへの導線を出す
-    expect(screen.getByText(/alpha-forge data fetch/)).toBeInTheDocument()
+    // GUI 取得（issue #485）が入ったため CLI コマンドではなくフォームへ誘導する
+    expect(screen.getByLabelText(/取得する銘柄/)).toBeInTheDocument()
   })
 
   it('言語切替（SettingsToggles）を備え、英語表示に切り替えられる', async () => {
@@ -128,5 +181,96 @@ describe('DataPage (issue #484)', () => {
     const alert = await waitFor(() => screen.getByRole('alert'))
     expect(alert.textContent).toContain('alpha-forge コマンドが見つかりません')
     expect(alert.textContent).not.toContain('forge_cli_not_found')
+  })
+})
+
+/**
+ * issue #485: データ取得・更新を GUI から実行できるようにする。
+ * 初中級者の最初のつまずき所（CLI で data fetch を打てない）を解消する。
+ */
+describe('DataPage 取得・更新ジョブ (issue #485)', () => {
+  it('フォームから取得ジョブを起動し、完了で一覧を再取得する', async () => {
+    vi.mocked(api.createDataJob).mockResolvedValue(dataJobSummary())
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.change(screen.getByLabelText(/取得する銘柄/), { target: { value: 'CL=F' } })
+    fireEvent.change(screen.getByLabelText(/期間/), { target: { value: '5y' } })
+    fireEvent.change(screen.getByLabelText(/足/), { target: { value: '1d' } })
+    fireEvent.click(screen.getByRole('button', { name: /取得/ }))
+
+    await waitFor(() =>
+      expect(api.createDataJob).toHaveBeenCalledWith({
+        action: 'fetch',
+        symbol: 'CL=F',
+        period: '5y',
+        interval: '1d',
+      }),
+    )
+
+    // SSE 完了 → 一覧の再取得（鮮度・新規銘柄の反映）
+    const es = FakeEventSource.instances[0]!
+    act(() => {
+      es.emit({ type: 'status', status: 'succeeded', result: null, error: null })
+    })
+    await waitFor(() => expect(api.listDatasets).toHaveBeenCalledTimes(2))
+  })
+
+  it('「すべて更新」で update ジョブを起動する', async () => {
+    vi.mocked(api.createDataJob).mockResolvedValue(
+      dataJobSummary({ job_id: 'job-data-2', kind: 'data_update', symbol: '' }),
+    )
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.click(screen.getByRole('button', { name: /すべて更新/ }))
+    await waitFor(() =>
+      expect(api.createDataJob).toHaveBeenCalledWith({ action: 'update' }),
+    )
+  })
+
+  it('実行中はログが流れ、キャンセルできる', async () => {
+    vi.mocked(api.createDataJob).mockResolvedValue(dataJobSummary())
+    vi.mocked(api.cancelJob).mockResolvedValue(
+      dataJobSummary({ status: 'cancelled' }) as never,
+    )
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.change(screen.getByLabelText(/取得する銘柄/), { target: { value: 'CL=F' } })
+    fireEvent.click(screen.getByRole('button', { name: /取得/ }))
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))
+
+    const es = FakeEventSource.instances[0]!
+    act(() => {
+      es.emit({ type: 'snapshot', status: 'running', lines: ['Fetching CL=F...'], seq: 1 })
+    })
+    expect(await screen.findByText(/Fetching CL=F/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /キャンセル/ }))
+    await waitFor(() => expect(api.cancelJob).toHaveBeenCalledWith('job-data-1'))
+  })
+
+  it('ジョブ失敗はエラーとして表示する', async () => {
+    vi.mocked(api.createDataJob).mockResolvedValue(dataJobSummary())
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.change(screen.getByLabelText(/取得する銘柄/), { target: { value: 'BAD' } })
+    fireEvent.click(screen.getByRole('button', { name: /取得/ }))
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))
+
+    const es = FakeEventSource.instances[0]!
+    act(() => {
+      es.emit({
+        type: 'status',
+        status: 'failed',
+        result: null,
+        error: 'データ取得に失敗しました: No data found for BAD',
+      })
+    })
+    expect(await screen.findByText(/No data found for BAD/)).toBeInTheDocument()
+    // 失敗では一覧を再取得しない
+    expect(api.listDatasets).toHaveBeenCalledTimes(1)
   })
 })

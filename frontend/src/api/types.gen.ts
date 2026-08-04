@@ -425,6 +425,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Data Job
+         * @description データ取得（fetch）/ 一括差分更新（update）ジョブを起動する。
+         *
+         *     ネットワークアクセスとファイル生成を伴う書き込み系のため、非 loopback
+         *     公開中は 403 で拒否する（routers/agent.py と同じ方針）。forge 未導入は
+         *     ジョブを積んでから失敗させず、起動前に fail-fast する。
+         */
+        post: operations["create_data_job_api_data_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/maintenance/orphan-runs": {
         parameters: {
             query?: never;
@@ -771,6 +795,26 @@ export interface components {
             backend: "claude" | "codex";
             /** Max Turns */
             max_turns?: number | null;
+        };
+        /**
+         * CreateDataJobRequest
+         * @description `POST /api/data/jobs` のリクエスト（issue #485）。
+         *
+         *     値は forge CLI の argv にそのまま渡るため、境界でパターン検証して
+         *     オプション注入・空白混入を塞ぐ（symbol 自体は build 側の ``--`` でも防護）。
+         */
+        CreateDataJobRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "fetch" | "update";
+            /** Symbol */
+            symbol?: string | null;
+            /** Period */
+            period?: string | null;
+            /** Interval */
+            interval?: string | null;
         };
         /** CreateJobRequest */
         CreateJobRequest: {
@@ -2455,6 +2499,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataListResponse"];
+                };
+            };
+        };
+    };
+    create_data_job_api_data_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDataJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

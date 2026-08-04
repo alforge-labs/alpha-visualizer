@@ -50,6 +50,7 @@ def create_app(
     config: ForgeConfig | None = None,
     allowed_hosts: list[str] | None = None,
     agent_enabled: bool = True,
+    local_write_enabled: bool = True,
 ) -> FastAPI:
     """FastAPI アプリを生成する。
 
@@ -60,6 +61,8 @@ def create_app(
 
     両方渡された場合は ``config`` が優先される。
     ``agent_enabled`` は AI 戦略開発 API の有効状態（非 loopback 公開時は CLI が False を渡す）。
+    ``local_write_enabled`` はデータ取得ジョブ等の書き込み系ローカル限定機能の
+    有効状態（同じく非 loopback 公開時は CLI が False を渡す・issue #485）。
     """
     if config is None:
         if forge_dir is None:
@@ -91,6 +94,7 @@ def create_app(
     app.state.job_manager = job_manager
     app.state.run_semaphore = run_semaphore
     app.state.agent_enabled = agent_enabled
+    app.state.local_write_enabled = local_write_enabled
 
     # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
     # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。

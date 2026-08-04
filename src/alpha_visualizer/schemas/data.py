@@ -8,7 +8,9 @@ visualizer は鮮度（updated_at / stale）だけを付加する。CLI が返�
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DataSetItem(BaseModel):
@@ -30,3 +32,31 @@ class DataSetItem(BaseModel):
 class DataListResponse(BaseModel):
     datasets: list[DataSetItem]
     count: int
+
+
+class CreateDataJobRequest(BaseModel):
+    """`POST /api/data/jobs` のリクエスト（issue #485）。
+
+    値は forge CLI の argv にそのまま渡るため、境界でパターン検証して
+    オプション注入・空白混入を塞ぐ（symbol 自体は build 側の ``--`` でも防護）。
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    action: Literal["fetch", "update"]
+    #: fetch では必須。ティッカー形式（CL=F / 6758.T / BTC-USD / ^GSPC）を許容
+    symbol: str | None = Field(
+        default=None, min_length=1, pattern=r"^[A-Za-z0-9^.=-]+$"
+    )
+    #: 例: 1y / 5y / max。未指定は forge 既定
+    period: str | None = Field(default=None, pattern=r"^[a-z0-9]+$")
+    #: 例: 1d / 1h / 1wk。未指定は forge 既定
+    interval: str | None = Field(default=None, pattern=r"^[a-z0-9]+$")
+
+    @model_validator(mode="after")
+    def _require_symbol_for_fetch(self) -> CreateDataJobRequest:
+        if self.action == "fetch" and self.symbol is None:
+            raise ValueError(
+                "fetch には symbol が必要です / symbol is required for fetch"
+            )
+        return self

@@ -77,6 +77,18 @@ class ConflictError(AlphaVisualizerError):
     status_code = 409
 
 
+class LocalWriteDisabledError(AlphaVisualizerError):
+    """書き込み系のローカル限定機能が無効（非 loopback バインドで公開中）。
+
+    データ取得（ネットワークアクセス + ファイル生成）や Pine 生成
+    （ファイル生成）は、認証を持たない本 API を LAN 公開した際に
+    エンドポイントごと拒否する（agent と同じ方針・issue #485）。
+    """
+
+    status_code = 403
+    code = "local_write_disabled"
+
+
 class AgentDisabledError(AlphaVisualizerError):
     """AI 戦略開発機能が無効（非 loopback バインドで公開中）。
 

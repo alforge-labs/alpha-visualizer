@@ -993,6 +993,45 @@
         }
       }
     },
+    "/api/data/jobs": {
+      "post": {
+        "summary": "Create Data Job",
+        "description": "データ取得（fetch）/ 一括差分更新（update）ジョブを起動する。\n\nネットワークアクセスとファイル生成を伴う書き込み系のため、非 loopback\n公開中は 403 で拒否する（routers/agent.py と同じ方針）。forge 未導入は\nジョブを積んでから失敗させず、起動前に fail-fast する。",
+        "operationId": "create_data_job_api_data_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/maintenance/orphan-runs": {
       "get": {
         "summary": "List Orphan Runs",
@@ -1672,6 +1711,61 @@
           "backend"
         ],
         "title": "CreateAgentJobRequest"
+      },
+      "CreateDataJobRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "fetch",
+              "update"
+            ],
+            "title": "Action"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9^.=-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "CreateDataJobRequest",
+        "description": "`POST /api/data/jobs` のリクエスト（issue #485）。\n\n値は forge CLI の argv にそのまま渡るため、境界でパターン検証して\nオプション注入・空白混入を塞ぐ（symbol 自体は build 側の ``--`` でも防護）。"
       },
       "CreateJobRequest": {
         "properties": {
