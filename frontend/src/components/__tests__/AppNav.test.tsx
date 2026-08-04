@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { AppNav } from '../AppNav'
+
+// ナビは訪問済みセクションの params を sessionStorage に覚える（issue #481）。
+// テスト間で記憶が漏れると href の期待値が揺れるため、毎回まっさらにする。
+beforeEach(() => {
+  sessionStorage.clear()
+})
 
 /** issue #263: 常設のグローバルナビが無く、Ideas/Live/Compare の発見性が低い。 */
 describe('AppNav (issue #263)', () => {
@@ -71,5 +77,64 @@ describe('AppNav (issue #263)', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('link', { name: 'Develop' })).toHaveAttribute('href', '/develop')
+  })
+})
+
+/**
+ * issue #481: タブを往復するだけで絞り込みも比較対象も消えていた。
+ * 画面状態は URL params が単一の情報源なので、ナビのリンク先が素のパス固定だと
+ * 遷移のたびに捨てられる。訪問済みセクションの params を復元する。
+ */
+describe('AppNav section memory (issue #481)', () => {
+  /** 別画面へ移ってから戻るときに、ブラウズの絞り込みが生き残ること。 */
+  it('restores the browse filters after leaving the section', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/browse?q=sma&sort=name&starred=1']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    unmount()
+
+    render(
+      <MemoryRouter initialEntries={['/compare?ids=a,b']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'ブラウズ' })).toHaveAttribute(
+      'href',
+      '/browse?q=sma&sort=name&starred=1',
+    )
+  })
+
+  /** 比較は ids を失うと空状態に落ちる。ナビから戻れることが要件。 */
+  it('keeps the compared strategies reachable from the nav', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/compare?ids=a,b']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    unmount()
+
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: '比較' })).toHaveAttribute(
+      'href',
+      '/compare?ids=a,b',
+    )
+  })
+
+  /** params 付きの to にしても現在地の判定（aria-current）が壊れないこと。 */
+  it('still marks the active route when the link carries params', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse?q=sma']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    const browse = screen.getByRole('link', { name: 'ブラウズ' })
+    expect(browse).toHaveAttribute('href', '/browse?q=sma')
+    expect(browse).toHaveAttribute('aria-current', 'page')
   })
 })
