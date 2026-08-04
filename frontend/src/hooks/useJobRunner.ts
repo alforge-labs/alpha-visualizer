@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { CreateAgentJobParams, CreateJobParams, JobStatus, JobSummary } from '../api/types'
+import type { CreateAgentJobParams, CreateDataJobParams, CreateJobParams, JobStatus, JobSummary } from '../api/types'
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['succeeded', 'failed', 'cancelled'])
 
@@ -210,4 +210,15 @@ export function useAgentRunner(
   onFinished?: (status: JobStatus) => void,
 ): UseJobRunnerResult<CreateAgentJobParams> {
   return useJobRunnerCore(api.createAgentJob, onFinished)
+}
+
+/**
+ * データ取得・更新（data fetch / update）ジョブの起動・進捗購読・キャンセルを
+ * 担うフック。ジョブ作成は POST /api/data/jobs（`api.createDataJob`）を使う
+ * 点だけが異なり、残りは `useJobRunnerCore` を共有する（issue #485）。
+ */
+export function useDataJobRunner(
+  onFinished?: (status: JobStatus) => void,
+): UseJobRunnerResult<CreateDataJobParams> {
+  return useJobRunnerCore(api.createDataJob, onFinished)
 }

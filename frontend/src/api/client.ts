@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -60,6 +60,14 @@ export const api = {
 
   // 保有ヒストリカルデータ一覧（#484 データ管理画面）
   listDatasets: (): Promise<DataListResponse> => request<DataListResponse>('/data'),
+
+  // データ取得・更新ジョブ（#485）。観察・キャンセルは /api/jobs 系を共用
+  createDataJob: (params: CreateDataJobParams): Promise<JobSummary> =>
+    request<JobSummary>('/data/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    }),
 
   // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）
   getHealth: (): Promise<HealthResponse> => requestUrl<HealthResponse>('/health'),
