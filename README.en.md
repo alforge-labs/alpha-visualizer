@@ -24,7 +24,7 @@
 - **Optimize** — Walk-Forward composite equity curves and Grid optimization results
 - **Live** — Period-aligned diff between backtest and live execution
 - **Ideas** — Exploration idea board with status / tag filters
-- **Data** — Historical data inventory with freshness display (datasets older than 24 hours are marked as stale)
+- **Data** — Historical data inventory with freshness display (stale badges), plus GUI-based fetching and bulk incremental updates (with progress and cancellation)
 - **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db)
 - **Develop (Agent Develop)** — Enter a goal and your local Claude Code / Codex CLI develops a strategy automatically (see below)
 - **Theme & i18n** — Dark/Light modes, English/Japanese UI toggle
