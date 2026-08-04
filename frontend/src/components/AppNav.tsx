@@ -13,6 +13,7 @@ const ITEMS: readonly NavItem[] = [
   { to: '/browse', ja: 'ブラウズ', en: 'Browse' },
   { to: '/compare', ja: '比較', en: 'Compare' },
   { to: '/runs', ja: '実行一覧', en: 'Runs' },
+  { to: '/data', ja: 'データ', en: 'Data' },
   { to: '/ideas', ja: 'アイデア', en: 'Ideas' },
   { to: '/live', ja: 'ライブ', en: 'Live' },
   { to: '/maintenance', ja: '整理', en: 'Maintenance' },
@@ -40,8 +41,8 @@ const MEMORIZED_PATHS: readonly string[] = [...ITEMS, DEVELOP_ITEM].map(it => it
 export function AppNav({ lang, showDevelop = false }: { lang: Lang; showDevelop?: boolean }) {
   const L = makeL(lang)
   const resolvePath = useNavMemory(MEMORIZED_PATHS)
-  // ライブの後・整理の前に挿入する（ITEMS[4]=live, ITEMS[5]=maintenance）
-  const items = showDevelop ? [...ITEMS.slice(0, 5), DEVELOP_ITEM, ...ITEMS.slice(5)] : ITEMS
+  // ライブの後・整理の前に挿入する（ITEMS[5]=live, ITEMS[6]=maintenance）
+  const items = showDevelop ? [...ITEMS.slice(0, 6), DEVELOP_ITEM, ...ITEMS.slice(6)] : ITEMS
   return (
     <nav
       aria-label={L('メインナビゲーション', 'Main navigation')}

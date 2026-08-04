@@ -250,6 +250,46 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await setLang(page, lang)
         await captureViewport(page, lang, 'develop', 700)
       })
+
+      // data: データ管理画面（issue #484）。/api/data は forge CLI 委譲かつ
+      // 鮮度が parquet の mtime 依存で、撮影マシンごとに応答が揺れるため
+      // 固定モックで撮る（要更新バッジあり・なしの両方を含める）。
+      test('data', async ({ page }) => {
+        await page.route('**/api/data', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              datasets: [
+                {
+                  symbol: 'CL=F', interval: '1d', start: '2021-08-01', end: '2026-08-03',
+                  rows: 1258, size_bytes: 66560,
+                  updated_at: '2026-08-03T21:00:00+00:00', stale: false,
+                },
+                {
+                  symbol: 'GC=F', interval: '1d', start: '2021-08-01', end: '2026-08-03',
+                  rows: 1258, size_bytes: 66048,
+                  updated_at: '2026-08-03T21:00:00+00:00', stale: false,
+                },
+                {
+                  symbol: 'SPY', interval: '1d', start: '2020-01-02', end: '2026-07-28',
+                  rows: 1652, size_bytes: 84992,
+                  updated_at: '2026-07-28T21:00:00+00:00', stale: true,
+                },
+                {
+                  symbol: 'SPY', interval: '4h', start: '2024-08-01', end: '2026-08-03',
+                  rows: 1140, size_bytes: 43008,
+                  updated_at: '2026-08-03T21:00:00+00:00', stale: false,
+                },
+              ],
+              count: 4,
+            }),
+          }),
+        )
+        await page.goto('/data')
+        await setLang(page, lang)
+        await captureViewport(page, lang, 'data', 700)
+      })
     })
   }
 })

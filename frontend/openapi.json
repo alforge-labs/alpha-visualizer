@@ -975,6 +975,24 @@
         }
       }
     },
+    "/api/data": {
+      "get": {
+        "summary": "List Datasets",
+        "operationId": "list_datasets_api_data_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/maintenance/orphan-runs": {
       "get": {
         "summary": "List Orphan Runs",
@@ -1724,6 +1742,88 @@
           "symbol"
         ],
         "title": "CreateJobRequest"
+      },
+      "DataListResponse": {
+        "properties": {
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DataSetItem"
+            },
+            "type": "array",
+            "title": "Datasets"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets",
+          "count"
+        ],
+        "title": "DataListResponse"
+      },
+      "DataSetItem": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "interval": {
+            "type": "string",
+            "title": "Interval"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "interval",
+          "start",
+          "end",
+          "rows",
+          "size_bytes"
+        ],
+        "title": "DataSetItem",
+        "description": "保有データ 1 件。forge CLI の `--json` の `datasets[]` に鮮度を付加した形。"
       },
       "DuplicateStrategyRequest": {
         "properties": {

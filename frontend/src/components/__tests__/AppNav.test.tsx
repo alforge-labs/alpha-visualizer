@@ -34,6 +34,19 @@ describe('AppNav (issue #263)', () => {
     expect(screen.getByRole('link', { name: 'ブラウズ' })).not.toHaveAttribute('aria-current')
   })
 
+  /** issue #484: データ管理画面（/data）への導線。実行一覧の後・アイデアの前。 */
+  it('renders a link to the Data screen between Runs and Ideas', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'データ' })).toHaveAttribute('href', '/data')
+    const links = screen.getAllByRole('link').map((l) => l.textContent)
+    expect(links.indexOf('データ')).toBeGreaterThan(links.indexOf('実行一覧'))
+    expect(links.indexOf('データ')).toBeLessThan(links.indexOf('アイデア'))
+  })
+
   /** SP3: 孤児バックテスト結果の掃除画面（/maintenance）への導線を追加。5 項目目。 */
   it('renders a link to the Maintenance screen', () => {
     render(
