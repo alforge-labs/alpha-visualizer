@@ -104,6 +104,11 @@ The GUI's "Develop" view (`/develop`) lets you enter a free-text goal, an option
 | Variable | Role |
 |---|---|
 | `ALPHA_VIS_AGENT_TIMEOUT` | Timeout in seconds for an agent job (default `1800`). On timeout, the whole process tree is killed and the job is marked failed |
+| `ALPHA_VIS_AGENT_MAX_TURNS` | Default turn limit (default `100`, claude only). The Develop view's "Turn limit" field overrides it per run (max `500`) |
+
+**About the turn limit**
+
+The claude backend stops as soon as it reaches its turn limit (`--max-turns`), even in the middle of the work. The default is `100`, chosen so it roughly matches the timeout (1800 s by default) — measurements put one turn at about 17 seconds. Exploratory goals that re-run backtests many times can hit the limit, so either raise "Turn limit (optional)" in the Develop view for that run, or split the goal into smaller steps. When a run is cut off this way the error message says so explicitly, and whatever the agent created so far stays in the workspace.
 
 ## Screenshots
 

@@ -53,7 +53,7 @@ class FakeEventSource {
 }
 
 const BOTH_AVAILABLE: AgentBackendsResponse = {
-  enabled: true,
+  enabled: true, default_max_turns: 100, max_max_turns: 500,
   backends: [
     { id: 'claude', available: true, version: '1.2.3' },
     { id: 'codex', available: true, version: '0.9.0' },
@@ -117,7 +117,7 @@ describe('<DevelopPage />', () => {
   })
 
   it('enabled: false のとき localhost 限定の案内を表示する（直接 URL アクセスのガード）', async () => {
-    vi.mocked(api.getAgentBackends).mockResolvedValue({ enabled: false, backends: [] })
+    vi.mocked(api.getAgentBackends).mockResolvedValue({ enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] })
     renderPage()
     await waitFor(() => expect(screen.getByText(/localhost/)).toBeInTheDocument())
     expect(screen.queryByLabelText(/ゴール/)).toBeNull()
@@ -143,6 +143,8 @@ describe('<DevelopPage />', () => {
         goal: 'CL=F の勝率を改善したい',
         symbol: null,
         backend: 'claude',
+        // ターン上限は未入力 → null を明示的に送り、サーバー既定に任せる
+        max_turns: null,
       }),
     )
 

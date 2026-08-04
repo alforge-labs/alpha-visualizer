@@ -4,7 +4,7 @@ import type { AgentBackendsResponse } from '../api/types'
 import { DevelopScreen } from './DevelopScreen'
 
 const BOTH_AVAILABLE: AgentBackendsResponse = {
-  enabled: true,
+  enabled: true, default_max_turns: 100, max_max_turns: 500,
   backends: [
     { id: 'claude', available: true, version: '1.2.3' },
     { id: 'codex', available: true, version: '0.9.0' },
@@ -12,7 +12,7 @@ const BOTH_AVAILABLE: AgentBackendsResponse = {
 }
 
 const NONE_AVAILABLE: AgentBackendsResponse = {
-  enabled: true,
+  enabled: true, default_max_turns: 100, max_max_turns: 500,
   backends: [
     { id: 'claude', available: false, version: null },
     { id: 'codex', available: false, version: null },
@@ -59,7 +59,7 @@ export const DefaultEn: Story = {
 }
 
 export const LocalhostOnly: Story = {
-  args: { ...DefaultJa.args, backends: { enabled: false, backends: [] } },
+  args: { ...DefaultJa.args, backends: { enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] } },
 }
 
 export const NotInstalled: Story = {

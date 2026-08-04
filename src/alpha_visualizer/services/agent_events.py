@@ -81,6 +81,29 @@ def format_agent_event(backend: AgentBackend, line: str) -> str | None:
     return _format_codex(data)
 
 
+def extract_result_subtype(backend: AgentBackend, stdout: str) -> str | None:
+    """claude の最後の ``type=result`` イベントの ``subtype`` を返す。
+
+    ``success`` のほか ``error_max_turns``（ターン上限到達）などが入る。
+    失敗の原因判定には、出力本文の文字列マッチではなく必ずこの構造化された
+    値を使うこと: エージェントの stdout には自身の発話とツール出力が丸ごと
+    含まれるため、本文への部分一致は容易に誤判定する（実際に、ワークスペース内の
+    無関係なファイルを読んだだけで EULA 未同意と誤診断した事例がある）。
+
+    codex の ``exec --json`` には対応するイベントが無いため常に None。
+    """
+    if backend != "claude":
+        return None
+    subtype: str | None = None
+    for line in stdout.splitlines():
+        data = _parse(line)
+        if data is None:
+            continue
+        if data.get("type") == "result" and isinstance(data.get("subtype"), str):
+            subtype = data["subtype"]
+    return subtype
+
+
 def extract_final_text(backend: AgentBackend, stdout: str) -> str | None:
     """stdout 全体から最終レスポンス本文を取り出す。
 

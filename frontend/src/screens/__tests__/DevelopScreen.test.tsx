@@ -7,7 +7,7 @@ import type { DevelopScreenProps } from '../DevelopScreen'
 import { DevelopScreen } from '../DevelopScreen'
 
 const BOTH_AVAILABLE: AgentBackendsResponse = {
-  enabled: true,
+  enabled: true, default_max_turns: 100, max_max_turns: 500,
   backends: [
     { id: 'claude', available: true, version: '1.2.3' },
     { id: 'codex', available: true, version: '0.9.0' },
@@ -64,7 +64,7 @@ describe('<DevelopScreen />', () => {
 
   // 検証 1: backends.enabled === false → localhost 限定の案内が出てフォームが出ない
   it('backends.enabled が false のとき localhost 限定の案内が出てフォームが出ない', () => {
-    renderScreen({ backends: { enabled: false, backends: [] } })
+    renderScreen({ backends: { enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] } })
     expect(screen.getByText(/localhost/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/ゴール/)).toBeNull()
   })
@@ -79,7 +79,7 @@ describe('<DevelopScreen />', () => {
   it('両バックエンドが available:false のとき導入案内カードが claude/codex それぞれの導入リンクとともに出る', () => {
     renderScreen({
       backends: {
-        enabled: true,
+        enabled: true, default_max_turns: 100, max_max_turns: 500,
         backends: [
           { id: 'claude', available: false, version: null },
           { id: 'codex', available: false, version: null },
@@ -101,7 +101,7 @@ describe('<DevelopScreen />', () => {
   it('available: true のバックエンドだけが選択肢に出る', () => {
     renderScreen({
       backends: {
-        enabled: true,
+        enabled: true, default_max_turns: 100, max_max_turns: 500,
         backends: [
           { id: 'claude', available: true, version: '1.2.3' },
           { id: 'codex', available: false, version: null },
@@ -125,7 +125,35 @@ describe('<DevelopScreen />', () => {
     const startButton = screen.getByRole('button', { name: /開始/ })
     expect(startButton).toBeEnabled()
     await userEvent.click(startButton)
-    expect(onStart).toHaveBeenCalledWith('CL=F の勝率を改善したい', '', 'claude')
+    // ターン上限は未入力 → null（サーバー既定に任せる）
+    expect(onStart).toHaveBeenCalledWith('CL=F の勝率を改善したい', '', 'claude', null)
+  })
+
+  // 検証 4.5: ターン上限の指定（issue: EULA 誤診断の真因だったターン上限到達）
+  it('ターン上限を入力すると onStart に数値で渡り、既定値がプレースホルダに出る', async () => {
+    const { onStart } = renderScreen()
+    const turnInput = screen.getByLabelText(/ターン上限/)
+    // 既定値はサーバー応答由来（フロントに二重定義しない）
+    expect(turnInput).toHaveAttribute('placeholder', '100')
+    await userEvent.type(screen.getByLabelText(/ゴール/), 'g')
+    await userEvent.type(turnInput, '250')
+    await userEvent.click(screen.getByRole('button', { name: /開始/ }))
+    expect(onStart).toHaveBeenCalledWith('g', '', 'claude', 250)
+  })
+
+  it('範囲外のターン上限は null に落として送らない（サーバーで 422 になる値を投げない）', async () => {
+    const { onStart } = renderScreen()
+    await userEvent.type(screen.getByLabelText(/ゴール/), 'g')
+    await userEvent.type(screen.getByLabelText(/ターン上限/), '9999')
+    await userEvent.click(screen.getByRole('button', { name: /開始/ }))
+    expect(onStart).toHaveBeenCalledWith('g', '', 'claude', null)
+  })
+
+  it('codex を選ぶとターン上限の入力欄は出ない（codex exec に相当フラグが無い）', async () => {
+    renderScreen()
+    expect(screen.getByLabelText(/ターン上限/)).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText(/バックエンド/), 'codex')
+    expect(screen.queryByLabelText(/ターン上限/)).toBeNull()
   })
 
   // 検証 5: running: true → ログ領域（logLines の内容）とキャンセルボタンが出る
@@ -216,7 +244,7 @@ describe('<DevelopScreen />', () => {
   })
 
   it('lang: en で localhost 限定の案内も英語になる', () => {
-    renderScreen({ lang: 'en', backends: { enabled: false, backends: [] } })
+    renderScreen({ lang: 'en', backends: { enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] } })
     expect(screen.getByText(/only available on localhost/)).toBeInTheDocument()
   })
 

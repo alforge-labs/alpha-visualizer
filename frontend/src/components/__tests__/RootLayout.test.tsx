@@ -25,7 +25,7 @@ vi.mock('../../api/client', () => {
         .fn()
         .mockResolvedValue({ status: 'ok', forge_dir: '/tmp/forge', version: '9.9.9' }),
       // Task 10: RootLayout が useAgentBackends() を呼び showDevelop へ反映する
-      getAgentBackends: vi.fn().mockResolvedValue({ enabled: false, backends: [] }),
+      getAgentBackends: vi.fn().mockResolvedValue({ enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] }),
     },
   }
 })
@@ -103,7 +103,7 @@ describe('RootLayout — AppNav showDevelop wiring (Task 10)', () => {
 
   it('renders the Develop nav link once agent backends report enabled: true', async () => {
     vi.mocked(api.getAgentBackends).mockResolvedValue({
-      enabled: true,
+      enabled: true, default_max_turns: 100, max_max_turns: 500,
       backends: [{ id: 'claude', available: true, version: '1.0.0' }],
     })
     render(

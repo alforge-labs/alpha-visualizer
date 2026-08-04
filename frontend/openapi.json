@@ -1155,6 +1155,16 @@
             },
             "type": "array",
             "title": "Backends"
+          },
+          "default_max_turns": {
+            "type": "integer",
+            "title": "Default Max Turns",
+            "default": 100
+          },
+          "max_max_turns": {
+            "type": "integer",
+            "title": "Max Max Turns",
+            "default": 500
           }
         },
         "type": "object",
@@ -1623,6 +1633,19 @@
               "codex"
             ],
             "title": "Backend"
+          },
+          "max_turns": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Turns"
           }
         },
         "type": "object",

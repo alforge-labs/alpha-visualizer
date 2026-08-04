@@ -111,5 +111,6 @@ async def create_agent_job(
         goal=body.goal,
         backend=body.backend,
         prompt=prompt,
+        max_turns=body.max_turns,
     )
     return _to_summary(record)
