@@ -24,7 +24,7 @@ beforeEach(() => {
 describe('useAgentBackends', () => {
   it('マウント時に 1 回だけ取得し data を返す', async () => {
     const response: AgentBackendsResponse = {
-      enabled: true,
+      enabled: true, default_max_turns: 100, max_max_turns: 500,
       backends: [{ id: 'claude', available: true, version: '1.0.0' }],
     }
     vi.mocked(api.getAgentBackends).mockResolvedValue(response)
@@ -41,7 +41,7 @@ describe('useAgentBackends', () => {
     // /develop へ遷移するたびにサーバー側で claude/codex の --version
     // サブプロセスが起動していた。検出結果は起動中に変わらないので共有する
     const response: AgentBackendsResponse = {
-      enabled: true,
+      enabled: true, default_max_turns: 100, max_max_turns: 500,
       backends: [{ id: 'claude', available: true, version: '1.0.0' }],
     }
     vi.mocked(api.getAgentBackends).mockResolvedValue(response)
@@ -63,7 +63,7 @@ describe('useAgentBackends', () => {
     await waitFor(() => expect(first.result.current.loading).toBe(false))
     expect(first.result.current.data).toBeNull()
 
-    const response: AgentBackendsResponse = { enabled: true, backends: [] }
+    const response: AgentBackendsResponse = { enabled: true, default_max_turns: 100, max_max_turns: 500, backends: [] }
     vi.mocked(api.getAgentBackends).mockResolvedValue(response)
     const second = renderHook(() => useAgentBackends())
     await waitFor(() => expect(second.result.current.data).toEqual(response))

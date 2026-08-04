@@ -519,6 +519,16 @@ export interface components {
             enabled: boolean;
             /** Backends */
             backends: components["schemas"]["AgentBackendInfo"][];
+            /**
+             * Default Max Turns
+             * @default 100
+             */
+            default_max_turns: number;
+            /**
+             * Max Max Turns
+             * @default 500
+             */
+            max_max_turns: number;
         };
         /**
          * BacktestDetail
@@ -742,6 +752,8 @@ export interface components {
              * @enum {string}
              */
             backend: "claude" | "codex";
+            /** Max Turns */
+            max_turns?: number | null;
         };
         /** CreateJobRequest */
         CreateJobRequest: {

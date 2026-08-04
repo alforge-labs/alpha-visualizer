@@ -77,7 +77,7 @@ claude -p "<prompt>" \
   --output-format stream-json \
   --permission-mode dontAsk \
   --allowedTools "Read(//<forge_dir>/**),Edit(//<forge_dir>/**),Glob,Grep,Bash(alpha-forge *)" \
-  --max-turns 50
+  --max-turns 100   # 既定値。GUI / ALPHA_VIS_AGENT_MAX_TURNS で調整可
 
 codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 ```
@@ -92,7 +92,7 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 - codex: `workspace-write` は OS レベルサンドボックス。書き込みは cwd 配下限定、
   ネットワークは既定で遮断される
 - **実装時に検証すること**: codex exec のイベント出力フラグ（`--json` の有無と
-  形式）、両 CLI のバージョン表示コマンド、`--max-turns 50` の妥当性。導入済み
+  形式）、両 CLI のバージョン表示コマンド、`--max-turns` の妥当性。導入済み
   CLI の `--help` 実出力で確認する
 
 ## セキュリティ設計
@@ -131,11 +131,19 @@ codex exec --sandbox workspace-write -C <forge_dir> "<prompt>"
 | 失敗モード | 応答 |
 |---|---|
 | CLI 未検出 | 503（`agent_cli_not_found` code 付き。既存 `ForgeCliNotFoundError` 規約に準拠） + 導入 URL（`FORGE_NOT_FOUND_MESSAGE` と同パターンの定数を `agent_cli.py` に定義） |
-| forge 未導入 / EULA 未同意 | ジョブ投入前に検出して 503（`forge_cli_not_found` code 付き）。実行中に発生した場合は既存 `translate_forge_failure` でログ変換 |
+| forge 未導入 / EULA 未同意 | ジョブ投入前に検出して 503（`forge_cli_not_found` code 付き）。**実行中の失敗に `translate_forge_failure` を使ってはならない**（後述の実障害） |
+| ターン上限到達 | `result.subtype == "error_max_turns"` を検出し、上限値と次の一歩（ゴール分割 / 上限引き上げ）を含む案内へ変換。上限は GUI の「ターン上限」欄・env `ALPHA_VIS_AGENT_MAX_TURNS`（既定 100）で調整可能 |
 | CLI 認証切れ | stderr パターンを `translate_agent_failure`（新設）で「ターミナルで `claude` / `codex` にログインしてください」へ変換 |
 | ハング | env `ALPHA_VIS_AGENT_TIMEOUT`（既定 1800 秒）でタイムアウト → 既存プロセスツリー kill → status failed + ログ末尾。`claude -p` のハングは既知事象のためタイムアウトは必須 |
 | 結果 JSON 抽出失敗 | ジョブ自体は completed、result 無し。GUI は「完了しましたが結果を特定できませんでした。ログを確認してください」を表示（silent fail にしない） |
 | ジョブ投入直後のプロセス起動失敗 | 既存 JobManager のエラー経路に乗せ、SSE で failed を配信 |
+
+**agent の失敗判定に本文の部分一致を使わないこと**（実障害からの制約）。agent の
+stdout にはエージェント自身の発話とツール出力が丸ごと含まれるため、forge 経路と
+同じ感覚で本文へ部分一致をかけると誤診断する。実際に、ワークスペース内の
+無関係なファイルを読んだだけのジョブが `"eula" in stdout` にマッチして
+「EULA 未同意」と案内され、真因（ターン上限到達）が最後まで見えなくなった。
+失敗の判定は `result.subtype` のような構造化イベントを優先する。
 
 ## テスト戦略
 

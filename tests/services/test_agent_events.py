@@ -6,6 +6,7 @@ import json
 
 from alpha_visualizer.services.agent_events import (
     extract_final_text,
+    extract_result_subtype,
     format_agent_event,
 )
 
@@ -83,6 +84,38 @@ class TestFormatClaudeEvent:
             )
             is None
         )
+
+
+class TestExtractResultSubtype:
+    """WHY: 失敗原因の判定は本文の部分一致ではなく構造化イベントで行う。
+    agent の stdout には自身の発話とツール出力が丸ごと含まれるため、本文への
+    部分一致は無関係なファイルを読んだだけで誤診断する（EULA 誤判定の実例）。
+    """
+
+    def test_success_subtype(self) -> None:
+        assert extract_result_subtype("claude", CLAUDE_RESULT) == "success"
+
+    def test_max_turns_subtype(self) -> None:
+        line = json.dumps(
+            {"type": "result", "subtype": "error_max_turns", "is_error": True}
+        )
+        assert extract_result_subtype("claude", line) == "error_max_turns"
+
+    def test_no_result_event_returns_none(self) -> None:
+        assert extract_result_subtype("claude", CLAUDE_ASSISTANT) is None
+
+    def test_codex_has_no_subtype(self) -> None:
+        """codex の exec --json には対応イベントが無い。"""
+        assert extract_result_subtype("codex", CODEX_MESSAGE) is None
+
+    def test_returns_last_subtype_when_multiple(self) -> None:
+        stdout = "\n".join(
+            [
+                json.dumps({"type": "result", "subtype": "success"}),
+                json.dumps({"type": "result", "subtype": "error_max_turns"}),
+            ]
+        )
+        assert extract_result_subtype("claude", stdout) == "error_max_turns"
 
 
 class TestExtractFinalTextClaude:

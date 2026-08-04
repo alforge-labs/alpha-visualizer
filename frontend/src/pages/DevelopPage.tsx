@@ -39,8 +39,13 @@ export function DevelopPage(): ReactElement {
       logLines={runner.logLines}
       result={runner.result}
       error={runner.error}
-      onStart={(goal, symbol, backend) =>
-        void runner.start({ goal, symbol: symbol || null, backend })
+      onStart={(goal, symbol, backend, maxTurns) =>
+        void runner.start({
+          goal,
+          symbol: symbol || null,
+          backend,
+          max_turns: maxTurns,
+        })
       }
       onCancel={() => void runner.cancel()}
       onSetLang={(l) => update('lang', l)}

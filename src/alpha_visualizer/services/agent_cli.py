@@ -53,9 +53,27 @@ AGENT_LOGIN_MESSAGES: dict[AgentBackend, str] = {
     ),
 }
 
-# クイック開発ジョブの想定ステップ（探索→作成→検証数回）に対する上限。
-# 少なすぎると検証の反復が途中で切れ、多すぎると暴走時の課金が膨らむ。
-CLAUDE_MAX_TURNS = 50
+# エージェントのターン上限（claude のみ。codex exec に相当フラグは無い）。
+#
+# 既定値の根拠: 実測で 1 ターンあたり約 17 秒（探索的なゴールで 14 分 / 50 ターン）。
+# 既定タイムアウト DEFAULT_AGENT_TIMEOUT_SEC = 1800 秒はおよそ 100 ターン相当に
+# あたるため、両方の安全網がほぼ同時に効く 100 を既定とする。旧既定の 50 は
+# 「バックテストを何度も回して改善する」ゴールでは途中で切れることが実運用で
+# 判明した（15 回のバックテストを終えた時点で上限に到達した）。
+DEFAULT_CLAUDE_MAX_TURNS = 100
+# GUI / API から指定できる上限。タイムアウトが先に効くため実質の上限では
+# ないが、極端な値で暴走時の課金が膨らむのを防ぐ
+MAX_CLAUDE_MAX_TURNS = 500
+
+# ターン上限に達して打ち切られたときの案内。原因（上限到達）と次の一歩
+# （分割 / 上限引き上げ）の両方を必ず含める
+AGENT_MAX_TURNS_MESSAGE = (
+    "エージェントがターン上限（{limit}）に達したため中断しました。"
+    "ゴールをより小さく分けるか、ターン上限を上げて再実行してください"
+    " / Agent stopped after reaching its turn limit ({limit})."
+    " Split the goal into smaller steps, or raise the turn limit and retry."
+)
+
 
 def _workspace_rule_path(workspace: pathlib.Path) -> str:
     """Claude Code の permission rule 用の絶対パスパターンを作る。
@@ -100,7 +118,11 @@ def resolve_agent_exe(backend: AgentBackend) -> str | None:
 
 
 def build_agent_argv(
-    exe: str, backend: AgentBackend, prompt: str, workspace: pathlib.Path
+    exe: str,
+    backend: AgentBackend,
+    prompt: str,
+    workspace: pathlib.Path,
+    max_turns: int = DEFAULT_CLAUDE_MAX_TURNS,
 ) -> list[str]:
     """backend に応じたヘッドレス実行 argv を構築する。
 
@@ -108,6 +130,8 @@ def build_agent_argv(
     固定する前提（-C / --add-dir はここでは渡さない）。``workspace`` は
     claude のツール許可のスコープにも使う（codex は OS サンドボックスが
     cwd 基準で同じ範囲を担保するため引数として使わない）。
+
+    ``max_turns`` は claude のみに効く（``codex exec`` に相当フラグは無い）。
     """
     if backend == "claude":
         return [
@@ -126,7 +150,7 @@ def build_agent_argv(
             "--allowedTools",
             build_claude_allowed_tools(workspace),
             "--max-turns",
-            str(CLAUDE_MAX_TURNS),
+            str(max_turns),
         ]
     return [
         exe,

@@ -14,6 +14,10 @@ from fastapi.testclient import TestClient
 
 from alpha_visualizer.app import create_app
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.services.agent_cli import (
+    DEFAULT_CLAUDE_MAX_TURNS,
+    MAX_CLAUDE_MAX_TURNS,
+)
 from alpha_visualizer.services.jobs import JobManager
 
 
@@ -131,6 +135,19 @@ class TestAgentBackends:
         assert peak == 2, "version 検出が直列になっている"
         assert [b["version"] for b in body["backends"]] == ["1.0.0", "1.0.0"]
 
+    def test_exposes_turn_limit_defaults(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WHY: GUI はターン上限の既定値・上限をこの応答から得る。フロントに
+        数値を二重定義すると、サーバー既定を変えたときに表示だけが古くなる。"""
+        monkeypatch.setattr(
+            "alpha_visualizer.routers.agent.resolve_agent_exe", lambda backend: None
+        )
+        with _client(tmp_path, agent_stub=None) as client:
+            body = client.get("/api/agent/backends").json()
+        assert body["default_max_turns"] == DEFAULT_CLAUDE_MAX_TURNS
+        assert body["max_max_turns"] == MAX_CLAUDE_MAX_TURNS
+
     def test_disabled_when_non_loopback(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -198,6 +215,28 @@ class TestCreateAgentJob:
         resp = agent_client.post(
             "/api/agent/jobs",
             json={"goal": "g", "symbol": symbol, "backend": "claude"},
+        )
+        assert resp.status_code == 422
+
+    def test_max_turns_is_passed_to_the_job(self, agent_client: TestClient) -> None:
+        """WHY: GUI で指定した上限がジョブに届かなければ設定 UI は嘘になる。"""
+        job_id = agent_client.post(
+            "/api/agent/jobs",
+            json={"goal": "g", "backend": "claude", "max_turns": 33},
+        ).json()["job_id"]
+        record = agent_client.app.state.job_manager.get(job_id)  # type: ignore[attr-defined]
+        assert record is not None
+        assert record.max_turns == 33
+
+    @pytest.mark.parametrize("bad", [0, -1, MAX_CLAUDE_MAX_TURNS + 1])
+    def test_out_of_range_max_turns_is_422(
+        self, agent_client: TestClient, bad: int
+    ) -> None:
+        """WHY: 上限を設けるのは暴走時の課金が青天井にならないようにするため。
+        境界の検証がないと、UI をバイパスした呼び出しで無制限に指定できる。"""
+        resp = agent_client.post(
+            "/api/agent/jobs",
+            json={"goal": "g", "backend": "claude", "max_turns": bad},
         )
         assert resp.status_code == 422
 

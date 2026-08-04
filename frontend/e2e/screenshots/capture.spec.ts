@@ -158,6 +158,10 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
                 { id: 'claude', available: true, version: '2.1.220 (Claude Code)' },
                 { id: 'codex', available: true, version: 'codex-cli 0.145.0' },
               ],
+              // ターン上限欄のプレースホルダに出るため、撮影結果を決定的に
+              // するにはサーバー既定値もモックに含める必要がある
+              default_max_turns: 100,
+              max_max_turns: 500,
             }),
           }),
         )

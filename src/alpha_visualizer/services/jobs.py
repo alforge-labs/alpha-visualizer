@@ -39,13 +39,19 @@ from typing import Any, Literal
 from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services.agent_cli import (
+    AGENT_MAX_TURNS_MESSAGE,
     AGENT_NOT_FOUND_MESSAGES,
+    DEFAULT_CLAUDE_MAX_TURNS,
     AgentBackend,
     build_agent_argv,
     resolve_agent_exe,
     translate_agent_failure,
 )
-from alpha_visualizer.services.agent_events import extract_final_text, format_agent_event
+from alpha_visualizer.services.agent_events import (
+    extract_final_text,
+    extract_result_subtype,
+    format_agent_event,
+)
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
     build_forge_env,
@@ -72,6 +78,7 @@ DEFAULT_JOB_CONCURRENCY = 1
 JOB_CONCURRENCY_ENV = "ALPHA_VIS_JOB_CONCURRENCY"
 DEFAULT_AGENT_TIMEOUT_SEC = 1800
 AGENT_TIMEOUT_ENV = "ALPHA_VIS_AGENT_TIMEOUT"
+AGENT_MAX_TURNS_ENV = "ALPHA_VIS_AGENT_MAX_TURNS"
 
 # ログはジョブごとに末尾 MAX 行のみ保持（seq は通算なので SSE 再接続にも耐える）
 LOG_MAX_LINES = 500
@@ -243,6 +250,8 @@ class JobRecord:
     goal: str | None = None
     backend: str | None = None
     prompt: str | None = None
+    # ターン上限の明示指定（GUI / API から。None なら JobManager の既定値）
+    max_turns: int | None = None
     status: JobStatus = "queued"
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -272,6 +281,7 @@ class JobManager:
         max_active: int | None = None,
         agent_resolver: Callable[[AgentBackend], str | None] = resolve_agent_exe,
         agent_timeout_sec: int | None = None,
+        agent_max_turns: int | None = None,
     ) -> None:
         self._forge_config = forge_config
         self._forge_resolver = forge_resolver
@@ -285,6 +295,9 @@ class JobManager:
         self._agent_resolver = agent_resolver
         self._agent_timeout_sec = agent_timeout_sec or _env_int(
             AGENT_TIMEOUT_ENV, DEFAULT_AGENT_TIMEOUT_SEC
+        )
+        self._agent_max_turns = agent_max_turns or _env_int(
+            AGENT_MAX_TURNS_ENV, DEFAULT_CLAUDE_MAX_TURNS
         )
         self._jobs: dict[str, JobRecord] = {}
         self._order: list[str] = []  # 作成順（古い→新しい）
@@ -381,6 +394,7 @@ class JobManager:
         goal: str | None = None,
         backend: str | None = None,
         prompt: str | None = None,
+        max_turns: int | None = None,
     ) -> JobRecord:
         """ジョブを登録し、バックグラウンド実行タスクを起動する。
 
@@ -408,6 +422,7 @@ class JobManager:
             goal=goal,
             backend=backend,
             prompt=prompt,
+            max_turns=max_turns,
             created_at=datetime.now(UTC),
         )
         self._jobs[job_id] = record
@@ -553,6 +568,8 @@ class JobManager:
     async def _execute(self, record: JobRecord) -> None:
         stdout_line_handler: Callable[[str], str | None] | None = None
         cwd: str | None = None
+        # agent 分岐でのみ意味を持つが、失敗処理から参照するため先に確定させる
+        turn_limit = self._agent_max_turns
         if record.kind == "agent":
             backend: AgentBackend = "codex" if record.backend == "codex" else "claude"
             exe = self._agent_resolver(backend)
@@ -562,7 +579,10 @@ class JobManager:
                 )
                 return
             workspace = self._forge_config.forge_dir
-            argv = build_agent_argv(exe, backend, record.prompt or "", workspace)
+            turn_limit = record.max_turns or turn_limit
+            argv = build_agent_argv(
+                exe, backend, record.prompt or "", workspace, turn_limit
+            )
             timeout_sec = self._agent_timeout_sec
             # エージェントの相対パス操作をワークスペース内に固定する（権限モデル）
             cwd = str(workspace)
@@ -738,12 +758,20 @@ class JobManager:
             log_text = "\n".join(tail)
             if record.kind == "agent":
                 backend = "codex" if record.backend == "codex" else "claude"
+                # 原因判定は構造化イベント（result.subtype）を最優先にする。
+                # ここで translate_forge_failure のような本文の部分一致を使っては
+                # ならない: agent の stdout には自身の発話とツール出力が丸ごと
+                # 含まれるため、ワークスペース内の無関係なファイルを読んだだけで
+                # 誤診断する（実際に EULA 未同意と誤って案内した事例がある）。
+                subtype = extract_result_subtype(backend, stdout_text)
+                turn_limit_error = (
+                    AGENT_MAX_TURNS_MESSAGE.format(limit=turn_limit)
+                    if subtype == "error_max_turns"
+                    else None
+                )
                 error = (
-                    translate_agent_failure(backend, stdout_text, log_text)
-                    # エージェントは alpha-forge CLI を呼ぶため、EULA 未同意など
-                    # forge 側の失敗も agent ジョブの失敗として表面化する。
-                    # agent 用の変換だけでは案内に届かない（設計のエラー処理表）
-                    or translate_forge_failure(stdout_text, log_text)
+                    turn_limit_error
+                    or translate_agent_failure(backend, stdout_text, log_text)
                     or log_text
                     or "エージェントの実行に失敗しました / Agent execution failed"
                 )

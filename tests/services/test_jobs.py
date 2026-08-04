@@ -366,6 +366,7 @@ def _agent_manager(
     agent_stub: str | None,
     *,
     timeout_sec: int = 10,
+    max_turns: int | None = None,
 ) -> JobManager:
     cfg = ForgeConfig.from_forge_dir(tmp_path)
     return JobManager(
@@ -374,6 +375,7 @@ def _agent_manager(
         agent_resolver=lambda backend: agent_stub,
         concurrency=1,
         agent_timeout_sec=timeout_sec,
+        agent_max_turns=max_turns,
     )
 
 
@@ -506,14 +508,20 @@ class TestAgentJob:
         assert record.status == "succeeded"
         assert record.result == {"run_id": "r1"}
 
-    async def test_agent_forge_failure_is_translated(
+    async def test_agent_output_mentioning_eula_is_not_misdiagnosed(
         self, tmp_path: pathlib.Path
     ) -> None:
-        """WHY: エージェントは alpha-forge CLI を呼ぶため、EULA 未同意のような
-        forge 側の失敗がそのまま agent ジョブの失敗として表面化する。agent 用の
-        変換だけでは案内に届かず、利用者は生ログから同意方法を推測できない
-        （設計のエラー処理表が両方の変換を要求している）。"""
-        stub = _make_stub(tmp_path, 'echo "EULA has not been accepted"\nexit 1\n')
+        """WHY: 実障害の再発防止。agent の stdout にはエージェント自身の発話と
+        ツール出力が丸ごと入るため、本文の部分一致で forge の失敗を判定すると
+        誤診断する。実際に、ワークスペース内の無関係なファイルを読んだだけの
+        ジョブが「EULA 未同意」と案内され、真因（ターン上限到達）が隠された。
+        """
+        stub = _make_stub(
+            tmp_path,
+            "echo '{\"type\": \"assistant\", \"message\": {\"content\":"
+            ' [{"type": "text", "text": "read docs about the EULA acceptance flow"}]}}\'\n'
+            "exit 1\n",
+        )
         manager = _agent_manager(tmp_path, stub)
         job = await manager.create(
             kind="agent", strategy_id="", symbol="",
@@ -521,7 +529,62 @@ class TestAgentJob:
         )
         record = await manager.wait_terminal(job.job_id, timeout=10)
         assert record.status == "failed"
-        assert record.error == FORGE_EULA_NOT_ACCEPTED_MESSAGE
+        assert record.error is not None
+        # EULA 未同意の案内へ変換されない
+        assert record.error != FORGE_EULA_NOT_ACCEPTED_MESSAGE
+        assert "同意していない" not in record.error
+        # 代わりに生ログへフォールバックし、実際の出力が調査材料として残る
+        assert "read docs about the EULA acceptance flow" in record.error
+
+    async def test_agent_turn_limit_is_reported_with_next_step(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """WHY: ターン上限での打ち切りは「失敗」ではなく「途中で切れた」状態。
+        原因（上限到達）と次の一歩（分割 / 上限引き上げ）が伝わらないと、
+        利用者は成果物が中途半端な理由を知りようがない。"""
+        stub = _make_stub(
+            tmp_path,
+            "echo '{\"type\": \"result\", \"subtype\": \"error_max_turns\","
+            ' "is_error": true}\'\n'
+            "exit 1\n",
+        )
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p", max_turns=7,
+        )
+        record = await manager.wait_terminal(job.job_id, timeout=10)
+        assert record.status == "failed"
+        assert record.error is not None
+        # 指定した上限値そのものを含める（既定値を出すと調整の手がかりにならない）
+        assert "7" in record.error
+        assert "ターン上限" in record.error
+
+    async def test_agent_max_turns_reaches_argv(self, tmp_path: pathlib.Path) -> None:
+        """WHY: GUI から指定した上限が argv に届かなければ設定 UI は嘘になる。"""
+        stub = _make_stub(tmp_path, 'printf "%s\\n" "$@" > argv.txt\n')
+        manager = _agent_manager(tmp_path, stub)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p", max_turns=42,
+        )
+        await manager.wait_terminal(job.job_id, timeout=10)
+        argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
+        assert argv[argv.index("--max-turns") + 1] == "42"
+
+    async def test_agent_max_turns_falls_back_to_manager_default(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """WHY: 未指定時はサーバー既定（環境変数で調整可能）を使う。"""
+        stub = _make_stub(tmp_path, 'printf "%s\\n" "$@" > argv.txt\n')
+        manager = _agent_manager(tmp_path, stub, max_turns=123)
+        job = await manager.create(
+            kind="agent", strategy_id="", symbol="",
+            goal="g", backend="claude", prompt="p",
+        )
+        await manager.wait_terminal(job.job_id, timeout=10)
+        argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
+        assert argv[argv.index("--max-turns") + 1] == "123"
 
     async def test_agent_giant_stdout_line_does_not_break_later_events(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch

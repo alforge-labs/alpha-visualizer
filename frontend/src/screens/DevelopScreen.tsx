@@ -25,7 +25,13 @@ export interface DevelopScreenProps {
   logLines: string[]
   result: Record<string, unknown> | null
   error: string | null
-  onStart: (goal: string, symbol: string, backend: AgentBackendId) => void
+  /** maxTurns は未指定（サーバー既定に任せる）なら null。claude のみ有効 */
+  onStart: (
+    goal: string,
+    symbol: string,
+    backend: AgentBackendId,
+    maxTurns: number | null,
+  ) => void
   onCancel: () => void
   onSetLang: (l: Lang) => void
   onSetTheme: (t: Theme) => void
@@ -97,6 +103,15 @@ const CONTROL_STYLE = {
   borderRadius: 'var(--radius-sm)',
   textTransform: 'none' as const,
   letterSpacing: 'normal',
+}
+
+const HINT_STYLE = {
+  fontFamily: 'var(--sans)',
+  fontSize: 'var(--fs-caption)',
+  fontWeight: 400,
+  color: 'var(--text3)',
+  letterSpacing: 'normal',
+  textTransform: 'none' as const,
 }
 
 const LOG_STYLE = {
@@ -202,21 +217,51 @@ function InstallGuidanceCard({ lang }: { lang: Lang }): ReactElement {
 interface DevelopFormProps {
   lang: Lang
   availableBackends: AgentBackendInfo[]
+  /** サーバー既定のターン上限（入力欄のプレースホルダに使う） */
+  defaultMaxTurns: number
+  /** 指定できる最大値（サーバー側のバリデーションと揃える） */
+  maxMaxTurns: number
   running: boolean
-  onStart: (goal: string, symbol: string, backend: AgentBackendId) => void
+  onStart: (
+    goal: string,
+    symbol: string,
+    backend: AgentBackendId,
+    maxTurns: number | null,
+  ) => void
+}
+
+/**
+ * ターン上限の入力値を API に渡せる形へ正規化する。
+ * 空欄・不正値は null（= サーバー既定に任せる）にして、422 になる値を
+ * 送らないようにする。
+ */
+function parseTurnLimit(raw: string, max: number): number | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const parsed = Number(trimmed)
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) return null
+  return parsed
 }
 
 // フォームの入力値（goal/symbol/backend 選択）は screens/ 本体には持たせず、
 // この内側コンポーネントに閉じ込める。ただし他の Screen（OptimizeScreen の
 // xParam/view 選択等）と同様、これは fetch を伴わない純粋な UI 入力 state
 // であり、ADR-0001 が禁止する「data fetch hook」ではないため useState を使う。
-function DevelopForm({ lang, availableBackends, running, onStart }: DevelopFormProps): ReactElement {
+function DevelopForm({
+  lang,
+  availableBackends,
+  defaultMaxTurns,
+  maxMaxTurns,
+  running,
+  onStart,
+}: DevelopFormProps): ReactElement {
   const L = makeL(lang)
   const [goal, setGoal] = useState('')
   const [symbol, setSymbol] = useState('')
   const [backend, setBackend] = useState<AgentBackendId>(
     availableBackends[0]?.id ?? 'claude',
   )
+  const [maxTurns, setMaxTurns] = useState('')
 
   const canStart = goal.trim().length > 0 && !running
 
@@ -267,11 +312,41 @@ function DevelopForm({ lang, availableBackends, running, onStart }: DevelopFormP
           ))}
         </select>
       </label>
+      {/* ターン上限は claude のみ有効（codex exec に相当フラグが無い）。
+          codex 選択時に無効な入力欄を見せないよう、条件付きで出す。 */}
+      {backend === 'claude' && (
+        <label style={LABEL_STYLE}>
+          {L('ターン上限（任意）', 'Turn limit (optional)')}
+          <input
+            type="number"
+            min={1}
+            max={maxMaxTurns}
+            value={maxTurns}
+            onChange={(e) => setMaxTurns(e.target.value)}
+            disabled={running}
+            placeholder={String(defaultMaxTurns)}
+            style={CONTROL_STYLE}
+          />
+          <span style={HINT_STYLE}>
+            {L(
+              `未指定なら ${defaultMaxTurns}。上限に達すると作業途中でも打ち切られます`,
+              `Defaults to ${defaultMaxTurns}. The agent is cut off when it reaches this limit, even mid-task.`,
+            )}
+          </span>
+        </label>
+      )}
       <div>
         <Button
           variant="primary"
           disabled={!canStart}
-          onClick={() => onStart(goal.trim(), symbol.trim(), backend)}
+          onClick={() =>
+            onStart(
+              goal.trim(),
+              symbol.trim(),
+              backend,
+              backend === 'claude' ? parseTurnLimit(maxTurns, maxMaxTurns) : null,
+            )
+          }
         >
           {running ? L('実行中…', 'Running…') : L('開始', 'Start')}
         </Button>
@@ -470,6 +545,8 @@ export function DevelopScreen({
             <DevelopForm
               lang={lang}
               availableBackends={availableBackends}
+              defaultMaxTurns={backends.default_max_turns}
+              maxMaxTurns={backends.max_max_turns}
               running={running}
               onStart={onStart}
             />
