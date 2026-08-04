@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
+import { useSearchParams } from 'react-router'
 import { api } from '../api/client'
 import type { DataListResponse, JobStatus } from '../api/types'
 import { useFetchByKey } from '../hooks/useFetchByKey'
@@ -50,9 +51,18 @@ export function DataPage(): ReactElement {
   const state = useFetchByKey('datasets', fetchDatasets, { reloadToken })
   const [query, setQuery] = useState('')
 
-  const [symbol, setSymbol] = useState('')
+  // no_data 地点からの導線（issue #486）はプリフィル付きで遷移してくる
+  // （例: /data?symbol=CL%3DF&interval=1d）。interval は選択肢に無い値を
+  // 受け取っても既定にフォールバックする。
+  const [searchParams] = useSearchParams()
+  const [symbol, setSymbol] = useState(() => searchParams.get('symbol') ?? '')
   const [period, setPeriod] = useState<string>('5y')
-  const [interval, setInterval] = useState<string>('1d')
+  const [interval, setInterval] = useState<string>(() => {
+    const fromQuery = searchParams.get('interval')
+    return fromQuery != null && (INTERVAL_OPTIONS as readonly string[]).includes(fromQuery)
+      ? fromQuery
+      : '1d'
+  })
 
   const onJobFinished = useCallback((status: JobStatus) => {
     // 成功時のみ一覧を再取得する（失敗時に再取得すると、エラー表示と同時に

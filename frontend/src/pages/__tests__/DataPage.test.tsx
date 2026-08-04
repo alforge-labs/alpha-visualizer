@@ -159,6 +159,29 @@ describe('DataPage (issue #484)', () => {
     expect(screen.getByLabelText(/取得する銘柄/)).toBeInTheDocument()
   })
 
+  it('クエリパラメータで取得フォームをプリフィルする (issue #486)', async () => {
+    // no_data 地点からの導線（SignalChartCard / Develop 画面）はプリフィル付きで
+    // 遷移してくる。1 クリックで「取得」まで進める状態にする。
+    render(
+      <MemoryRouter initialEntries={['/data?symbol=GC%3DF&interval=4h']}>
+        <DataPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('SPY')
+    expect(screen.getByLabelText(/取得する銘柄/)).toHaveValue('GC=F')
+    expect(screen.getByLabelText(/足/)).toHaveValue('4h')
+  })
+
+  it('不正な interval クエリは既定値にフォールバックする', async () => {
+    render(
+      <MemoryRouter initialEntries={['/data?symbol=SPY&interval=evil']}>
+        <DataPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('SPY', { selector: 'td' })
+    expect(screen.getByLabelText(/足/)).toHaveValue('1d')
+  })
+
   it('言語切替（SettingsToggles）を備え、英語表示に切り替えられる', async () => {
     // 他の主要画面（Browse / Compare / Develop 等）と同じく画面内に言語・テーマ
     // 切替を持つこと。スクリーンショット撮影（switchLanguage ヘルパー）も

@@ -21,6 +21,7 @@ vi.mock('../../api/client', () => {
       createAgentJob: vi.fn(),
       cancelJob: vi.fn(),
       getJob: vi.fn(),
+      listDatasets: vi.fn(),
     },
   }
 })
@@ -86,6 +87,8 @@ beforeEach(() => {
   vi.mocked(api.createAgentJob).mockReset()
   vi.mocked(api.cancelJob).mockReset()
   vi.mocked(api.getJob).mockReset()
+  // 未取得銘柄の警告（issue #486）用。既定は空一覧（= どの銘柄も未取得扱い）
+  vi.mocked(api.listDatasets).mockReset().mockResolvedValue({ datasets: [], count: 0 } as never)
 })
 
 afterEach(() => {
@@ -127,6 +130,24 @@ describe('<DevelopPage />', () => {
     vi.mocked(api.getAgentBackends).mockRejectedValue(new Error('network error'))
     renderPage()
     await waitFor(() => expect(screen.getByText(/localhost/)).toBeInTheDocument())
+  })
+
+  it('保有データ一覧を取得し、未取得銘柄の入力で警告が出る (issue #486)', async () => {
+    vi.mocked(api.getAgentBackends).mockResolvedValue(BOTH_AVAILABLE)
+    vi.mocked(api.listDatasets).mockResolvedValue({
+      datasets: [
+        {
+          symbol: 'SPY', interval: '1d', start: '2020-01-02', end: '2026-07-28',
+          rows: 1652, size_bytes: 84992, updated_at: null, stale: null,
+        },
+      ],
+      count: 1,
+    } as never)
+    renderPage()
+
+    await waitFor(() => expect(screen.getByLabelText(/銘柄/)).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText(/銘柄/), 'CL=F')
+    expect(await screen.findByText(/未取得/)).toBeInTheDocument()
   })
 
   it('開始操作で onStart 経由 api.createAgentJob が symbol=null で呼ばれ、SSE 完了で結果リンクが出る', async () => {
