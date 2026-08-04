@@ -199,8 +199,14 @@ def serve(
             " strategies, and launch forge processes. Use only on trusted networks.",
             fg="yellow",
         )
-        # 非 loopback 公開時はエージェント起動（任意コード実行に近い）を無効化する
-        app = create_app(config=config, allowed_hosts=["*"], agent_enabled=False)
+        # 非 loopback 公開時はエージェント起動（任意コード実行に近い）と
+        # 書き込み系ローカル限定機能（データ取得ジョブ等）を無効化する
+        app = create_app(
+            config=config,
+            allowed_hosts=["*"],
+            agent_enabled=False,
+            local_write_enabled=False,
+        )
 
     url = f"http://{host}:{port}"
     click.echo(f"alpha-vis serve: {url}  (Ctrl+C で停止 / press Ctrl+C to stop)")

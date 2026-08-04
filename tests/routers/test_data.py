@@ -1,8 +1,12 @@
-"""data ルーターのテスト（forge CLI 委譲・issue #484）。
+"""data ルーターのテスト（forge CLI 委譲・issue #484 / #485）。
 
 `GET /api/data` は `alpha-forge data list --json` に委譲し、visualizer 側で
 parquet の mtime から鮮度（updated_at / stale）を付加する。parquet の中身は
 読まない（single-writer 原則・フォーマット非依存の維持）。
+
+`POST /api/data/jobs`（issue #485）は data fetch / update を既存ジョブ基盤
+（JobManager + SSE）で非同期実行する。テストは test_jobs.py と同じく forge の
+入出力契約を模したスタブ実行ファイルを注入する。
 """
 
 from __future__ import annotations
@@ -10,11 +14,18 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import stat
 import time
+from collections.abc import Iterator
 from typing import Any
 from unittest import mock
 
+import pytest
 from fastapi.testclient import TestClient
+
+from alpha_visualizer.app import create_app
+from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.services.jobs import JobManager
 
 
 def _dataset(symbol: str, file_path: str, **overrides: Any) -> dict[str, Any]:
@@ -211,3 +222,138 @@ class TestDataList:
             resp = client.get("/api/data")
 
         assert resp.status_code >= 400
+
+
+def _make_stub(tmp_path: pathlib.Path, body: str) -> str:
+    """forge の入出力契約を模したスタブ実行ファイルを作る（test_jobs.py と同型）。"""
+    stub = tmp_path / "forge-stub.sh"
+    stub.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+    return str(stub)
+
+
+@pytest.fixture()
+def data_jobs_client(tmp_path: pathlib.Path) -> Iterator[TestClient]:
+    """スタブ forge を注入したデータジョブ用クライアント。
+
+    スタブは受け取った argv を stderr に echo する（ジョブログから CLI 契約を
+    検証するため）。
+    """
+    stub = _make_stub(
+        tmp_path,
+        'echo "ARGS: $@" >&2\nprintf \'{"updated": 1}\'\n',
+    )
+    app = create_app(forge_dir=tmp_path)
+    app.state.job_manager = JobManager(
+        forge_config=ForgeConfig.from_forge_dir(tmp_path),
+        forge_resolver=lambda: stub,
+        concurrency=1,
+        timeout_sec=30,
+    )
+    with TestClient(app) as client:
+        yield client
+
+
+def _wait_status(
+    client: TestClient, job_id: str, statuses: set[str], timeout: float = 10.0
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    body: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        body = client.get(f"/api/jobs/{job_id}").json()
+        if body["status"] in statuses:
+            return body
+        time.sleep(0.05)
+    raise AssertionError(f"job {job_id} が {statuses} になりませんでした: {body}")
+
+
+class TestDataJobs:
+    """POST /api/data/jobs（issue #485）。"""
+
+    def test_fetchジョブを起動して完了する(self, data_jobs_client: TestClient) -> None:
+        resp = data_jobs_client.post(
+            "/api/data/jobs",
+            json={"action": "fetch", "symbol": "CL=F", "period": "5y", "interval": "1d"},
+        )
+        assert resp.status_code == 202
+        body = resp.json()
+        assert body["kind"] == "data_fetch"
+        assert body["symbol"] == "CL=F"
+
+        done = _wait_status(data_jobs_client, body["job_id"], {"succeeded", "failed"})
+        assert done["status"] == "succeeded"
+        # CLI 契約: data fetch --period/--interval、symbol は -- の後ろ
+        assert "ARGS: data fetch --period 5y --interval 1d -- CL=F" in done["log_tail"]
+
+    def test_fetchはperiodとinterval未指定ならforge既定に委ねる(
+        self, data_jobs_client: TestClient
+    ) -> None:
+        resp = data_jobs_client.post(
+            "/api/data/jobs", json={"action": "fetch", "symbol": "SPY"}
+        )
+        assert resp.status_code == 202
+        done = _wait_status(data_jobs_client, resp.json()["job_id"], {"succeeded", "failed"})
+        assert "ARGS: data fetch -- SPY" in done["log_tail"]
+
+    def test_updateジョブを起動して完了する(self, data_jobs_client: TestClient) -> None:
+        resp = data_jobs_client.post("/api/data/jobs", json={"action": "update"})
+        assert resp.status_code == 202
+        body = resp.json()
+        assert body["kind"] == "data_update"
+
+        done = _wait_status(data_jobs_client, body["job_id"], {"succeeded", "failed"})
+        assert done["status"] == "succeeded"
+        assert "ARGS: data update --json" in done["log_tail"]
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            # fetch は symbol 必須
+            {"action": "fetch"},
+            {"action": "fetch", "symbol": ""},
+            # forge argv への素通しを境界で塞ぐ（オプション注入・空白）
+            {"action": "fetch", "symbol": "SPY", "period": "--force"},
+            {"action": "fetch", "symbol": "SPY", "interval": "1d; rm"},
+            {"action": "fetch", "symbol": "SP Y"},
+            {"action": "invalid"},
+        ],
+    )
+    def test_不正リクエストは422(
+        self, data_jobs_client: TestClient, payload: dict[str, Any]
+    ) -> None:
+        resp = data_jobs_client.post("/api/data/jobs", json=payload)
+        assert resp.status_code == 422
+
+    def test_forge未導入なら503と機械可読codeを返す(
+        self, data_jobs_client: TestClient
+    ) -> None:
+        """ジョブを積んでから失敗させず、起動前に fail-fast する（agent と同じ）。"""
+        with mock.patch(
+            "alpha_visualizer.routers.data.resolve_forge_exe", return_value=None
+        ):
+            resp = data_jobs_client.post(
+                "/api/data/jobs", json={"action": "fetch", "symbol": "SPY"}
+            )
+        assert resp.status_code == 503
+        assert resp.json()["code"] == "forge_cli_not_found"
+
+    def test_非loopback公開中は403で拒否する(self, tmp_path: pathlib.Path) -> None:
+        """データ取得は書き込み系のため localhost 限定（routers/agent.py の方針踏襲）。
+
+        参照系の GET /api/data は非 loopback でも引き続き使える。
+        """
+        app = create_app(forge_dir=tmp_path, local_write_enabled=False)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/data/jobs", json={"action": "fetch", "symbol": "SPY"}
+            )
+            assert resp.status_code == 403
+            assert resp.json()["code"] == "local_write_disabled"
+
+            # 参照系はガードの対象外
+            empty = json.dumps({"datasets": [], "count": 0})
+            with (
+                mock.patch("shutil.which", return_value="/usr/local/bin/alpha-forge"),
+                mock.patch("subprocess.run", return_value=_proc(stdout=empty)),
+            ):
+                assert client.get("/api/data").status_code == 200

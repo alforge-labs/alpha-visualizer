@@ -67,7 +67,9 @@ logger = logging.getLogger(__name__)
 # "agent" を渡せてしまうと wft 分岐に落ち、まったく別の forge サブコマンドの
 # argv を静かに組んでしまうため、型で受け付けない。
 ForgeJobKind = Literal["backtest", "optimize", "wft"]
-JobKind = Literal["backtest", "optimize", "wft", "agent"]
+# データ系ジョブ（issue #485）。build_data_argv はこれだけを受理する
+DataJobKind = Literal["data_fetch", "data_update"]
+JobKind = Literal["backtest", "optimize", "wft", "agent", "data_fetch", "data_update"]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
@@ -179,6 +181,30 @@ def build_argv(
     return [*argv, "--", symbol]
 
 
+def build_data_argv(
+    forge_exe: str,
+    kind: DataJobKind,
+    symbol: str,
+    period: str | None,
+    interval: str | None,
+) -> list[str]:
+    """データ系ジョブの forge CLI argv を構築する（issue #485）。
+
+    fetch の symbol は必ず ``--`` の後ろに置く（build_argv と同じ契約）。
+    ``data fetch`` は ``--json`` 非対応（進捗・結果ともテキスト出力）のため
+    付けない。``data update`` は ``--json`` 対応で、結果 JSON が result 要約に
+    載る。period / interval が None のオプションは付けず forge 既定に委ねる。
+    """
+    if kind == "data_fetch":
+        argv = [forge_exe, "data", "fetch"]
+        if period is not None:
+            argv += ["--period", period]
+        if interval is not None:
+            argv += ["--interval", interval]
+        return [*argv, "--", symbol]
+    return [forge_exe, "data", "update", "--json"]
+
+
 # 結果要約に保持するスカラー文字列の最大長（超過分は切り詰める）
 RESULT_STR_MAX_CHARS = 500
 
@@ -246,6 +272,9 @@ class JobRecord:
     # チューニング実行（#293）: パラメータ差し替え済み一時戦略 JSON のパス。
     # ジョブ終了時に削除される。
     strategy_file: str | None = None
+    # データ系ジョブ（issue #485）専用。他 kind では常に None。
+    period: str | None = None
+    interval: str | None = None
     # agent ジョブ（AI 戦略開発）専用。forge ジョブでは常に None。
     goal: str | None = None
     backend: str | None = None
@@ -391,6 +420,8 @@ class JobManager:
         trials: int | None = None,
         windows: int | None = None,
         strategy_file: str | None = None,
+        period: str | None = None,
+        interval: str | None = None,
         goal: str | None = None,
         backend: str | None = None,
         prompt: str | None = None,
@@ -419,6 +450,8 @@ class JobManager:
             trials=trials,
             windows=windows,
             strategy_file=strategy_file,
+            period=period,
+            interval=interval,
             goal=goal,
             backend=backend,
             prompt=prompt,
@@ -602,15 +635,31 @@ class JobManager:
             if forge_exe is None:
                 await self._finish(record, "failed", error=FORGE_NOT_FOUND_MESSAGE)
                 return
-            argv = build_argv(
-                forge_exe,
-                record.kind,
-                record.strategy_id,
-                record.symbol,
-                record.trials,
-                record.windows,
-                strategy_file=record.strategy_file,
-            )
+            if record.kind == "data_fetch" or record.kind == "data_update":  # noqa: PLR1714 — mypy の Literal narrowing は `in` では効かない
+                argv = build_data_argv(
+                    forge_exe,
+                    record.kind,
+                    record.symbol,
+                    record.period,
+                    record.interval,
+                )
+                if record.kind == "data_fetch":
+                    # data fetch は --json 非対応で進捗・結果が stdout に出る
+                    # （--json 契約の「進捗は stderr」に当てはまらない）ため、
+                    # stdout もそのまま SSE ログへ流す。
+                    def stdout_line_handler(line: str) -> str | None:
+                        stripped = line.rstrip()
+                        return stripped or None
+            else:
+                argv = build_argv(
+                    forge_exe,
+                    record.kind,
+                    record.strategy_id,
+                    record.symbol,
+                    record.trials,
+                    record.windows,
+                    strategy_file=record.strategy_file,
+                )
             timeout_sec = self._timeout_sec
 
         spawn_kwargs: dict[str, Any] = {}

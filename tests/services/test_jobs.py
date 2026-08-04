@@ -16,7 +16,7 @@ from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services import jobs
 from alpha_visualizer.services.forge_cli import FORGE_EULA_NOT_ACCEPTED_MESSAGE
-from alpha_visualizer.services.jobs import JobManager, build_argv
+from alpha_visualizer.services.jobs import JobManager, build_argv, build_data_argv
 
 pytestmark = pytest.mark.anyio
 
@@ -93,6 +93,25 @@ class TestBuildArgv:
             "--strategy-file", "/tmp/tune-abc.json", "--json", "--", "AAPL",
         ]
         assert "--strategy" not in argv
+
+
+class TestBuildDataArgv:
+    """データ系ジョブの CLI 契約（issue #485）。symbol は -- の後ろ。"""
+
+    def test_fetch_はperiodとintervalを渡す(self) -> None:
+        argv = build_data_argv("/bin/forge", "data_fetch", "CL=F", "5y", "1d")
+        assert argv == [
+            "/bin/forge", "data", "fetch", "--period", "5y", "--interval", "1d", "--", "CL=F",
+        ]
+
+    def test_fetch_は未指定オプションを省略してforge既定に委ねる(self) -> None:
+        argv = build_data_argv("/bin/forge", "data_fetch", "SPY", None, None)
+        assert argv == ["/bin/forge", "data", "fetch", "--", "SPY"]
+
+    def test_update_は全銘柄差分更新でjsonを付ける(self) -> None:
+        # data update は引数を取らない（保存済み全データの差分更新）
+        argv = build_data_argv("/bin/forge", "data_update", "", None, None)
+        assert argv == ["/bin/forge", "data", "update", "--json"]
 
 
 class TestJobLifecycle:
@@ -668,7 +687,12 @@ class TestCodexAgentJob:
 def test_forge_job_kind_excludes_agent() -> None:
     """WHY: build_argv に "agent" を渡すと wft 分岐に落ち、まったく別の
     forge サブコマンドの argv を組んでしまう。型で受理しないことを保証する
-    （検証者は mypy。ここでは両 Literal の関係が崩れていないことを押さえる）。
+    （検証者は mypy。ここでは各 Literal の関係が崩れていないことを押さえる）。
     """
     assert "agent" not in get_args(jobs.ForgeJobKind)
-    assert set(get_args(jobs.JobKind)) == set(get_args(jobs.ForgeJobKind)) | {"agent"}
+    assert "agent" not in get_args(jobs.DataJobKind)
+    # JobKind = forge 系 + data 系 + agent の直和（重複なし）
+    assert set(get_args(jobs.JobKind)) == (
+        set(get_args(jobs.ForgeJobKind)) | set(get_args(jobs.DataJobKind)) | {"agent"}
+    )
+    assert not set(get_args(jobs.ForgeJobKind)) & set(get_args(jobs.DataJobKind))
