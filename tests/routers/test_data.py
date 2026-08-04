@@ -237,7 +237,10 @@ def data_jobs_client(tmp_path: pathlib.Path) -> Iterator[TestClient]:
     """スタブ forge を注入したデータジョブ用クライアント。
 
     スタブは受け取った argv を stderr に echo する（ジョブログから CLI 契約を
-    検証するため）。
+    検証するため）。JobManager の resolver 注入に加えて、ルーターの fail-fast
+    が呼ぶ ``routers.data.resolve_forge_exe`` も patch する — こちらは実 PATH を
+    見るため、CLI の無い CI では素通しすると 503 になり結果が実行マシン依存に
+    なる（agent ルーターのテストと同じ罠）。
     """
     stub = _make_stub(
         tmp_path,
@@ -250,7 +253,12 @@ def data_jobs_client(tmp_path: pathlib.Path) -> Iterator[TestClient]:
         concurrency=1,
         timeout_sec=30,
     )
-    with TestClient(app) as client:
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.data.resolve_forge_exe", return_value=stub
+        ),
+        TestClient(app) as client,
+    ):
         yield client
 
 
