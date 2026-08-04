@@ -5,6 +5,7 @@ import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { CompareScreen } from '../screens/CompareScreen'
 import { SettingsToggles } from '../components/SettingsToggles'
+import { clearNavMemory, navMemoryPath } from '../hooks/useNavMemory'
 import { normalizeErrorMessage } from '../lib/errorMessage'
 import { makeL } from '../i18n/strings'
 import { Button, Divider, ErrorBanner, Loading, Toolbar } from '../design/primitives'
@@ -22,10 +23,19 @@ export function ComparePage(): React.ReactElement {
   const [reloadToken, setReloadToken] = useState(0)
   const compare = useCompare(ids.length > 0 ? ids : null, reloadToken)
 
+  // issue #481: 一覧へ戻る導線は、離れる前の絞り込み・選択状態へ戻す。
+  const backToBrowse = (): void => {
+    navigate(navMemoryPath('/browse'))
+  }
+
   const removeId = (id: string): void => {
     const next = ids.filter(x => x !== id)
-    if (next.length === 0) navigate('/browse')
-    else setSearchParams({ ids: next.join(',') }, { replace: true })
+    if (next.length === 0) {
+      // 比較対象が空になったら記憶も捨てる。残すとナビの「比較」が、
+      // たった今外した戦略を連れ戻してしまう。
+      clearNavMemory('/compare')
+      backToBrowse()
+    } else setSearchParams({ ids: next.join(',') }, { replace: true })
   }
 
   const symbol =
@@ -50,7 +60,7 @@ export function ComparePage(): React.ReactElement {
       <Toolbar
         sticky
         leading={
-          <Button variant="ghost" size="sm" onClick={() => navigate('/browse')}>
+          <Button variant="ghost" size="sm" onClick={backToBrowse}>
             ← {L('一覧に戻る', 'Back to list')}
           </Button>
         }
@@ -66,7 +76,7 @@ export function ComparePage(): React.ReactElement {
               }}
             />
             <Divider orientation="vertical" />
-            <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+            <Button variant="primary" size="sm" onClick={backToBrowse}>
               + {L('戦略を追加', 'Add strategy')}
             </Button>
           </>
@@ -213,7 +223,7 @@ export function ComparePage(): React.ReactElement {
                 'No strategies selected yet. Pick two or more from the list to compare them.',
               )}
             </div>
-            <Button variant="primary" size="sm" onClick={() => navigate('/browse')}>
+            <Button variant="primary" size="sm" onClick={backToBrowse}>
               {L('戦略を選ぶ', 'Choose strategies')}
             </Button>
           </div>

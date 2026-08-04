@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../api/client', () => ({
@@ -17,10 +17,14 @@ vi.mock('../../api/client', () => ({
 }))
 
 import { api, ApiError } from '../../api/client'
+import { AppNav } from '../../components/AppNav'
+import { navMemoryPath } from '../../hooks/useNavMemory'
 import { ComparePage } from '../ComparePage'
 
 beforeEach(() => {
   vi.mocked(api.compareStrategies).mockReset()
+  // セクションの記憶（issue #481）はテスト間で漏らさない
+  sessionStorage.clear()
 })
 
 /**
@@ -109,5 +113,69 @@ describe('ComparePage keyboard-scrollable region (issue #396)', () => {
     await waitFor(() => expect(api.compareStrategies).toHaveBeenCalled())
     const region = screen.getByRole('region', { name: '比較コンテンツ' })
     expect(region).toHaveAttribute('tabindex', '0')
+  })
+})
+
+/**
+ * issue #481: 比較から一覧へ戻ると絞り込みが消え、選び直しをやり直させていた。
+ * 比較は「一覧で絞り込む → 何件か選ぶ → 見比べる → 一覧へ戻って入れ替える」を
+ * 往復する画面なので、戻るたびに初期化されると作業が成立しない。
+ */
+function LocationProbe(): React.ReactElement {
+  const { pathname, search } = useLocation()
+  return <span data-testid="location">{pathname + search}</span>
+}
+
+/** ブラウズを絞り込んだ状態を、実際の記録主（AppNav）を通して作る。 */
+function visitBrowseWith(search: string): void {
+  const { unmount } = render(
+    <MemoryRouter initialEntries={[`/browse${search}`]}>
+      <AppNav lang="ja" />
+    </MemoryRouter>,
+  )
+  unmount()
+}
+
+describe('ComparePage back navigation (issue #481)', () => {
+  it('returns to the browse list with the filters that were in effect', async () => {
+    vi.mocked(api.compareStrategies).mockResolvedValue([])
+    visitBrowseWith('?q=sma&sort=name')
+
+    render(
+      <MemoryRouter initialEntries={['/compare?ids=a,b']}>
+        <ComparePage />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.compareStrategies).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: /一覧に戻る/ }))
+    expect(screen.getByTestId('location')).toHaveTextContent('/browse?q=sma&sort=name')
+  })
+
+  it('forgets the comparison once its last strategy is removed', async () => {
+    vi.mocked(api.compareStrategies).mockResolvedValue([])
+    // 比較の記憶を作ってから、その唯一の戦略を外す
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/compare?ids=a']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    unmount()
+    expect(navMemoryPath('/compare')).toBe('/compare?ids=a')
+
+    render(
+      <MemoryRouter initialEntries={['/compare?ids=a']}>
+        <ComparePage />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.compareStrategies).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: '外す' }))
+
+    // 記憶を残すと、ナビの「比較」が今外した戦略を連れ戻してしまう
+    expect(navMemoryPath('/compare')).toBe('/compare')
+    expect(screen.getByTestId('location')).toHaveTextContent('/browse')
   })
 })
