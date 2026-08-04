@@ -37,6 +37,9 @@ export type OhlcBar = S['OhlcBar']
 // FX キャリー近似（vis#308）
 export type CarryAdjusted = S['CarryAdjusted']
 export type HistoricalResponse = S['HistoricalResponse']
+// 保有ヒストリカルデータ一覧（#484 データ管理画面）
+export type DataSetItem = S['DataSetItem']
+export type DataListResponse = S['DataListResponse']
 // 孤児バックテスト結果の一覧・削除（maintenance-orphan-runs Task 1/2）
 export type OrphanRunItem = S['OrphanRunItem']
 export type OrphanRunsResponse = S['OrphanRunsResponse']

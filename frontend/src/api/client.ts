@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateJobParams, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -57,6 +57,9 @@ export const api = {
 
   // 全 run 横断一覧（#374 Runs ページ）。スカラー列のみの軽量応答（#384）
   listResults: (): Promise<BacktestSummary[]> => request<BacktestSummary[]>('/results'),
+
+  // 保有ヒストリカルデータ一覧（#484 データ管理画面）
+  listDatasets: (): Promise<DataListResponse> => request<DataListResponse>('/data'),
 
   // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）
   getHealth: (): Promise<HealthResponse> => requestUrl<HealthResponse>('/health'),

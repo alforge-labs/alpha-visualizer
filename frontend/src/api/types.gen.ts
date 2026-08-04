@@ -408,6 +408,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Datasets */
+        get: operations["list_datasets_api_data_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/maintenance/orphan-runs": {
         parameters: {
             query?: never;
@@ -774,6 +791,35 @@ export interface components {
             parameters?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** DataListResponse */
+        DataListResponse: {
+            /** Datasets */
+            datasets: components["schemas"]["DataSetItem"][];
+            /** Count */
+            count: number;
+        };
+        /**
+         * DataSetItem
+         * @description 保有データ 1 件。forge CLI の `--json` の `datasets[]` に鮮度を付加した形。
+         */
+        DataSetItem: {
+            /** Symbol */
+            symbol: string;
+            /** Interval */
+            interval: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Rows */
+            rows: number;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Stale */
+            stale?: boolean | null;
         };
         /** DuplicateStrategyRequest */
         DuplicateStrategyRequest: {
@@ -2389,6 +2435,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_datasets_api_data_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataListResponse"];
                 };
             };
         };
