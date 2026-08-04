@@ -48,8 +48,11 @@ const DATASETS = {
 }
 
 beforeEach(() => {
-  // 言語切替テストの lang=en がモジュールレベル共有ストア（issue #315）経由で
-  // 他テストへ漏れないようにする
+  // 言語切替テストの lang=en がモジュールレベル共有ストア（issue #315）や
+  // localStorage 経由で他テストへ漏れないようにする。localStorage は CI の
+  // jsdom には実在し（永続化されて再初期化時に読み戻される）、ローカルの
+  // node 環境には無い（undefined）ため optional chaining で両対応する。
+  globalThis.localStorage?.clear()
   resetViewerSettingsStoreForTest()
   vi.mocked(api.listDatasets).mockReset().mockResolvedValue(DATASETS as never)
 })
