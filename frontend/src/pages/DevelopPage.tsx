@@ -1,9 +1,16 @@
+import { useMemo } from 'react'
 import type { ReactElement } from 'react'
+import { api } from '../api/client'
+import type { DataListResponse } from '../api/types'
 import { DevelopScreen } from '../screens/DevelopScreen'
 import { useAgentBackends } from '../hooks/useAgentBackends'
+import { useFetchByKey } from '../hooks/useFetchByKey'
 import { useAgentRunner } from '../hooks/useJobRunner'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+
+// useFetchByKey は fetcher の安定参照を前提とするため module-level に置く
+const fetchDatasets = (): Promise<DataListResponse> => api.listDatasets()
 
 /**
  * DevelopPage（Container、Task 10）。
@@ -28,12 +35,24 @@ export function DevelopPage(): ReactElement {
   const { data: backends, loading: backendsLoading } = useAgentBackends()
   const runner = useAgentRunner()
 
+  // 未取得銘柄の警告（issue #486）用。取得失敗・未ロード時は null を渡し、
+  // Screen 側は警告を出さない（誤警告よりも機能を落とさない縮退を優先）。
+  const datasetsState = useFetchByKey('datasets', fetchDatasets)
+  const datasetSymbols = useMemo(
+    () =>
+      datasetsState.status === 'ready'
+        ? datasetsState.data.datasets.map((d) => d.symbol)
+        : null,
+    [datasetsState],
+  )
+
   return (
     <DevelopScreen
       lang={lang}
       theme={theme}
       backends={backends}
       backendsLoading={backendsLoading}
+      datasetSymbols={datasetSymbols}
       running={runner.running}
       status={runner.status}
       logLines={runner.logLines}

@@ -43,6 +43,33 @@ function renderScreen(overrides: Partial<DevelopScreenProps> = {}) {
   return { onStart, onCancel, onSetLang, onSetTheme }
 }
 
+/**
+ * issue #486: 未取得銘柄で AI 開発を始めるとエージェントがデータ取得から
+ * 詰まる（特に codex はサンドボックスの DNS 遮断で実行中に取得できない）。
+ * 入力時点で警告し、データ画面のプリフィル付きフォームへ誘導する。
+ */
+describe('DevelopScreen データ未取得警告 (issue #486)', () => {
+  it('入力した銘柄のデータが未取得なら警告とデータ画面への導線を出す', async () => {
+    renderScreen({ datasetSymbols: ['SPY', 'QQQ'] })
+    await userEvent.type(screen.getByLabelText(/銘柄/), 'CL=F')
+    expect(screen.getByText(/未取得/)).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /データ画面で取得/ })
+    expect(link.getAttribute('href')).toBe('/data?symbol=CL%3DF&interval=1d')
+  })
+
+  it('取得済み銘柄では警告を出さない（大文字小文字は無視）', async () => {
+    renderScreen({ datasetSymbols: ['CL=F'] })
+    await userEvent.type(screen.getByLabelText(/銘柄/), 'cl=f')
+    expect(screen.queryByText(/未取得/)).toBeNull()
+  })
+
+  it('一覧が取得できていない（null / 未指定）ときは警告を出さない', async () => {
+    renderScreen({ datasetSymbols: null })
+    await userEvent.type(screen.getByLabelText(/銘柄/), 'CL=F')
+    expect(screen.queryByText(/未取得/)).toBeNull()
+  })
+})
+
 describe('<DevelopScreen />', () => {
   // 検証 0: SettingsToggles（言語切替 UI）がレンダリングされる（他画面は個別に
   // レンダリングしているが Develop 画面だけ欠落していた不具合の再発防止）

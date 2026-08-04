@@ -35,6 +35,11 @@ export interface DevelopScreenProps {
   onCancel: () => void
   onSetLang: (l: Lang) => void
   onSetTheme: (t: Theme) => void
+  /**
+   * 保有データの銘柄一覧（未取得銘柄の警告・issue #486）。
+   * null / 未指定 = 一覧を取得できていない（警告は出さない縮退）。
+   */
+  datasetSymbols?: string[] | null
 }
 
 // 導入導線 URL。backend/services/agent_cli.py の AGENT_NOT_FOUND_MESSAGES と同じ
@@ -228,6 +233,8 @@ interface DevelopFormProps {
     backend: AgentBackendId,
     maxTurns: number | null,
   ) => void
+  /** 保有データの銘柄一覧（null = 不明。未取得警告・issue #486） */
+  datasetSymbols: string[] | null
 }
 
 /**
@@ -254,6 +261,7 @@ function DevelopForm({
   maxMaxTurns,
   running,
   onStart,
+  datasetSymbols,
 }: DevelopFormProps): ReactElement {
   const L = makeL(lang)
   const [goal, setGoal] = useState('')
@@ -264,6 +272,14 @@ function DevelopForm({
   const [maxTurns, setMaxTurns] = useState('')
 
   const canStart = goal.trim().length > 0 && !running
+
+  // 未取得銘柄の警告（issue #486）。一覧が取れていない（null）ときは
+  // 誤警告を避けて出さない。大文字小文字は無視して照合する。
+  const trimmedSymbol = symbol.trim()
+  const symbolMissing =
+    datasetSymbols != null &&
+    trimmedSymbol !== '' &&
+    !datasetSymbols.some((s) => s.toUpperCase() === trimmedSymbol.toUpperCase())
 
   return (
     <div
@@ -295,6 +311,20 @@ function DevelopForm({
           placeholder="CL=F"
           style={CONTROL_STYLE}
         />
+        {symbolMissing && (
+          <span style={{ ...HINT_STYLE, color: 'var(--warn)' }}>
+            {L(
+              'この銘柄のヒストリカルデータは未取得です。先に取得しておくと確実です（codex はサンドボックスの制限で実行中に取得できません）。',
+              'Historical data for this symbol has not been fetched yet. Fetching it first is recommended (codex cannot fetch during a run due to sandbox restrictions).',
+            )}{' '}
+            <Link
+              to={`/data?symbol=${encodeURIComponent(trimmedSymbol)}&interval=1d`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L('データ画面で取得する →', 'Fetch in the Data view →')}
+            </Link>
+          </span>
+        )}
       </label>
       <label style={LABEL_STYLE}>
         {L('バックエンド', 'Backend')}
@@ -495,6 +525,7 @@ export function DevelopScreen({
   onCancel,
   onSetLang,
   onSetTheme,
+  datasetSymbols = null,
 }: DevelopScreenProps): ReactElement {
   const L = makeL(lang)
 
@@ -549,6 +580,7 @@ export function DevelopScreen({
               maxMaxTurns={backends.max_max_turns}
               running={running}
               onStart={onStart}
+              datasetSymbols={datasetSymbols}
             />
             {running && (
               <RunningPanel lang={lang} logLines={logLines} onCancel={onCancel} />

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 
 import { StrategySignalChartTV } from '../../charts/tv/StrategySignalChartTV'
 import { Card, Loading, SectionHeader } from '../../design/primitives'
@@ -47,11 +48,24 @@ function SignalChartBody({ symbol, trades, regimeSeries, lang }: SignalChartCard
     return <Loading label={L('読み込み中…', 'Loading…')} rows={2} />
   }
   if (state.status === 'no_data') {
+    // 未取得は行き止まりにしない: プリフィル付きの取得フォームへ 1 クリックで
+    // 繋ぐ（issue #486）。interval は本カードの取得と同じ 1d を渡す。
     return (
       <Hint>
         {L(
           `${symbol ?? ''} の OHLC データが見つかりません`,
           `OHLC data not found for ${symbol ?? ''}`,
+        )}
+        {symbol && (
+          <>
+            {' '}
+            <Link
+              to={`/data?symbol=${encodeURIComponent(symbol)}&interval=1d`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L('データ画面で取得する →', 'Fetch in the Data view →')}
+            </Link>
+          </>
         )}
       </Hint>
     )
