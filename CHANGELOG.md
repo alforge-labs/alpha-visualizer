@@ -11,6 +11,15 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.4.1] - 2026-08-04
+
+
+### バグ修正
+
+- ターン上限到達を正しく伝え、EULA の誤診断をやめる (#480)
+
+
+
 ## [1.4.0] - 2026-08-03
 
 
