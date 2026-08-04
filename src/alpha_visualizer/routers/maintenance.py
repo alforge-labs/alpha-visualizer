@@ -11,28 +11,19 @@ visualizer は規約上 alpha_forge を import できず、組み込みテンプ
 from __future__ import annotations
 
 import logging
-import subprocess
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.requests import Request
 
 from alpha_visualizer.dependencies import get_forge_config_dep
-from alpha_visualizer.errors import ExternalProcessError, ForgeCliNotFoundError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.schemas.maintenance import (
     OrphanRunsResponse,
     PruneOrphansRequest,
     PruneOrphansResponse,
 )
-from alpha_visualizer.services.forge_cli import (
-    FORGE_NOT_FOUND_MESSAGE,
-    build_forge_env,
-    mask_home,
-    parse_json_lenient,
-    resolve_forge_exe,
-    translate_forge_failure,
-)
+from alpha_visualizer.services.forge_sync import run_forge_json
 
 logger = logging.getLogger(__name__)
 
@@ -44,48 +35,12 @@ LIST_TIMEOUT_SEC = 60
 PRUNE_TIMEOUT_SEC = 900
 
 
-def _run_forge(argv: list[str], forge_cfg: ForgeConfig, timeout: int) -> dict[str, Any]:
-    """forge を同期実行し、stdout の JSON を返す。"""
-    exe = resolve_forge_exe()
-    if exe is None:
-        raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
-
-    try:
-        proc = subprocess.run(
-            [exe, *argv],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=build_forge_env(forge_cfg),
-            cwd=str(forge_cfg.forge_dir),
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise ExternalProcessError(f"forge がタイムアウトしました（{timeout} 秒）") from e
-
-    if proc.returncode != 0:
-        # 空一覧を返して「掃除済み」と誤読させてはいけない
-        # 既知の失敗（EULA 未同意 / forge が古くサブコマンドを持たない）は、
-        # 生の Click 出力ではなく次の一歩を示す案内に変換する。
-        guidance = translate_forge_failure(proc.stdout or "", proc.stderr or "")
-        if guidance is not None:
-            raise ExternalProcessError(guidance)
-        raw = proc.stderr or proc.stdout or ""
-        detail = mask_home(raw.strip())
-        raise ExternalProcessError(f"forge が異常終了しました（exit {proc.returncode}）: {detail}")
-
-    payload = parse_json_lenient(proc.stdout)
-    if payload is None:
-        raise ExternalProcessError("forge の出力を JSON として解釈できませんでした")
-    return payload
-
-
 @router.get("/maintenance/orphan-runs", response_model=OrphanRunsResponse)
 def list_orphan_runs(
     forge_cfg: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
 ) -> OrphanRunsResponse:
     # --dry-run を必ず付ける。付け忘れると一覧を見ただけで削除が走る
-    payload = _run_forge(
+    payload = run_forge_json(
         ["backtest", "prune-orphans", "--dry-run", "--json"],
         forge_cfg,
         LIST_TIMEOUT_SEC,
@@ -118,7 +73,7 @@ def prune_orphan_runs(
     for strategy_id in body.strategy_ids:
         argv += ["--strategy", strategy_id]
 
-    payload = _run_forge(argv, forge_cfg, PRUNE_TIMEOUT_SEC)
+    payload = run_forge_json(argv, forge_cfg, PRUNE_TIMEOUT_SEC)
     deleted = payload.get("deleted") or {}
     before = int(deleted.get("bytes_before", 0))
     after = int(deleted.get("bytes_after", 0))
