@@ -449,6 +449,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pine/{strategy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Pine */
+        post: operations["generate_pine_api_pine__strategy_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/maintenance/orphan-runs": {
         parameters: {
             query?: never;
@@ -1357,6 +1374,22 @@ export interface components {
             end: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * PineScriptResponse
+         * @description 生成された Pine Script。
+         *
+         *     ``script`` は `alpha-forge pine preview` の stdout（Pine v6 本文）そのもの。
+         *     ``filename`` はダウンロード時の推奨ファイル名（CLI の `pine generate` が
+         *     書き出すファイル名と同じ規約）。
+         */
+        PineScriptResponse: {
+            /** Strategy Id */
+            strategy_id: string;
+            /** Filename */
+            filename: string;
+            /** Script */
+            script: string;
         };
         /** PruneOrphansRequest */
         PruneOrphansRequest: {
@@ -2523,6 +2556,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_pine_api_pine__strategy_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strategy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PineScriptResponse"];
                 };
             };
             /** @description Validation Error */

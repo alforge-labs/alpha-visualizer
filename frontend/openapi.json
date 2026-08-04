@@ -1032,6 +1032,46 @@
         }
       }
     },
+    "/api/pine/{strategy_id}": {
+      "post": {
+        "summary": "Generate Pine",
+        "operationId": "generate_pine_api_pine__strategy_id__post",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PineScriptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/maintenance/orphan-runs": {
       "get": {
         "summary": "List Orphan Runs",
@@ -3022,6 +3062,30 @@
         "type": "object",
         "title": "Period",
         "description": "``BacktestDetail.period``: equity 期間の YYYY-MM 表記。"
+      },
+      "PineScriptResponse": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "filename",
+          "script"
+        ],
+        "title": "PineScriptResponse",
+        "description": "生成された Pine Script。\n\n``script`` は `alpha-forge pine preview` の stdout（Pine v6 本文）そのもの。\n``filename`` はダウンロード時の推奨ファイル名（CLI の `pine generate` が\n書き出すファイル名と同じ規約）。"
       },
       "PruneOrphansRequest": {
         "properties": {
