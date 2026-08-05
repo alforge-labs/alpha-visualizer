@@ -42,6 +42,11 @@ export interface DevelopScreenProps {
    * null / 未指定 = 一覧を取得できていない（警告は出さない縮退）。
    */
   datasetSymbols?: string[] | null
+  /**
+   * 派生開発（issue #491）: 非 null なら既存戦略を起点にした改善モード。
+   * Page が /develop?base=<id> から読んで渡す（ジョブ作成にも Page が含める）。
+   */
+  baseStrategyId?: string | null
 }
 
 // 導入導線 URL。backend/services/agent_cli.py の AGENT_NOT_FOUND_MESSAGES と同じ
@@ -540,10 +545,12 @@ function CompletionPanel({
   status,
   result,
   error,
+  baseStrategyId = null,
 }: {
   lang: Lang
   status: JobStatus
   result: Record<string, unknown> | null
+  baseStrategyId?: string | null
   error: string | null
 }): ReactElement | null {
   const L = makeL(lang)
@@ -607,10 +614,15 @@ function CompletionPanel({
               {L('Pine に出す →', 'Export to Pine →')}
             </Link>
             <Link
-              to={`/compare?ids=${encodeURIComponent(strategyId)}`}
+              // 派生開発（#491）では元戦略と並べた比較へ直行させる
+              to={`/compare?ids=${encodeURIComponent(
+                baseStrategyId != null ? `${baseStrategyId},${strategyId}` : strategyId,
+              )}`}
               style={{ color: 'var(--accent)' }}
             >
-              {L('比較に追加 →', 'Add to compare →')}
+              {baseStrategyId != null
+                ? L('元の戦略と比較 →', 'Compare with the original →')
+                : L('比較に追加 →', 'Add to compare →')}
             </Link>
           </div>
         </div>
@@ -667,6 +679,7 @@ export function DevelopScreen({
   onSetLang,
   onSetTheme,
   datasetSymbols = null,
+  baseStrategyId = null,
 }: DevelopScreenProps): ReactElement {
   const L = makeL(lang)
 
@@ -714,6 +727,29 @@ export function DevelopScreen({
           <InstallGuidanceCard lang={lang} />
         ) : (
           <>
+            {baseStrategyId != null && (
+              <p
+                style={{
+                  margin: 0,
+                  padding: 'var(--space-2) var(--space-3)',
+                  border: '1px solid var(--accent-glow)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--accent-bg)',
+                  fontFamily: 'var(--sans)',
+                  fontSize: 'var(--fs-caption)',
+                  color: 'var(--text2)',
+                }}
+              >
+                {L('派生元: ', 'Deriving from: ')}
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>
+                  {baseStrategyId}
+                </span>
+                {L(
+                  ' の改善版を作成します。ゴールに改善指示（例: トレード頻度を下げて、損切りを浅くして）を書いてください。元の戦略は変更されません。',
+                  ' — an improved derived version will be created. Write the improvement instruction in the Goal (the original strategy is not modified).',
+                )}
+              </p>
+            )}
             <DevelopForm
               lang={lang}
               availableBackends={availableBackends}
@@ -727,7 +763,13 @@ export function DevelopScreen({
               <RunningPanel lang={lang} logLines={logLines} onCancel={onCancel} />
             )}
             {!running && status && (
-              <CompletionPanel lang={lang} status={status} result={result} error={error} />
+              <CompletionPanel
+                lang={lang}
+                status={status}
+                result={result}
+                error={error}
+                baseStrategyId={baseStrategyId}
+              />
             )}
           </>
         )}

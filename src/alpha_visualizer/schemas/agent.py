@@ -46,3 +46,8 @@ class CreateAgentJobRequest(BaseModel):
     # ターン上限の明示指定（claude のみ有効。未指定はサーバー既定）。
     # 上限を設けるのは、暴走時の課金が青天井にならないようにするため
     max_turns: int | None = Field(default=None, ge=1, le=MAX_CLAUDE_MAX_TURNS)
+    # 派生開発（issue #491）: 指定すると既存戦略を起点に改善指示（goal）を
+    # 適用した新規 id の派生版を作る。id 規約は /api/jobs の strategy_id と同じ
+    base_strategy_id: str | None = Field(
+        default=None, min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    )

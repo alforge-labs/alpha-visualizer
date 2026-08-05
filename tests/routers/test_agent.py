@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import pathlib
 import stat
 import textwrap
@@ -365,3 +366,62 @@ class TestCreateAgentJob:
             )
         assert resp.status_code == 503
         assert resp.json()["code"] == "forge_cli_not_found"
+
+
+class TestDeriveAgentJob:
+    """派生開発（issue #491）: base_strategy_id 指定で既存戦略を起点に実行。"""
+
+    def _write_strategy(self, tmp_path: pathlib.Path, strategy_id: str) -> None:
+        strategies_dir = tmp_path / "data" / "strategies"
+        strategies_dir.mkdir(parents=True, exist_ok=True)
+        (strategies_dir / f"{strategy_id}.json").write_text(
+            json.dumps({
+                "strategy_id": strategy_id,
+                "name": "base",
+                "timeframe": "1d",
+                "parameters": {},
+            }),
+            encoding="utf-8",
+        )
+
+    def test_base_strategy_idが派生プロンプトに反映される(
+        self, agent_client: TestClient, tmp_path: pathlib.Path
+    ) -> None:
+        self._write_strategy(tmp_path, "base_s1")
+        resp = agent_client.post(
+            "/api/agent/jobs",
+            json={
+                "goal": "トレード頻度を下げて",
+                "backend": "claude",
+                "base_strategy_id": "base_s1",
+            },
+        )
+        assert resp.status_code == 202
+        job_id = resp.json()["job_id"]
+        record = agent_client.app.state.job_manager.get(job_id)  # type: ignore[attr-defined]
+        assert record is not None
+        assert record.prompt is not None
+        # 派生モード: 元 id の読み込みと「新規 id・元は不変」の安全制約が入る
+        assert "base_s1" in record.prompt
+        assert "NEVER reuse" in record.prompt
+
+    def test_存在しないbase_strategy_idは404(
+        self, agent_client: TestClient
+    ) -> None:
+        """エージェント起動後に判明すると原因がログの奥に埋まる。起動前に
+        fail-fast する（forge / agent CLI の検出と同じ方針）。"""
+        resp = agent_client.post(
+            "/api/agent/jobs",
+            json={"goal": "g", "backend": "claude", "base_strategy_id": "ghost"},
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.parametrize("bad", ["-evil", "a b", "../x", ""])
+    def test_不正なbase_strategy_idは422(
+        self, agent_client: TestClient, bad: str
+    ) -> None:
+        resp = agent_client.post(
+            "/api/agent/jobs",
+            json={"goal": "g", "backend": "claude", "base_strategy_id": bad},
+        )
+        assert resp.status_code == 422

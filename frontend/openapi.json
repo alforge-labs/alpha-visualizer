@@ -1189,7 +1189,7 @@
     "/api/agent/jobs": {
       "post": {
         "summary": "Create Agent Job",
-        "description": "クイック戦略開発ジョブを起動する。\n\n実行前に「機能有効・forge 導入済み・agent CLI 導入済み」を確認して\nfail-fast する（エージェント起動後に判明すると原因がログの奥に埋まる）。",
+        "description": "クイック戦略開発ジョブを起動する。\n\n実行前に「機能有効・forge 導入済み・agent CLI 導入済み・（派生時は）\n派生元の存在」を確認して fail-fast する（エージェント起動後に判明すると\n原因がログの奥に埋まる）。",
         "operationId": "create_agent_job_api_agent_jobs_post",
         "requestBody": {
           "content": {
@@ -1784,6 +1784,19 @@
               }
             ],
             "title": "Max Turns"
+          },
+          "base_strategy_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Strategy Id"
           }
         },
         "type": "object",

@@ -351,3 +351,32 @@ describe('CompletionPanel 次アクション導線 (issue #490)', () => {
     expect(screen.queryByRole('link', { name: /最適化する/ })).toBeNull()
   })
 })
+
+/**
+ * issue #491: 既存戦略を起点にした AI 派生開発。/develop?base=<id> で開くと
+ * 派生元バナーが出て、完了後の比較導線が「元 vs 新」になる。
+ */
+describe('DevelopScreen 派生開発 (issue #491)', () => {
+  it('baseStrategyId があると派生元バナーを表示する', () => {
+    renderScreen({ baseStrategyId: 'base_s1' })
+    expect(screen.getByText(/base_s1/)).toBeInTheDocument()
+    expect(screen.getByText(/改善版/)).toBeInTheDocument()
+  })
+
+  it('派生の完了パネルは元戦略との比較リンクになる', () => {
+    renderScreen({
+      baseStrategyId: 'base_s1',
+      running: false,
+      status: 'succeeded',
+      result: { strategy_id: 'base_s1_v2', run_id: 'r1', summary: 'done' },
+    })
+    expect(
+      screen.getByRole('link', { name: /比較/ }).getAttribute('href'),
+    ).toBe('/compare?ids=base_s1%2Cbase_s1_v2')
+  })
+
+  it('baseStrategyId が無ければバナーは出ない', () => {
+    renderScreen()
+    expect(screen.queryByText(/改善版/)).toBeNull()
+  })
+})

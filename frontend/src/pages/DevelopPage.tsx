@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { ReactElement } from 'react'
+import { useSearchParams } from 'react-router'
 import { api } from '../api/client'
 import type { DataListResponse } from '../api/types'
 import { DevelopScreen } from '../screens/DevelopScreen'
@@ -35,6 +36,11 @@ export function DevelopPage(): ReactElement {
   const { data: backends, loading: backendsLoading } = useAgentBackends()
   const runner = useAgentRunner()
 
+  // 派生開発（issue #491）: Detail の「AI で改善」導線が ?base=<id> で遷移
+  // してくる。存在検証はサーバー側（404）が行う。
+  const [searchParams] = useSearchParams()
+  const baseStrategyId = searchParams.get('base')
+
   // 未取得銘柄の警告（issue #486）用。取得失敗・未ロード時は null を渡し、
   // Screen 側は警告を出さない（誤警告よりも機能を落とさない縮退を優先）。
   const datasetsState = useFetchByKey('datasets', fetchDatasets)
@@ -58,12 +64,15 @@ export function DevelopPage(): ReactElement {
       logLines={runner.logLines}
       result={runner.result}
       error={runner.error}
+      baseStrategyId={baseStrategyId}
       onStart={(goal, symbol, backend, maxTurns) =>
         void runner.start({
           goal,
           symbol: symbol || null,
           backend,
           max_turns: maxTurns,
+          // 派生でないときはフィールド自体を送らない（既存 API 契約を保つ）
+          ...(baseStrategyId != null ? { base_strategy_id: baseStrategyId } : {}),
         })
       }
       onCancel={() => void runner.cancel()}

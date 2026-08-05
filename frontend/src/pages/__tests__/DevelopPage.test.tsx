@@ -200,3 +200,33 @@ describe('<DevelopPage />', () => {
     await waitFor(() => expect(api.cancelJob).toHaveBeenCalledWith('job-agent-1'))
   })
 })
+
+/**
+ * issue #491: /develop?base=<id> で開始すると base_strategy_id 付きで
+ * ジョブが作成される（Detail の「AI で改善」導線から遷移してくる）。
+ */
+describe('DevelopPage 派生開発 (issue #491)', () => {
+  it('base クエリがあると createAgentJob に base_strategy_id が渡る', async () => {
+    vi.mocked(api.getAgentBackends).mockResolvedValue(BOTH_AVAILABLE)
+    vi.mocked(api.createAgentJob).mockResolvedValue(jobSummary())
+    render(
+      <MemoryRouter initialEntries={['/develop?base=base_s1']}>
+        <DevelopPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByLabelText(/ゴール/)).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText(/ゴール/), 'トレード頻度を下げて')
+    await userEvent.click(screen.getByRole('button', { name: /開始/ }))
+
+    await waitFor(() =>
+      expect(api.createAgentJob).toHaveBeenCalledWith({
+        goal: 'トレード頻度を下げて',
+        symbol: null,
+        backend: 'claude',
+        max_turns: null,
+        base_strategy_id: 'base_s1',
+      }),
+    )
+  })
+})
