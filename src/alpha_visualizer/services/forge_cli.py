@@ -44,6 +44,20 @@ FORGE_EULA_NOT_ACCEPTED_MESSAGE = (
 )
 
 
+# Pine 機能は有料プラン限定。forge は rich パネル（罫線付き）でアップグレード
+# 案内を出すが、罫線ごと API の detail に載せると読めないため定型文に変換する。
+# 既購入者が未認証のまま Trial 扱いで詰まるケースの復帰導線（auth login）も
+# forge 本体のパネルと同じく必ず含める（forge issue #1164 と同趣旨）。
+FORGE_PINE_PREMIUM_MESSAGE = (
+    "Pine Script 出力は有料プラン（Lifetime / Annual / Monthly）限定です。"
+    "アップグレード — https://alforgelabs.com/ja/index.html#pricing"
+    "（購入済みの場合はターミナルで `alpha-forge system auth login` を実行して認証してください）"
+    " / Pine Script export is available for paid plans only."
+    " Upgrade — https://alforgelabs.com/en/index.html#pricing"
+    " (already purchased? Run `alpha-forge system auth login` in a terminal)"
+)
+
+
 #: AlphaForge CLI の実行ファイル名。v0.5.0 で ``forge`` から改名され、インストーラ
 #: （alforge-labs/install.sh）は旧 ``forge`` symlink を削除する。旧名へのフォール
 #: バックは張らない — ``forge`` は Foundry（Solidity 開発ツール）のコマンド名でも
@@ -70,6 +84,11 @@ def translate_forge_failure(stdout: str, stderr: str) -> str | None:
     haystack = f"{stdout}\n{stderr}".lower()
     if "eula" in haystack:
         return FORGE_EULA_NOT_ACCEPTED_MESSAGE
+    # Trial プランの Pine entitlement 拒否（issue #488）。判定は「pine」+
+    # 「有料プラン / paid plans」の組み合わせ（FORGE_LANG により日英どちらの
+    # パネルも出うるため両方見る）
+    if "pine" in haystack and ("有料プラン" in f"{stdout}\n{stderr}" or "paid plans" in haystack):
+        return FORGE_PINE_PREMIUM_MESSAGE
     if "no such command" in haystack:
         return FORGE_SUBCOMMAND_NOT_FOUND_MESSAGE
     return None
