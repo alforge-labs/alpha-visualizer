@@ -1225,6 +1225,24 @@
         }
       }
     },
+    "/api/setup/status": {
+      "get": {
+        "summary": "Get Setup Status",
+        "operationId": "get_setup_status_api_setup_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -1312,6 +1330,47 @@
         ],
         "title": "AgentBackendsResponse",
         "description": "検出結果と機能の有効状態。enabled=False は非 loopback 公開中。"
+      },
+      "AuthCheck": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "attention",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "logged_in": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logged In"
+          },
+          "plan_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AuthCheck",
+        "description": "認証状態。ローカル情報の表示のみ（GUI から auth login は起動しない）。"
       },
       "BacktestDetail": {
         "properties": {
@@ -1718,6 +1777,36 @@
         "title": "CarryAdjustedMetrics",
         "description": "FX キャリー（金利差近似）込みの参考メトリクス（vis#308）。\n\nforge `backtest run --carry` の `_compute_equity_metrics` 出力に対応する。"
       },
+      "CliCheck": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "attention",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "CliCheck",
+        "description": "forge CLI の検出結果。version はおまけ情報（パース不能でも ok を保つ）。"
+      },
       "ComparisonEquityCurve": {
         "properties": {
           "dates": {
@@ -1931,6 +2020,36 @@
         ],
         "title": "CreateJobRequest"
       },
+      "DataCheck": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "attention",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "DataCheck",
+        "description": "保有ヒストリカルデータの有無。"
+      },
       "DataListResponse": {
         "properties": {
           "datasets": {
@@ -2057,6 +2176,25 @@
           "strategy_id"
         ],
         "title": "DuplicateStrategyResponse"
+      },
+      "EulaCheck": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "attention",
+              "unknown"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "EulaCheck",
+        "description": "EULA 同意状態。GUI からは同意させない（CLI の対話に委ねる）。"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3399,6 +3537,39 @@
         ],
         "title": "SaveParametersResponse"
       },
+      "SetupStatusResponse": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "cli": {
+            "$ref": "#/components/schemas/CliCheck"
+          },
+          "eula": {
+            "$ref": "#/components/schemas/EulaCheck"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceCheck"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/AuthCheck"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DataCheck"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ready",
+          "cli",
+          "eula",
+          "workspace",
+          "auth",
+          "data"
+        ],
+        "title": "SetupStatusResponse"
+      },
       "SparklineResponse": {
         "properties": {
           "run_id": {
@@ -4076,6 +4247,36 @@
         ],
         "title": "WFOWindow",
         "description": "1 ウィンドウの IS / OOS 評価値。\n\n``pass`` キーは Python 予約語のため明示フィールドとして宣言できない。\nレスポンス互換性のため ``extra=\"allow\"`` で透過的に保持する。"
+      },
+      "WorkspaceCheck": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "attention",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "config_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "WorkspaceCheck",
+        "description": "workspace（forge.yaml / FORGE_CONFIG）の解決状態。"
       }
     }
   }

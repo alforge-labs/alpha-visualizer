@@ -47,6 +47,18 @@ describe('AppNav (issue #263)', () => {
     expect(links.indexOf('データ')).toBeLessThan(links.indexOf('アイデア'))
   })
 
+  /** issue #492: 「はじめる」（/start）は先頭の常設項目。 */
+  it('renders the Start link as the first item', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'はじめる' })).toHaveAttribute('href', '/start')
+    const links = screen.getAllByRole('link').map((l) => l.textContent)
+    expect(links[0]).toBe('はじめる')
+  })
+
   /** SP3: 孤児バックテスト結果の掃除画面（/maintenance）への導線を追加。5 項目目。 */
   it('renders a link to the Maintenance screen', () => {
     render(

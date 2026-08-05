@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SetupStatusResponse, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -60,6 +60,10 @@ export const api = {
 
   // 保有ヒストリカルデータ一覧（#484 データ管理画面）
   listDatasets: (): Promise<DataListResponse> => request<DataListResponse>('/data'),
+
+  // セットアップ状態の集約チェック（#492 「はじめる」画面）
+  getSetupStatus: (): Promise<SetupStatusResponse> =>
+    request<SetupStatusResponse>('/setup/status'),
 
   // データ取得・更新ジョブ（#485）。観察・キャンセルは /api/jobs 系を共用
   createDataJob: (params: CreateDataJobParams): Promise<JobSummary> =>

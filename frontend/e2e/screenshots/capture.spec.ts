@@ -290,6 +290,29 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await setLang(page, lang)
         await captureViewport(page, lang, 'data', 700)
       })
+
+      // start: 「はじめる」チェックリスト（issue #492）。実応答は撮影マシンの
+      // CLI 状態依存のため固定モックで撮る。コマンド案内（auth）と GUI 内
+      // 導線（data）の両パターンが見えるセットアップ途中の状態を選ぶ。
+      test('start', async ({ page }) => {
+        await page.route('**/api/setup/status', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ready: false,
+              cli: { status: 'ok', version: '1.3.0' },
+              eula: { status: 'ok' },
+              workspace: { status: 'ok', config_path: '~/alpha-workspace/forge.yaml' },
+              auth: { status: 'attention', logged_in: false, plan_type: null },
+              data: { status: 'attention', count: 0 },
+            }),
+          }),
+        )
+        await page.goto('/start')
+        await setLang(page, lang)
+        await captureViewport(page, lang, 'start', 820)
+      })
     })
   }
 })
