@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -67,6 +67,12 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
+    }),
+
+  // Pine Script 生成（#487）。pine preview 委譲で本文を返す
+  generatePine: (strategyId: string): Promise<PineScriptResponse> =>
+    request<PineScriptResponse>(`/pine/${encodeURIComponent(strategyId)}`, {
+      method: 'POST',
     }),
 
   // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）

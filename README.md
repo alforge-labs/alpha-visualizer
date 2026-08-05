@@ -19,7 +19,7 @@
 ## 主な機能
 
 - **Browse** — 戦略ライブラリの一覧と検索（Symbol Coverage / Saved Views / Strategy Ledger）
-- **Detail** — Equity / Drawdown / 取引履歴・ベンチマーク（alpha / beta / IR / Correlation）
+- **Detail** — Equity / Drawdown / 取引履歴・ベンチマーク（alpha / beta / IR / Correlation）、TradingView 用 Pine Script（v6）の生成・プレビュー・ダウンロード（有料プラン）
 - **Compare** — 複数戦略の指標比較と相関ヒートマップ
 - **Optimize** — WFO 合成エクイティカーブ・Grid 最適化結果の可視化
 - **Live** — バックテストとライブ実績の期間整合 diff

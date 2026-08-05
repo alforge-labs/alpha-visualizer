@@ -42,6 +42,8 @@ export type DataSetItem = S['DataSetItem']
 export type DataListResponse = S['DataListResponse']
 // データ取得・更新ジョブ（#485）
 export type CreateDataJobParams = S['CreateDataJobRequest']
+// Pine Script 生成（#487）
+export type PineScriptResponse = S['PineScriptResponse']
 // 孤児バックテスト結果の一覧・削除（maintenance-orphan-runs Task 1/2）
 export type OrphanRunItem = S['OrphanRunItem']
 export type OrphanRunsResponse = S['OrphanRunsResponse']

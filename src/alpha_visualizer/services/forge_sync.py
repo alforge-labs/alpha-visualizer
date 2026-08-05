@@ -26,6 +26,19 @@ def run_forge_json(
     argv: list[str], forge_cfg: ForgeConfig, timeout: int
 ) -> dict[str, Any]:
     """forge を同期実行し、stdout の JSON を返す。"""
+    stdout = run_forge_capture(argv, forge_cfg, timeout)
+    payload = parse_json_lenient(stdout)
+    if payload is None:
+        raise ExternalProcessError("forge の出力を JSON として解釈できませんでした")
+    return payload
+
+
+def run_forge_capture(argv: list[str], forge_cfg: ForgeConfig, timeout: int) -> str:
+    """forge を同期実行し、stdout をそのまま返す（issue #487）。
+
+    ``pine preview`` のように stdout が JSON でない（Pine Script 本文などの
+    生テキスト）コマンド用。失敗時の案内変換は ``run_forge_json`` と共通。
+    """
     exe = resolve_forge_exe()
     if exe is None:
         raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
@@ -44,7 +57,7 @@ def run_forge_json(
         raise ExternalProcessError(f"forge がタイムアウトしました（{timeout} 秒）") from e
 
     if proc.returncode != 0:
-        # 空一覧を返して成功に見せてはいけない。
+        # 空結果を返して成功に見せてはいけない。
         # 既知の失敗（EULA 未同意 / forge が古くサブコマンドを持たない）は、
         # 生の Click 出力ではなく次の一歩を示す案内に変換する。
         guidance = translate_forge_failure(proc.stdout or "", proc.stderr or "")
@@ -54,7 +67,4 @@ def run_forge_json(
         detail = mask_home(raw.strip())
         raise ExternalProcessError(f"forge が異常終了しました（exit {proc.returncode}）: {detail}")
 
-    payload = parse_json_lenient(proc.stdout)
-    if payload is None:
-        raise ExternalProcessError("forge の出力を JSON として解釈できませんでした")
-    return payload
+    return proc.stdout

@@ -26,6 +26,7 @@ from alpha_visualizer.routers import jobs as jobs_router
 from alpha_visualizer.routers import live as live_router
 from alpha_visualizer.routers import maintenance as maintenance_router
 from alpha_visualizer.routers import optimize as optimize_router
+from alpha_visualizer.routers import pine as pine_router
 from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import strategies as strategies_router
@@ -205,6 +206,7 @@ def create_app(
     app.include_router(live_router.router, prefix="/api")
     app.include_router(historical_router.router, prefix="/api")
     app.include_router(data_router.router, prefix="/api")
+    app.include_router(pine_router.router, prefix="/api")
     app.include_router(maintenance_router.router, prefix="/api")
     app.include_router(agent_router.router, prefix="/api")
 

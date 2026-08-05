@@ -16,6 +16,7 @@ import { RunLogDetails } from '../components/RunLogDetails'
 import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
 import { TuningPanel } from '../components/tuning/TuningPanel'
 import { DuplicateStrategyCard } from '../components/tuning/DuplicateStrategyCard'
+import { PineExportCard } from '../components/pine/PineExportCard'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { Button, ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
@@ -452,6 +453,14 @@ export function DetailPage() {
                       strategyId={strategyId}
                       lang={lang}
                       onDuplicated={(newId) => navigate(`/detail/${newId}`)}
+                    />
+                  )}
+                  {strategyId && (
+                    <PineExportCard
+                      // 戦略切替時に前戦略のプレビュー・エラーを持ち越さない
+                      key={`pine-${strategyId}`}
+                      strategyId={strategyId}
+                      lang={lang}
                     />
                   )}
                   <StrategyScreen

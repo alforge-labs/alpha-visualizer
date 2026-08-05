@@ -19,7 +19,7 @@
 ## Features
 
 - **Browse** — Strategy library with search (Symbol Coverage / Saved Views / Strategy Ledger)
-- **Detail** — Equity / Drawdown / trade history with benchmark metrics (alpha / beta / IR / Correlation)
+- **Detail** — Equity / Drawdown / trade history with benchmark metrics (alpha / beta / IR / Correlation), plus TradingView Pine Script (v6) generation, preview and download (paid plans)
 - **Compare** — Side-by-side metrics and correlation heatmap across strategies
 - **Optimize** — Walk-Forward composite equity curves and Grid optimization results
 - **Live** — Period-aligned diff between backtest and live execution
