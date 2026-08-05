@@ -280,3 +280,46 @@ describe('<DevelopScreen />', () => {
     expect(screen.getByText(/could not be determined/)).toBeInTheDocument()
   })
 })
+
+/**
+ * issue #489: 自由文でゴールを書けない初中級者向けの選択式ビルダー。
+ * ビルダー操作は共通のゴール textarea に文を書き込む（自由記述は常に可能）。
+ */
+describe('DevelopScreen ゴールビルダー (issue #489)', () => {
+  it('戦略タイプを選ぶとゴール欄に文が組み上がる', async () => {
+    renderScreen()
+    await userEvent.selectOptions(
+      screen.getByLabelText(/戦略タイプ/),
+      'trend_following',
+    )
+    const goal = screen.getByLabelText(/ゴール/) as HTMLTextAreaElement
+    expect(goal.value).toContain('トレンドフォロー')
+    expect(goal.value).toContain('Sharpe')
+  })
+
+  it('指標をチェックすると文に指標名が入る', async () => {
+    renderScreen()
+    await userEvent.selectOptions(
+      screen.getByLabelText(/戦略タイプ/),
+      'mean_reversion',
+    )
+    await userEvent.click(screen.getByRole('checkbox', { name: 'RSI' }))
+    const goal = screen.getByLabelText(/ゴール/) as HTMLTextAreaElement
+    expect(goal.value).toContain('RSI')
+  })
+
+  it('組み上がった文を編集してから開始すると編集後の文が渡る', async () => {
+    const { onStart } = renderScreen()
+    await userEvent.selectOptions(
+      screen.getByLabelText(/戦略タイプ/),
+      'breakout',
+    )
+    const goal = screen.getByLabelText(/ゴール/)
+    await userEvent.type(goal, ' 損切りは浅めにしてください。')
+    await userEvent.click(screen.getByRole('button', { name: /開始/ }))
+    expect(onStart).toHaveBeenCalled()
+    const calledGoal = (onStart.mock.calls[0] as string[])[0]!
+    expect(calledGoal).toContain('ブレイクアウト')
+    expect(calledGoal).toContain('損切りは浅めに')
+  })
+})

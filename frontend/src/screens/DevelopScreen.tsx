@@ -6,6 +6,8 @@ import { Button, ErrorBanner, Loading } from '../design/primitives'
 import type { Theme } from '../hooks/useTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import type { GoalTypeId } from '../lib/goalBuilder'
+import { BUILDER_INDICATORS, GOAL_TYPES, buildGoalText } from '../lib/goalBuilder'
 import { SettingsToggles } from '../components/SettingsToggles'
 
 type AgentBackendId = 'claude' | 'codex'
@@ -271,6 +273,21 @@ function DevelopForm({
   )
   const [maxTurns, setMaxTurns] = useState('')
 
+  // ゴールビルダー（issue #489）。選択が変わるたびにゴール欄へ文を書き込む。
+  // 何も選ばれていない状態への遷移では空文字が返り、自由記述を消さない。
+  const [builderType, setBuilderType] = useState<GoalTypeId | ''>('')
+  const [builderIndicators, setBuilderIndicators] = useState<readonly string[]>([])
+
+  const applyBuilder = (
+    typeId: GoalTypeId | '',
+    indicators: readonly string[],
+  ): void => {
+    setBuilderType(typeId)
+    setBuilderIndicators(indicators)
+    const text = buildGoalText(lang, typeId, indicators)
+    if (text !== '') setGoal(text)
+  }
+
   const canStart = goal.trim().length > 0 && !running
 
   // 未取得銘柄の警告（issue #486）。一覧が取れていない（null）ときは
@@ -290,6 +307,99 @@ function DevelopForm({
         maxWidth: 560,
       }}
     >
+      {/* かんたん入力（issue #489）: 選択式でゴール文を組み立てる補助 UI。
+          モード切替ではなく共通のゴール欄へ書き込む形にする — 自由記述は
+          常に可能で、組み上がった文もそのまま編集できる。 */}
+      <details
+        open
+        style={{
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: 'var(--space-2) var(--space-3)',
+          background: 'var(--surface)',
+        }}
+      >
+        <summary
+          style={{ ...LABEL_STYLE, cursor: 'pointer', userSelect: 'none' }}
+        >
+          {L('かんたん入力（選ぶだけでゴール文を作成）', 'Quick input (build the goal by selecting)')}
+        </summary>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-2)',
+            marginTop: 'var(--space-2)',
+          }}
+        >
+          <label style={LABEL_STYLE}>
+            {L('戦略タイプ', 'Strategy type')}
+            <select
+              aria-label={L('戦略タイプ', 'Strategy type')}
+              value={builderType}
+              onChange={(e) =>
+                applyBuilder(e.target.value as GoalTypeId | '', builderIndicators)
+              }
+              disabled={running}
+              style={CONTROL_STYLE}
+            >
+              <option value="">{L('（選択してください）', '(select)')}</option>
+              {GOAL_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {lang === 'ja' ? t.ja : t.en}
+                </option>
+              ))}
+            </select>
+          </label>
+          <fieldset
+            style={{
+              border: 'none',
+              margin: 0,
+              padding: 0,
+            }}
+          >
+            <legend style={{ ...LABEL_STYLE, padding: 0 }}>
+              {L('使いたい指標（任意）', 'Indicators (optional)')}
+            </legend>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+              {BUILDER_INDICATORS.map((ind) => (
+                <label
+                  key={ind}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontFamily: 'var(--mono)',
+                    fontSize: 'var(--fs-mono-sm)',
+                    color: 'var(--text2)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={builderIndicators.includes(ind)}
+                    onChange={(e) =>
+                      applyBuilder(
+                        builderType,
+                        e.target.checked
+                          ? [...builderIndicators, ind]
+                          : builderIndicators.filter((i) => i !== ind),
+                      )
+                    }
+                    disabled={running}
+                  />
+                  {ind}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <span style={HINT_STYLE}>
+            {L(
+              '選ぶと下の「ゴール」に文が入ります。文は自由に書き換えられます。',
+              'Selecting fills the Goal below. You can edit the text freely.',
+            )}
+          </span>
+        </div>
+      </details>
       <label style={LABEL_STYLE}>
         {L('ゴール', 'Goal')}
         <textarea
