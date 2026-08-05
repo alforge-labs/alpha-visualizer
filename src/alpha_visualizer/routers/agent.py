@@ -12,13 +12,19 @@ from typing import Annotated, get_args
 
 from fastapi import APIRouter, Depends, Request
 
-from alpha_visualizer.dependencies import get_forge_config_dep, get_job_manager
+from alpha_visualizer.dependencies import (
+    get_forge_config_dep,
+    get_job_manager,
+    get_strategies_repo,
+)
 from alpha_visualizer.errors import (
     AgentCliNotFoundError,
     AgentDisabledError,
     ForgeCliNotFoundError,
+    NotFoundError,
 )
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.repositories.strategies import StrategiesRepository
 from alpha_visualizer.routers.jobs import JobSummary, _to_summary
 from alpha_visualizer.schemas.agent import (
     AgentBackendInfo,
@@ -82,11 +88,13 @@ async def create_agent_job(
     request: Request,
     manager: Annotated[JobManager, Depends(get_job_manager)],
     cfg: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
+    strategies_repo: Annotated[StrategiesRepository, Depends(get_strategies_repo)],
 ) -> JobSummary:
     """クイック戦略開発ジョブを起動する。
 
-    実行前に「機能有効・forge 導入済み・agent CLI 導入済み」を確認して
-    fail-fast する（エージェント起動後に判明すると原因がログの奥に埋まる）。
+    実行前に「機能有効・forge 導入済み・agent CLI 導入済み・（派生時は）
+    派生元の存在」を確認して fail-fast する（エージェント起動後に判明すると
+    原因がログの奥に埋まる）。
     """
     if not request.app.state.agent_enabled:
         raise AgentDisabledError(AGENT_DISABLED_MESSAGE)
@@ -94,6 +102,13 @@ async def create_agent_job(
         raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
     if resolve_agent_exe(body.backend) is None:
         raise AgentCliNotFoundError(AGENT_NOT_FOUND_MESSAGES[body.backend])
+    if (
+        body.base_strategy_id is not None
+        and strategies_repo.get_strategy(body.base_strategy_id) is None
+    ):
+        raise NotFoundError(
+            f"戦略が見つかりません / Strategy not found: {body.base_strategy_id}"
+        )
 
     prompt = build_agent_prompt(
         goal=body.goal,
@@ -103,6 +118,7 @@ async def create_agent_job(
         # ここで再実装すると、別置き yaml 運用（--forge-config / FORGE_CONFIG）
         # ではピンが効かず、ログインシェル rc の上書き問題が再発する
         forge_config_path=cfg.config_path,
+        base_strategy_id=body.base_strategy_id,
     )
     record = await manager.create(
         kind="agent",
