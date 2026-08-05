@@ -10,6 +10,9 @@ interface NavItem {
 }
 
 const ITEMS: readonly NavItem[] = [
+  // 「はじめる」はセットアップ完了後も EULA 改訂・認証切れ等の再確認先に
+  // なるため常設する（未セットアップ時の強調は issue #493）
+  { to: '/start', ja: 'はじめる', en: 'Start' },
   { to: '/browse', ja: 'ブラウズ', en: 'Browse' },
   { to: '/compare', ja: '比較', en: 'Compare' },
   { to: '/runs', ja: '実行一覧', en: 'Runs' },
@@ -41,8 +44,8 @@ const MEMORIZED_PATHS: readonly string[] = [...ITEMS, DEVELOP_ITEM].map(it => it
 export function AppNav({ lang, showDevelop = false }: { lang: Lang; showDevelop?: boolean }) {
   const L = makeL(lang)
   const resolvePath = useNavMemory(MEMORIZED_PATHS)
-  // ライブの後・整理の前に挿入する（ITEMS[5]=live, ITEMS[6]=maintenance）
-  const items = showDevelop ? [...ITEMS.slice(0, 6), DEVELOP_ITEM, ...ITEMS.slice(6)] : ITEMS
+  // ライブの後・整理の前に挿入する（ITEMS[6]=live, ITEMS[7]=maintenance）
+  const items = showDevelop ? [...ITEMS.slice(0, 7), DEVELOP_ITEM, ...ITEMS.slice(7)] : ITEMS
   return (
     <nav
       aria-label={L('メインナビゲーション', 'Main navigation')}

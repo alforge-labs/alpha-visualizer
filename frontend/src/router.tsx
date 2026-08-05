@@ -52,6 +52,10 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <Navigate to="/browse" replace /> },
       {
+        path: '/start',
+        element: lazyRoute(() => import('./pages/StartPage'), 'StartPage'),
+      },
+      {
         path: '/browse',
         element: lazyRoute(() => import('./pages/BrowsePage'), 'BrowsePage'),
       },

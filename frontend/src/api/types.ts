@@ -53,6 +53,9 @@ export type PruneOrphansResponse = S['PruneOrphansResponse']
 // AI 戦略開発（agent）バックエンド検出・ジョブ作成（vis Task 9）
 export type AgentBackendsResponse = S['AgentBackendsResponse']
 export type CreateAgentJobParams = S['CreateAgentJobRequest']
+// セットアップ状態チェックリスト（#492 「はじめる」画面）
+export type SetupStatusResponse = S['SetupStatusResponse']
+export type SetupCheckStatus = SetupStatusResponse['cli']['status']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
 

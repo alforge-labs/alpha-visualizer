@@ -559,6 +559,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Setup Status */
+        get: operations["get_setup_status_api_setup_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -614,6 +631,21 @@ export interface components {
              * @default 500
              */
             max_max_turns: number;
+        };
+        /**
+         * AuthCheck
+         * @description 認証状態。ローカル情報の表示のみ（GUI から auth login は起動しない）。
+         */
+        AuthCheck: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "attention" | "unknown";
+            /** Logged In */
+            logged_in?: boolean | null;
+            /** Plan Type */
+            plan_type?: string | null;
         };
         /**
          * BacktestDetail
@@ -809,6 +841,19 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * CliCheck
+         * @description forge CLI の検出結果。version はおまけ情報（パース不能でも ok を保つ）。
+         */
+        CliCheck: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "attention" | "unknown";
+            /** Version */
+            version?: string | null;
+        };
+        /**
          * ComparisonEquityCurve
          * @description ``StrategyComparison.equity`` の構造（dates / values の配列ペア）。
          */
@@ -882,6 +927,19 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /**
+         * DataCheck
+         * @description 保有ヒストリカルデータの有無。
+         */
+        DataCheck: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "attention" | "unknown";
+            /** Count */
+            count?: number | null;
+        };
         /** DataListResponse */
         DataListResponse: {
             /** Datasets */
@@ -924,6 +982,17 @@ export interface components {
             strategy_id: string;
             /** Log Tail */
             log_tail?: string | null;
+        };
+        /**
+         * EulaCheck
+         * @description EULA 同意状態。GUI からは同意させない（CLI の対話に委ねる）。
+         */
+        EulaCheck: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "attention" | "unknown";
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1524,6 +1593,16 @@ export interface components {
             /** Log Tail */
             log_tail?: string | null;
         };
+        /** SetupStatusResponse */
+        SetupStatusResponse: {
+            /** Ready */
+            ready: boolean;
+            cli: components["schemas"]["CliCheck"];
+            eula: components["schemas"]["EulaCheck"];
+            workspace: components["schemas"]["WorkspaceCheck"];
+            auth: components["schemas"]["AuthCheck"];
+            data: components["schemas"]["DataCheck"];
+        };
         /**
          * SparklineResponse
          * @description Browse 行ホバー用の軽量 sparkline (issue #387)。
@@ -1911,6 +1990,19 @@ export interface components {
             };
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * WorkspaceCheck
+         * @description workspace（forge.yaml / FORGE_CONFIG）の解決状態。
+         */
+        WorkspaceCheck: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "attention" | "unknown";
+            /** Config Path */
+            config_path?: string | null;
         };
     };
     responses: never;
@@ -2793,6 +2885,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_setup_status_api_setup_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatusResponse"];
                 };
             };
         };
