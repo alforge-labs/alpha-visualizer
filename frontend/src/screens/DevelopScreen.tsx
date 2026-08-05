@@ -582,6 +582,37 @@ function CompletionPanel({
               {summary}
             </p>
           )}
+          {/* 次アクション導線（issue #490）: 作りっぱなしで終わらせず、
+              初中級者を次の学習ステップ（最適化 → Pine → 比較）へ繋ぐ */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 'var(--space-3)',
+              flexWrap: 'wrap',
+              marginTop: 'var(--space-1)',
+              fontFamily: 'var(--sans)',
+              fontSize: 'var(--fs-caption)',
+            }}
+          >
+            <Link
+              to={`/detail/${encodeURIComponent(strategyId)}?tab=optimize`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L('最適化する →', 'Optimize →')}
+            </Link>
+            <Link
+              to={`/detail/${encodeURIComponent(strategyId)}?tab=strategy`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L('Pine に出す →', 'Export to Pine →')}
+            </Link>
+            <Link
+              to={`/compare?ids=${encodeURIComponent(strategyId)}`}
+              style={{ color: 'var(--accent)' }}
+            >
+              {L('比較に追加 →', 'Add to compare →')}
+            </Link>
+          </div>
         </div>
       )
     }

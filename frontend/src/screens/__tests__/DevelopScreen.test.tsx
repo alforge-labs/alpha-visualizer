@@ -323,3 +323,31 @@ describe('DevelopScreen ゴールビルダー (issue #489)', () => {
     expect(calledGoal).toContain('損切りは浅めに')
   })
 })
+
+/**
+ * issue #490: AI が作った戦略を「作りっぱなし」で終わらせず、次の学習ステップ
+ * （最適化 / Pine 出力 / 比較）へ繋ぐ。
+ */
+describe('CompletionPanel 次アクション導線 (issue #490)', () => {
+  it('成功時に最適化・Pine 出力・比較への導線が出る', () => {
+    renderScreen({
+      running: false,
+      status: 'succeeded',
+      result: { strategy_id: 'new_strat', run_id: 'r1', summary: 'done' },
+    })
+    expect(
+      screen.getByRole('link', { name: /最適化する/ }).getAttribute('href'),
+    ).toBe('/detail/new_strat?tab=optimize')
+    expect(
+      screen.getByRole('link', { name: /Pine に出す/ }).getAttribute('href'),
+    ).toBe('/detail/new_strat?tab=strategy')
+    expect(
+      screen.getByRole('link', { name: /比較に追加/ }).getAttribute('href'),
+    ).toBe('/compare?ids=new_strat')
+  })
+
+  it('strategy_id が判明しない成功では次アクションを出さない', () => {
+    renderScreen({ running: false, status: 'succeeded', result: null })
+    expect(screen.queryByRole('link', { name: /最適化する/ })).toBeNull()
+  })
+})
