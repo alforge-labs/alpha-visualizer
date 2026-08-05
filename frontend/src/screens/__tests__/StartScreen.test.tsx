@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import type { SetupStatusResponse } from '../../api/types'
+import type { GuideSteps } from '../../components/start/FirstStrategyGuide'
 import { StartScreen } from '../StartScreen'
 
 /** issue #492: 「はじめる」画面。5 チェックの状態別に正しい次の一手を出す。 */
@@ -15,9 +16,17 @@ const ALL_OK: SetupStatusResponse = {
   data: { status: 'ok', count: 3 },
 }
 
+const GUIDE_STEPS: GuideSteps = {
+  dataDone: true,
+  strategyDone: false,
+  backtestDone: false,
+  firstStrategyId: null,
+}
+
 function renderScreen(overrides: Partial<SetupStatusResponse> = {}, opts?: {
   loading?: boolean
   error?: string | null
+  guideDismissed?: boolean
 }) {
   const status: SetupStatusResponse = { ...ALL_OK, ...overrides, ready: overrides.ready ?? false }
   const onRetry = vi.fn()
@@ -29,6 +38,10 @@ function renderScreen(overrides: Partial<SetupStatusResponse> = {}, opts?: {
         status={opts?.loading || opts?.error ? null : status}
         loading={opts?.loading ?? false}
         error={opts?.error ?? null}
+        guideSteps={GUIDE_STEPS}
+        guideDismissed={opts?.guideDismissed ?? false}
+        onDismissGuide={() => {}}
+        onRestoreGuide={() => {}}
         onRetry={onRetry}
         onSetLang={() => {}}
         onSetTheme={() => {}}
@@ -92,6 +105,19 @@ describe('StartScreen (issue #492)', () => {
     expect(screen.getByText(/確認できませんでした/)).toBeInTheDocument()
     // 他の ok 項目は無傷
     expect(screen.getByText(/v1\.3\.0/)).toBeInTheDocument()
+  })
+
+  /** issue #493: チェックリストの下に「はじめての戦略作成」ガイドを出す。 */
+  it('ステップガイドをチェックリストの下に表示する', () => {
+    renderScreen()
+    expect(screen.getByText('はじめての戦略作成')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /データを取得する/ })).toBeInTheDocument()
+  })
+
+  it('ガイド非表示中は再表示ボタンを出す（ナビからいつでも戻れる）', () => {
+    renderScreen({}, { guideDismissed: true })
+    expect(screen.queryByText('はじめての戦略作成')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ガイドを再表示/ })).toBeInTheDocument()
   })
 
   it('読み込み中はチェックリストを出さない', () => {
