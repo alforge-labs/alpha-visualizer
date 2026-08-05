@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -74,6 +74,10 @@ export const api = {
     request<PineScriptResponse>(`/pine/${encodeURIComponent(strategyId)}`, {
       method: 'POST',
     }),
+
+  // 生成前の非対応指標チェック（#488）。対応表の SSoT は forge 側
+  getPineSupport: (strategyId: string): Promise<PineSupportResponse> =>
+    request<PineSupportResponse>(`/pine/${encodeURIComponent(strategyId)}/support`),
 
   // /health は /api 配下でない唯一の JSON エンドポイント（バージョン表示 #399）
   getHealth: (): Promise<HealthResponse> => requestUrl<HealthResponse>('/health'),

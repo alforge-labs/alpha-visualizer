@@ -1072,6 +1072,47 @@
         }
       }
     },
+    "/api/pine/{strategy_id}/support": {
+      "get": {
+        "summary": "Pine Support",
+        "description": "生成前の非対応指標チェック（issue #488）。\n\n対応表は `analyze indicator list --json` に委譲する（SSoT は forge。\nvisualizer に対応指標をハードコードすると forge 側の追加・変更とずれる）。\n対応表に無い指標型は「非対応」として警告に倒す — 判定できないものを\n「対応」と見せると TradingView へ持ち出してから動かない事故になる。\n参照専用のため local_write ガードは掛けない。",
+        "operationId": "pine_support_api_pine__strategy_id__support_get",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PineSupportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/maintenance/orphan-runs": {
       "get": {
         "summary": "List Orphan Runs",
@@ -3063,6 +3104,30 @@
         "title": "Period",
         "description": "``BacktestDetail.period``: equity 期間の YYYY-MM 表記。"
       },
+      "PineIndicatorSupport": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "pine_supported": {
+            "type": "boolean",
+            "title": "Pine Supported"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "pine_supported"
+        ],
+        "title": "PineIndicatorSupport",
+        "description": "戦略が使う指標 1 件の Pine 対応状況（issue #488）。"
+      },
       "PineScriptResponse": {
         "properties": {
           "strategy_id": {
@@ -3086,6 +3151,41 @@
         ],
         "title": "PineScriptResponse",
         "description": "生成された Pine Script。\n\n``script`` は `alpha-forge pine preview` の stdout（Pine v6 本文）そのもの。\n``filename`` はダウンロード時の推奨ファイル名（CLI の `pine generate` が\n書き出すファイル名と同じ規約）。"
+      },
+      "PineSupportResponse": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "indicators": {
+            "items": {
+              "$ref": "#/components/schemas/PineIndicatorSupport"
+            },
+            "type": "array",
+            "title": "Indicators"
+          },
+          "unsupported_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unsupported Types"
+          },
+          "all_unsupported": {
+            "type": "boolean",
+            "title": "All Unsupported"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "indicators",
+          "unsupported_types",
+          "all_unsupported"
+        ],
+        "title": "PineSupportResponse",
+        "description": "生成前の非対応指標チェック結果（issue #488）。\n\n対応表の SSoT は forge 側（`analyze indicator list --json`）。\n``unsupported_types`` は重複を除いた昇順。``all_unsupported`` は指標を\n1 つ以上持ち、そのすべてが Pine 非対応（= 生成しても TradingView で\n機能しない可能性が高い）ことを示す。"
       },
       "PruneOrphansRequest": {
         "properties": {

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
-import type { PineScriptResponse } from '../../api/types'
+import type { PineScriptResponse, PineSupportResponse } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { downloadTextFile } from '../../lib/download'
@@ -44,12 +44,17 @@ interface Props {
 }
 
 /**
- * Pine Script エクスポートカード（issue #487）。
+ * Pine Script エクスポートカード（issue #487 / #488）。
  *
  * 「TradingView へ出力」— `POST /api/pine/{id}`（`pine preview` 委譲）で
  * Pine v6 本文を取得し、プレビュー・コピー・`.pine` ダウンロードを提供する。
- * Trial プランでは CLI の entitlement エラー（有料プラン案内）が detail で
- * 返り、そのまま表示する（アップグレード導線の作り込みは issue #488）。
+ *
+ * 生成前に非対応指標を警告する（#488）: 非対応指標は Pine 側で na 化され、
+ * それに依存する条件はエントリーしなくなる。「TradingView に持って行ったら
+ * 動きが違う」という混乱を出力前に防ぐ。対応チェックの取得に失敗したときは
+ * 警告なしで生成を妨げない（縮退）。生成成功後は貼り付け手順を案内する。
+ * Trial の entitlement エラーは translate 済みの detail（アップグレード +
+ * 認証復帰導線入り）をそのまま表示する。
  */
 export function PineExportCard({ strategyId, lang }: Props) {
   const L = makeL(lang)
@@ -57,6 +62,23 @@ export function PineExportCard({ strategyId, lang }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PineScriptResponse | null>(null)
   const [copied, setCopied] = useState(false)
+  const [support, setSupport] = useState<PineSupportResponse | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getPineSupport(strategyId)
+      .then((s) => {
+        if (!cancelled) setSupport(s)
+      })
+      .catch(() => {
+        // 対応チェックできなくても生成は妨げない（誤警告よりも縮退を優先）
+        if (!cancelled) setSupport(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [strategyId])
 
   const handleGenerate = async (): Promise<void> => {
     if (busy) return
@@ -105,6 +127,42 @@ export function PineExportCard({ strategyId, lang }: Props) {
           'Generates TradingView Pine Script (v6) from this strategy. Copy or download the output and paste it into the TradingView Pine editor.',
         )}
       </p>
+      {support != null && support.unsupported_types.length > 0 && (
+        <div
+          role="note"
+          style={{
+            margin: '0 0 var(--space-3)',
+            padding: 'var(--space-3)',
+            border: `1px solid ${support.all_unsupported ? 'var(--danger)' : 'var(--warn)'}`,
+            borderRadius: 'var(--radius-sm)',
+            background: `color-mix(in srgb, ${support.all_unsupported ? 'var(--danger)' : 'var(--warn)'} 8%, transparent)`,
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            color: 'var(--text2)',
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 600 }}>
+            {support.all_unsupported
+              ? L(
+                  'この戦略の指標はすべて Pine 非対応です。生成しても TradingView では機能しません。',
+                  'All indicators in this strategy are unsupported in Pine. The output will not function on TradingView.',
+                )
+              : L(
+                  '一部の指標が Pine 非対応です。',
+                  'Some indicators are unsupported in Pine.',
+                )}
+          </p>
+          <p style={{ margin: 'var(--space-1) 0 0' }}>
+            {L(
+              '非対応の指標は Pine 側で無効化（na 化）され、これらに依存する条件はエントリーしません: ',
+              'Unsupported indicators are disabled (na) in Pine, and conditions depending on them will not enter: ',
+            )}
+            <span style={{ fontFamily: 'var(--mono)' }}>
+              {support.unsupported_types.join(', ')}
+            </span>
+          </p>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <Button onClick={() => void handleGenerate()} disabled={busy}>
           {busy
@@ -144,6 +202,36 @@ export function PineExportCard({ strategyId, lang }: Props) {
         >
           {error}
         </p>
+      )}
+      {result != null && (
+        <ol
+          style={{
+            margin: 'var(--space-3) 0 0',
+            paddingLeft: '1.4em',
+            fontFamily: 'var(--sans)',
+            fontSize: 'var(--fs-caption)',
+            color: 'var(--text3)',
+          }}
+        >
+          <li>
+            {L(
+              'TradingView でチャートを開き、画面下部の「Pine エディタ」を開く',
+              'Open a chart on TradingView and open the "Pine Editor" at the bottom',
+            )}
+          </li>
+          <li>
+            {L(
+              'エディタの内容をすべて消し、上の「コピー」で取得した内容を貼り付ける',
+              'Clear the editor and paste the content from the "Copy" button above',
+            )}
+          </li>
+          <li>
+            {L(
+              '「チャートに追加」を押す（アラート運用はスクリプト保存後に設定できます）',
+              'Press "Add to chart" (alerts can be configured after saving the script)',
+            )}
+          </li>
+        </ol>
       )}
       {result != null && <pre style={SCRIPT_STYLE}>{result.script}</pre>}
     </section>
