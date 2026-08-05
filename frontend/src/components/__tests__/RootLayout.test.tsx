@@ -26,17 +26,28 @@ vi.mock('../../api/client', () => {
         .mockResolvedValue({ status: 'ok', forge_dir: '/tmp/forge', version: '9.9.9' }),
       // Task 10: RootLayout が useAgentBackends() を呼び showDevelop へ反映する
       getAgentBackends: vi.fn().mockResolvedValue({ enabled: false, default_max_turns: 100, max_max_turns: 500, backends: [] }),
+      // issue #493: RootLayout が useSetupReady() を呼び highlightStart へ反映する
+      getSetupStatus: vi.fn().mockResolvedValue({
+        ready: true,
+        cli: { status: 'ok', version: '1.3.0' },
+        eula: { status: 'ok' },
+        workspace: { status: 'ok', config_path: '~/ws/forge.yaml' },
+        auth: { status: 'ok', logged_in: true, plan_type: 'paid' },
+        data: { status: 'ok', count: 3 },
+      }),
     },
   }
 })
 
 import { api } from '../../api/client'
+import { resetSetupReadyForTest } from '../../hooks/useSetupStatus'
 
 beforeEach(() => {
-  // useAgentBackends は検出結果をモジュール内で共有する（RootLayout と
-  // DevelopPage の二重 fetch を避けるため）。持ち越すと、あとから
+  // useAgentBackends / useSetupReady は結果をモジュール内で共有する（複数
+  // 呼び出し元の二重 fetch を避けるため）。持ち越すと、あとから
   // mockResolvedValue を差し替えても前の結果が使われてしまう
   resetAgentBackendsCache()
+  resetSetupReadyForTest()
 })
 
 /**
@@ -99,6 +110,44 @@ describe('RootLayout — AppNav showDevelop wiring (Task 10)', () => {
     )
     await waitFor(() => expect(api.getAgentBackends).toHaveBeenCalled())
     expect(screen.queryByRole('link', { name: '開発' })).toBeNull()
+  })
+
+  it('highlights the Start nav link while setup is incomplete (issue #493)', async () => {
+    vi.mocked(api.getSetupStatus).mockResolvedValue({
+      ready: false,
+      cli: { status: 'attention', version: null },
+      eula: { status: 'unknown' },
+      workspace: { status: 'unknown', config_path: null },
+      auth: { status: 'unknown', logged_in: null, plan_type: null },
+      data: { status: 'unknown', count: null },
+    })
+    render(
+      <MemoryRouter>
+        <RootLayout />
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /要セットアップ/ })).toBeInTheDocument(),
+    )
+  })
+
+  it('does not highlight the Start nav link when setup is ready', async () => {
+    // 前のテストが mockResolvedValue を差し替えたまま持ち越されるため明示する
+    vi.mocked(api.getSetupStatus).mockResolvedValue({
+      ready: true,
+      cli: { status: 'ok', version: '1.3.0' },
+      eula: { status: 'ok' },
+      workspace: { status: 'ok', config_path: '~/ws/forge.yaml' },
+      auth: { status: 'ok', logged_in: true, plan_type: 'paid' },
+      data: { status: 'ok', count: 3 },
+    })
+    render(
+      <MemoryRouter>
+        <RootLayout />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.getSetupStatus).toHaveBeenCalled())
+    expect(screen.getByRole('link', { name: 'はじめる' })).toBeInTheDocument()
   })
 
   it('renders the Develop nav link once agent backends report enabled: true', async () => {

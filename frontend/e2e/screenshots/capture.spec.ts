@@ -165,6 +165,24 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
             }),
           }),
         )
+        // /api/setup/status も実機の forge CLI 状態をそのまま返す実装のため、
+        // モックしないとナビの「はじめる」強調ドット（RootLayout が全画面で
+        // 参照・issue #493）が撮影環境依存になる。既定は ready=true（強調
+        // なし）で固定し、start の撮影テストだけ自前のモックで上書きする。
+        await page.route('**/api/setup/status', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ready: true,
+              cli: { status: 'ok', version: '1.3.0' },
+              eula: { status: 'ok' },
+              workspace: { status: 'ok', config_path: '~/alpha-workspace/forge.yaml' },
+              auth: { status: 'ok', logged_in: true, plan_type: 'paid' },
+              data: { status: 'ok', count: 4 },
+            }),
+          }),
+        )
       })
 
       // hero: ヘッダー＋表＋フッタが収まる縦長 viewport
@@ -311,7 +329,8 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         )
         await page.goto('/start')
         await setLang(page, lang)
-        await captureViewport(page, lang, 'start', 820)
+        // チェックリスト + 5 ステップガイド（issue #493）が収まる高さ
+        await captureViewport(page, lang, 'start', 1480)
       })
     })
   }
