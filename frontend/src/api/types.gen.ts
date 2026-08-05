@@ -466,6 +466,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pine/{strategy_id}/support": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pine Support
+         * @description 生成前の非対応指標チェック（issue #488）。
+         *
+         *     対応表は `analyze indicator list --json` に委譲する（SSoT は forge。
+         *     visualizer に対応指標をハードコードすると forge 側の追加・変更とずれる）。
+         *     対応表に無い指標型は「非対応」として警告に倒す — 判定できないものを
+         *     「対応」と見せると TradingView へ持ち出してから動かない事故になる。
+         *     参照専用のため local_write ガードは掛けない。
+         */
+        get: operations["pine_support_api_pine__strategy_id__support_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/maintenance/orphan-runs": {
         parameters: {
             query?: never;
@@ -1376,6 +1402,18 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PineIndicatorSupport
+         * @description 戦略が使う指標 1 件の Pine 対応状況（issue #488）。
+         */
+        PineIndicatorSupport: {
+            /** Id */
+            id: string;
+            /** Type */
+            type: string;
+            /** Pine Supported */
+            pine_supported: boolean;
+        };
+        /**
          * PineScriptResponse
          * @description 生成された Pine Script。
          *
@@ -1390,6 +1428,25 @@ export interface components {
             filename: string;
             /** Script */
             script: string;
+        };
+        /**
+         * PineSupportResponse
+         * @description 生成前の非対応指標チェック結果（issue #488）。
+         *
+         *     対応表の SSoT は forge 側（`analyze indicator list --json`）。
+         *     ``unsupported_types`` は重複を除いた昇順。``all_unsupported`` は指標を
+         *     1 つ以上持ち、そのすべてが Pine 非対応（= 生成しても TradingView で
+         *     機能しない可能性が高い）ことを示す。
+         */
+        PineSupportResponse: {
+            /** Strategy Id */
+            strategy_id: string;
+            /** Indicators */
+            indicators: components["schemas"]["PineIndicatorSupport"][];
+            /** Unsupported Types */
+            unsupported_types: string[];
+            /** All Unsupported */
+            all_unsupported: boolean;
         };
         /** PruneOrphansRequest */
         PruneOrphansRequest: {
@@ -2587,6 +2644,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PineScriptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pine_support_api_pine__strategy_id__support_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strategy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PineSupportResponse"];
                 };
             };
             /** @description Validation Error */
