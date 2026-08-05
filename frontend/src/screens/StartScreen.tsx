@@ -2,6 +2,8 @@ import type { ReactElement, ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { SetupCheckStatus, SetupStatusResponse } from '../api/types'
 import { CommandSnippet } from '../components/start/CommandSnippet'
+import type { GuideSteps } from '../components/start/FirstStrategyGuide'
+import { FirstStrategyGuide } from '../components/start/FirstStrategyGuide'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Chip, ErrorBanner, Loading } from '../design/primitives'
 import type { Theme } from '../hooks/useTheme'
@@ -17,6 +19,10 @@ interface StartScreenProps {
   status: SetupStatusResponse | null
   loading: boolean
   error: string | null
+  guideSteps: GuideSteps
+  guideDismissed: boolean
+  onDismissGuide: () => void
+  onRestoreGuide: () => void
   onRetry: () => void
   onSetLang: (lang: Lang) => void
   onSetTheme: (theme: Theme) => void
@@ -102,6 +108,10 @@ export function StartScreen({
   status,
   loading,
   error,
+  guideSteps,
+  guideDismissed,
+  onDismissGuide,
+  onRestoreGuide,
   onRetry,
   onSetLang,
   onSetTheme,
@@ -294,6 +304,18 @@ export function StartScreen({
             {status.data.status === 'unknown' && <UnknownBody lang={lang} />}
           </CheckRow>
         </ul>
+      )}
+
+      {/* セットアップの次の成功体験への 5 ステップ（issue #493）。読み込み中・
+          エラー中はチェックリスト同様に出さない（判定材料が無い） */}
+      {status != null && (
+        <FirstStrategyGuide
+          lang={lang}
+          steps={guideSteps}
+          dismissed={guideDismissed}
+          onDismiss={onDismissGuide}
+          onRestore={onRestoreGuide}
+        />
       )}
     </div>
   )

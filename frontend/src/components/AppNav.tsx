@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router'
+import { SR_ONLY_STYLE } from '../design/primitives/srOnly'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { useNavMemory } from '../hooks/useNavMemory'
@@ -37,11 +38,22 @@ const MEMORIZED_PATHS: readonly string[] = [...ITEMS, DEVELOP_ITEM].map(it => it
  * `showDevelop` は `RootLayout` が `useAgentBackends().data?.enabled` から渡す。
  * 非 loopback 公開中や未検出時は「開発」項目自体を出さない（Task 10）。
  *
+ * `highlightStart` は未セットアップ検出時（issue #493）に「はじめる」へ
+ * 注意ドットを付ける。sr-only の補足文で AT にも伝える。
+ *
  * リンク先には各セクションで最後に見ていた URL params を復元する
  * （issue #481）。素の `/browse` へ飛ばすと、タブを往復しただけで絞り込みも
  * 比較対象も消える。
  */
-export function AppNav({ lang, showDevelop = false }: { lang: Lang; showDevelop?: boolean }) {
+export function AppNav({
+  lang,
+  showDevelop = false,
+  highlightStart = false,
+}: {
+  lang: Lang
+  showDevelop?: boolean
+  highlightStart?: boolean
+}) {
   const L = makeL(lang)
   const resolvePath = useNavMemory(MEMORIZED_PATHS)
   // ライブの後・整理の前に挿入する（ITEMS[6]=live, ITEMS[7]=maintenance）
@@ -73,6 +85,16 @@ export function AppNav({ lang, showDevelop = false }: { lang: Lang; showDevelop?
           })}
         >
           {lang === 'ja' ? it.ja : it.en}
+          {highlightStart && it.to === '/start' && (
+            <>
+              <span aria-hidden style={{ color: 'var(--warn)', marginLeft: 4 }}>
+                ●
+              </span>
+              <span style={SR_ONLY_STYLE}>
+                {L('要セットアップ', 'Setup required')}
+              </span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

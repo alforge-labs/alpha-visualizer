@@ -47,6 +47,28 @@ describe('AppNav (issue #263)', () => {
     expect(links.indexOf('データ')).toBeLessThan(links.indexOf('アイデア'))
   })
 
+  /** issue #493: 未セットアップ検出時は「はじめる」を強調する。 */
+  it('highlights the Start link when highlightStart is true', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" highlightStart />
+      </MemoryRouter>,
+    )
+    // sr-only の補足で AT にも「要セットアップ」が伝わる
+    expect(
+      screen.getByRole('link', { name: /要セットアップ/ }),
+    ).toHaveAttribute('href', '/start')
+  })
+
+  it('does not highlight the Start link by default', () => {
+    render(
+      <MemoryRouter initialEntries={['/browse']}>
+        <AppNav lang="ja" />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'はじめる' })).toBeInTheDocument()
+  })
+
   /** issue #492: 「はじめる」（/start）は先頭の常設項目。 */
   it('renders the Start link as the first item', () => {
     render(
