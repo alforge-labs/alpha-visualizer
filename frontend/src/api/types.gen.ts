@@ -548,8 +548,9 @@ export interface paths {
          * Create Agent Job
          * @description クイック戦略開発ジョブを起動する。
          *
-         *     実行前に「機能有効・forge 導入済み・agent CLI 導入済み」を確認して
-         *     fail-fast する（エージェント起動後に判明すると原因がログの奥に埋まる）。
+         *     実行前に「機能有効・forge 導入済み・agent CLI 導入済み・（派生時は）
+         *     派生元の存在」を確認して fail-fast する（エージェント起動後に判明すると
+         *     原因がログの奥に埋まる）。
          */
         post: operations["create_agent_job_api_agent_jobs_post"];
         delete?: never;
@@ -838,6 +839,8 @@ export interface components {
             backend: "claude" | "codex";
             /** Max Turns */
             max_turns?: number | null;
+            /** Base Strategy Id */
+            base_strategy_id?: string | null;
         };
         /**
          * CreateDataJobRequest

@@ -17,6 +17,7 @@ import { JobRunnerCard } from '../components/jobs/JobRunnerCard'
 import { TuningPanel } from '../components/tuning/TuningPanel'
 import { DuplicateStrategyCard } from '../components/tuning/DuplicateStrategyCard'
 import { PineExportCard } from '../components/pine/PineExportCard'
+import { DeriveEntryCard } from '../components/develop/DeriveEntryCard'
 import { Tab, TabBar } from '../design/primitives/TabBar'
 import { Button, ConfirmDialog, ErrorBanner, Loading } from '../design/primitives'
 import { normalizeErrorMessage } from '../lib/errorMessage'
@@ -454,6 +455,9 @@ export function DetailPage() {
                       lang={lang}
                       onDuplicated={(newId) => navigate(`/detail/${newId}`)}
                     />
+                  )}
+                  {strategyId && (
+                    <DeriveEntryCard strategyId={strategyId} lang={lang} />
                   )}
                   {strategyId && (
                     <PineExportCard
