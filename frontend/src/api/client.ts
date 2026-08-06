@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SetupStatusResponse, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, CreateLiveJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SetupStatusResponse, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -68,6 +68,14 @@ export const api = {
   // データ取得・更新ジョブ（#485）。観察・キャンセルは /api/jobs 系を共用
   createDataJob: (params: CreateDataJobParams): Promise<JobSummary> =>
     request<JobSummary>('/data/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    }),
+
+  // ライブ実績の一括更新（forge live refresh 委譲）
+  createLiveJob: (params: CreateLiveJobParams): Promise<JobSummary> =>
+    request<JobSummary>('/live/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

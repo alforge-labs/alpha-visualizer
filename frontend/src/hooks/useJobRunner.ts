@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { CreateAgentJobParams, CreateDataJobParams, CreateJobParams, JobStatus, JobSummary } from '../api/types'
+import type { CreateAgentJobParams, CreateDataJobParams, CreateJobParams, CreateLiveJobParams, JobStatus, JobSummary } from '../api/types'
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['succeeded', 'failed', 'cancelled'])
 
@@ -221,4 +221,15 @@ export function useDataJobRunner(
   onFinished?: (status: JobStatus) => void,
 ): UseJobRunnerResult<CreateDataJobParams> {
   return useJobRunnerCore(api.createDataJob, onFinished)
+}
+
+/**
+ * ライブ実績の一括更新（live refresh）ジョブの起動・進捗購読・キャンセルを担う
+ * フック。ジョブ作成は POST /api/live/jobs（`api.createLiveJob`）を使う点だけが
+ * 異なり、残りは `useJobRunnerCore` を共有する。
+ */
+export function useLiveRefreshRunner(
+  onFinished?: (status: JobStatus) => void,
+): UseJobRunnerResult<CreateLiveJobParams> {
+  return useJobRunnerCore(api.createLiveJob, onFinished)
 }
