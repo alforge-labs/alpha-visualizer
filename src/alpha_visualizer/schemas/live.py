@@ -131,3 +131,15 @@ class LiveDetail(BaseModel):
     backtest: LiveBacktest | None = None
     diff: LiveDiff | None = None
     warnings: list[str] = []
+
+
+class CreateLiveJobRequest(BaseModel):
+    """`POST /api/live/jobs` のリクエスト。
+
+    現状 action は refresh のみ（forge `live refresh` への委譲）。パラメータは
+    forge.yaml の `live.replay` が SSoT のため、リクエストには載せない。
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    action: Literal["refresh"]

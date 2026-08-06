@@ -69,7 +69,9 @@ logger = logging.getLogger(__name__)
 ForgeJobKind = Literal["backtest", "optimize", "wft"]
 # データ系ジョブ（issue #485）。build_data_argv はこれだけを受理する
 DataJobKind = Literal["data_fetch", "data_update"]
-JobKind = Literal["backtest", "optimize", "wft", "agent", "data_fetch", "data_update"]
+# Live系ジョブ。build_live_refresh_argv はこれだけを受理する
+LiveJobKind = Literal["live_refresh"]
+JobKind = Literal["backtest", "optimize", "wft", "agent", "data_fetch", "data_update", "live_refresh"]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
@@ -203,6 +205,16 @@ def build_data_argv(
             argv += ["--interval", interval]
         return [*argv, "--", symbol]
     return [forge_exe, "data", "update", "--json"]
+
+
+def build_live_refresh_argv(forge_exe: str) -> list[str]:
+    """live refresh ジョブの argv。
+
+    パラメータ（portfolio / combine 戦略 / 基準資本）は forge.yaml の
+    `live.replay` が持つため引数は無い。forge が 3 ステップの進捗を
+    stderr へ流し、そのまま SSE ログに表示される。
+    """
+    return [forge_exe, "live", "refresh", "--json"]
 
 
 # 結果要約に保持するスカラー文字列の最大長（超過分は切り詰める）
@@ -650,6 +662,8 @@ class JobManager:
                     def stdout_line_handler(line: str) -> str | None:
                         stripped = line.rstrip()
                         return stripped or None
+            elif record.kind == "live_refresh":
+                argv = build_live_refresh_argv(forge_exe)
             else:
                 argv = build_argv(
                     forge_exe,

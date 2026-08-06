@@ -16,7 +16,12 @@ from alpha_visualizer.errors import TooManyJobsError
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services import jobs
 from alpha_visualizer.services.forge_cli import FORGE_EULA_NOT_ACCEPTED_MESSAGE
-from alpha_visualizer.services.jobs import JobManager, build_argv, build_data_argv
+from alpha_visualizer.services.jobs import (
+    JobManager,
+    build_argv,
+    build_data_argv,
+    build_live_refresh_argv,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -112,6 +117,17 @@ class TestBuildDataArgv:
         # data update は引数を取らない（保存済み全データの差分更新）
         argv = build_data_argv("/bin/forge", "data_update", "", None, None)
         assert argv == ["/bin/forge", "data", "update", "--json"]
+
+
+class TestBuildLiveRefreshArgv:
+    """live refresh ジョブの CLI 契約。"""
+
+    def test_live_refresh_argv(self) -> None:
+        """live refresh は引数無し・--json のみ（パラメータは forge.yaml が持つ）。"""
+        argv = build_live_refresh_argv("/usr/local/bin/alpha-forge")
+        assert argv == [
+            "/usr/local/bin/alpha-forge", "live", "refresh", "--json",
+        ]
 
 
 class TestJobLifecycle:
@@ -691,8 +707,14 @@ def test_forge_job_kind_excludes_agent() -> None:
     """
     assert "agent" not in get_args(jobs.ForgeJobKind)
     assert "agent" not in get_args(jobs.DataJobKind)
-    # JobKind = forge 系 + data 系 + agent の直和（重複なし）
+    assert "agent" not in get_args(jobs.LiveJobKind)
+    # JobKind = forge 系 + data 系 + live 系 + agent の直和（重複なし）
     assert set(get_args(jobs.JobKind)) == (
-        set(get_args(jobs.ForgeJobKind)) | set(get_args(jobs.DataJobKind)) | {"agent"}
+        set(get_args(jobs.ForgeJobKind))
+        | set(get_args(jobs.DataJobKind))
+        | set(get_args(jobs.LiveJobKind))
+        | {"agent"}
     )
     assert not set(get_args(jobs.ForgeJobKind)) & set(get_args(jobs.DataJobKind))
+    assert not set(get_args(jobs.ForgeJobKind)) & set(get_args(jobs.LiveJobKind))
+    assert not set(get_args(jobs.DataJobKind)) & set(get_args(jobs.LiveJobKind))
