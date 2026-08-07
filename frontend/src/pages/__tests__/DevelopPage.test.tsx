@@ -26,7 +26,7 @@ vi.mock('../../api/client', () => {
   }
 })
 
-import { api } from '../../api/client'
+import { api, ApiError } from '../../api/client'
 import type { AgentBackendsResponse, JobSummary } from '../../api/types'
 import { resetAgentBackendsCache } from '../../hooks/useAgentBackends'
 import { DevelopPage } from '../DevelopPage'
@@ -183,6 +183,36 @@ describe('<DevelopPage />', () => {
       const links = screen.getAllByRole('link')
       expect(links.some((l) => l.getAttribute('href') === '/detail/cl_hmm_bb_rsi_v1')).toBe(true)
     })
+  })
+
+  /**
+   * issue #507: `POST /api/agent/jobs` は派生元戦略の不在を 404 で fail-fast する。
+   * これは `useAgentBackends` の事前検出では防げない経路（`?base=<id>` が無効な
+   * 戦略を指しているケース）で、ジョブが生成されないため SSE も張られない。
+   * hook が status を進めないままだと DevelopScreen の `status === 'failed'`
+   * 分岐に到達せず、利用者には「開始を押しても何も起きない」ように見える。
+   */
+  it('ジョブ作成が 404（派生元不在）で失敗した場合もエラーを表示する (issue #507)', async () => {
+    vi.mocked(api.getAgentBackends).mockResolvedValue(BOTH_AVAILABLE)
+    vi.mocked(api.createAgentJob).mockRejectedValue(
+      new ApiError(
+        'API 404: {"detail":"戦略が見つかりません / Strategy not found: ghost_v1"}',
+        404,
+        '/api/agent/jobs',
+      ),
+    )
+    renderPage()
+
+    await waitFor(() => expect(screen.getByLabelText(/ゴール/)).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText(/ゴール/), 'ゴール')
+    await userEvent.click(screen.getByRole('button', { name: /開始/ }))
+
+    // サーバーの detail（利用者向け文言）が表示され、ApiError の生文字列
+    // （"API 404: {...}"）はそのまま露出しないこと
+    expect(await screen.findByText(/戦略が見つかりません/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('API 404')
+    // 作成自体が失敗しているので SSE 購読は発生しない
+    expect(FakeEventSource.instances).toHaveLength(0)
   })
 
   it('キャンセルボタンで onCancel 経由 api.cancelJob が呼ばれる', async () => {

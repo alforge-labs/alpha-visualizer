@@ -156,6 +156,22 @@ describe('useJobRunner (issue #292)', () => {
     expect(FakeEventSource.instances).toHaveLength(0)
   })
 
+  it('作成失敗時は status を failed にする (issue #507)', async () => {
+    vi.mocked(api.createJob).mockRejectedValue(new Error('forge not found'))
+    const { result } = renderHook(() => useJobRunner())
+
+    await act(async () => {
+      await result.current.start({ kind: 'optimize', strategy_id: 's1', symbol: 'AAPL' })
+    })
+
+    // ジョブが生成されない以上、SSE もポーリングも status を進める主体が存在
+    // しない。start() の catch が status を null のまま放置していたため、
+    // `status === 'failed'` を表示条件にしている側（DataPage / DevelopScreen）
+    // では 403 / 503 / 404 のエラーが一切表示されなかった。
+    // 表示側を個別に直すより、終了状態を hook が正しく表明する方が根治になる。
+    expect(result.current.status).toBe('failed')
+  })
+
   it('closes the stream on unmount', async () => {
     vi.mocked(api.createJob).mockResolvedValue(summary())
     const { result, unmount } = renderHook(() => useJobRunner())
