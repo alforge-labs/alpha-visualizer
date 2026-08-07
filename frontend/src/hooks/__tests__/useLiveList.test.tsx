@@ -34,4 +34,17 @@ describe('useLiveList', () => {
     await waitFor(() => expect(result.current.items).toHaveLength(1))
     expect(vi.mocked(api.listLive)).toHaveBeenCalledTimes(2)
   })
+
+  it('reload 成功時に前回の error をクリアする', async () => {
+    vi.mocked(api.listLive).mockRejectedValue(new Error('network error'))
+    const { result } = renderHook(() => useLiveList())
+    await waitFor(() => expect(result.current.error).toBe('network error'))
+
+    vi.mocked(api.listLive).mockResolvedValue([
+      { strategy_id: 'pf_1', has_summary: true, has_trades: false, kind: 'position' },
+    ])
+    act(() => result.current.reload())
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+    expect(result.current.error).toBeNull()
+  })
 })

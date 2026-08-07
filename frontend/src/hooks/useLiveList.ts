@@ -20,8 +20,12 @@ export function useLiveList(): LiveListState {
   // reload は明示的なイベントハンドラ呼び出し（effect 本体からの同期 setState
   // ではない）なので react-hooks/set-state-in-effect に抵触しない。
   // useStrategyList の useStrategyData と同じパターン（issue #390）。
+  // error も併せてクリアしないと、reload 成功後も items は最新なのに
+  // 直前の失敗時の error が残り続け、error 優先で早期 return する consumer
+  // （LivePage 等）が永久にエラー画面から戻れなくなる。
   const reload = useCallback(() => {
     setLoading(true)
+    setError(null)
     setVersion((v) => v + 1)
   }, [])
 
