@@ -22,7 +22,7 @@
 - **Detail** — Equity / Drawdown / trade history with benchmark metrics (alpha / beta / IR / Correlation), plus TradingView Pine Script (v6) generation, preview and download (paid plans)
 - **Compare** — Side-by-side metrics and correlation heatmap across strategies
 - **Optimize** — Walk-Forward composite equity curves and Grid optimization results
-- **Live** — Period-aligned diff between backtest and live execution. A "Refresh" button runs forge's `live refresh` (sync-events → data update → live replay) to pull in the latest results (requires `live.replay` in `forge.yaml`; older forge versions show a not-supported notice instead)
+- **Live** — Period-aligned diff between backtest and live execution. A "Refresh live data" button runs forge's `live refresh` (sync-events → data update → live replay) to pull in the latest results (requires `live.replay` in `forge.yaml`; older forge versions show a not-supported notice instead)
 - **Ideas** — Exploration idea board with status / tag filters
 - **Data** — Historical data inventory with freshness display (stale badges), plus GUI-based fetching and bulk incremental updates (with progress and cancellation)
 - **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db)

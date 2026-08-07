@@ -65,7 +65,8 @@ live:
   未設定なら、ステップ実行前に設定手順を明示したエラーで終了する。
 - **ステップ失敗時は即中断**し、どのステップで失敗したかをエラーに明示する
   （data update 失敗のまま replay して古いカーブを黙って出さない — Fail Loud）。
-- 進捗はステップ境界ごとに stdout へ 1 行ずつ出力（visualizer の SSE ログにそのまま流れる）。
+- 進捗はステップ境界ごとに stderr へ 1 行ずつ出力（visualizer の SSE ログにそのまま流れる。
+  `--json` 時の stdout 純 JSON という Global Constraints と矛盾しないようにする）。
 - `--json` 時は各ステップの status（done / skipped / failed）+ replay の metrics 要約を出力する。
 - 実装は既存 3 コマンドのロジックをヘルパー関数へ切り出して再利用する
   （click コマンドの自己再帰呼び出しはしない）。
