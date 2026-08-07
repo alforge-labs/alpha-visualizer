@@ -15,14 +15,21 @@ import json
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
-from alpha_visualizer.dependencies import get_live_repo
-from alpha_visualizer.errors import NotFoundError
+from alpha_visualizer.dependencies import get_job_manager, get_live_repo
+from alpha_visualizer.errors import (
+    ForgeCliNotFoundError,
+    LocalWriteDisabledError,
+    NotFoundError,
+)
 from alpha_visualizer.log_sanitize import sanitize_for_log
 from alpha_visualizer.repositories.live import LiveDataRepository
-from alpha_visualizer.schemas.live import LiveDetail, LiveListItem
+from alpha_visualizer.routers.jobs import JobSummary, _to_summary
+from alpha_visualizer.schemas.live import CreateLiveJobRequest, LiveDetail, LiveListItem
 from alpha_visualizer.services import live as live_service
+from alpha_visualizer.services.forge_cli import FORGE_NOT_FOUND_MESSAGE, resolve_forge_exe
+from alpha_visualizer.services.jobs import JobManager
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +37,11 @@ router = APIRouter()
 
 # レスポンスでの trades 上限（フロントの初期表示用）
 _MAX_TRADES = 200
+
+LOCAL_WRITE_DISABLED_MESSAGE = (
+    "この操作は localhost でのみ利用できます（LAN 公開中は無効）"
+    " / This operation is only available on localhost"
+)
 
 
 def _load_live_summary(
@@ -191,6 +203,29 @@ async def get_live(
         "diff": diff,
         "warnings": warnings,
     }
+
+
+@router.post("/live/jobs", response_model=JobSummary, status_code=202)
+async def create_live_job(
+    body: CreateLiveJobRequest,
+    request: Request,
+    manager: Annotated[JobManager, Depends(get_job_manager)],
+) -> JobSummary:
+    """ライブ実績の一括更新（forge `live refresh`）ジョブを起動する。
+
+    sync-events（SSH）・データ取得・DB 書き込みを伴う書き込み系のため、
+    非 loopback 公開中は 403 で拒否する（routers/data.py と同じ方針）。
+    forge 未導入はジョブを積んでから失敗させず、起動前に fail-fast する。
+    replay パラメータは forge.yaml の `live.replay` が SSoT（リクエストに無い）。
+    """
+    assert body.action == "refresh"  # Literal で保証されるが、action 追加時の見落とし防止
+    if not request.app.state.local_write_enabled:
+        raise LocalWriteDisabledError(LOCAL_WRITE_DISABLED_MESSAGE)
+    if resolve_forge_exe() is None:
+        raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
+
+    record = await manager.create(kind="live_refresh", strategy_id="", symbol="")
+    return _to_summary(record)
 
 
 __all__ = ["router"]

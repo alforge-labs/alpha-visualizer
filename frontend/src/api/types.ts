@@ -42,6 +42,8 @@ export type DataSetItem = S['DataSetItem']
 export type DataListResponse = S['DataListResponse']
 // データ取得・更新ジョブ（#485）
 export type CreateDataJobParams = S['CreateDataJobRequest']
+// ライブ実績の一括更新ジョブ（live refresh gui）
+export type CreateLiveJobParams = S['CreateLiveJobRequest']
 // Pine Script 生成（#487）
 export type PineScriptResponse = S['PineScriptResponse']
 // 生成前の非対応指標チェック（#488）

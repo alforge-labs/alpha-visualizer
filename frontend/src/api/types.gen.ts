@@ -385,6 +385,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Live Job
+         * @description ライブ実績の一括更新（forge `live refresh`）ジョブを起動する。
+         *
+         *     sync-events（SSH）・データ取得・DB 書き込みを伴う書き込み系のため、
+         *     非 loopback 公開中は 403 で拒否する（routers/data.py と同じ方針）。
+         *     forge 未導入はジョブを積んでから失敗させず、起動前に fail-fast する。
+         *     replay パラメータは forge.yaml の `live.replay` が SSoT（リクエストに無い）。
+         */
+        post: operations["create_live_job_api_live_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/historical/{symbol}": {
         parameters: {
             query?: never;
@@ -926,6 +951,20 @@ export interface components {
             parameters?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * CreateLiveJobRequest
+         * @description `POST /api/live/jobs` のリクエスト。
+         *
+         *     現状 action は refresh のみ（forge `live refresh` への委譲）。パラメータは
+         *     forge.yaml の `live.replay` が SSoT のため、リクエストには載せない。
+         */
+        CreateLiveJobRequest: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "refresh";
         };
         /**
          * DataCheck
@@ -2620,6 +2659,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_live_job_api_live_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLiveJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
                 };
             };
             /** @description Validation Error */

@@ -7,6 +7,7 @@ import { makeL } from '../i18n/strings'
 import type { Theme } from '../hooks/useTheme'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { LiveTab } from '../components/live/LiveTab'
+import { LiveRefreshPanel, type LiveRefreshPanelProps } from '../components/live/LiveRefreshPanel'
 
 export interface LiveScreenProps {
   items: LiveListItem[]
@@ -17,6 +18,14 @@ export interface LiveScreenProps {
   theme: Theme
   onSetLang: (l: Lang) => void
   onSetTheme: (t: Theme) => void
+  /**
+   * ライブデータ一括更新（forge live refresh）ジョブの起動ボタン + 進捗表示。
+   * `lang` は `LiveScreenProps.lang` と二重定義にならないよう除外し、
+   * `LiveScreen` が自身の `lang` を注入する（PR #506 最終レビュー指摘）。
+   */
+  refresh: Omit<LiveRefreshPanelProps, 'lang'>
+  /** refresh 成功時にインクリメントし、詳細（LiveTab）を再フェッチさせる */
+  detailReloadKey: number
 }
 
 /**
@@ -35,6 +44,8 @@ export function LiveScreen({
   theme,
   onSetLang,
   onSetTheme,
+  refresh,
+  detailReloadKey,
 }: LiveScreenProps): ReactElement {
   const L = makeL(lang)
 
@@ -110,6 +121,8 @@ export function LiveScreen({
         />
       </header>
 
+      <LiveRefreshPanel {...refresh} lang={lang} />
+
       <EntryList items={items} selectedId={selectedId} onSelect={onSelect} lang={lang} />
 
       <div style={{ flex: 1, padding: 'var(--space-5) var(--space-7)' }}>
@@ -118,7 +131,12 @@ export function LiveScreen({
         ) : items.length === 0 ? (
           <EmptyState lang={lang} />
         ) : selectedId ? (
-          <LiveTab key={selectedId} strategyId={selectedId} runId="" lang={lang} />
+          <LiveTab
+            key={`${selectedId}:${detailReloadKey}`}
+            strategyId={selectedId}
+            runId=""
+            lang={lang}
+          />
         ) : null}
       </div>
     </div>

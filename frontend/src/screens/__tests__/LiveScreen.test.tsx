@@ -61,14 +61,23 @@ function renderScreen(overrides: Partial<Parameters<typeof LiveScreen>[0]> = {})
     theme: 'dark',
     onSetLang: vi.fn(),
     onSetTheme: vi.fn(),
+    detailReloadKey: 0,
+    refresh: {
+      running: false,
+      logLines: [],
+      status: null,
+      error: null,
+      onStart: vi.fn(),
+      onCancel: vi.fn(),
+    },
     ...overrides,
   }
-  render(
+  const view = render(
     <MemoryRouter>
       <LiveScreen {...props} />
     </MemoryRouter>,
   )
-  return { onSelect }
+  return { onSelect, props, rerender: view.rerender }
 }
 
 beforeEach(() => {
@@ -124,5 +133,21 @@ describe('<LiveScreen />', () => {
     expect(screen.getByText(/読み込み中/)).toBeInTheDocument()
     expect(screen.queryByText(/ライブ実績データがまだありません/)).toBeNull()
     expect(api.getLive).not.toHaveBeenCalled()
+  })
+
+  it('detailReloadKey が増えると LiveTab を remount して詳細を再取得する', async () => {
+    // refresh 成功時に LivePage が detailReloadKey をインクリメントする（Task 9）。
+    // LiveTab の key にこれが含まれていないと、更新ボタンで一括更新しても
+    // 詳細（updated_at 等）が古いまま表示され続けてしまう。
+    const { props, rerender } = renderScreen()
+    await waitFor(() => expect(api.getLive).toHaveBeenCalledTimes(1))
+
+    rerender(
+      <MemoryRouter>
+        <LiveScreen {...props} detailReloadKey={1} />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(api.getLive).toHaveBeenCalledTimes(2))
   })
 })

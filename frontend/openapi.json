@@ -892,6 +892,45 @@
         }
       }
     },
+    "/api/live/jobs": {
+      "post": {
+        "summary": "Create Live Job",
+        "description": "ライブ実績の一括更新（forge `live refresh`）ジョブを起動する。\n\nsync-events（SSH）・データ取得・DB 書き込みを伴う書き込み系のため、\n非 loopback 公開中は 403 で拒否する（routers/data.py と同じ方針）。\nforge 未導入はジョブを積んでから失敗させず、起動前に fail-fast する。\nreplay パラメータは forge.yaml の `live.replay` が SSoT（リクエストに無い）。",
+        "operationId": "create_live_job_api_live_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLiveJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/historical/{symbol}": {
       "get": {
         "summary": "Get Historical",
@@ -2019,6 +2058,21 @@
           "symbol"
         ],
         "title": "CreateJobRequest"
+      },
+      "CreateLiveJobRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "const": "refresh",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "CreateLiveJobRequest",
+        "description": "`POST /api/live/jobs` のリクエスト。\n\n現状 action は refresh のみ（forge `live refresh` への委譲）。パラメータは\nforge.yaml の `live.replay` が SSoT のため、リクエストには載せない。"
       },
       "DataCheck": {
         "properties": {
