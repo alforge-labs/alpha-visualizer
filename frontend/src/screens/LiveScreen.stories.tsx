@@ -41,7 +41,6 @@ export const DefaultJa: Story = {
     refresh: {
       running: false,
       logLines: [],
-      status: null,
       error: null,
       onStart: () => {},
       onCancel: () => {},

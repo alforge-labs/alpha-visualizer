@@ -83,7 +83,6 @@ export function LivePage(): ReactElement {
       refresh={{
         running: runner.running,
         logLines: runner.logLines,
-        status: runner.status,
         error: runner.error,
         onStart: () => void runner.start({ action: 'refresh' }),
         onCancel: () => void runner.cancel(),

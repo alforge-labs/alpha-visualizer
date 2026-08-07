@@ -1,9 +1,7 @@
 import type { ReactElement } from 'react'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
-import type { JobStatus } from '../../api/types'
-import { JOB_STATE_LOST_ERROR } from '../../hooks/useJobRunner'
-import { extractApiErrorDetail, messageForApiErrorCode } from '../../lib/errorMessage'
+import { jobErrorMessage } from '../../lib/errorMessage'
 
 /** 進捗パネルに表示するログ末尾の行数（DataPage と同方針）。 */
 const LOG_TAIL_LINES = 20
@@ -23,7 +21,6 @@ export interface LiveRefreshPanelProps {
   lang: Lang
   running: boolean
   logLines: string[]
-  status: JobStatus | null
   error: string | null
   onStart: () => void
   /**
@@ -45,11 +42,8 @@ export interface LiveRefreshPanelProps {
  * Live 一覧は SQLite 直読みで forge CLI に依存しないため、このボタンが
  * ジョブ作成失敗（403 local_write_disabled / 503 forge_cli_not_found 等）を
  * 利用者に伝える唯一の信号になる。表示条件は `error` の有無のみとする
- * （ジョブ作成 API 自体の失敗は `status` が更新される前に catch されるため、
- * `status === 'failed'` を要求すると一生表示されない）。機械可読 code は
- * `messageForApiErrorCode` / `extractApiErrorDetail` で表示言語の文言へ写像し、
- * `job_state_lost` は JobRunnerCard / TuningPanel と同じ文言に写像する
- * （PR #506 最終レビュー指摘）。
+ * （PR #506 最終レビュー指摘）。表示用の文言写像は `jobErrorMessage` に集約
+ * している（issue #508）。
  */
 export function LiveRefreshPanel({
   lang,
@@ -60,15 +54,7 @@ export function LiveRefreshPanel({
   onCancel,
 }: LiveRefreshPanelProps): ReactElement {
   const L = makeL(lang)
-  const displayError =
-    error === null
-      ? null
-      : error === JOB_STATE_LOST_ERROR
-        ? L(
-            'ジョブの状態が不明になりました（サーバー再起動の可能性があります）。もう一度実行してください。',
-            'Job state is unknown (the server may have restarted). Please run it again.',
-          )
-        : (messageForApiErrorCode(error, lang) ?? extractApiErrorDetail(error, lang))
+  const displayError = jobErrorMessage(error, lang)
 
   return (
     <div
