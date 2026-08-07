@@ -22,7 +22,7 @@
 - **Detail** — Equity / Drawdown / 取引履歴・ベンチマーク（alpha / beta / IR / Correlation）、TradingView 用 Pine Script（v6）の生成・プレビュー・ダウンロード（有料プラン）
 - **Compare** — 複数戦略の指標比較と相関ヒートマップ
 - **Optimize** — WFO 合成エクイティカーブ・Grid 最適化結果の可視化
-- **Live** — バックテストとライブ実績の期間整合 diff
+- **Live** — バックテストとライブ実績の期間整合 diff。「更新」ボタンから forge の `live refresh`（sync-events → data update → live replay）を実行して最新実績を反映（`forge.yaml` の `live.replay` 設定が必要。旧 forge では未対応の案内が表示される）
 - **Ideas** — 探索アイデアの一覧（ステータス・タグフィルタ）
 - **Data** — 保有ヒストリカルデータの一覧・鮮度表示（「要更新」バッジ）に加え、GUI からの取得・一括差分更新（進捗表示・キャンセル対応）
 - **Maintenance** — 孤児バックテスト結果（strategies.db に定義の無い実行結果）の一覧・選択削除
