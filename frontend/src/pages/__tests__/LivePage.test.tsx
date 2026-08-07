@@ -32,7 +32,7 @@ vi.mock('../../hooks/useLiveList', () => ({
   useLiveList: vi.fn(),
 }))
 
-import { api } from '../../api/client'
+import { api, ApiError } from '../../api/client'
 import type { JobSummary, LiveDetailResponse, LiveListItem } from '../../api/types'
 import { useLiveList } from '../../hooks/useLiveList'
 import { LivePage } from '../LivePage'
@@ -142,6 +142,11 @@ function renderPage() {
  * getLive が 2 回呼ばれてしまい（reload() の副作用と detailReloadKey の効果が
  * 交絡し）判別できなかった。loading を固定することで、getLive の再呼び出しが
  * detailReloadKey の変化だけに起因することを保証する。
+ *
+ * 言い換えると、reload() は本番では既に remount を引き起こすため
+ * detailReloadKey は冗長な二重化であり、このテストは loading を固定して
+ * reload() 由来の remount を止めることで detailReloadKey 単体の効果だけを
+ * 観測している（PR #506 最終レビュー指摘）。
  */
 describe('LivePage refresh 配線 (Task 9)', () => {
   it('更新ジョブが成功すると一覧 reload と詳細の両方を再取得する', async () => {
@@ -188,5 +193,40 @@ describe('LivePage refresh 配線 (Task 9)', () => {
     // 失敗時は据え置く（DataPage と同方針）
     expect(reloadSpy).not.toHaveBeenCalled()
     expect(api.getLive).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * PR #506 最終レビュー指摘 #1: ジョブ「作成」自体の失敗（403 / 503 / 429）は
+ * useJobRunner.start() の catch で setError するだけで status を 'failed' に
+ * しない。旧 LiveRefreshPanel は表示条件が `status === 'failed' && error` の
+ * ため、この経路のエラーが一切表示されなかった（Live 一覧は SQLite 直読みで
+ * forge 非依存のため、このボタンが唯一のエラー信号）。
+ */
+describe('LivePage ジョブ作成失敗 (PR #506 最終レビュー指摘 #1)', () => {
+  it('作成 API が 403 (local_write_disabled) で失敗した場合、意味のあるエラー文言を表示する', async () => {
+    vi.mocked(api.createLiveJob).mockRejectedValue(
+      new ApiError(
+        'API 403: {"detail":"この操作は localhost でのみ利用できます（LAN 公開中は無効） / This operation is only available on localhost","code":"local_write_disabled"}',
+        403,
+        '/api/live/jobs',
+      ),
+    )
+    renderPage()
+    await waitFor(() => expect(api.getLive).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'ライブデータを更新' }))
+
+    // サーバーの detail（利用者向け文言）が表示され、内部識別子や ApiError の
+    // 生文字列が漏れないこと。status は 'failed' にならず null のまま留まる
+    // ため、`status === 'failed'` を要求する旧実装ではこの assertion は失敗する
+    // （判別力の確認）。
+    const errorText = await screen.findByText(/localhost/)
+    expect(errorText).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('local_write_disabled')
+    expect(document.body.textContent).not.toContain('API 403')
+
+    // 作成自体が失敗しているのでジョブは走らず SSE 購読も発生しない
+    expect(FakeEventSource.instances).toHaveLength(0)
   })
 })
