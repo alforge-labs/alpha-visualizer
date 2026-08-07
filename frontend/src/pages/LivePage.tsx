@@ -14,7 +14,13 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
  * - データ取得 (useLiveList) と画面設定 (useViewerSettings) のフック呼び出し
  * - 選択エントリの URL 同期（``?id=`` query param、未指定時は先頭を自動選択）
  * - ライブデータ一括更新ジョブ（useLiveRefreshRunner）の起動配線。成功時は
- *   一覧を再取得し、detailReloadKey を進めて詳細（LiveTab）を再フェッチさせる
+ *   一覧を再取得し、detailReloadKey を進めて詳細（LiveTab）を再フェッチさせる。
+ *   ただし reload() は useLiveList 内部で setLoading(true) するため、実際には
+ *   それ自体が LiveScreen の loading 分岐を介して LiveTab をアンマウント/
+ *   リマウントし、detailReloadKey の有無に関わらず詳細は再フェッチされる。
+ *   本番では detailReloadKey は冗長な二重化だが、将来 reload() が
+ *   remount を起こさない実装（stale-while-revalidate 化等）に変わった際の
+ *   保険として維持する（PR #506 最終レビュー指摘）。
  * - エラー時の早期 return
  *
  * Render は LiveScreen に委譲する（ADR-0001）。
@@ -75,12 +81,12 @@ export function LivePage(): ReactElement {
       }}
       detailReloadKey={detailReloadKey}
       refresh={{
-        lang,
         running: runner.running,
         logLines: runner.logLines,
         status: runner.status,
         error: runner.error,
         onStart: () => void runner.start({ action: 'refresh' }),
+        onCancel: () => void runner.cancel(),
       }}
     />
   )

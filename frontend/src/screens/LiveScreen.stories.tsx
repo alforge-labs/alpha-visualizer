@@ -39,12 +39,12 @@ export const DefaultJa: Story = {
     onSetTheme: () => {},
     detailReloadKey: 0,
     refresh: {
-      lang: 'ja',
       running: false,
       logLines: [],
       status: null,
       error: null,
       onStart: () => {},
+      onCancel: () => {},
     },
   },
 }
