@@ -40,6 +40,16 @@ const SCREENSHOT_DIR = resolve(__dirname, '../../../docs/screenshots')
 // チャート/キャンバス（visx・lightweight-charts）の描画が落ち着くまでの待機（ms）。
 const CHART_SETTLE_MS = 500
 
+// 要素高さの安定待ちのポーリング設定（issue #509）。
+const STABLE_HEIGHT_POLL_INTERVAL_MS = 150
+const STABLE_HEIGHT_MAX_POLLS = 60
+
+// 撮影用 viewport。幅は固定（レイアウトの折り返しを言語間で揃えるため）で、
+// 高さは要素が収まらなければ captureElement が実測値まで広げる（issue #509）。
+const VIEWPORT_WIDTH = 1440
+const VIEWPORT_BASE_HEIGHT = 1800
+const VIEWPORT_PADDING = 80
+
 async function ensureDir(filePath: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true })
 }
@@ -54,18 +64,34 @@ async function settle(page: Page): Promise<void> {
  * visx / lightweight-charts は ResizeObserver で遅延測定されるため、
  * スクロール直後は要素高さが潰れていることがある。高さが下限以上で
  * 安定するまでポーリングしてからクロップする。
+ *
+ * issue #509: 安定しないままループを抜けたときに黙って return していたため、
+ * 描画途中の高さでクロップされた不完全な画像が「撮影成功」として
+ * docs/screenshots/ に書き込まれていた。撮影失敗は落として気付ける方が安全
+ * なので throw する（`captureElement` が boundingBox 取得失敗で throw するのと
+ * 同じ方針）。
  */
-async function waitForStableHeight(target: Locator, minHeight: number): Promise<void> {
+async function waitForStableHeight(
+  target: Locator,
+  minHeight: number,
+  name: string,
+): Promise<void> {
   let last = -1
-  for (let i = 0; i < 25; i += 1) {
+  let height = 0
+  for (let i = 0; i < STABLE_HEIGHT_MAX_POLLS; i += 1) {
     const box = await target.boundingBox()
-    const height = box?.height ?? 0
+    height = box?.height ?? 0
     if (height >= minHeight && height === last) {
       return
     }
     last = height
-    await target.page().waitForTimeout(150)
+    await target.page().waitForTimeout(STABLE_HEIGHT_POLL_INTERVAL_MS)
   }
+  const waitedMs = STABLE_HEIGHT_MAX_POLLS * STABLE_HEIGHT_POLL_INTERVAL_MS
+  throw new Error(
+    `高さが安定しませんでした: ${name} — ${waitedMs}ms 待って height=${height} ` +
+      `(minHeight=${minHeight})。この状態でクロップすると画像が途中で切れるため撮影を中止します。`,
+  )
 }
 
 /**
@@ -76,6 +102,11 @@ async function waitForStableHeight(target: Locator, minHeight: number): Promise<
  * 親要素が可視領域内に無いと width=0 で描画されない。`Locator.screenshot()` は要素を
  * 分割スクロールして撮るため off-screen 部分のチャートが潰れる。そこで縦長 viewport に
  * 要素全体を収めて描画させ、boundingBox を clip した `page.screenshot()` で撮る。
+ *
+ * issue #509: `page.screenshot({ clip })` の clip は viewport でクリップされる。
+ * 要素が viewport より高いと画像が下端で無言で切れるため、実高さを測ってから
+ * viewport を広げ直し、最後に収まっていることを検証してから撮る。
+ * （en/strategy は英語ラベルでカード群が縦に伸び、固定の 1800px を超えていた）
  */
 async function captureElement(
   page: Page,
@@ -86,18 +117,42 @@ async function captureElement(
 ): Promise<void> {
   const filePath = resolve(SCREENSHOT_DIR, lang, `${name}.png`)
   await ensureDir(filePath)
-  // 想定要素（最大 strategy-screen ≈ 1100px）が丸ごと収まる高さにする。
-  await page.setViewportSize({ width: 1440, height: 1800 })
-  await target.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }))
-  await target.waitFor({ state: 'visible' })
-  // visx ParentSize は mount 時に width=0 で測れていることがあるため、
-  // 可視化後に resize を発火させて再測定を促す。
-  await page.evaluate(() => window.dispatchEvent(new Event('resize')))
-  await settle(page)
-  await waitForStableHeight(target, minHeight)
+
+  const fit = async (viewportHeight: number): Promise<void> => {
+    await page.setViewportSize({ width: VIEWPORT_WIDTH, height: viewportHeight })
+    await target.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await target.waitFor({ state: 'visible' })
+    // visx ParentSize は mount 時に width=0 で測れていることがあるため、
+    // 可視化後に resize を発火させて再測定を促す。
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')))
+    await settle(page)
+    await waitForStableHeight(target, minHeight, name)
+  }
+
+  await fit(VIEWPORT_BASE_HEIGHT)
+
+  const measured = await target.boundingBox()
+  if (!measured) {
+    throw new Error(`boundingBox を取得できませんでした: ${name}`)
+  }
+  // 要素が基準 viewport に収まらないときだけ広げ直す（毎回広げると
+  // ParentSize 系チャートの再測定が余計に走るため）
+  const needed = Math.ceil(measured.height) + VIEWPORT_PADDING
+  if (needed > VIEWPORT_BASE_HEIGHT) {
+    await fit(needed)
+  }
+
   const box = await target.boundingBox()
   if (!box) {
     throw new Error(`boundingBox を取得できませんでした: ${name}`)
+  }
+  const viewport = page.viewportSize()
+  if (viewport !== null && box.y + box.height > viewport.height + 1) {
+    throw new Error(
+      `要素が viewport に収まっていません: ${name} — box(y=${Math.round(box.y)}, ` +
+        `height=${Math.round(box.height)}) が viewport.height=${viewport.height} を超えています。` +
+        'この状態で clip すると画像が下端で切れるため撮影を中止します。',
+    )
   }
   await page.screenshot({ path: filePath, clip: box })
 }
@@ -209,7 +264,10 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await gotoDetail(page, STRATEGY_ID)
         await setLang(page, lang)
         await openDetailTab(page, '戦略構成', 'Strategy', lang)
-        await captureElement(page, lang, 'strategy', page.getByTestId('strategy-screen'))
+        // minHeight を明示する（issue #509）。既定の 200px は strategy-screen
+        // （≈1100px）に対して低すぎ、カード群が描画途中で 200px を超えた瞬間に
+        // 「安定した」と誤判定してクロップされ、画像が途中で切れていた。
+        await captureElement(page, lang, 'strategy', page.getByTestId('strategy-screen'), 700)
       })
 
       // optimize: 最適化トライアル分析（パラメータ感度散布図＋上位トライアル）
