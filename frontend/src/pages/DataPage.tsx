@@ -10,7 +10,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { makeL } from '../i18n/strings'
 import { SettingsToggles } from '../components/SettingsToggles'
 import { Chip, ErrorBanner, Loading } from '../design/primitives'
-import { extractApiErrorDetail, messageForApiErrorCode } from '../lib/errorMessage'
+import { extractApiErrorDetail, jobErrorMessage, messageForApiErrorCode } from '../lib/errorMessage'
 import { fmtDate, fmtInteger, fmtNumber } from '../lib/format'
 
 // useFetchByKey は fetcher の安定参照を前提とするため module-level に置く
@@ -70,6 +70,7 @@ export function DataPage(): ReactElement {
     if (status === 'succeeded') setReloadToken((t) => t + 1)
   }, [])
   const runner = useDataJobRunner(onJobFinished)
+  const jobError = jobErrorMessage(runner.error, lang)
 
   const startFetch = useCallback(() => {
     void runner.start({ action: 'fetch', symbol: symbol.trim(), period, interval })
@@ -284,10 +285,17 @@ export function DataPage(): ReactElement {
         </div>
       )}
 
-      {!runner.running && runner.status === 'failed' && runner.error && (
+      {/*
+        issue #507: 表示条件は `error` の有無だけで判定する。ジョブ作成 API 自体の
+        失敗（403 local_write_disabled / 503 forge_cli_not_found）は status が
+        更新される前に catch されるため、`status === 'failed'` を要求すると
+        この経路のエラーが一生表示されなかった。error は実行中の失敗なら
+        JobManager の translate 済み文言、作成失敗なら ApiError の生メッセージ
+        なので、jobErrorMessage で表示用に写像してから渡す。
+      */}
+      {!runner.running && jobError && (
         <ErrorBanner
-          // JobManager の error は translate 済みの利用者向け文言（日英連結）
-          message={runner.error}
+          message={jobError}
           retryLabel={L('再試行', 'Retry')}
           onRetry={startFetch}
         />

@@ -65,7 +65,6 @@ function renderScreen(overrides: Partial<Parameters<typeof LiveScreen>[0]> = {})
     refresh: {
       running: false,
       logLines: [],
-      status: null,
       error: null,
       onStart: vi.fn(),
       onCancel: vi.fn(),

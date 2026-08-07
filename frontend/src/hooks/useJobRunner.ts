@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
+import { JOB_STATE_LOST_ERROR } from '../lib/errorMessage'
 import type { CreateAgentJobParams, CreateDataJobParams, CreateJobParams, CreateLiveJobParams, JobStatus, JobSummary } from '../api/types'
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['succeeded', 'failed', 'cancelled'])
@@ -13,11 +14,10 @@ const POLL_MAX_CONSECUTIVE_FAILURES = 5
 /**
  * ポーリング打ち切り時に error へ設定する識別子 (issue #355)。
  *
- * ジョブ状態は in-process 保持のためサーバー再起動で消え、その後の 404 は
- * 恒久的。表示側（JobRunnerCard / TuningPanel）がこの識別子を表示言語の
- * 文言へ写像する。
+ * 実体は `lib/errorMessage` にあり（写像を担う lib 層が hooks 層へ依存しない
+ * ようにするため）、既存の import 経路を保つためここから re-export する。
  */
-export const JOB_STATE_LOST_ERROR = 'job_state_lost'
+export { JOB_STATE_LOST_ERROR }
 
 interface SseEvent {
   type: 'snapshot' | 'log' | 'status'
@@ -172,6 +172,12 @@ function useJobRunnerCore<P>(
         }
         return true
       } catch (err) {
+        // issue #507: ジョブが生成されなかった以上、SSE もポーリングも status を
+        // 進める主体が存在しない。status を null のままにすると
+        // `status === 'failed'` を表示条件にしている側（DataPage /
+        // DevelopScreen）へ到達せず、403 / 503 / 404 が無言で握り潰される。
+        // 「実行を試みて失敗した」という終了状態は hook 側が表明する。
+        setStatus('failed')
         setError(err instanceof Error ? err.message : String(err))
         setRunning(false)
         return false

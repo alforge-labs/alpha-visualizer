@@ -296,4 +296,33 @@ describe('DataPage 取得・更新ジョブ (issue #485)', () => {
     // 失敗では一覧を再取得しない
     expect(api.listDatasets).toHaveBeenCalledTimes(1)
   })
+
+  /**
+   * issue #507: ジョブ「作成」自体が失敗する経路（403 local_write_disabled /
+   * 503 forge_cli_not_found）はジョブが生成されず SSE も張られないため、
+   * 上の「ジョブ失敗」テスト（SSE で failed を受ける経路）とは別物。
+   * hook が status を進めないままだと `status === 'failed'` を要求する表示条件に
+   * 到達せず、「ボタンを押しても何も起きない」状態になっていた。
+   */
+  it('ジョブ作成が 403 で失敗した場合も意味のあるエラーを表示する (issue #507)', async () => {
+    vi.mocked(api.createDataJob).mockRejectedValue(
+      new ApiError(
+        'API 403: {"detail":"この操作は localhost でのみ利用できます（LAN 公開中は無効） / This operation is only available on localhost","code":"local_write_disabled"}',
+        403,
+        '/api/data/jobs',
+      ),
+    )
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.click(screen.getByRole('button', { name: /すべて更新/ }))
+
+    // サーバーの detail（利用者向け文言）が表示され、内部識別子や ApiError の
+    // 生文字列は露出しないこと
+    expect(await screen.findByText(/localhost/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('local_write_disabled')
+    expect(document.body.textContent).not.toContain('API 403')
+    // 作成自体が失敗しているので SSE 購読は発生しない
+    expect(FakeEventSource.instances).toHaveLength(0)
+  })
 })

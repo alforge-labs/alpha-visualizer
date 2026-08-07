@@ -97,3 +97,46 @@ export function extractApiErrorDetail(
   }
   return normalizeErrorMessage(raw, lang)
 }
+
+/**
+ * ポーリング打ち切り時に error へ設定する識別子 (issue #355)。
+ *
+ * ジョブ状態は in-process 保持のためサーバー再起動で消え、その後の 404 は
+ * 恒久的。`jobErrorMessage` がこの識別子を表示言語の文言へ写像する。
+ *
+ * 定数の実体をここに置き `hooks/useJobRunner` が re-export しているのは、
+ * 写像を担う本モジュール（lib 層）が hooks 層へ依存しないようにするため。
+ */
+export const JOB_STATE_LOST_ERROR = 'job_state_lost'
+
+/**
+ * ジョブ実行系フック（`useJobRunner` 系）の `error` を表示用文言へ写像する。
+ *
+ * ジョブの失敗には性質の異なる 2 系統がある:
+ *
+ * 1. **ジョブ作成 API 自体の失敗** — `ApiError` の生メッセージ
+ *    （`API 403: {"detail":...,"code":...}`）がそのまま入る。生 JSON や内部
+ *    識別子を UI に出さないよう、code 写像 →
+ *    detail 抽出の順にユーザー向け文言へ落とす。
+ * 2. **実行中の失敗** — `JobManager` が translate 済みの利用者向け文言、または
+ *    ポーリング打ち切りの識別子 `job_state_lost`。
+ *
+ * 呼び出し側でこの分岐を都度書くと同じ文言が各コンポーネントへコピーされる
+ * ため（issue #507 の修正時点で 3 箇所に重複）、写像を 1 箇所へ集約する。
+ * `null`（エラー無し）はそのまま `null` を返すので、呼び出し側は
+ * 戻り値の有無だけで表示を出し分けられる。
+ */
+export function jobErrorMessage(
+  raw: string | null | undefined,
+  lang: Lang,
+): string | null {
+  if (!raw) return null
+  const L = makeL(lang)
+  if (raw === JOB_STATE_LOST_ERROR) {
+    return L(
+      'ジョブの状態が不明になりました（サーバー再起動の可能性があります）。もう一度実行してください。',
+      'Job state is unknown (the server may have restarted). Please run it again.',
+    )
+  }
+  return messageForApiErrorCode(raw, lang) ?? extractApiErrorDetail(raw, lang)
+}

@@ -10,7 +10,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={false}
         logLines={[]}
-        status={null}
         error={null}
         onStart={onStart}
         onCancel={vi.fn()}
@@ -26,7 +25,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={true}
         logLines={['[1/3] sync-events: 同期中...', '[2/3] data update: 市場データ更新中...']}
-        status="running"
         error={null}
         onStart={vi.fn()}
         onCancel={vi.fn()}
@@ -46,7 +44,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={true}
         logLines={[]}
-        status="running"
         error={null}
         onStart={vi.fn()}
         onCancel={onCancel}
@@ -62,7 +59,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={false}
         logLines={[]}
-        status={null}
         error={null}
         onStart={vi.fn()}
         onCancel={vi.fn()}
@@ -77,7 +73,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={false}
         logLines={[]}
-        status="failed"
         error="ステップ sync_events が失敗しました"
         onStart={vi.fn()}
         onCancel={vi.fn()}
@@ -86,16 +81,16 @@ describe('LiveRefreshPanel', () => {
     expect(screen.getByText(/sync_events/)).toBeInTheDocument()
   })
 
-  // PR #506 最終レビュー指摘 #1: ジョブ「作成」自体の失敗（403 / 503 / 429）は
-  // start() の catch で setError するだけで status は変わらない
-  // （null のまま）。表示条件が `error` の有無のみであることを直接検証する。
-  it('status が null でも error があればエラーを表示する（ジョブ作成失敗の経路）', () => {
+  // PR #506 最終レビュー指摘 #1: ジョブ「作成」自体の失敗（403 / 503 / 429）を
+  // 表示できること。本コンポーネントは status を受け取らず `error` の有無だけで
+  // 判定する（issue #508 で不参照の status prop を削除）。作成失敗時に hook が
+  // status をどう扱うかは useJobRunner 側の責務で、ここでは検証しない。
+  it('ジョブ作成失敗の error を利用者向け文言で表示する', () => {
     render(
       <LiveRefreshPanel
         lang="ja"
         running={false}
         logLines={[]}
-        status={null}
         error='API 403: {"detail":"この操作は localhost でのみ利用できます / localhost only","code":"local_write_disabled"}'
         onStart={vi.fn()}
         onCancel={vi.fn()}
@@ -112,7 +107,6 @@ describe('LiveRefreshPanel', () => {
         lang="ja"
         running={false}
         logLines={[]}
-        status="failed"
         error="job_state_lost"
         onStart={vi.fn()}
         onCancel={vi.fn()}

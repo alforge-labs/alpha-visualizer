@@ -6,6 +6,7 @@ import { Button, ErrorBanner, Loading } from '../design/primitives'
 import type { Theme } from '../hooks/useTheme'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import { jobErrorMessage } from '../lib/errorMessage'
 import type { GoalTypeId } from '../lib/goalBuilder'
 import { BUILDER_INDICATORS, GOAL_TYPES, buildGoalText } from '../lib/goalBuilder'
 import { SettingsToggles } from '../components/SettingsToggles'
@@ -641,7 +642,16 @@ function CompletionPanel({
     )
   }
   if (status === 'failed') {
-    return <ErrorBanner message={error ?? L('不明なエラー', 'Unknown error')} retryLabel={L('再試行', 'Retry')} />
+    // issue #507: error はジョブ実行中の失敗なら JobManager の translate 済み
+    // 文言だが、ジョブ作成 API 自体の失敗（404 派生元不在 / 503 CLI 不在）では
+    // ApiError の生メッセージ（"API 404: {...}"）が入る。生 JSON を露出させない
+    // よう表示用に写像する。
+    return (
+      <ErrorBanner
+        message={jobErrorMessage(error, lang) ?? L('不明なエラー', 'Unknown error')}
+        retryLabel={L('再試行', 'Retry')}
+      />
+    )
   }
   if (status === 'cancelled') {
     return (
