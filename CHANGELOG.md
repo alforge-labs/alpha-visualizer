@@ -11,6 +11,21 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.6.0] - 2026-08-07
+
+
+### バグ修正
+
+- ジョブ作成失敗の非表示・不参照 prop・スクショ truncate の 3 件を修正する (#510)
+
+
+
+### 新機能
+
+- **live**: Live ページからライブデータを一括更新できるようにする (#506)
+
+
+
 ## [1.5.0] - 2026-08-05
 
 
