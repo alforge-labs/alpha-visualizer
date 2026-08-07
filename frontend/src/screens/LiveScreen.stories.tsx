@@ -37,6 +37,15 @@ export const DefaultJa: Story = {
     theme: 'dark',
     onSetLang: () => {},
     onSetTheme: () => {},
+    detailReloadKey: 0,
+    refresh: {
+      lang: 'ja',
+      running: false,
+      logLines: [],
+      status: null,
+      error: null,
+      onStart: () => {},
+    },
   },
 }
 

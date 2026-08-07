@@ -61,6 +61,15 @@ function renderScreen(overrides: Partial<Parameters<typeof LiveScreen>[0]> = {})
     theme: 'dark',
     onSetLang: vi.fn(),
     onSetTheme: vi.fn(),
+    detailReloadKey: 0,
+    refresh: {
+      lang: 'ja',
+      running: false,
+      logLines: [],
+      status: null,
+      error: null,
+      onStart: vi.fn(),
+    },
     ...overrides,
   }
   render(

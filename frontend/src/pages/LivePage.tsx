@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { LiveScreen } from '../screens/LiveScreen'
 import { useLiveList } from '../hooks/useLiveList'
+import { useLiveRefreshRunner } from '../hooks/useJobRunner'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
@@ -11,6 +13,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
  * 役割:
  * - データ取得 (useLiveList) と画面設定 (useViewerSettings) のフック呼び出し
  * - 選択エントリの URL 同期（``?id=`` query param、未指定時は先頭を自動選択）
+ * - ライブデータ一括更新ジョブ（useLiveRefreshRunner）の起動配線。成功時は
+ *   一覧を再取得し、detailReloadKey を進めて詳細（LiveTab）を再フェッチさせる
  * - エラー時の早期 return
  *
  * Render は LiveScreen に委譲する（ADR-0001）。
@@ -19,7 +23,15 @@ export function LivePage(): ReactElement {
   const { settings, update } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? 'ライブ実績' : 'Live')
-  const { items, loading, error } = useLiveList()
+  const { items, loading, error, reload } = useLiveList()
+  const [detailReloadKey, setDetailReloadKey] = useState(0)
+  const runner = useLiveRefreshRunner((status) => {
+    // 成功時のみ一覧・詳細を再取得する（失敗時は DataPage と同方針で据え置く）
+    if (status === 'succeeded') {
+      reload()
+      setDetailReloadKey((k) => k + 1)
+    }
+  })
   const [searchParams, setSearchParams] = useSearchParams()
 
   if (error) {
@@ -60,6 +72,15 @@ export function LivePage(): ReactElement {
       onSetTheme={(t) => {
         update('theme', t)
         update('variation', t === 'dark' ? 'lab' : 'atelier')
+      }}
+      detailReloadKey={detailReloadKey}
+      refresh={{
+        lang,
+        running: runner.running,
+        logLines: runner.logLines,
+        status: runner.status,
+        error: runner.error,
+        onStart: () => void runner.start({ action: 'refresh' }),
       }}
     />
   )
