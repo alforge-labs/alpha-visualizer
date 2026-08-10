@@ -19,6 +19,9 @@ export interface MaintenanceScreenProps {
   /** visualizer 更新成功後のサーバー再起動待ち表示。 */
   restarting: boolean
   restartTimedOut: boolean
+  /** バージョン一覧取得エラー時の再試行ボタン押下。孤児一覧側の onRetry と役割が
+   *  異なるため別名にする。 */
+  onVersionsRetry?: () => void
   orphans: OrphanRunItem[]
   totalBytes: number
   loading: boolean
@@ -169,6 +172,7 @@ export function MaintenanceScreen({
   updatingComponentId,
   restarting,
   restartTimedOut,
+  onVersionsRetry,
   orphans,
   totalBytes,
   loading,
@@ -294,6 +298,7 @@ export function MaintenanceScreen({
           updatingId={updatingComponentId}
           restarting={restarting}
           restartTimedOut={restartTimedOut}
+          onRetry={onVersionsRetry}
         />
 
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}

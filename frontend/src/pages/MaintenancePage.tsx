@@ -75,6 +75,7 @@ export function MaintenancePage(): ReactElement {
       updatingComponentId={updatingId}
       restarting={restart.waiting}
       restartTimedOut={restart.timedOut}
+      onVersionsRetry={versions.reload}
       orphans={orphanRuns.orphans}
       totalBytes={orphanRuns.totalBytes}
       loading={orphanRuns.loading}

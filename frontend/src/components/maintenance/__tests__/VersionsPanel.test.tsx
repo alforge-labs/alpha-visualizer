@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { VersionsPanel } from '../VersionsPanel'
 import type { ComponentVersion } from '../../../api/types'
 
@@ -72,5 +73,21 @@ describe('VersionsPanel', () => {
     )
     expect(screen.queryByRole('button', { name: /更新/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link')).toBeInTheDocument()
+  })
+
+  it('エラー時に再試行ボタンが描画され、押すと onRetry が呼ばれる', async () => {
+    // ErrorBanner は onRetry が渡らないとボタン自体を描画しない
+    // （design/primitives/ErrorBanner.tsx の {onRetry && (...)}）。
+    // VersionsPanel が onRetry を ErrorBanner に配線し忘れると、再試行ボタンが
+    // 一度も出ずページ全体のリロードしか手段がなくなる回帰を防ぐ。
+    const onRetry = vi.fn()
+    render(
+      <VersionsPanel
+        components={[]} loading={false} error="API 500" lang="ja" onRetry={onRetry}
+      />,
+    )
+    const retryButton = screen.getByRole('button', { name: /再試行/ })
+    await userEvent.click(retryButton)
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 })

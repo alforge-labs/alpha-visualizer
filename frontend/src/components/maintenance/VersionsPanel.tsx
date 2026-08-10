@@ -17,6 +17,8 @@ export interface VersionsPanelProps {
   /** サーバー再起動待ちの表示。 */
   restarting?: boolean
   restartTimedOut?: boolean
+  /** エラーバナーの再試行ボタン押下。未指定なら再試行ボタンを出さない。 */
+  onRetry?: () => void
 }
 
 const STRIKE_DEPLOY_DOC_URL =
@@ -89,12 +91,20 @@ export function VersionsPanel({
   updatingId,
   restarting,
   restartTimedOut,
+  onRetry,
 }: VersionsPanelProps): ReactElement {
   const l = makeL(lang)
   const rows = components.filter(c => c.status !== 'disabled')
 
   if (error) {
-    return <ErrorBanner message={error} retryLabel={l('再試行', 'Retry')} title={error} />
+    return (
+      <ErrorBanner
+        message={error}
+        retryLabel={l('再試行', 'Retry')}
+        title={error}
+        onRetry={onRetry}
+      />
+    )
   }
   if (loading) {
     return <Loading label={l('バージョンを確認しています…', 'Checking versions…')} rows={3} />

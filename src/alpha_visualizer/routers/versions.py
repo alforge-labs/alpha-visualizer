@@ -114,6 +114,10 @@ async def _restart_after_success(app: Any, manager: JobManager, job_id: str) -> 
 
     失敗したまま再起動すると、壊れた環境で二度と起動しない事態になりうる。
     再起動は成功パスにのみ紐づける（設計 §エラー処理の最重要行）。
+
+    ``restart_requested`` は ``should_exit`` を実際に立てられたときだけ立てる。
+    server が None の経路（``alpha-vis serve`` 以外での起動）でフラグだけが
+    立って誰も再起動を実行しない状態を残さないため。
     """
     try:
         record = await manager.wait_terminal(job_id, timeout=RESTART_WATCH_TIMEOUT_SEC)
@@ -121,10 +125,10 @@ async def _restart_after_success(app: Any, manager: JobManager, job_id: str) -> 
         return
     if record.status != "succeeded":
         return
-    app.state.restart_requested = True
     server = app.state.uvicorn_server
     if server is not None:
         server.should_exit = True
+        app.state.restart_requested = True
 
 
 async def _call_or_exc(func: Any, *args: Any) -> Any:
@@ -174,14 +178,17 @@ def _forge_component(payload: dict[str, Any] | None) -> ComponentVersion:
 
 def _visualizer_component(latest: str | None) -> ComponentVersion:
     updatable = sys.platform != "win32"
+    update_available = bool(latest and is_newer(latest, __version__))
     return ComponentVersion(
         id="visualizer",
         status="ok",
         current=__version__,
         latest=latest,
-        update_available=bool(latest and is_newer(latest, __version__)),
+        update_available=update_available,
         updatable=updatable,
-        message=None if updatable else WINDOWS_MANUAL_UPDATE_MESSAGE,
+        # 更新が無いのに Windows 向けの手動更新案内を出すと、最新版のユーザーにも
+        # 「やるべき作業がある」ように見えてしまう。案内は更新があるときだけ出す
+        message=WINDOWS_MANUAL_UPDATE_MESSAGE if (not updatable and update_available) else None,
     )
 
 

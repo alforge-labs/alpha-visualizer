@@ -223,6 +223,32 @@ def test_Windowsではvisualizerがupdatable_false(remote_workspace: pathlib.Pat
     assert vis["message"] is not None
 
 
+def test_Windowsでも最新版ならmessageは出ない(remote_workspace: pathlib.Path) -> None:
+    """updatable=False と update_available=False が両立する（Windows かつ最新版）とき、
+    Windows 向けの手動更新案内を出さない（レビュー指摘の回帰テスト）。
+
+    案内が常時出ると、最新版を使っている Windows ユーザーにも
+    「やるべき作業がある」ように見えてしまう。
+    """
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "win32"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            return_value=FORGE_SELF_VERSION,
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version",
+            return_value=__version__,
+        ),
+    ):
+        res = client.get("/api/versions")
+    vis = _components(res.json())["visualizer"]
+    assert vis["updatable"] is False
+    assert vis["update_available"] is False
+    assert vis["message"] is None
+
+
 def test_fetch_latest_versionが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:
     """degraded 設計の核（レビュー指摘の回帰テスト）。
 
@@ -417,6 +443,26 @@ def test_更新失敗時は再起動しない(tmp_path: pathlib.Path) -> None:
     asyncio.run(_restart_after_success(app, manager, "job-test000000"))
     assert app.state.restart_requested is False
     assert server.should_exit is False
+
+
+def test_serverが未設定なら再起動フラグを立てない(tmp_path: pathlib.Path) -> None:
+    """``uvicorn_server`` が None の経路（``alpha-vis serve`` 以外での起動）で、
+    フラグだけが立って誰も再起動を実行しない状態を残さない（レビュー指摘の回帰テスト）。
+    """
+    import asyncio
+
+    from alpha_visualizer.routers.versions import _restart_after_success
+
+    app = create_app(forge_dir=tmp_path)
+    assert app.state.uvicorn_server is None
+
+    succeeded = _job_record("visualizer_self_update")
+    succeeded.status = "succeeded"
+    manager = mock.Mock()
+    manager.wait_terminal = mock.AsyncMock(return_value=succeeded)
+
+    asyncio.run(_restart_after_success(app, manager, "job-test000000"))
+    assert app.state.restart_requested is False
 
 
 def test_strikeメタ読み取りが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:
