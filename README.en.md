@@ -171,6 +171,12 @@ cd frontend && pnpm install && pnpm run dev
 cd frontend && pnpm install && pnpm run build
 ```
 
+> **Restart `alpha-vis serve` if it was running while you built.**
+> The build recreates `src/alpha_visualizer/static/`, so a server started
+> beforehand can no longer serve the new assets. The browser then fails to load
+> the JS and the page stays blank — with no error in the server log (only a MIME
+> type error in the browser console). Use `pnpm run dev` if you want hot reload.
+
 See [CONTRIBUTING.en.md](CONTRIBUTING.en.md) for details.
 
 ## License

@@ -171,6 +171,13 @@ cd frontend && pnpm install && pnpm run dev
 cd frontend && pnpm run build
 ```
 
+> **`alpha-vis serve` を起動したままビルドした場合は、サーバーを再起動してください。**
+> ビルドは `src/alpha_visualizer/static/` を作り直すため、起動中のサーバーは新しい
+> アセットを配信できなくなります。この状態ではブラウザが JS を読み込めず画面が
+> 真っ白になりますが、サーバーログにエラーは出ません（ブラウザのコンソールに
+> MIME type のエラーが出るだけです）。ホットリロードで確認したい場合は
+> `pnpm run dev` を使ってください。
+
 詳細は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
 ## ライセンス
