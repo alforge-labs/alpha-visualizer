@@ -60,6 +60,7 @@ from alpha_visualizer.services.forge_cli import (
     resolve_forge_exe,
     translate_forge_failure,
 )
+from alpha_visualizer.services.self_update import NO_INSTALLER_MESSAGE, build_upgrade_argv
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ DataJobKind = Literal["data_fetch", "data_update"]
 LiveJobKind = Literal["live_refresh"]
 JobKind = Literal[
     "backtest", "optimize", "wft", "agent", "data_fetch", "data_update",
-    "live_refresh", "forge_self_update",
+    "live_refresh", "forge_self_update", "visualizer_self_update",
 ]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
@@ -656,6 +657,14 @@ class JobManager:
                 if final is not None:
                     final_text_holder[:] = [final]
                 return format_agent_event(backend, line)
+        elif record.kind == "visualizer_self_update":
+            # forge を介さない唯一のジョブ。pip / uv を直接起動する
+            upgrade_argv = build_upgrade_argv()
+            if upgrade_argv is None:
+                await self._finish(record, "failed", error=NO_INSTALLER_MESSAGE)
+                return
+            argv = upgrade_argv
+            timeout_sec = self._timeout_sec
         else:
             forge_exe = self._forge_resolver()
             if forge_exe is None:

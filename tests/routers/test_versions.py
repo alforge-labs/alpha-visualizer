@@ -296,6 +296,80 @@ def test_非loopback公開時は403(remote_workspace: pathlib.Path) -> None:
     assert res.status_code == 403
 
 
+def test_visualizer更新は202(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "linux"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.is_editable_install", return_value=False
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.build_upgrade_argv",
+            return_value=["python", "-m", "pip", "install", "-U", "alpha-visualizer"],
+        ),
+        mock.patch(
+            "alpha_visualizer.services.jobs.JobManager.create", new_callable=mock.AsyncMock
+        ) as create,
+    ):
+        create.return_value = _job_record("visualizer_self_update")
+        res = client.post("/api/versions/visualizer/update")
+    assert res.status_code == 202
+    assert create.await_args.kwargs["kind"] == "visualizer_self_update"
+
+
+def test_editableインストールは409(remote_workspace: pathlib.Path) -> None:
+    """開発チェックアウトに pip install -U を打たせない。"""
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "linux"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.is_editable_install", return_value=True
+        ),
+    ):
+        res = client.post("/api/versions/visualizer/update")
+    assert res.status_code == 409
+
+
+def test_実行中ジョブがあれば409(remote_workspace: pathlib.Path) -> None:
+    """バックテストやエージェントを巻き添えで殺さない。"""
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    running = _job_record("backtest")
+    running.status = "running"
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "linux"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.is_editable_install", return_value=False
+        ),
+        mock.patch(
+            "alpha_visualizer.services.jobs.JobManager.list", return_value=[running]
+        ),
+    ):
+        res = client.post("/api/versions/visualizer/update")
+    assert res.status_code == 409
+
+
+def test_Windowsでは409(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with mock.patch("alpha_visualizer.routers.versions.sys.platform", "win32"):
+        res = client.post("/api/versions/visualizer/update")
+    assert res.status_code == 409
+
+
+def test_インストーラが無ければ409(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "linux"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.is_editable_install", return_value=False
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.build_upgrade_argv", return_value=None
+        ),
+    ):
+        res = client.post("/api/versions/visualizer/update")
+    assert res.status_code == 409
+
+
 def test_strikeメタ読み取りが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:
     """degraded 設計の核（レビュー指摘の回帰テスト）。
 

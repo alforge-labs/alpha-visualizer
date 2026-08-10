@@ -1345,6 +1345,28 @@
         }
       }
     },
+    "/api/versions/visualizer/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Visualizer",
+        "description": "自分自身を pip / uv で更新するジョブを起動する。\n\n実行中プロセスを差し替えるため、事前ガードを 4 つ通す。1 つでも欠けたら\nジョブを積まずに 409 で断る（積んでから失敗させると、原因がログの奥に\n埋まったうえに中途半端な状態が残りうる）。",
+        "operationId": "update_visualizer_api_versions_visualizer_update_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",

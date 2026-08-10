@@ -717,7 +717,8 @@ def test_forge_job_kind_excludes_agent() -> None:
     forge サブコマンドの argv を組んでしまう。型で受理しないことを保証する
     （検証者は mypy。ここでは各 Literal の関係が崩れていないことを押さえる）。
     forge_self_update も同じ理由（build_argv は backtest/optimize/wft 専用）で
-    ForgeJobKind には含めない。
+    ForgeJobKind には含めない。visualizer_self_update は forge を介さないので
+    同様に含めない。
     """
     assert "agent" not in get_args(jobs.ForgeJobKind)
     assert "agent" not in get_args(jobs.DataJobKind)
@@ -725,12 +726,16 @@ def test_forge_job_kind_excludes_agent() -> None:
     assert "forge_self_update" not in get_args(jobs.ForgeJobKind)
     assert "forge_self_update" not in get_args(jobs.DataJobKind)
     assert "forge_self_update" not in get_args(jobs.LiveJobKind)
-    # JobKind = forge 系 + data 系 + live 系 + agent + forge_self_update の直和（重複なし）
+    assert "visualizer_self_update" not in get_args(jobs.ForgeJobKind)
+    assert "visualizer_self_update" not in get_args(jobs.DataJobKind)
+    assert "visualizer_self_update" not in get_args(jobs.LiveJobKind)
+    # JobKind = forge 系 + data 系 + live 系 + agent + forge_self_update +
+    # visualizer_self_update の直和（重複なし）
     assert set(get_args(jobs.JobKind)) == (
         set(get_args(jobs.ForgeJobKind))
         | set(get_args(jobs.DataJobKind))
         | set(get_args(jobs.LiveJobKind))
-        | {"agent", "forge_self_update"}
+        | {"agent", "forge_self_update", "visualizer_self_update"}
     )
     assert not set(get_args(jobs.ForgeJobKind)) & set(get_args(jobs.DataJobKind))
     assert not set(get_args(jobs.ForgeJobKind)) & set(get_args(jobs.LiveJobKind))

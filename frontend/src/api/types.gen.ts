@@ -665,6 +665,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/versions/visualizer/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Visualizer
+         * @description 自分自身を pip / uv で更新するジョブを起動する。
+         *
+         *     実行中プロセスを差し替えるため、事前ガードを 4 つ通す。1 つでも欠けたら
+         *     ジョブを積まずに 409 で断る（積んでから失敗させると、原因がログの奥に
+         *     埋まったうえに中途半端な状態が残りうる）。
+         */
+        post: operations["update_visualizer_api_versions_visualizer_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3137,6 +3161,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_visualizer_api_versions_visualizer_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
                 };
             };
         };

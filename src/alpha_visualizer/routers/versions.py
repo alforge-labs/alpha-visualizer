@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, Request
 from alpha_visualizer import __version__
 from alpha_visualizer.dependencies import get_forge_config_dep, get_job_manager
 from alpha_visualizer.errors import (
+    ConflictError,
     ForgeCliNotFoundError,
     InvalidRequestError,
     LocalWriteDisabledError,
@@ -43,6 +44,11 @@ from alpha_visualizer.services.forge_cli import FORGE_NOT_FOUND_MESSAGE, resolve
 from alpha_visualizer.services.forge_sync import run_forge_json
 from alpha_visualizer.services.jobs import JobManager
 from alpha_visualizer.services.pypi import fetch_latest_version, is_newer
+from alpha_visualizer.services.self_update import (
+    NO_INSTALLER_MESSAGE,
+    build_upgrade_argv,
+    is_editable_install,
+)
 
 router = APIRouter()
 
@@ -84,6 +90,18 @@ STRIKE_NOT_UPDATABLE_MESSAGE = (
     "VM 上で更新手順を実行してください"
     " / alpha-strike cannot be updated from the GUI."
     " Run the update procedure on the VM."
+)
+
+EDITABLE_INSTALL_MESSAGE = (
+    "開発用（editable）インストールのため GUI からは更新できません。"
+    "作業ツリーで git pull / uv sync を実行してください"
+    " / This is an editable install; updating from the GUI is disabled."
+    " Run git pull / uv sync in your working tree."
+)
+
+JOBS_RUNNING_MESSAGE = (
+    "実行中のジョブがあるため更新できません。完了またはキャンセルしてから再試行してください"
+    " / Cannot update while jobs are running. Wait for them to finish or cancel them."
 )
 
 
@@ -228,6 +246,41 @@ async def update_strike() -> None:
     意図的に無いのか」がクライアントから区別できない。
     """
     raise InvalidRequestError(STRIKE_NOT_UPDATABLE_MESSAGE)
+
+
+def _has_active_jobs(manager: JobManager) -> bool:
+    """queued / running のジョブが 1 件でもあるか。
+
+    自己更新は自プロセスを差し替えて再起動するため、走っているジョブは
+    すべて道連れになる。バックテストやエージェントの実行中は更新を断る。
+    """
+    return any(record.status in ("queued", "running") for record in manager.list())
+
+
+@router.post("/versions/visualizer/update", response_model=JobSummary, status_code=202)
+async def update_visualizer(
+    request: Request,
+    manager: Annotated[JobManager, Depends(get_job_manager)],
+) -> JobSummary:
+    """自分自身を pip / uv で更新するジョブを起動する。
+
+    実行中プロセスを差し替えるため、事前ガードを 4 つ通す。1 つでも欠けたら
+    ジョブを積まずに 409 で断る（積んでから失敗させると、原因がログの奥に
+    埋まったうえに中途半端な状態が残りうる）。
+    """
+    if not request.app.state.local_write_enabled:
+        raise LocalWriteDisabledError(LOCAL_WRITE_DISABLED_MESSAGE)
+    if sys.platform == "win32":
+        # 実行中の alpha-vis.exe がロックされ、pip がファイルを置換できない
+        raise ConflictError(WINDOWS_MANUAL_UPDATE_MESSAGE)
+    if is_editable_install():
+        raise ConflictError(EDITABLE_INSTALL_MESSAGE)
+    if _has_active_jobs(manager):
+        raise ConflictError(JOBS_RUNNING_MESSAGE)
+    if build_upgrade_argv() is None:
+        raise ConflictError(NO_INSTALLER_MESSAGE)
+    record = await manager.create(kind="visualizer_self_update", strategy_id="", symbol="")
+    return _to_summary(record)
 
 
 __all__ = ["router"]
