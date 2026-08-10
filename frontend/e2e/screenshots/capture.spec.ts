@@ -295,6 +295,22 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await captureElement(page, lang, 'detail', equitySection, 280)
       })
 
+      // backtest-tv: エクイティチャート本体（lightweight-charts）のみをクロップ
+      // （issue #180 / #187。旧 e2e/screenshots/equity-tv.spec.ts を統合した。
+      //  旧実装は viewport 1280x720 のページ全体を撮っており、チャートが下端で
+      //  切れて写っていなかった・issue #516）
+      test('backtest-tv', async ({ page }) => {
+        await gotoDetail(page, STRATEGY_ID)
+        await setLang(page, lang)
+        await captureElement(
+          page,
+          lang,
+          'backtest-tv',
+          page.getByTestId('backtest-equity-chart-tv'),
+          400,
+        )
+      })
+
       // strategy: 戦略構造カード群（パラメータ／指標／ルール）
       test('detail-strategy', async ({ page }) => {
         await gotoDetail(page, STRATEGY_ID)
@@ -304,6 +320,25 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         // （≈1100px）に対して低すぎ、カード群が描画途中で 200px を超えた瞬間に
         // 「安定した」と誤判定してクロップされ、画像が途中で切れていた。
         await captureElement(page, lang, 'strategy', page.getByTestId('strategy-screen'), 700)
+      })
+
+      // strategy-signal-tv: SignalChartCard のシグナル時系列チャート本体
+      // （ローソク + entry/exit マーカー + SL/TP priceLine）をクロップ。
+      // （issue #191 / #187。旧 e2e/screenshots/strategy-signal-tv.spec.ts を
+      //  統合した。旧実装は backtest-tv と同じくページ全体を撮っており、
+      //  チャートが viewport 外で写っていなかった・issue #516）
+      test('strategy-signal-tv', async ({ page }) => {
+        await gotoDetail(page, STRATEGY_ID)
+        await setLang(page, lang)
+        await openDetailTab(page, '戦略構成', 'Strategy', lang)
+        // チャート高さは StrategySignalChartTV で 420px 固定
+        await captureElement(
+          page,
+          lang,
+          'strategy-signal-tv',
+          page.getByTestId('strategy-signal-chart-tv'),
+          400,
+        )
       })
 
       // optimize: 最適化トライアル分析（パラメータ感度散布図＋上位トライアル）
