@@ -1960,6 +1960,8 @@ Expected: FAIL — `AttributeError: <module 'alpha_visualizer.cli'> does not hav
     app.state.restart_requested = False
     # cli.py が uvicorn.Server を代入する。テスト（TestClient）では None のまま
     app.state.uvicorn_server = None
+    # 更新ジョブの成功監視タスクの保持先（GC 回収を防ぐ）
+    app.state.restart_watcher = None
 ```
 
 - [ ] **Step 4: `cli.py` を実装する**
@@ -2028,8 +2030,11 @@ async def _restart_after_success(app: Any, manager: JobManager, job_id: str) -> 
 
 ```python
     record = await manager.create(kind="visualizer_self_update", strategy_id="", symbol="")
-    # 成功監視はレスポンスを待たせない（更新は数分かかりうる）
-    asyncio.create_task(_restart_after_success(request.app, manager, record.job_id))  # noqa: RUF006
+    # 成功監視はレスポンスを待たせない（更新は数分かかりうる）。
+    # 参照を app.state に持たせないと、実行中のタスクが GC で消えうる
+    request.app.state.restart_watcher = asyncio.create_task(
+        _restart_after_success(request.app, manager, record.job_id)
+    )
     return _to_summary(record)
 ```
 
@@ -2486,7 +2491,10 @@ def test_書き込み失敗は例外を投げない(tmp_path: pathlib.Path) -> N
     blocked = tmp_path / "file-not-dir"
     blocked.write_text("", encoding="utf-8")
     # ファイルを親ディレクトリとして扱わせ、mkdir を失敗させる
-    JsonlEventLogger(blocked / "events").write_version_meta("1.0.4")
+    target = blocked / "events"
+    JsonlEventLogger(target).write_version_meta("1.0.4")
+    # 例外を投げないだけでなく、中途半端なファイルも残さない
+    assert not (target / "_meta.json").exists()
 ```
 
 - [ ] **Step 2: テストが失敗することを確認**
