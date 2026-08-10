@@ -1,13 +1,17 @@
 import type { CSSProperties, ReactElement } from 'react'
-import type { OrphanRunItem } from '../api/types'
+import type { ComponentVersion, OrphanRunItem } from '../api/types'
 import type { PruneResultView } from '../hooks/useOrphanRuns'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
 import { fmtNumber, fmtDate } from '../lib/format'
 import { Button, ErrorBanner, Loading } from '../design/primitives'
 import { ConfirmActionButton } from '../components/ConfirmActionButton'
+import { VersionsPanel } from '../components/maintenance/VersionsPanel'
 
 export interface MaintenanceScreenProps {
+  versions: ComponentVersion[]
+  versionsLoading: boolean
+  versionsError: string | null
   orphans: OrphanRunItem[]
   totalBytes: number
   loading: boolean
@@ -151,6 +155,9 @@ function ResultPanel({ result, lang }: ResultPanelProps): ReactElement {
  * 実行できないようにする（`components/ConfirmActionButton.tsx`）。
  */
 export function MaintenanceScreen({
+  versions,
+  versionsLoading,
+  versionsError,
   orphans,
   totalBytes,
   loading,
@@ -267,6 +274,13 @@ export function MaintenanceScreen({
           gap: 'var(--space-4)',
         }}
       >
+        <VersionsPanel
+          components={versions}
+          loading={versionsLoading}
+          error={versionsError}
+          lang={lang}
+        />
+
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}
 
         {error && (

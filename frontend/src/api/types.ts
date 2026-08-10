@@ -58,6 +58,8 @@ export type CreateAgentJobParams = S['CreateAgentJobRequest']
 // セットアップ状態チェックリスト（#492 「はじめる」画面）
 export type SetupStatusResponse = S['SetupStatusResponse']
 export type SetupCheckStatus = SetupStatusResponse['cli']['status']
+export type VersionsResponse = S['VersionsResponse']
+export type ComponentVersion = S['ComponentVersion']
 
 // ===== 2. 名前違いの alias（生成型と手書きで命名が異なるが shape 同一） =====
 

@@ -6,6 +6,7 @@ vi.mock('../../api/client', () => ({
   api: {
     listOrphanRuns: vi.fn(),
     pruneOrphanRuns: vi.fn(),
+    getVersions: vi.fn(),
   },
   ApiError: class ApiError extends Error {
     status: number
@@ -25,6 +26,10 @@ import { MaintenancePage } from '../MaintenancePage'
 beforeEach(() => {
   vi.mocked(api.listOrphanRuns).mockReset()
   vi.mocked(api.pruneOrphanRuns).mockReset()
+  // このテストファイルはバージョン表示（useVersions）を検証対象にしていない。
+  // 未 mock だと api.getVersions が undefined になり useVersions の effect が
+  // TypeError で落ちるため、常に空一覧を返すデフォルトを与える。
+  vi.mocked(api.getVersions).mockReset().mockResolvedValue({ components: [] })
 })
 
 /**

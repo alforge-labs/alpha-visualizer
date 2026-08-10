@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { MaintenanceScreen } from '../screens/MaintenanceScreen'
 import { useOrphanRuns } from '../hooks/useOrphanRuns'
+import { useVersions } from '../hooks/useVersions'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { extractApiErrorDetail, messageForApiErrorCode } from '../lib/errorMessage'
@@ -25,6 +26,7 @@ export function MaintenancePage(): ReactElement {
   const { settings } = useViewerSettings()
   const { lang } = settings
   useDocumentTitle(lang === 'ja' ? '整理' : 'Maintenance')
+  const versions = useVersions()
   const orphanRuns = useOrphanRuns()
   // 機械可読 code を持つ想定内エラー（forge CLI 未導入等）は表示言語のみの
   // 文言へ写像し、それ以外はサーバー detail の抽出へフォールバック (issue #358)
@@ -35,6 +37,9 @@ export function MaintenancePage(): ReactElement {
 
   return (
     <MaintenanceScreen
+      versions={versions.components}
+      versionsLoading={versions.loading}
+      versionsError={versions.error}
       orphans={orphanRuns.orphans}
       totalBytes={orphanRuns.totalBytes}
       loading={orphanRuns.loading}
