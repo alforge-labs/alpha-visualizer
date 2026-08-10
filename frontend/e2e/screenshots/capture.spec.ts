@@ -40,6 +40,9 @@ const SCREENSHOT_DIR = resolve(__dirname, '../../../docs/screenshots')
 // チャート/キャンバス（visx・lightweight-charts）の描画が落ち着くまでの待機（ms）。
 const CHART_SETTLE_MS = 500
 
+// ポインタ退避後、ホバー装飾が消えるまでの待機（ms・issue #516）。
+const POINTER_PARK_SETTLE_MS = 150
+
 // 要素高さの安定待ちのポーリング設定（issue #509）。
 const STABLE_HEIGHT_POLL_INTERVAL_MS = 150
 const STABLE_HEIGHT_MAX_POLLS = 60
@@ -52,6 +55,25 @@ const VIEWPORT_PADDING = 80
 
 async function ensureDir(filePath: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true })
+}
+
+/**
+ * 撮影直前にポインタを viewport 左上へ退避させる（issue #516）。
+ *
+ * `switchLanguage()` / `openDetailTab()` の click でポインタは押した要素の中心に
+ * 置かれ、その後スクロールしても viewport を変えても座標は動かない。撮影時に
+ * ポインタ直下が lightweight-charts の canvas だと、Chromium がスクロール時に
+ * 合成する mousemove でホバーが更新され、クロスヘア（十字線・時間軸/価格軸の
+ * 追従ラベル）が掲載画像に写り込む。ボタン等のホバー色についても同じ。
+ *
+ * どこにポインタが残るかは click 時のレイアウト（フォント読み込みのタイミング等）
+ * と撮影時の viewport 高さで変わるため、写り込みは実行ごとに揺れる。撮影前に
+ * 必ず退避させることで、掲載画像を「カーソルが乗っていない状態」に固定する。
+ */
+async function parkPointer(page: Page): Promise<void> {
+  await page.mouse.move(0, 0)
+  // ホバー解除後の再描画（lightweight-charts のクロスヘア消去等）を待つ
+  await page.waitForTimeout(POINTER_PARK_SETTLE_MS)
 }
 
 async function settle(page: Page): Promise<void> {
@@ -136,8 +158,18 @@ async function captureElement(
     throw new Error(`boundingBox を取得できませんでした: ${name}`)
   }
   // 要素が基準 viewport に収まらないときだけ広げ直す（毎回広げると
-  // ParentSize 系チャートの再測定が余計に走るため）
-  const needed = Math.ceil(measured.height) + VIEWPORT_PADDING
+  // ParentSize 系チャートの再測定が余計に走るため）。
+  //
+  // 判定には要素の高さだけでなく viewport 上端からのオフセット（y）も含める。
+  // `scrollIntoView({ block: 'center' })` はページ末尾など「これ以上スクロール
+  // できない」位置では中央寄せしきれず y > 0 が残るため、height だけを見ると
+  // 「収まる」と誤判定して再フィットを飛ばし、直後の検証で必ず落ちていた
+  // （en/strategy: y=566・height=1484 → 実際には 2050px 必要なのに needed=1564）。
+  //
+  // 一方、要素が viewport より高いときは中央寄せで上にはみ出して y が負になる。
+  // その負値を足すと needed が過小になり、逆に収まらなくなるため 0 で下限を切る
+  // （このとき needed は従来どおり height ベースに縮退する）。
+  const needed = Math.ceil(Math.max(measured.y, 0) + measured.height) + VIEWPORT_PADDING
   if (needed > VIEWPORT_BASE_HEIGHT) {
     await fit(needed)
   }
@@ -154,6 +186,7 @@ async function captureElement(
         'この状態で clip すると画像が下端で切れるため撮影を中止します。',
     )
   }
+  await parkPointer(page)
   await page.screenshot({ path: filePath, clip: box })
 }
 
@@ -171,6 +204,9 @@ async function captureViewport(
   await page.setViewportSize({ width: 1440, height })
   await page.evaluate(() => window.scrollTo(0, 0))
   await settle(page)
+  // ページ全体を撮る経路でも `switchLanguage()` の click でポインタが言語切替
+  // ボタンに残るため、captureElement と同じく退避させる（issue #516）。
+  await parkPointer(page)
   await page.screenshot({ path: filePath })
 }
 
@@ -259,6 +295,22 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await captureElement(page, lang, 'detail', equitySection, 280)
       })
 
+      // backtest-tv: エクイティチャート本体（lightweight-charts）のみをクロップ
+      // （issue #180 / #187。旧 e2e/screenshots/equity-tv.spec.ts を統合した。
+      //  旧実装は viewport 1280x720 のページ全体を撮っており、チャートが下端で
+      //  切れて写っていなかった・issue #516）
+      test('backtest-tv', async ({ page }) => {
+        await gotoDetail(page, STRATEGY_ID)
+        await setLang(page, lang)
+        await captureElement(
+          page,
+          lang,
+          'backtest-tv',
+          page.getByTestId('backtest-equity-chart-tv'),
+          400,
+        )
+      })
+
       // strategy: 戦略構造カード群（パラメータ／指標／ルール）
       test('detail-strategy', async ({ page }) => {
         await gotoDetail(page, STRATEGY_ID)
@@ -268,6 +320,25 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         // （≈1100px）に対して低すぎ、カード群が描画途中で 200px を超えた瞬間に
         // 「安定した」と誤判定してクロップされ、画像が途中で切れていた。
         await captureElement(page, lang, 'strategy', page.getByTestId('strategy-screen'), 700)
+      })
+
+      // strategy-signal-tv: SignalChartCard のシグナル時系列チャート本体
+      // （ローソク + entry/exit マーカー + SL/TP priceLine）をクロップ。
+      // （issue #191 / #187。旧 e2e/screenshots/strategy-signal-tv.spec.ts を
+      //  統合した。旧実装は backtest-tv と同じくページ全体を撮っており、
+      //  チャートが viewport 外で写っていなかった・issue #516）
+      test('strategy-signal-tv', async ({ page }) => {
+        await gotoDetail(page, STRATEGY_ID)
+        await setLang(page, lang)
+        await openDetailTab(page, '戦略構成', 'Strategy', lang)
+        // チャート高さは StrategySignalChartTV で 420px 固定
+        await captureElement(
+          page,
+          lang,
+          'strategy-signal-tv',
+          page.getByTestId('strategy-signal-chart-tv'),
+          400,
+        )
       })
 
       // optimize: 最適化トライアル分析（パラメータ感度散布図＋上位トライアル）
