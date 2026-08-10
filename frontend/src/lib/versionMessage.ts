@@ -23,6 +23,12 @@ export function messageForVersionCode(
       'Could not read the alpha-forge version (not installed, or the command failed)',
     )
   }
+  if (code === 'forge_eula_not_accepted') {
+    return L(
+      'AlphaForge の使用許諾契約（EULA）に同意していないため実行できません。ターミナルで `alpha-forge system doctor` を実行し、EULA に同意してください',
+      'AlphaForge EULA has not been accepted. Run `alpha-forge system doctor` in a terminal and accept the EULA',
+    )
+  }
   if (code === 'strike_not_synced') {
     return L(
       '`alpha-forge live sync-events` を実行すると alpha-strike のバージョンが表示されます',

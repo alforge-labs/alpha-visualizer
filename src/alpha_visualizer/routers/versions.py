@@ -40,7 +40,11 @@ from alpha_visualizer.errors import (
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.routers.jobs import JobSummary, _to_summary
 from alpha_visualizer.schemas.versions import ComponentVersion, VersionsResponse
-from alpha_visualizer.services.forge_cli import FORGE_NOT_FOUND_MESSAGE, resolve_forge_exe
+from alpha_visualizer.services.forge_cli import (
+    FORGE_EULA_NOT_ACCEPTED_MESSAGE,
+    FORGE_NOT_FOUND_MESSAGE,
+    resolve_forge_exe,
+)
 from alpha_visualizer.services.forge_sync import run_forge_json
 from alpha_visualizer.services.jobs import JobManager
 from alpha_visualizer.services.pypi import fetch_latest_version, is_newer
@@ -75,6 +79,7 @@ STRIKE_NOT_SYNCED_MESSAGE = (
 
 #: ``ComponentVersion.code``。UI はこの値で表示言語の文言へ写像する
 FORGE_UNKNOWN_CODE = "forge_version_unknown"
+FORGE_EULA_NOT_ACCEPTED_CODE = "forge_eula_not_accepted"
 STRIKE_NOT_SYNCED_CODE = "strike_not_synced"
 WINDOWS_MANUAL_UPDATE_CODE = "windows_manual_update"
 
@@ -160,24 +165,33 @@ def _read_strike_meta(events_dir: pathlib.Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _forge_component(payload: dict[str, Any] | None) -> ComponentVersion:
+def _forge_unknown(message: str, code: str) -> ComponentVersion:
+    return ComponentVersion(
+        id="forge", status="unknown", updatable=False, message=message, code=code
+    )
+
+
+def _forge_component(result: dict[str, Any] | Exception | None) -> ComponentVersion:
+    """``self version --json`` の結果（または失敗）から forge 行を組み立てる。
+
+    失敗を一律で「未導入または実行に失敗」に丸めない。EULA は改訂のたびに
+    再同意が必要で、``self update`` 直後に必ず通る経路であり、まさにこの画面が
+    次の一歩を案内すべき場面だからである。``run_forge_capture`` が
+    ``translate_forge_failure`` で変換済みの案内をそのまま利用者へ渡す
+    （``routers/setup.py`` が eula: attention を出し分けているのと同じ判定）。
+    """
+    if isinstance(result, Exception):
+        if FORGE_EULA_NOT_ACCEPTED_MESSAGE in str(result):
+            return _forge_unknown(
+                FORGE_EULA_NOT_ACCEPTED_MESSAGE, FORGE_EULA_NOT_ACCEPTED_CODE
+            )
+        return _forge_unknown(FORGE_UNKNOWN_MESSAGE, FORGE_UNKNOWN_CODE)
+    payload = result
     if payload is None:
-        return ComponentVersion(
-            id="forge",
-            status="unknown",
-            updatable=False,
-            message=FORGE_UNKNOWN_MESSAGE,
-            code=FORGE_UNKNOWN_CODE,
-        )
+        return _forge_unknown(FORGE_UNKNOWN_MESSAGE, FORGE_UNKNOWN_CODE)
     current = payload.get("current_version")
     if not isinstance(current, str):
-        return ComponentVersion(
-            id="forge",
-            status="unknown",
-            updatable=False,
-            message=FORGE_UNKNOWN_MESSAGE,
-            code=FORGE_UNKNOWN_CODE,
-        )
+        return _forge_unknown(FORGE_UNKNOWN_MESSAGE, FORGE_UNKNOWN_CODE)
     latest = payload.get("latest_version")
     return ComponentVersion(
         id="forge",
@@ -249,13 +263,15 @@ async def get_versions(
     # 例外は degraded 設計により「値が取れなかった」と同義に畳み込む。
     # 各 _*_component は None を「unknown へ落とす」契約で既に扱えるため、
     # ここで型を絞り込むだけで済む（2 重の分岐を増やさない）。
-    forge_payload = forge_r if isinstance(forge_r, dict) else None
+    # forge だけは例外をそのまま渡す。EULA 未同意など「次の一歩がある失敗」を
+    # ここで None へ畳むと、_forge_component が理由を区別できなくなる
+    forge_result = forge_r if isinstance(forge_r, (dict, Exception)) else None
     vis_latest = vis_latest_r if isinstance(vis_latest_r, str) else None
     strike_latest = strike_latest_r if isinstance(strike_latest_r, str) else None
     strike_meta = strike_meta_r if isinstance(strike_meta_r, dict) else None
     return VersionsResponse(
         components=[
-            _forge_component(forge_payload),
+            _forge_component(forge_result),
             _visualizer_component(vis_latest),
             _strike_component(forge_cfg, strike_meta, strike_latest),
         ]

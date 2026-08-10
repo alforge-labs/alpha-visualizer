@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 from alpha_visualizer import __version__
 from alpha_visualizer.app import create_app
 from alpha_visualizer.errors import ExternalProcessError
+from alpha_visualizer.services.forge_cli import FORGE_EULA_NOT_ACCEPTED_MESSAGE
 
 FORGE_SELF_VERSION = {
     "current_version": "1.9.2",
@@ -541,3 +542,51 @@ def test_Windowsの手動更新案内にもcodeが付く(remote_workspace: pathl
         res = client.get("/api/versions")
     vis = _components(res.json())["visualizer"]
     assert vis["code"] == "windows_manual_update"
+
+
+def test_EULA未同意は専用codeと案内へ変換する(remote_workspace: pathlib.Path) -> None:
+    """forge の EULA 再同意待ちを「未導入または実行に失敗」に丸めない。
+
+    EULA は改訂のたびに再同意が必要で、self update 直後に必ず通る経路である
+    （実際に v1.4.0 への更新後、この画面が原因不明の「不明」を表示した）。
+    forge_cli.translate_forge_failure が既に次の一歩を示す案内へ変換済みなのに、
+    例外を一律で握って汎用文言に置き換えると、その案内が利用者へ届かない。
+    /api/setup/status は同じ状況を eula: attention として出し分けている。
+    """
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            side_effect=ExternalProcessError(FORGE_EULA_NOT_ACCEPTED_MESSAGE),
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version", return_value="1.5.0"
+        ),
+    ):
+        res = client.get("/api/versions")
+
+    assert res.status_code == 200
+    forge = _components(res.json())["forge"]
+    assert forge["status"] == "unknown"
+    assert forge["code"] == "forge_eula_not_accepted"
+    # 次の一歩（同意コマンド）が利用者に届くこと
+    assert "system doctor" in (forge["message"] or "")
+    # EULA 未同意は forge の問題であり、他コンポーネントは巻き込まれない
+    assert _components(res.json())["visualizer"]["status"] == "ok"
+
+
+def test_EULA以外の失敗は汎用の不明のまま(remote_workspace: pathlib.Path) -> None:
+    """EULA 判定を入れたことで、原因不明の失敗まで EULA 扱いにしない。"""
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            side_effect=ExternalProcessError("forge が異常終了しました（exit 2）"),
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version", return_value=None
+        ),
+    ):
+        res = client.get("/api/versions")
+    forge = _components(res.json())["forge"]
+    assert forge["code"] == "forge_version_unknown"

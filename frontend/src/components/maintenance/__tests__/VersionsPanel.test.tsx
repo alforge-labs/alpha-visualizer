@@ -131,4 +131,16 @@ describe('VersionsPanel', () => {
     render(<VersionsPanel components={[unknownCode]} loading={false} error={null} lang="en" />)
     expect(screen.getByText(/Run `alpha-forge live sync-events`/)).toBeInTheDocument()
   })
+
+  it('EULA 未同意は同意コマンドを案内する', () => {
+    // self update 直後に必ず通る経路。「不明」だけでは次の一歩が分からない
+    const forgeEula: ComponentVersion = {
+      id: 'forge', status: 'unknown', current: null, latest: null,
+      update_available: false, updatable: false,
+      message: 'EULA に同意していないため実行できません / EULA has not been accepted',
+      code: 'forge_eula_not_accepted', as_of: null,
+    }
+    render(<VersionsPanel components={[forgeEula]} loading={false} error={null} lang="ja" />)
+    expect(screen.getByText(/alpha-forge system doctor/)).toBeInTheDocument()
+  })
 })
