@@ -105,6 +105,12 @@ def build_forge_env(forge_cfg: ForgeConfig) -> dict[str, str]:
     """
     env = os.environ.copy()
     env["FORGE_NONINTERACTIVE"] = "1"
+    # forge は EULA 未同意の案内を rich パネル（罫線＝非 ASCII）で出す。サーバーを
+    # LANG / LC_ALL の無い環境（launchd・systemd・cron 等）で起動すると子プロセスの
+    # stdout が ASCII になり、forge はパネルを書く時点で UnicodeEncodeError を起こして
+    # `{"code": "execution_failed"}` を返す。こうなると translate_forge_failure は
+    # EULA を検知できず、利用者には原因不明の失敗としか見えない。
+    env["PYTHONIOENCODING"] = "utf-8"
     # 解決済みの forge.yaml を使う（<forge_dir>/forge.yaml 規約に限らず、
     # --forge-config 指定や FORGE_CONFIG 由来の別置き yaml もここに入る）。
     # 規約を再実装すると、別置き運用でサーバーと子プロセスの設定がずれる。

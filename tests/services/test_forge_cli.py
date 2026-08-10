@@ -12,8 +12,10 @@ import stat
 
 import pytest
 
+from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.services.forge_cli import (
     FORGE_NOT_FOUND_MESSAGE,
+    build_forge_env,
     resolve_forge_exe,
 )
 
@@ -65,3 +67,18 @@ def test_未導入メッセージは実在するコマンド名を案内する()
     誤った名前で PATH を確認して行き詰まる。
     """
     assert "alpha-forge" in FORGE_NOT_FOUND_MESSAGE
+
+
+def test_build_forge_env_はPYTHONIOENCODINGをutf8に固定する(tmp_path: pathlib.Path) -> None:
+    """forge の非 ASCII 出力が encoding エラーへ化けるのを防ぐ。
+
+    forge は EULA 未同意の案内を rich パネル（罫線＝非 ASCII）で出す。サーバーを
+    LANG / LC_ALL の無い環境（launchd・systemd・cron 等）で起動すると、
+    サブプロセスの stdout が ASCII になり、forge はパネルを書き出す時点で
+    UnicodeEncodeError を起こして `{"code": "execution_failed"}` を返す。
+    こうなると translate_forge_failure は EULA を検知できず、利用者には
+    原因不明の失敗としか見えない（v1.4.0 への更新後に実際に発生した）。
+    """
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    env = build_forge_env(cfg)
+    assert env["PYTHONIOENCODING"] == "utf-8"
