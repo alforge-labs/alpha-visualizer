@@ -205,3 +205,67 @@ def test_Windowsではvisualizerがupdatable_false(remote_workspace: pathlib.Pat
     vis = _components(res.json())["visualizer"]
     assert vis["updatable"] is False
     assert vis["message"] is not None
+
+
+def test_fetch_latest_versionが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:
+    """degraded 設計の核（レビュー指摘の回帰テスト）。
+
+    fetch_latest_version は契約上 None 以外の例外を送出しないはずだが、想定外の例外が
+    出た場合でも asyncio.gather 全体が落ちて forge / strike を巻き込んではいけない。
+    """
+    _write_strike_meta(
+        remote_workspace, {"version": "1.0.4", "started_at": "2026-08-10T09:12:00+09:00"}
+    )
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            return_value=FORGE_SELF_VERSION,
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version",
+            side_effect=RuntimeError("PyPI 応答の解析に失敗しました"),
+        ),
+    ):
+        res = client.get("/api/versions")
+    assert res.status_code == 200
+    comps = _components(res.json())
+    assert comps["forge"]["status"] == "ok"
+    assert comps["strike"]["status"] == "ok"
+    assert comps["visualizer"]["status"] == "ok"
+    assert comps["visualizer"]["current"] == __version__
+    assert comps["visualizer"]["latest"] is None
+    assert comps["visualizer"]["update_available"] is False
+
+
+def test_strikeメタ読み取りが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:
+    """degraded 設計の核（レビュー指摘の回帰テスト）。
+
+    _read_strike_meta は契約上 None 以外の例外を送出しないはずだが、想定外の例外が
+    出た場合でも forge / visualizer を巻き込まず、strike だけ unknown に落ちること。
+    """
+    _write_strike_meta(
+        remote_workspace, {"version": "1.0.4", "started_at": "2026-08-10T09:12:00+09:00"}
+    )
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            return_value=FORGE_SELF_VERSION,
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version",
+            side_effect=lambda pkg: {"alpha-visualizer": "9.9.9", "alpha-strike": "1.0.5"}[pkg],
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions._read_strike_meta",
+            side_effect=RuntimeError("_meta.json の読み取りに失敗しました"),
+        ),
+    ):
+        res = client.get("/api/versions")
+    assert res.status_code == 200
+    comps = _components(res.json())
+    assert comps["forge"]["status"] == "ok"
+    assert comps["visualizer"]["status"] == "ok"
+    assert comps["strike"]["status"] == "unknown"
+    assert comps["strike"]["current"] is None
