@@ -133,6 +133,14 @@ The claude backend stops as soon as it reaches its turn limit (`--max-turns`), e
 
 ![Develop](docs/screenshots/en/develop.png)
 
+**Start — Setup checklist**
+
+![Start](docs/screenshots/en/start.png)
+
+**Data — Dataset management**
+
+![Data](docs/screenshots/en/data.png)
+
 ## Troubleshooting
 
 Answers to common issues — `alpha-vis: command not found`, missing `backtest_results.db`, port conflicts — are collected in the official FAQ.
