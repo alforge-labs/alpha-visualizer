@@ -108,6 +108,14 @@ pnpm run e2e:install    # first time only
 pnpm run e2e            # Playwright
 ```
 
+> **Restart `alpha-vis serve` if it was running while you built.**
+> `pnpm run build` recreates `src/alpha_visualizer/static/`, so a server started
+> beforehand can no longer serve the new assets. The browser then fails to load the
+> JS and the page stays blank — with no error in the server log (the SPA fallback
+> answers the JS request with 200 and HTML; only the browser console shows a MIME
+> type error). If your change doesn't show up in the UI, suspect this first.
+> Use `pnpm run dev` if you want hot reload.
+
 ### Re-capturing Screenshots (when UI changes)
 
 When you change the UI visually, regenerate `docs/screenshots/{ja,en}/`:
