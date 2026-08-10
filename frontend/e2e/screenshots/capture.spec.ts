@@ -40,6 +40,9 @@ const SCREENSHOT_DIR = resolve(__dirname, '../../../docs/screenshots')
 // チャート/キャンバス（visx・lightweight-charts）の描画が落ち着くまでの待機（ms）。
 const CHART_SETTLE_MS = 500
 
+// ポインタ退避後、ホバー装飾が消えるまでの待機（ms・issue #516）。
+const POINTER_PARK_SETTLE_MS = 150
+
 // 要素高さの安定待ちのポーリング設定（issue #509）。
 const STABLE_HEIGHT_POLL_INTERVAL_MS = 150
 const STABLE_HEIGHT_MAX_POLLS = 60
@@ -52,6 +55,25 @@ const VIEWPORT_PADDING = 80
 
 async function ensureDir(filePath: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true })
+}
+
+/**
+ * 撮影直前にポインタを viewport 左上へ退避させる（issue #516）。
+ *
+ * `switchLanguage()` / `openDetailTab()` の click でポインタは押した要素の中心に
+ * 置かれ、その後スクロールしても viewport を変えても座標は動かない。撮影時に
+ * ポインタ直下が lightweight-charts の canvas だと、Chromium がスクロール時に
+ * 合成する mousemove でホバーが更新され、クロスヘア（十字線・時間軸/価格軸の
+ * 追従ラベル）が掲載画像に写り込む。ボタン等のホバー色についても同じ。
+ *
+ * どこにポインタが残るかは click 時のレイアウト（フォント読み込みのタイミング等）
+ * と撮影時の viewport 高さで変わるため、写り込みは実行ごとに揺れる。撮影前に
+ * 必ず退避させることで、掲載画像を「カーソルが乗っていない状態」に固定する。
+ */
+async function parkPointer(page: Page): Promise<void> {
+  await page.mouse.move(0, 0)
+  // ホバー解除後の再描画（lightweight-charts のクロスヘア消去等）を待つ
+  await page.waitForTimeout(POINTER_PARK_SETTLE_MS)
 }
 
 async function settle(page: Page): Promise<void> {
@@ -164,6 +186,7 @@ async function captureElement(
         'この状態で clip すると画像が下端で切れるため撮影を中止します。',
     )
   }
+  await parkPointer(page)
   await page.screenshot({ path: filePath, clip: box })
 }
 
@@ -181,6 +204,9 @@ async function captureViewport(
   await page.setViewportSize({ width: 1440, height })
   await page.evaluate(() => window.scrollTo(0, 0))
   await settle(page)
+  // ページ全体を撮る経路でも `switchLanguage()` の click でポインタが言語切替
+  // ボタンに残るため、captureElement と同じく退避させる（issue #516）。
+  await parkPointer(page)
   await page.screenshot({ path: filePath })
 }
 
