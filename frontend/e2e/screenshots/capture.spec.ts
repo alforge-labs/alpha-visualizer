@@ -16,12 +16,15 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 /**
- * README / alforge-labs サイト掲載用スクリーンショットを ja/en 両言語で撮影する。
+ * README（ja/en）掲載用スクリーンショットを ja/en 両言語で撮影する。
  * 出力先: <repo-root>/docs/screenshots/{ja,en}/<name>.png
  *
  * playwright.screenshots.config.ts から実行することを想定。
  *
  * 撮影方針（issue: README スクショ撮り直し）:
+ * - 撮るのは README に掲載する画面だけに限る（issue #519）。掲載先の無い画像は
+ *   撮影時間と、UI 変更のたびに出る差分レビューのコストだけを増やす。チャート
+ *   単体の描画退行は e2e/visual/tv-charts.spec.ts（issue #319）が担当する。
  * - 「アピールしたい主役（チャート・構造）」がヘッダー/メトリクスで切れないよう、
  *   グリッド掲載分（detail/compare/optimize/strategy）は showcase コンポーネントを
  *   element 単位でタイトにクロップする。
@@ -295,22 +298,6 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         await captureElement(page, lang, 'detail', equitySection, 280)
       })
 
-      // backtest-tv: エクイティチャート本体（lightweight-charts）のみをクロップ
-      // （issue #180 / #187。旧 e2e/screenshots/equity-tv.spec.ts を統合した。
-      //  旧実装は viewport 1280x720 のページ全体を撮っており、チャートが下端で
-      //  切れて写っていなかった・issue #516）
-      test('backtest-tv', async ({ page }) => {
-        await gotoDetail(page, STRATEGY_ID)
-        await setLang(page, lang)
-        await captureElement(
-          page,
-          lang,
-          'backtest-tv',
-          page.getByTestId('backtest-equity-chart-tv'),
-          400,
-        )
-      })
-
       // strategy: 戦略構造カード群（パラメータ／指標／ルール）
       test('detail-strategy', async ({ page }) => {
         await gotoDetail(page, STRATEGY_ID)
@@ -320,25 +307,6 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         // （≈1100px）に対して低すぎ、カード群が描画途中で 200px を超えた瞬間に
         // 「安定した」と誤判定してクロップされ、画像が途中で切れていた。
         await captureElement(page, lang, 'strategy', page.getByTestId('strategy-screen'), 700)
-      })
-
-      // strategy-signal-tv: SignalChartCard のシグナル時系列チャート本体
-      // （ローソク + entry/exit マーカー + SL/TP priceLine）をクロップ。
-      // （issue #191 / #187。旧 e2e/screenshots/strategy-signal-tv.spec.ts を
-      //  統合した。旧実装は backtest-tv と同じくページ全体を撮っており、
-      //  チャートが viewport 外で写っていなかった・issue #516）
-      test('strategy-signal-tv', async ({ page }) => {
-        await gotoDetail(page, STRATEGY_ID)
-        await setLang(page, lang)
-        await openDetailTab(page, '戦略構成', 'Strategy', lang)
-        // チャート高さは StrategySignalChartTV で 420px 固定
-        await captureElement(
-          page,
-          lang,
-          'strategy-signal-tv',
-          page.getByTestId('strategy-signal-chart-tv'),
-          400,
-        )
       })
 
       // optimize: 最適化トライアル分析（パラメータ感度散布図＋上位トライアル）
