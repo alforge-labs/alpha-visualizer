@@ -11,6 +11,36 @@ alpha-visualizer の全バージョン変更履歴です。
 _(EN) Entries below are generated from Conventional Commits (Japanese). Group names: 新機能 = Features, バグ修正 = Bug fixes, リファクタリング = Refactoring, パフォーマンス改善 = Performance, ドキュメント = Docs, テスト = Tests, その他 = Chore. Breaking commits are tagged 破壊的変更._
 
 
+## [1.7.0] - 2026-08-10
+
+
+### その他
+
+- **deps**: js-yaml を 4.3.1 へ更新する（GHSA high 対応） (#511)
+
+
+- 掲載用スクリーンショットのラインナップを整理する (#520)
+
+
+
+### バグ修正
+
+- スクリーンショット撮影の viewport 高さ計算で要素オフセットを考慮する (#514)
+
+
+- 撮影直前にポインタを退避してクロスヘアの写り込みを防ぐ (#517)
+
+
+- TV チャート撮影がチャート本体を写すよう capture.spec.ts に統合する (#518)
+
+
+
+### 新機能
+
+- メンテナンス画面に各種ツールのバージョン確認・更新を追加する (#515)
+
+
+
 ## [1.6.0] - 2026-08-07
 
 
