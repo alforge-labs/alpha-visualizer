@@ -310,8 +310,16 @@ def test_visualizer更新は202(remote_workspace: pathlib.Path) -> None:
         mock.patch(
             "alpha_visualizer.services.jobs.JobManager.create", new_callable=mock.AsyncMock
         ) as create,
+        # create をモックしているため実ジョブは _jobs に登録されない。
+        # 応答後にバックグラウンドで起動する再起動監視タスク（Task 7）が
+        # 実装の wait_terminal を呼んで KeyError を起こさないようにする
+        mock.patch(
+            "alpha_visualizer.services.jobs.JobManager.wait_terminal",
+            new_callable=mock.AsyncMock,
+        ) as wait_terminal,
     ):
         create.return_value = _job_record("visualizer_self_update")
+        wait_terminal.return_value = create.return_value
         res = client.post("/api/versions/visualizer/update")
     assert res.status_code == 202
     assert create.await_args.kwargs["kind"] == "visualizer_self_update"
@@ -368,6 +376,47 @@ def test_インストーラが無ければ409(remote_workspace: pathlib.Path) ->
     ):
         res = client.post("/api/versions/visualizer/update")
     assert res.status_code == 409
+
+
+def test_更新成功時のみ再起動を要求する(tmp_path: pathlib.Path) -> None:
+    """壊れたまま再起動して二度と起動しない事態を避ける（設計 §エラー処理）。"""
+    import asyncio
+
+    from alpha_visualizer.routers.versions import _restart_after_success
+
+    app = create_app(forge_dir=tmp_path)
+    server = mock.Mock()
+    server.should_exit = False
+    app.state.uvicorn_server = server
+
+    succeeded = _job_record("visualizer_self_update")
+    succeeded.status = "succeeded"
+    manager = mock.Mock()
+    manager.wait_terminal = mock.AsyncMock(return_value=succeeded)
+
+    asyncio.run(_restart_after_success(app, manager, "job-test000000"))
+    assert app.state.restart_requested is True
+    assert server.should_exit is True
+
+
+def test_更新失敗時は再起動しない(tmp_path: pathlib.Path) -> None:
+    import asyncio
+
+    from alpha_visualizer.routers.versions import _restart_after_success
+
+    app = create_app(forge_dir=tmp_path)
+    server = mock.Mock()
+    server.should_exit = False
+    app.state.uvicorn_server = server
+
+    failed = _job_record("visualizer_self_update")
+    failed.status = "failed"
+    manager = mock.Mock()
+    manager.wait_terminal = mock.AsyncMock(return_value=failed)
+
+    asyncio.run(_restart_after_success(app, manager, "job-test000000"))
+    assert app.state.restart_requested is False
+    assert server.should_exit is False
 
 
 def test_strikeメタ読み取りが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:

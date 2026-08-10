@@ -98,6 +98,13 @@ def create_app(
     app.state.run_semaphore = run_semaphore
     app.state.agent_enabled = agent_enabled
     app.state.local_write_enabled = local_write_enabled
+    # 自己更新後の再起動フラグ。cli.py が server.run() から戻った後に見る。
+    # exec は必ず uvicorn 停止後（= ソケット解放後）に行う（設計 §6）
+    app.state.restart_requested = False
+    # cli.py が uvicorn.Server を代入する。テスト（TestClient）では None のまま
+    app.state.uvicorn_server = None
+    # 更新ジョブの成功監視タスクの保持先（GC 回収を防ぐ）
+    app.state.restart_watcher = None
 
     # バックテスト詳細 API は約 2MB の JSON を返すため gzip 圧縮する (issue #385)。
     # 1KB 未満は圧縮オーバーヘッドの方が大きいので素通しする。

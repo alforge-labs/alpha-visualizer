@@ -1,8 +1,10 @@
 """alpha-vis CLI エントリーポイント"""
 
 import logging
+import os
 import pathlib
 import socket
+import sys
 import time
 from collections.abc import Callable
 from typing import Any
@@ -243,6 +245,9 @@ def serve(
     # 失敗したとき、別プロセスの画面や接続エラーを見せないため
     uv_config = uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
     server = uvicorn.Server(uv_config)
+    # 自己更新後の graceful shutdown をルーターから要求できるようにする。
+    # 実際の exec は server.run() が戻った後（下）で行う
+    app.state.uvicorn_server = server
     if not no_open:
         import threading
         import webbrowser
@@ -254,4 +259,17 @@ def serve(
         ).start()
 
     server.run()
+    if app.state.restart_requested:
+        click.echo(
+            "更新を反映するため alpha-vis serve を再起動します。"
+            " / Restarting alpha-vis serve to apply the update."
+        )
+        # ここで exec すればソケットは解放済みで、再バインドが EADDRINUSE で
+        # 落ちない。起動方法（alpha-vis / uv run / python -m）に依らず
+        # 同じ経路になるよう -m で起動し直す
+        os.execv(sys.executable, [sys.executable, "-m", "alpha_visualizer.cli", *sys.argv[1:]])
     click.echo("alpha-vis serve を停止しました。 / alpha-vis serve stopped.")
+
+
+if __name__ == "__main__":  # pragma: no cover - python -m alpha_visualizer.cli 用
+    cli()

@@ -104,6 +104,28 @@ JOBS_RUNNING_MESSAGE = (
     " / Cannot update while jobs are running. Wait for them to finish or cancel them."
 )
 
+#: 更新ジョブの終了を待つ上限。pip の依存解決が遅い環境でも足りる長さにし、
+#: これを超えたら再起動を諦める（フラグを立てたまま放置しない）
+RESTART_WATCH_TIMEOUT_SEC = 1800
+
+
+async def _restart_after_success(app: Any, manager: JobManager, job_id: str) -> None:
+    """更新ジョブが成功したときだけ再起動を要求する。
+
+    失敗したまま再起動すると、壊れた環境で二度と起動しない事態になりうる。
+    再起動は成功パスにのみ紐づける（設計 §エラー処理の最重要行）。
+    """
+    try:
+        record = await manager.wait_terminal(job_id, timeout=RESTART_WATCH_TIMEOUT_SEC)
+    except TimeoutError:
+        return
+    if record.status != "succeeded":
+        return
+    app.state.restart_requested = True
+    server = app.state.uvicorn_server
+    if server is not None:
+        server.should_exit = True
+
 
 async def _call_or_exc(func: Any, *args: Any) -> Any:
     """同期呼び出しを別スレッドで実行し、例外は値として返す（degraded 設計）。
@@ -280,6 +302,11 @@ async def update_visualizer(
     if build_upgrade_argv() is None:
         raise ConflictError(NO_INSTALLER_MESSAGE)
     record = await manager.create(kind="visualizer_self_update", strategy_id="", symbol="")
+    # 成功監視はレスポンスを待たせない（更新は数分かかりうる）。
+    # 参照を app.state に持たせないと、実行中のタスクが GC で消えうる
+    request.app.state.restart_watcher = asyncio.create_task(
+        _restart_after_success(request.app, manager, record.job_id)
+    )
     return _to_summary(record)
 
 
