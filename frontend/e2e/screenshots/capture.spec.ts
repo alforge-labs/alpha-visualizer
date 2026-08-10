@@ -136,8 +136,18 @@ async function captureElement(
     throw new Error(`boundingBox を取得できませんでした: ${name}`)
   }
   // 要素が基準 viewport に収まらないときだけ広げ直す（毎回広げると
-  // ParentSize 系チャートの再測定が余計に走るため）
-  const needed = Math.ceil(measured.height) + VIEWPORT_PADDING
+  // ParentSize 系チャートの再測定が余計に走るため）。
+  //
+  // 判定には要素の高さだけでなく viewport 上端からのオフセット（y）も含める。
+  // `scrollIntoView({ block: 'center' })` はページ末尾など「これ以上スクロール
+  // できない」位置では中央寄せしきれず y > 0 が残るため、height だけを見ると
+  // 「収まる」と誤判定して再フィットを飛ばし、直後の検証で必ず落ちていた
+  // （en/strategy: y=566・height=1484 → 実際には 2050px 必要なのに needed=1564）。
+  //
+  // 一方、要素が viewport より高いときは中央寄せで上にはみ出して y が負になる。
+  // その負値を足すと needed が過小になり、逆に収まらなくなるため 0 で下限を切る
+  // （このとき needed は従来どおり height ベースに縮退する）。
+  const needed = Math.ceil(Math.max(measured.y, 0) + measured.height) + VIEWPORT_PADDING
   if (needed > VIEWPORT_BASE_HEIGHT) {
     await fit(needed)
   }
