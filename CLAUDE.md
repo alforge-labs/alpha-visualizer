@@ -90,6 +90,9 @@ alpha-vis serve --forge-dir <dir>
 | `GET /api/jobs` / `GET /api/jobs/{id}` | ジョブ一覧 / 詳細（ログ末尾・結果要約） |
 | `POST /api/jobs/{id}/cancel` | ジョブのキャンセル（プロセスグループごと terminate → kill） |
 | `GET /api/jobs/{id}/events` | SSE 進捗ストリーム（snapshot → log → status） |
+| `GET /api/versions` | alpha-forge / alpha-visualizer / alpha-strike の現在版・最新版 |
+| `POST /api/versions/forge/update` | alpha-forge の自己更新ジョブ起動（localhost 限定）→ 202 |
+| `POST /api/versions/visualizer/update` | alpha-visualizer の自己更新ジョブ起動（localhost 限定・成功時に自動再起動）→ 202 |
 | `GET /health` | ヘルスチェック |
 
 ---

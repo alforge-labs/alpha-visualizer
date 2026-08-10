@@ -25,7 +25,7 @@
 - **Live** — バックテストとライブ実績の期間整合 diff。「ライブデータを更新」ボタンから forge の `live refresh`（sync-events → data update → live replay）を実行して最新実績を反映（`forge.yaml` の `live.replay` 設定が必要。旧 forge では未対応の案内が表示される）
 - **Ideas** — 探索アイデアの一覧（ステータス・タグフィルタ）
 - **Data** — 保有ヒストリカルデータの一覧・鮮度表示（「要更新」バッジ）に加え、GUI からの取得・一括差分更新（進捗表示・キャンセル対応）
-- **Maintenance** — 孤児バックテスト結果（strategies.db に定義の無い実行結果）の一覧・選択削除
+- **Maintenance** — 孤児バックテスト結果（strategies.db に定義の無い実行結果）の一覧・選択削除。各種ツール（alpha-forge / alpha-visualizer / alpha-strike）の現在版・最新版を並べて表示し、alpha-forge と alpha-visualizer は GUI から更新できる（alpha-visualizer の更新は成功時のみ自動でサーバーを再起動。Windows は非対応で更新コマンドの案内のみ）。alpha-strike は表示のみで、値は `alpha-forge live sync-events` による最終同期時点のもの
 - **Develop（AI 戦略開発）** — ゴールを入力するとローカルの Claude Code / Codex CLI が戦略を自動開発（詳細は下記）
 - **テーマ切替** — ダーク/ライトモード、日英バイリンガル UI
 - **エクスポート** — CSV / PNG エクスポート、SNS シェアカード（equity curve＋主要指標入り OGP サイズ PNG）、URL 共有（Browse の selectedId / compareIds 同期）
