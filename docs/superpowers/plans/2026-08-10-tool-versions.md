@@ -2343,7 +2343,11 @@ const STRIKE_DEPLOY_DOC_URL =
 
   const handleUpdate = (component: 'forge' | 'visualizer'): void => {
     setUpdatingId(component)
-    void updateRunner.start(component)
+    // start() はジョブ作成自体が失敗すると onFinished を発火せず false を返す。
+    // 戻り値を見ないと updatingId が残り、全行の更新ボタンが恒久的に disabled になる
+    void updateRunner.start(component).then((ok) => {
+      if (!ok) setUpdatingId(null)
+    })
   }
 ```
 
