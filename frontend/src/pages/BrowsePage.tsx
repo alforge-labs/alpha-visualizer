@@ -9,7 +9,7 @@ import { makeL } from '../i18n/strings'
 import { normalizeErrorMessage } from '../lib/errorMessage'
 
 export function BrowsePage(): React.ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? '戦略ブラウザ' : 'Strategy Browser')
   const list = useStrategyList()
@@ -52,10 +52,7 @@ export function BrowsePage(): React.ReactElement {
       theme={theme}
       selectedStrategy={selectedStrategy}
       onUpdateLang={(l) => update('lang', l)}
-      onUpdateTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onUpdateTheme={setTheme}
       onSelect={(id) => list.setSelectedId(list.selectedId === id ? null : id)}
       onCloseSlidePanel={() => list.setSelectedId(null)}
     />

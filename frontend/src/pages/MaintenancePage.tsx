@@ -26,7 +26,7 @@ import { extractApiErrorDetail, messageForApiErrorCode } from '../lib/errorMessa
  * Render は MaintenanceScreen に委譲する（ADR-0001）。
  */
 export function MaintenancePage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? '整理' : 'Maintenance')
   const versions = useVersions()
@@ -92,10 +92,7 @@ export function MaintenancePage(): ReactElement {
       lang={lang}
       theme={theme}
       onSetLang={(l) => update('lang', l)}
-      onSetTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onSetTheme={setTheme}
     />
   )
 }

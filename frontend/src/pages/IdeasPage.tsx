@@ -15,7 +15,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
  * Render は IdeasScreen に委譲する（ADR-0001）。
  */
 export function IdeasPage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? '投資アイデア' : 'Ideas')
   const list = useIdeasList()
@@ -50,10 +50,7 @@ export function IdeasPage(): ReactElement {
       lang={lang}
       theme={theme}
       onSetLang={(l) => update('lang', l)}
-      onSetTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onSetTheme={setTheme}
     />
   )
 }
