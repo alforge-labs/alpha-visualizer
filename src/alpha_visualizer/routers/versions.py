@@ -27,13 +27,21 @@ import pathlib
 import sys
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from alpha_visualizer import __version__
-from alpha_visualizer.dependencies import get_forge_config_dep
+from alpha_visualizer.dependencies import get_forge_config_dep, get_job_manager
+from alpha_visualizer.errors import (
+    ForgeCliNotFoundError,
+    InvalidRequestError,
+    LocalWriteDisabledError,
+)
 from alpha_visualizer.forge_config import ForgeConfig
+from alpha_visualizer.routers.jobs import JobSummary, _to_summary
 from alpha_visualizer.schemas.versions import ComponentVersion, VersionsResponse
+from alpha_visualizer.services.forge_cli import FORGE_NOT_FOUND_MESSAGE, resolve_forge_exe
 from alpha_visualizer.services.forge_sync import run_forge_json
+from alpha_visualizer.services.jobs import JobManager
 from alpha_visualizer.services.pypi import fetch_latest_version, is_newer
 
 router = APIRouter()
@@ -64,6 +72,18 @@ WINDOWS_MANUAL_UPDATE_MESSAGE = (
     "`pip install -U alpha-visualizer` を実行してから再起動してください"
     " / On Windows the running process cannot be replaced."
     " Run `pip install -U alpha-visualizer`, then restart."
+)
+
+LOCAL_WRITE_DISABLED_MESSAGE = (
+    "ツールの更新は localhost でのみ実行できます（LAN 公開中は無効）"
+    " / Tool updates are only available on localhost"
+)
+
+STRIKE_NOT_UPDATABLE_MESSAGE = (
+    "alpha-strike は GUI から更新できません（稼働中の発注サーバーを再起動しないため）。"
+    "VM 上で更新手順を実行してください"
+    " / alpha-strike cannot be updated from the GUI."
+    " Run the update procedure on the VM."
 )
 
 
@@ -178,6 +198,36 @@ async def get_versions(
             _strike_component(forge_cfg, strike_meta, strike_latest),
         ]
     )
+
+
+@router.post("/versions/forge/update", response_model=JobSummary, status_code=202)
+async def update_forge(
+    request: Request,
+    manager: Annotated[JobManager, Depends(get_job_manager)],
+) -> JobSummary:
+    """``alpha-forge self update --yes`` をジョブとして起動する。
+
+    ゲートは既存の ``local_write_enabled`` を再利用する（routers/data.py・
+    routers/pine.py と同じ方針）。パッケージ更新は「書き込み系ローカル限定
+    機能」そのもので、新しいフラグを足す理由がない。
+    """
+    if not request.app.state.local_write_enabled:
+        raise LocalWriteDisabledError(LOCAL_WRITE_DISABLED_MESSAGE)
+    # ジョブを積んでから失敗させず、起動前に fail-fast する（routers/live.py と同じ）
+    if resolve_forge_exe() is None:
+        raise ForgeCliNotFoundError(FORGE_NOT_FOUND_MESSAGE)
+    record = await manager.create(kind="forge_self_update", strategy_id="", symbol="")
+    return _to_summary(record)
+
+
+@router.post("/versions/strike/update")
+async def update_strike() -> None:
+    """alpha-strike は GUI から更新しない（明示的に 400 で断る）。
+
+    ルート自体を生やさず 404 にすると「まだ実装されていないのか、
+    意図的に無いのか」がクライアントから区別できない。
+    """
+    raise InvalidRequestError(STRIKE_NOT_UPDATABLE_MESSAGE)
 
 
 __all__ = ["router"]

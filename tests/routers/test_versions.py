@@ -35,6 +35,22 @@ FORGE_SELF_VERSION = {
 }
 
 
+def _job_record(kind: str) -> Any:
+    from datetime import UTC, datetime
+
+    from alpha_visualizer.services.jobs import JobRecord
+
+    return JobRecord(
+        job_id="job-test000000",
+        kind=kind,  # type: ignore[arg-type]
+        strategy_id="",
+        symbol="",
+        trials=None,
+        windows=None,
+        created_at=datetime.now(UTC),
+    )
+
+
 def _components(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {c["id"]: c for c in payload["components"]}
 
@@ -236,6 +252,48 @@ def test_fetch_latest_versionが例外を出しても他は巻き込まれない
     assert comps["visualizer"]["current"] == __version__
     assert comps["visualizer"]["latest"] is None
     assert comps["visualizer"]["update_available"] is False
+
+
+def test_forge更新は202とジョブを返す(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.resolve_forge_exe",
+            return_value="/usr/local/bin/alpha-forge",
+        ),
+        mock.patch(
+            "alpha_visualizer.services.jobs.JobManager.create",
+            new_callable=mock.AsyncMock,
+        ) as create,
+    ):
+        create.return_value = _job_record("forge_self_update")
+        res = client.post("/api/versions/forge/update")
+    assert res.status_code == 202
+    assert create.await_args.kwargs["kind"] == "forge_self_update"
+
+
+def test_forge未導入なら503(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with mock.patch(
+        "alpha_visualizer.routers.versions.resolve_forge_exe", return_value=None
+    ):
+        res = client.post("/api/versions/forge/update")
+    assert res.status_code == 503
+
+
+def test_strikeの更新は400(remote_workspace: pathlib.Path) -> None:
+    """稼働中の発注サーバーを GUI から更新させない（設計 非ゴール）。"""
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    res = client.post("/api/versions/strike/update")
+    assert res.status_code == 400
+
+
+def test_非loopback公開時は403(remote_workspace: pathlib.Path) -> None:
+    """パッケージ更新は書き込み系ローカル限定機能（data / pine と同じ方針）。"""
+    app = create_app(forge_dir=remote_workspace, local_write_enabled=False)
+    client = TestClient(app)
+    res = client.post("/api/versions/forge/update")
+    assert res.status_code == 403
 
 
 def test_strikeメタ読み取りが例外を出しても他は巻き込まれない(remote_workspace: pathlib.Path) -> None:

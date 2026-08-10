@@ -71,7 +71,10 @@ ForgeJobKind = Literal["backtest", "optimize", "wft"]
 DataJobKind = Literal["data_fetch", "data_update"]
 # Live系ジョブ。build_live_refresh_argv はこれだけを受理する
 LiveJobKind = Literal["live_refresh"]
-JobKind = Literal["backtest", "optimize", "wft", "agent", "data_fetch", "data_update", "live_refresh"]
+JobKind = Literal[
+    "backtest", "optimize", "wft", "agent", "data_fetch", "data_update",
+    "live_refresh", "forge_self_update",
+]
 JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
@@ -215,6 +218,17 @@ def build_live_refresh_argv(forge_exe: str) -> list[str]:
     stderr へ流し、そのまま SSE ログに表示される。
     """
     return [forge_exe, "live", "refresh", "--json"]
+
+
+def build_self_update_argv(forge_exe: str) -> list[str]:
+    """alpha-forge バイナリの自己更新 argv。
+
+    ``--yes`` は必須。GUI からは対話プロンプトに応答できないため、
+    付け忘れるとジョブが確認待ちのまま timeout まで固まる。
+    ダウンロードの SHA256 検証・スモークテスト・ロールバックは forge 側が
+    持っているので visualizer は何もしない。
+    """
+    return [forge_exe, "self", "update", "--yes"]
 
 
 # 結果要約に保持するスカラー文字列の最大長（超過分は切り詰める）
@@ -664,6 +678,8 @@ class JobManager:
                         return stripped or None
             elif record.kind == "live_refresh":
                 argv = build_live_refresh_argv(forge_exe)
+            elif record.kind == "forge_self_update":
+                argv = build_self_update_argv(forge_exe)
             else:
                 argv = build_argv(
                     forge_exe,

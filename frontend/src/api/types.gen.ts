@@ -618,6 +618,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/versions/forge/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Forge
+         * @description ``alpha-forge self update --yes`` をジョブとして起動する。
+         *
+         *     ゲートは既存の ``local_write_enabled`` を再利用する（routers/data.py・
+         *     routers/pine.py と同じ方針）。パッケージ更新は「書き込み系ローカル限定
+         *     機能」そのもので、新しいフラグを足す理由がない。
+         */
+        post: operations["update_forge_api_versions_forge_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/versions/strike/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Strike
+         * @description alpha-strike は GUI から更新しない（明示的に 400 で断る）。
+         *
+         *     ルート自体を生やさず 404 にすると「まだ実装されていないのか、
+         *     意図的に無いのか」がクライアントから区別できない。
+         */
+        post: operations["update_strike_api_versions_strike_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3050,6 +3097,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VersionsResponse"];
+                };
+            };
+        };
+    };
+    update_forge_api_versions_forge_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
+                };
+            };
+        };
+    };
+    update_strike_api_versions_strike_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

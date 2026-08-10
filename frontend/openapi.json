@@ -1303,6 +1303,48 @@
         }
       }
     },
+    "/api/versions/forge/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Forge",
+        "description": "``alpha-forge self update --yes`` をジョブとして起動する。\n\nゲートは既存の ``local_write_enabled`` を再利用する（routers/data.py・\nrouters/pine.py と同じ方針）。パッケージ更新は「書き込み系ローカル限定\n機能」そのもので、新しいフラグを足す理由がない。",
+        "operationId": "update_forge_api_versions_forge_update_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/versions/strike/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Strike",
+        "description": "alpha-strike は GUI から更新しない（明示的に 400 で断る）。\n\nルート自体を生やさず 404 にすると「まだ実装されていないのか、\n意図的に無いのか」がクライアントから区別できない。",
+        "operationId": "update_strike_api_versions_strike_update_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
