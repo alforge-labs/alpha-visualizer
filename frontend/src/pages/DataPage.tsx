@@ -148,7 +148,10 @@ export function DataPage(): ReactElement {
           lang={lang}
           onSetLang={(l) => update('lang', l)}
           theme={theme}
-          onSetTheme={(t) => update('theme', t)}
+          onSetTheme={(t) => {
+            update('theme', t)
+            update('variation', t === 'dark' ? 'lab' : 'atelier')
+          }}
         />
       </div>
       <p

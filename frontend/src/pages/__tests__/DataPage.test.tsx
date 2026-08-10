@@ -325,4 +325,21 @@ describe('DataPage 取得・更新ジョブ (issue #485)', () => {
     // 作成自体が失敗しているので SSE 購読は発生しない
     expect(FakeEventSource.instances).toHaveLength(0)
   })
+
+  it('ダークへ切り替えると variation も lab へ揃う', async () => {
+    // theme だけ更新して variation を放置すると、データ画面だけ配色が
+    // 他画面と揃わない。他の 6 画面（Compare / Detail / Ideas / Live /
+    // Develop / Start）は theme と variation を同時に更新しており、
+    // DataPage だけ流儀が割れていた回帰を固定する。
+    vi.mocked(api.listDatasets).mockResolvedValue(DATASETS)
+    renderPage()
+    await screen.findByText('SPY')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'ダークモード' }))
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe('dark')
+    })
+    expect(document.documentElement.dataset.variation).toBe('lab')
+  })
 })
