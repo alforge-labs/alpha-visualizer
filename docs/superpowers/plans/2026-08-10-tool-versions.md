@@ -1879,6 +1879,20 @@ def test_更新失敗時は再起動しない(tmp_path: pathlib.Path) -> None:
 `tests/test_cli.py` に追記:
 
 ```python
+def _free_port() -> int:
+    """OS から空きポートを 1 つもらう。
+
+    既定の 8000 は開発中の `alpha-vis serve` が掴んでいることがあり、
+    `_ensure_port_available` が発火して serve テストが落ちる。既存の serve
+    テストが抱えているこのローカル依存を、新規テストへ持ち込まない。
+    """
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
 def test_restart_requestedならexecvで再起動する(tmp_path: pathlib.Path) -> None:
     """更新後の再起動は server.run() が戻った後（= ソケット解放後）に行う。
     先に exec するとポート再バインドが EADDRINUSE で落ちる。
@@ -1904,7 +1918,8 @@ def test_restart_requestedならexecvで再起動する(tmp_path: pathlib.Path) 
         mock.patch("alpha_visualizer.cli.os.execv") as execv,
     ):
         result = CliRunner().invoke(
-            cli, ["serve", "--forge-dir", str(tmp_path), "--no-open"]
+            cli,
+            ["serve", "--forge-dir", str(tmp_path), "--no-open", "--port", str(_free_port())],
         )
     assert result.exit_code == 0
     execv.assert_called_once()
@@ -1933,7 +1948,8 @@ def test_restart_requestedでなければexecvしない(tmp_path: pathlib.Path) 
         mock.patch("alpha_visualizer.cli.os.execv") as execv,
     ):
         result = CliRunner().invoke(
-            cli, ["serve", "--forge-dir", str(tmp_path), "--no-open"]
+            cli,
+            ["serve", "--forge-dir", str(tmp_path), "--no-open", "--port", str(_free_port())],
         )
     assert result.exit_code == 0
     execv.assert_not_called()
