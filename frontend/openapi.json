@@ -3,7 +3,7 @@
   "info": {
     "title": "alpha-visualizer",
     "description": "AlphaForge バックテスト結果の Web 可視化ツール",
-    "version": "1.6.0"
+    "version": "1.7.0"
   },
   "paths": {
     "/api/results": {
