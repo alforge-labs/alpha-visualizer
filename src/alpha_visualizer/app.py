@@ -31,6 +31,7 @@ from alpha_visualizer.routers import results as results_router
 from alpha_visualizer.routers import run as run_router
 from alpha_visualizer.routers import setup as setup_router
 from alpha_visualizer.routers import strategies as strategies_router
+from alpha_visualizer.routers import versions as versions_router
 from alpha_visualizer.routers import wfo as wfo_router
 from alpha_visualizer.schemas.health import HealthResponse
 from alpha_visualizer.services.forge_cli import mask_home
@@ -211,6 +212,7 @@ def create_app(
     app.include_router(maintenance_router.router, prefix="/api")
     app.include_router(agent_router.router, prefix="/api")
     app.include_router(setup_router.router, prefix="/api")
+    app.include_router(versions_router.router, prefix="/api", tags=["versions"])
 
     # ホーム配下の絶対パスはユーザー名を晒さない（mask_home ポリシー・issue #394）
     forge_dir_str = mask_home(str(config.forge_dir))

@@ -601,6 +601,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Versions */
+        get: operations["get_versions_api_versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -895,6 +912,37 @@ export interface components {
             values: number[];
         } & {
             [key: string]: unknown;
+        };
+        /** ComponentVersion */
+        ComponentVersion: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "forge" | "visualizer" | "strike";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "unknown" | "disabled";
+            /** Current */
+            current?: string | null;
+            /** Latest */
+            latest?: string | null;
+            /**
+             * Update Available
+             * @default false
+             */
+            update_available: boolean;
+            /**
+             * Updatable
+             * @default false
+             */
+            updatable: boolean;
+            /** Message */
+            message?: string | null;
+            /** As Of */
+            as_of?: string | null;
         };
         /** CreateAgentJobRequest */
         CreateAgentJobRequest: {
@@ -1919,6 +1967,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VersionsResponse */
+        VersionsResponse: {
+            /** Components */
+            components: components["schemas"]["ComponentVersion"][];
         };
         /**
          * WFOResponse
@@ -2977,6 +3030,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupStatusResponse"];
+                };
+            };
+        };
+    };
+    get_versions_api_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionsResponse"];
                 };
             };
         };
