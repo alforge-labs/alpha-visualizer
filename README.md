@@ -133,6 +133,14 @@ claude バックエンドはターン数の上限に達すると、作業の途�
 
 ![Develop](docs/screenshots/ja/develop.png)
 
+**Start — セットアップチェックリスト**
+
+![Start](docs/screenshots/ja/start.png)
+
+**Data — データ管理**
+
+![Data](docs/screenshots/ja/data.png)
+
 ## 困ったときは
 
 `alpha-vis: command not found`・`backtest_results.db` が見つからない・ポート衝突など、よくある詰まりの回答は公式 FAQ にまとまっています。
