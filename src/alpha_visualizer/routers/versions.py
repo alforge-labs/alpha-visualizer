@@ -73,6 +73,11 @@ STRIKE_NOT_SYNCED_MESSAGE = (
     " / Run `alpha-forge live sync-events` to show the alpha-strike version"
 )
 
+#: ``ComponentVersion.code``。UI はこの値で表示言語の文言へ写像する
+FORGE_UNKNOWN_CODE = "forge_version_unknown"
+STRIKE_NOT_SYNCED_CODE = "strike_not_synced"
+WINDOWS_MANUAL_UPDATE_CODE = "windows_manual_update"
+
 WINDOWS_MANUAL_UPDATE_MESSAGE = (
     "Windows では実行中のプロセスを置き換えられないため、"
     "`pip install -U alpha-visualizer` を実行してから再起動してください"
@@ -158,12 +163,20 @@ def _read_strike_meta(events_dir: pathlib.Path) -> dict[str, Any] | None:
 def _forge_component(payload: dict[str, Any] | None) -> ComponentVersion:
     if payload is None:
         return ComponentVersion(
-            id="forge", status="unknown", updatable=False, message=FORGE_UNKNOWN_MESSAGE
+            id="forge",
+            status="unknown",
+            updatable=False,
+            message=FORGE_UNKNOWN_MESSAGE,
+            code=FORGE_UNKNOWN_CODE,
         )
     current = payload.get("current_version")
     if not isinstance(current, str):
         return ComponentVersion(
-            id="forge", status="unknown", updatable=False, message=FORGE_UNKNOWN_MESSAGE
+            id="forge",
+            status="unknown",
+            updatable=False,
+            message=FORGE_UNKNOWN_MESSAGE,
+            code=FORGE_UNKNOWN_CODE,
         )
     latest = payload.get("latest_version")
     return ComponentVersion(
@@ -189,6 +202,7 @@ def _visualizer_component(latest: str | None) -> ComponentVersion:
         # 更新が無いのに Windows 向けの手動更新案内を出すと、最新版のユーザーにも
         # 「やるべき作業がある」ように見えてしまう。案内は更新があるときだけ出す
         message=WINDOWS_MANUAL_UPDATE_MESSAGE if (not updatable and update_available) else None,
+        code=WINDOWS_MANUAL_UPDATE_CODE if (not updatable and update_available) else None,
     )
 
 
@@ -205,6 +219,7 @@ def _strike_component(
             latest=latest,
             updatable=False,
             message=STRIKE_NOT_SYNCED_MESSAGE,
+            code=STRIKE_NOT_SYNCED_CODE,
         )
     as_of = meta.get("started_at") if meta is not None else None
     return ComponentVersion(

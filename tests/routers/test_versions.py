@@ -496,3 +496,48 @@ def test_strikeメタ読み取りが例外を出しても他は巻き込まれ�
     assert comps["visualizer"]["status"] == "ok"
     assert comps["strike"]["status"] == "unknown"
     assert comps["strike"]["current"] is None
+
+
+def test_message_には機械可読codeが伴う(remote_workspace: pathlib.Path) -> None:
+    """UI は文字列のパターンマッチではなく code で表示言語の文言へ写像する。
+
+    サーバーの message は curl 利用者向けの日英連結なので、そのまま UI へ出すと
+    英語表示のユーザーに日本語が先に見える（issue #358 と同じ問題）。
+    code が欠けるとフロントは写像先を選べず、日英連結へフォールバックしてしまう。
+    """
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            side_effect=ExternalProcessError("forge が異常終了しました"),
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version", return_value="1.0.5"
+        ),
+    ):
+        res = client.get("/api/versions")
+    comps = _components(res.json())
+    # forge 取得失敗と strike 未同期は、どちらも案内文と code が対になる
+    assert comps["forge"]["code"] == "forge_version_unknown"
+    assert comps["forge"]["message"] is not None
+    assert comps["strike"]["code"] == "strike_not_synced"
+    assert comps["strike"]["message"] is not None
+    # 正常なコンポーネントには案内が無いので code も付かない
+    assert comps["visualizer"]["code"] is None
+
+
+def test_Windowsの手動更新案内にもcodeが付く(remote_workspace: pathlib.Path) -> None:
+    client = TestClient(create_app(forge_dir=remote_workspace))
+    with (
+        mock.patch("alpha_visualizer.routers.versions.sys.platform", "win32"),
+        mock.patch(
+            "alpha_visualizer.routers.versions.run_forge_json",
+            return_value=FORGE_SELF_VERSION,
+        ),
+        mock.patch(
+            "alpha_visualizer.routers.versions.fetch_latest_version", return_value="9.9.9"
+        ),
+    ):
+        res = client.get("/api/versions")
+    vis = _components(res.json())["visualizer"]
+    assert vis["code"] == "windows_manual_update"

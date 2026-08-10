@@ -64,6 +64,11 @@ httpx / requests を足すのは割に合わない。timeout 5 秒、失敗時�
 
 `as_of` は strike 専用。値が「いつ時点のものか」を示す（§4）。他は常に `null`。
 
+`message` には機械可読な `code` を対で持たせる（`forge_version_unknown` /
+`strike_not_synced` / `windows_manual_update`）。サーバーの文言は curl 利用者向けに
+日英連結だが、UI は表示言語の文言だけを出すため、フロントは文字列のパターンマッチ
+ではなく `code` で写像する（issue #358 の `messageForApiErrorCode` と同じ方針）。
+
 取得元:
 
 | id | current | latest |

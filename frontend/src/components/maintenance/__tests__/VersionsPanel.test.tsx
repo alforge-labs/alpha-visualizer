@@ -27,6 +27,16 @@ const strikeDisabled: ComponentVersion = {
   update_available: false, updatable: false, message: null, as_of: null,
 }
 
+const strikeUnknownWithCode: ComponentVersion = {
+  id: 'strike', status: 'unknown', current: null, latest: '1.0.5',
+  update_available: false, updatable: false,
+  // サーバーの message は curl 利用者向けの日英連結
+  message:
+    '`alpha-forge live sync-events` を実行すると alpha-strike のバージョンが表示されます'
+    + ' / Run `alpha-forge live sync-events` to show the alpha-strike version',
+  code: 'strike_not_synced', as_of: null,
+}
+
 describe('VersionsPanel', () => {
   it('現在版と最新版を並べて表示する', () => {
     render(<VersionsPanel components={[forgeOutdated, visLatest]} loading={false} error={null} lang="ja" />)
@@ -89,5 +99,36 @@ describe('VersionsPanel', () => {
     const retryButton = screen.getByRole('button', { name: /再試行/ })
     await userEvent.click(retryButton)
     expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('英語表示では日英連結ではなく英語の案内だけを出す', () => {
+    // サーバーの message をそのまま出すと英語ユーザーに日本語が先に見える。
+    // code から表示言語の文言へ写像するのがこのリポジトリの規約（issue #358）
+    render(
+      <VersionsPanel components={[strikeUnknownWithCode]} loading={false} error={null} lang="en" />,
+    )
+    expect(
+      screen.getByText('Run `alpha-forge live sync-events` to show the alpha-strike version'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/バージョンが表示されます/)).not.toBeInTheDocument()
+  })
+
+  it('日本語表示では日本語の案内だけを出す', () => {
+    render(
+      <VersionsPanel components={[strikeUnknownWithCode]} loading={false} error={null} lang="ja" />,
+    )
+    expect(
+      screen.getByText(
+        '`alpha-forge live sync-events` を実行すると alpha-strike のバージョンが表示されます',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/to show the alpha-strike version/)).not.toBeInTheDocument()
+  })
+
+  it('未知の code はサーバーの message へフォールバックする', () => {
+    // サーバーが新しい code を先に返し始めても表示が消えないこと
+    const unknownCode: ComponentVersion = { ...strikeUnknownWithCode, code: 'brand_new_code' }
+    render(<VersionsPanel components={[unknownCode]} loading={false} error={null} lang="en" />)
+    expect(screen.getByText(/Run `alpha-forge live sync-events`/)).toBeInTheDocument()
   })
 })

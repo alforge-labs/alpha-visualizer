@@ -1012,6 +1012,8 @@ export interface components {
             updatable: boolean;
             /** Message */
             message?: string | null;
+            /** Code */
+            code?: string | null;
             /** As Of */
             as_of?: string | null;
         };

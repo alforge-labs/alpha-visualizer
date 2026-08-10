@@ -3,6 +3,7 @@ import type { ComponentVersion } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { fmtDate } from '../../lib/format'
+import { messageForVersionCode } from '../../lib/versionMessage'
 import { Button, ErrorBanner, Loading } from '../../design/primitives'
 
 export interface VersionsPanelProps {
@@ -126,7 +127,7 @@ export function VersionsPanel({
         <tbody>
           {rows.map(c => (
             <tr key={c.id}>
-              <td style={TD_BASE}>{DISPLAY_NAME[c.id]}</td>
+              <td style={{ ...TD_BASE, whiteSpace: 'nowrap' }}>{DISPLAY_NAME[c.id]}</td>
               <td style={TD_BASE}>
                 {c.status === 'ok' ? c.current : l('不明', 'Unknown')}
                 {/* strike の current は最終同期時点の値。リアルタイムだと
@@ -151,9 +152,14 @@ export function VersionsPanel({
                   : c.status === 'ok'
                     ? l('最新', 'Up to date')
                     : l('不明', 'Unknown')}
-                {c.message ? <div style={NOTE_STYLE}>{c.message}</div> : null}
+                {(() => {
+                  // サーバーの message は curl 利用者向けの日英連結。UI は表示言語の
+                  // 文言だけを出す（issue #358 の messageForApiErrorCode と同じ方針）
+                  const note = messageForVersionCode(c.code, lang) ?? c.message
+                  return note ? <div style={NOTE_STYLE}>{note}</div> : null
+                })()}
               </td>
-              <td style={TD_BASE}>
+              <td style={{ ...TD_BASE, whiteSpace: 'nowrap' }}>
                 {c.id === 'strike' ? (
                   // 稼働中の発注サーバーは GUI から更新しない。手順へ送るだけ
                   <a href={STRIKE_DEPLOY_DOC_URL} target="_blank" rel="noreferrer">
