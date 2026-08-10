@@ -49,7 +49,13 @@ export function MaintenancePage(): ReactElement {
 
   const handleUpdate = (component: 'forge' | 'visualizer'): void => {
     setUpdatingId(component)
-    void updateRunner.start(component)
+    // ジョブ作成 API 自体が失敗した場合（409/403 等）、useJobRunnerCore は
+    // finish() を呼ばず onFinished も発火しないため false を返すだけで終わる。
+    // ここで拾って updatingId を戻さないと、更新ボタンが永久に disabled のまま
+    // 固まる（review Important）。
+    void updateRunner.start(component).then((ok) => {
+      if (!ok) setUpdatingId(null)
+    })
   }
 
   const orphanRuns = useOrphanRuns()
