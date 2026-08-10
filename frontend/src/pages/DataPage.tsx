@@ -42,7 +42,7 @@ const LOG_TAIL_LINES = 8
  * SSE で進捗を表示する。完了したら一覧を再取得する。
  */
 export function DataPage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   const L = makeL(lang)
   useDocumentTitle(lang === 'ja' ? 'データ' : 'Data')
@@ -148,7 +148,7 @@ export function DataPage(): ReactElement {
           lang={lang}
           onSetLang={(l) => update('lang', l)}
           theme={theme}
-          onSetTheme={(t) => update('theme', t)}
+          onSetTheme={setTheme}
         />
       </div>
       <p

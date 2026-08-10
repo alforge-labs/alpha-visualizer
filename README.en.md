@@ -25,7 +25,7 @@
 - **Live** — Period-aligned diff between backtest and live execution. A "Refresh live data" button runs forge's `live refresh` (sync-events → data update → live replay) to pull in the latest results (requires `live.replay` in `forge.yaml`; older forge versions show a not-supported notice instead)
 - **Ideas** — Exploration idea board with status / tag filters
 - **Data** — Historical data inventory with freshness display (stale badges), plus GUI-based fetching and bulk incremental updates (with progress and cancellation)
-- **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db)
+- **Maintenance** — List and selectively delete orphan backtest results (results with no matching strategy definition in strategies.db). Also shows current/latest versions for alpha-forge, alpha-visualizer, and alpha-strike side by side; alpha-forge and alpha-visualizer can be updated from the GUI (alpha-visualizer restarts the server automatically only on success; not supported on Windows, which shows the update command instead). alpha-strike is display-only — its values reflect the last `alpha-forge live sync-events` sync, not real time
 - **Develop (Agent Develop)** — Enter a goal and your local Claude Code / Codex CLI develops a strategy automatically (see below)
 - **Theme & i18n** — Dark/Light modes, English/Japanese UI toggle
 - **Export & share** — CSV / PNG export, social share card (OGP-sized PNG with equity curve + headline metrics), URL-based state sharing for Browse
@@ -178,6 +178,12 @@ cd frontend && pnpm install && pnpm run dev
 # Frontend production build (outputs to src/alpha_visualizer/static/)
 cd frontend && pnpm install && pnpm run build
 ```
+
+> **Restart `alpha-vis serve` if it was running while you built.**
+> The build recreates `src/alpha_visualizer/static/`, so a server started
+> beforehand can no longer serve the new assets. The browser then fails to load
+> the JS and the page stays blank — with no error in the server log (only a MIME
+> type error in the browser console). Use `pnpm run dev` if you want hot reload.
 
 See [CONTRIBUTING.en.md](CONTRIBUTING.en.md) for details.
 

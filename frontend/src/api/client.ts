@@ -1,4 +1,4 @@
-import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, CreateLiveJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SetupStatusResponse, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, WFOResult } from './types'
+import type { AgentBackendsResponse, BacktestDetail, BacktestSummary, CreateAgentJobParams, CreateDataJobParams, CreateJobParams, CreateLiveJobParams, DataListResponse, DuplicateStrategyResult, HealthResponse, HistoricalResponse, IdeaItem, JobDetail, JobSummary, LiveDetailResponse, LiveListItem, OptimizeResult, OrphanRunsResponse, PineScriptResponse, PineSupportResponse, PruneOrphansResponse, RunBacktestResult, SaveParametersResult, SetupStatusResponse, SparklineResponse, StrategyComparison, StrategyDetail, StrategyListItem, StrategyRun, VersionsResponse, WFOResult } from './types'
 
 const API_BASE = '/api'
 
@@ -217,6 +217,13 @@ export const api = {
       `/historical/${encodeURIComponent(symbol)}?${params.toString()}`,
     )
   },
+
+  // 各種ツールのバージョン照会（/maintenance 画面のバージョンセクション）
+  getVersions: (): Promise<VersionsResponse> => request<VersionsResponse>('/versions'),
+
+  // 更新ジョブの起動。観察・キャンセルは /api/jobs 系を共用する
+  startComponentUpdate: (component: 'forge' | 'visualizer'): Promise<JobSummary> =>
+    request<JobSummary>(`/versions/${component}/update`, { method: 'POST' }),
 
   // 孤児バックテスト結果（strategies.db に無い strategy_id の結果）の一覧・削除。
   // /maintenance 画面（vis#Task2）から利用する。

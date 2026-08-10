@@ -36,7 +36,7 @@ function initialTab(raw: string | null): DetailTab {
 
 export function DetailPage() {
   const { strategyId } = useParams<{ strategyId: string }>()
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, density, theme } = settings
   const L = makeL(lang)
   const navigate = useNavigate()
@@ -217,10 +217,7 @@ export function DetailPage() {
         lang={lang}
         onSetLang={(l) => update('lang', l)}
         theme={theme}
-        onSetTheme={(t) => {
-          update('theme', t)
-          update('variation', t === 'dark' ? 'lab' : 'atelier')
-        }}
+        onSetTheme={setTheme}
         onBack={() => navigate(-1)}
         onRun={requestRun}
         onAddToCompare={handleAddToCompare}

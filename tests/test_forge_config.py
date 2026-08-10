@@ -275,3 +275,39 @@ class TestForgeConfigSearchOrder:
         monkeypatch.setenv("FORGE_CONFIG", str(tmp_path / "nonexistent.yaml"))
         config = ForgeConfig.from_forge_dir(tmp_path)
         assert config.forge_db.name == "backtest_results.db"
+
+
+def test_remote_local_events_pathをforge_yaml基準で解決する(tmp_path: pathlib.Path) -> None:
+    """local_events_path は forge.yaml の親ディレクトリ基準（他キーと同じ規約）。"""
+    (tmp_path / "forge.yaml").write_text(
+        "remote:\n"
+        "  enabled: true\n"
+        '  local_events_path: "./data/live/events"\n',
+        encoding="utf-8",
+    )
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    assert cfg.live_events_dir == (tmp_path / "data" / "live" / "events").resolve()
+    assert cfg.remote_enabled is True
+
+
+def test_remote未設定なら無効かつ既定パス(tmp_path: pathlib.Path) -> None:
+    """remote セクションが無い forge.yaml では strike 行を出さない（disabled）。"""
+    (tmp_path / "forge.yaml").write_text("{}\n", encoding="utf-8")
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    assert cfg.remote_enabled is False
+    assert cfg.live_events_dir == (tmp_path / "data" / "live" / "events").resolve()
+
+
+def test_remote_enabledがfalseなら無効(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "forge.yaml").write_text("remote:\n  enabled: false\n", encoding="utf-8")
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    assert cfg.remote_enabled is False
+
+
+def test_local_events_pathの絶対指定をそのまま使う(tmp_path: pathlib.Path) -> None:
+    events = tmp_path / "elsewhere" / "events"
+    (tmp_path / "forge.yaml").write_text(
+        f'remote:\n  enabled: true\n  local_events_path: "{events}"\n', encoding="utf-8"
+    )
+    cfg = ForgeConfig.from_forge_dir(tmp_path)
+    assert cfg.live_events_dir == events.resolve()

@@ -90,6 +90,9 @@ alpha-vis serve --forge-dir <dir>
 | `GET /api/jobs` / `GET /api/jobs/{id}` | ジョブ一覧 / 詳細（ログ末尾・結果要約） |
 | `POST /api/jobs/{id}/cancel` | ジョブのキャンセル（プロセスグループごと terminate → kill） |
 | `GET /api/jobs/{id}/events` | SSE 進捗ストリーム（snapshot → log → status） |
+| `GET /api/versions` | alpha-forge / alpha-visualizer / alpha-strike の現在版・最新版 |
+| `POST /api/versions/forge/update` | alpha-forge の自己更新ジョブ起動（localhost 限定）→ 202 |
+| `POST /api/versions/visualizer/update` | alpha-visualizer の自己更新ジョブ起動（localhost 限定・成功時に自動再起動）→ 202 |
 | `GET /health` | ヘルスチェック |
 
 ---
@@ -116,6 +119,8 @@ pnpm run gen                   # OpenAPI スキーマ + TS 型を再生成（sch
 ```
 
 > **静的アセットのビルド運用** (PR #163 以降): Vite ビルド成果物 (`src/alpha_visualizer/static/`) はリポジトリには commit せず、`cd frontend && pnpm run build` で都度生成する運用。リリースワークフロー (`.github/workflows/release.yml`) は wheel build 直前に自動で実行する。開発中に `alpha-vis serve` で SPA を見たい場合は事前にローカルで `pnpm run build` を打つこと（Issue #149）。
+>
+> **`alpha-vis serve` を起動したままビルドしたら、サーバーを再起動すること。** ビルドは `static/` を作り直すため、起動中のサーバーは新しいアセットを配信できなくなる。この状態ではブラウザが JS を読めず画面が真っ白になるが、**サーバーログにはエラーが出ない**（SPA フォールバックが JS 要求に 200 で HTML を返すだけ。ブラウザのコンソールに MIME type エラーが出る）。「変更したのに画面に反映されない」ときは、まずこれを疑う。
 
 ### OpenAPI 型自動生成
 

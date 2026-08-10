@@ -239,3 +239,14 @@ export function useLiveRefreshRunner(
 ): UseJobRunnerResult<CreateLiveJobParams> {
   return useJobRunnerCore(api.createLiveJob, onFinished)
 }
+
+/**
+ * ツール更新（alpha-forge / alpha-visualizer）ジョブの起動・進捗購読を担うフック。
+ * ジョブ作成は POST /api/versions/{component}/update を使う点だけが異なり、
+ * 残りは `useJobRunnerCore` を共有する。
+ */
+export function useComponentUpdateRunner(
+  onFinished?: (status: JobStatus) => void,
+): UseJobRunnerResult<'forge' | 'visualizer'> {
+  return useJobRunnerCore(api.startComponentUpdate, onFinished)
+}

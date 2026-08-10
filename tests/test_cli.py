@@ -1,5 +1,7 @@
 """alpha-vis CLI の基本動作テスト"""
 
+import pathlib
+
 from click.testing import CliRunner
 
 from alpha_visualizer import __version__
@@ -216,3 +218,82 @@ def test_serve_db_missing_warning_offers_next_steps(tmp_path) -> None:
     # サンプルモードの具体的なコマンドと FAQ への導線
     assert "--use-bundled-samples" in result.output
     assert "faq" in result.output.lower()
+
+
+# --- Task 7: 更新成功後の自動再起動 -----------------------------------------
+
+
+def _free_port() -> int:
+    """OS から空きポートを 1 つもらう。
+
+    既定の 8000 は開発中の `alpha-vis serve` が掴んでいることがあり、
+    `_ensure_port_available` が発火して serve テストが落ちる。既存の serve
+    テストが抱えているこのローカル依存を、新規テストへ持ち込まない。
+    """
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def test_restart_requestedならexecvで再起動する(tmp_path: pathlib.Path) -> None:
+    """更新後の再起動は server.run() が戻った後（= ソケット解放後）に行う。
+    先に exec するとポート再バインドが EADDRINUSE で落ちる。
+    """
+    import sys
+    from unittest import mock
+
+    from click.testing import CliRunner
+
+    from alpha_visualizer.cli import cli
+
+    class _FakeServer:
+        def __init__(self, config: object) -> None:
+            self.config = config
+            self.should_exit = False
+
+        def run(self) -> None:
+            # 更新ジョブ成功後の状態を再現する
+            self.config.app.state.restart_requested = True  # type: ignore[attr-defined]
+
+    with (
+        mock.patch("uvicorn.Server", _FakeServer),
+        mock.patch("alpha_visualizer.cli.os.execv") as execv,
+    ):
+        result = CliRunner().invoke(
+            cli,
+            ["serve", "--forge-dir", str(tmp_path), "--no-open", "--port", str(_free_port())],
+        )
+    assert result.exit_code == 0
+    execv.assert_called_once()
+    args = execv.call_args.args
+    assert args[0] == sys.executable
+    assert args[1][:3] == [sys.executable, "-m", "alpha_visualizer.cli"]
+
+
+def test_restart_requestedでなければexecvしない(tmp_path: pathlib.Path) -> None:
+    from unittest import mock
+
+    from click.testing import CliRunner
+
+    from alpha_visualizer.cli import cli
+
+    class _FakeServer:
+        def __init__(self, config: object) -> None:
+            self.config = config
+            self.should_exit = False
+
+        def run(self) -> None:
+            return None
+
+    with (
+        mock.patch("uvicorn.Server", _FakeServer),
+        mock.patch("alpha_visualizer.cli.os.execv") as execv,
+    ):
+        result = CliRunner().invoke(
+            cli,
+            ["serve", "--forge-dir", str(tmp_path), "--no-open", "--port", str(_free_port())],
+        )
+    assert result.exit_code == 0
+    execv.assert_not_called()

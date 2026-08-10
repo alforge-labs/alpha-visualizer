@@ -74,12 +74,14 @@ describe('useViewerSettings — URL > storage > defaults precedence', () => {
   })
 
   it('storage values are applied when URL has no overrides', () => {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ density: 'compact', variation: 'lab' }))
+    // variation は theme からの導出値になったため、ここでは独立して保存される
+    // キー（density / lang）で storage 優先の仕組みを検証する
+    storage.setItem(STORAGE_KEY, JSON.stringify({ density: 'compact', lang: 'en' }))
 
     const { result } = renderHook(() => useViewerSettings())
 
     expect(result.current.settings.density).toBe('compact')
-    expect(result.current.settings.variation).toBe('lab')
+    expect(result.current.settings.lang).toBe('en')
   })
 
   it('ignores invalid URL values (e.g., theme=neon)', () => {
@@ -136,6 +138,26 @@ describe('useViewerSettings — update()', () => {
       })
     }).not.toThrow()
   })
+  it('setTheme は theme と variation を対で切り替える', () => {
+    // 以前は各 Page が update('theme') と update('variation') を 2 回呼ぶ形で、
+    // 同じ式が 9 画面へコピーされていた。実際に DataPage で variation の更新が
+    // 抜け、データ画面だけダーク時の配色が揃わない不具合が起きている。
+    // 対で動くことをフック側で保証し、取りこぼしを構造的に起きなくする。
+    const { result } = renderHook(() => useViewerSettings())
+
+    act(() => {
+      result.current.setTheme('dark')
+    })
+    expect(result.current.settings.theme).toBe('dark')
+    expect(result.current.settings.variation).toBe('lab')
+
+    act(() => {
+      result.current.setTheme('light')
+    })
+    expect(result.current.settings.theme).toBe('light')
+    expect(result.current.settings.variation).toBe('atelier')
+  })
+
 })
 
 /**
@@ -246,4 +268,53 @@ describe('useViewerSettings — OS theme change subscription (issue #266)', () =
     const parsed = JSON.parse(storage.getItem(STORAGE_KEY) as string) as { theme?: string }
     expect(parsed.theme).toBe('dark')
   })
+  it('stops following once the user explicitly calls setTheme', () => {
+    // 明示選択とみなす点は update('theme', ...) と同じ（issue #266）。
+    // ここが崩れると、ユーザーが選んだテーマが OS 設定で上書きされる。
+    installMatchMedia(false)
+    const { result } = renderHook(() => useViewerSettings())
+
+    act(() => {
+      result.current.setTheme('light')
+    })
+
+    act(() => {
+      emit(true)
+    })
+    expect(result.current.settings.theme).toBe('light')
+  })
+
+  it('OS が dark なら初期表示の variation も lab になる', () => {
+    // 実機で見つかった取りこぼし: theme だけ OS 追従し variation が DEFAULTS の
+    // atelier のまま残ると、dark テーマに light 用トークンが当たる。
+    installMatchMedia(true)
+    const { result } = renderHook(() => useViewerSettings())
+    expect(result.current.settings.theme).toBe('dark')
+    expect(result.current.settings.variation).toBe('lab')
+  })
+
+  it('前回保存された variation は theme から導出し直す', () => {
+    // persist() は variation を常に書き出すため、storage の値は「ユーザーが
+    // 明示した」証拠にならない。dark で保存した lab を OS light の次回起動へ
+    // 持ち越すと不一致になるので、theme から導出し直す。
+    installMatchMedia(false)
+    storage.setItem(STORAGE_KEY, JSON.stringify({ variation: 'lab' }))
+
+    const { result } = renderHook(() => useViewerSettings())
+    expect(result.current.settings.theme).toBe('light')
+    expect(result.current.settings.variation).toBe('atelier')
+  })
+
+  it('OS のテーマ変更に追従するとき variation も対で動く', () => {
+    installMatchMedia(false)
+    const { result } = renderHook(() => useViewerSettings())
+    expect(result.current.settings.variation).toBe('atelier')
+
+    act(() => {
+      emit(true)
+    })
+    expect(result.current.settings.theme).toBe('dark')
+    expect(result.current.settings.variation).toBe('lab')
+  })
+
 })

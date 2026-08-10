@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react'
+import { useState } from 'react'
 import { MaintenanceScreen } from '../screens/MaintenanceScreen'
 import { useOrphanRuns } from '../hooks/useOrphanRuns'
+import { useVersions } from '../hooks/useVersions'
+import { useComponentUpdateRunner } from '../hooks/useJobRunner'
+import { useServerRestart } from '../hooks/useServerRestart'
 import { useViewerSettings } from '../hooks/useTheme'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { extractApiErrorDetail, messageForApiErrorCode } from '../lib/errorMessage'
@@ -22,9 +26,38 @@ import { extractApiErrorDetail, messageForApiErrorCode } from '../lib/errorMessa
  * Render は MaintenanceScreen に委譲する（ADR-0001）。
  */
 export function MaintenancePage(): ReactElement {
-  const { settings } = useViewerSettings()
-  const { lang } = settings
+  const { settings, update, setTheme } = useViewerSettings()
+  const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? '整理' : 'Maintenance')
+  const versions = useVersions()
+  const restart = useServerRestart()
+  // どのコンポーネントを更新中かは runner が持たないため、ここで覚える。
+  // 完了時にどちらの後処理（一覧再取得 / 再起動待ち）へ進むかの分岐に使う
+  const [updatingId, setUpdatingId] = useState<'forge' | 'visualizer' | null>(null)
+
+  const updateRunner = useComponentUpdateRunner((status) => {
+    const finished = updatingId
+    setUpdatingId(null)
+    // 失敗・キャンセル時は何もしない。再起動は成功パスにのみ紐づける
+    if (status !== 'succeeded') return
+    if (finished === 'visualizer') {
+      restart.begin()
+    } else {
+      void versions.reload()
+    }
+  })
+
+  const handleUpdate = (component: 'forge' | 'visualizer'): void => {
+    setUpdatingId(component)
+    // ジョブ作成 API 自体が失敗した場合（409/403 等）、useJobRunnerCore は
+    // finish() を呼ばず onFinished も発火しないため false を返すだけで終わる。
+    // ここで拾って updatingId を戻さないと、更新ボタンが永久に disabled のまま
+    // 固まる（review Important）。
+    void updateRunner.start(component).then((ok) => {
+      if (!ok) setUpdatingId(null)
+    })
+  }
+
   const orphanRuns = useOrphanRuns()
   // 機械可読 code を持つ想定内エラー（forge CLI 未導入等）は表示言語のみの
   // 文言へ写像し、それ以外はサーバー detail の抽出へフォールバック (issue #358)
@@ -35,6 +68,14 @@ export function MaintenancePage(): ReactElement {
 
   return (
     <MaintenanceScreen
+      versions={versions.components}
+      versionsLoading={versions.loading}
+      versionsError={versions.error}
+      onUpdateComponent={handleUpdate}
+      updatingComponentId={updatingId}
+      restarting={restart.waiting}
+      restartTimedOut={restart.timedOut}
+      onVersionsRetry={versions.reload}
       orphans={orphanRuns.orphans}
       totalBytes={orphanRuns.totalBytes}
       loading={orphanRuns.loading}
@@ -49,6 +90,9 @@ export function MaintenancePage(): ReactElement {
       deleting={orphanRuns.deleting}
       result={orphanRuns.result}
       lang={lang}
+      theme={theme}
+      onSetLang={(l) => update('lang', l)}
+      onSetTheme={setTheme}
     />
   )
 }

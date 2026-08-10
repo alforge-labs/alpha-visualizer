@@ -1282,6 +1282,91 @@
         }
       }
     },
+    "/api/versions": {
+      "get": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Get Versions",
+        "operationId": "get_versions_api_versions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/versions/forge/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Forge",
+        "description": "``alpha-forge self update --yes`` をジョブとして起動する。\n\nゲートは既存の ``local_write_enabled`` を再利用する（routers/data.py・\nrouters/pine.py と同じ方針）。パッケージ更新は「書き込み系ローカル限定\n機能」そのもので、新しいフラグを足す理由がない。",
+        "operationId": "update_forge_api_versions_forge_update_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/versions/strike/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Strike",
+        "description": "alpha-strike は GUI から更新しない（明示的に 400 で断る）。\n\nルート自体を生やさず 404 にすると「まだ実装されていないのか、\n意図的に無いのか」がクライアントから区別できない。",
+        "operationId": "update_strike_api_versions_strike_update_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/versions/visualizer/update": {
+      "post": {
+        "tags": [
+          "versions"
+        ],
+        "summary": "Update Visualizer",
+        "description": "自分自身を pip / uv で更新するジョブを起動する。\n\n実行中プロセスを差し替えるため、事前ガードを 4 つ通す。1 つでも欠けたら\nジョブを積まずに 409 で断る（積んでから失敗させると、原因がログの奥に\n埋まったうえに中途半端な状態が残りうる）。",
+        "operationId": "update_visualizer_api_versions_visualizer_update_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -1869,6 +1954,99 @@
         "type": "object",
         "title": "ComparisonEquityCurve",
         "description": "``StrategyComparison.equity`` の構造（dates / values の配列ペア）。"
+      },
+      "ComponentVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "forge",
+              "visualizer",
+              "strike"
+            ],
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unknown",
+              "disabled"
+            ],
+            "title": "Status"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "update_available": {
+            "type": "boolean",
+            "title": "Update Available",
+            "default": false
+          },
+          "updatable": {
+            "type": "boolean",
+            "title": "Updatable",
+            "default": false
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "ComponentVersion"
       },
       "CreateAgentJobRequest": {
         "properties": {
@@ -4174,6 +4352,22 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VersionsResponse": {
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentVersion"
+            },
+            "type": "array",
+            "title": "Components"
+          }
+        },
+        "type": "object",
+        "required": [
+          "components"
+        ],
+        "title": "VersionsResponse"
       },
       "WFOResponse": {
         "properties": {

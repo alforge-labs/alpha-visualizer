@@ -26,7 +26,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
  * Render は LiveScreen に委譲する（ADR-0001）。
  */
 export function LivePage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? 'ライブ実績' : 'Live')
   const { items, loading, error, reload } = useLiveList()
@@ -75,10 +75,7 @@ export function LivePage(): ReactElement {
       lang={lang}
       theme={theme}
       onSetLang={(l) => update('lang', l)}
-      onSetTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onSetTheme={setTheme}
       detailReloadKey={detailReloadKey}
       refresh={{
         running: runner.running,

@@ -44,6 +44,12 @@ class ForgeConfig:
     ideas_json: pathlib.Path
     live_dir: pathlib.Path
     historical_dir: pathlib.Path
+    # alpha-strike が書き、`alpha-forge live sync-events` が rsync で降ろす
+    # イベントログの**ローカル側**ディレクトリ。バージョン表示は同期済みの
+    # `_meta.json` をここから読む（設計 §4）
+    live_events_dir: pathlib.Path
+    # forge.yaml の `remote.enabled`。false のとき strike は照会対象外
+    remote_enabled: bool
     # 実際に読み込んだ forge.yaml の絶対パス（見つからなければ None）。
     # 上の探索順序 1〜3 のどれで見つかったかに関わらずここに入るため、
     # 「<forge_dir>/forge.yaml がある場合」という規約を各所で再実装せずに済む。
@@ -107,6 +113,18 @@ class ForgeConfig:
             base, data_section.get("storage_path"), default=forge_dir / "data" / "historical"
         )
 
+        remote = raw.get("remote") or {}
+        # 既定を base（forge.yaml の親）基準にするのは、alpha-forge の
+        # sync-events が local_events_path 未設定時に "./data/live/events" を
+        # 使うため。ここを forge_dir 基準にすると、別置き forge.yaml 運用で
+        # 同期先と参照先が食い違い、画面が静かに「未同期」になる
+        live_events_dir = _resolve_path(
+            base,
+            remote.get("local_events_path"),
+            default=base / "data" / "live" / "events",
+        )
+        remote_enabled = bool(remote.get("enabled", False))
+
         return cls(
             forge_dir=forge_dir,
             forge_db=forge_db,
@@ -115,6 +133,8 @@ class ForgeConfig:
             ideas_json=ideas_json,
             live_dir=live_dir,
             historical_dir=historical_dir,
+            live_events_dir=live_events_dir,
+            remote_enabled=remote_enabled,
             config_path=yaml_path,
         )
 

@@ -31,7 +31,7 @@ function readGuideDismissed(): boolean {
  * null（完了と主張しない）へ縮退する。
  */
 export function StartPage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? 'はじめる' : 'Get Started')
 
@@ -82,10 +82,7 @@ export function StartPage(): ReactElement {
       onRestoreGuide={restoreGuide}
       onRetry={() => setReloadToken((t) => t + 1)}
       onSetLang={(l) => update('lang', l)}
-      onSetTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onSetTheme={setTheme}
     />
   )
 }

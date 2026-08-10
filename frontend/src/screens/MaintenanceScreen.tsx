@@ -1,13 +1,29 @@
 import type { CSSProperties, ReactElement } from 'react'
-import type { OrphanRunItem } from '../api/types'
+import type { ComponentVersion, OrphanRunItem } from '../api/types'
 import type { PruneResultView } from '../hooks/useOrphanRuns'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import type { Theme } from '../hooks/useTheme'
+import { SettingsToggles } from '../components/SettingsToggles'
 import { fmtNumber, fmtDate } from '../lib/format'
 import { Button, ErrorBanner, Loading } from '../design/primitives'
 import { ConfirmActionButton } from '../components/ConfirmActionButton'
+import { VersionsPanel } from '../components/maintenance/VersionsPanel'
 
 export interface MaintenanceScreenProps {
+  versions: ComponentVersion[]
+  versionsLoading: boolean
+  versionsError: string | null
+  /** ツール更新ボタン押下（forge / visualizer のみ）。 */
+  onUpdateComponent: (component: 'forge' | 'visualizer') => void
+  /** 進行中の更新対象。VersionsPanel のボタン無効化・文言切り替えに使う。 */
+  updatingComponentId: 'forge' | 'visualizer' | null
+  /** visualizer 更新成功後のサーバー再起動待ち表示。 */
+  restarting: boolean
+  restartTimedOut: boolean
+  /** バージョン一覧取得エラー時の再試行ボタン押下。孤児一覧側の onRetry と役割が
+   *  異なるため別名にする。 */
+  onVersionsRetry?: () => void
   orphans: OrphanRunItem[]
   totalBytes: number
   loading: boolean
@@ -28,6 +44,9 @@ export interface MaintenanceScreenProps {
   deleting: boolean
   result: PruneResultView | null
   lang: Lang
+  theme: Theme
+  onSetLang: (lang: Lang) => void
+  onSetTheme: (theme: Theme) => void
 }
 
 const TH_BASE: CSSProperties = {
@@ -151,6 +170,14 @@ function ResultPanel({ result, lang }: ResultPanelProps): ReactElement {
  * 実行できないようにする（`components/ConfirmActionButton.tsx`）。
  */
 export function MaintenanceScreen({
+  versions,
+  versionsLoading,
+  versionsError,
+  onUpdateComponent,
+  updatingComponentId,
+  restarting,
+  restartTimedOut,
+  onVersionsRetry,
   orphans,
   totalBytes,
   loading,
@@ -165,6 +192,9 @@ export function MaintenanceScreen({
   deleting,
   result,
   lang,
+  theme,
+  onSetLang,
+  onSetTheme,
 }: MaintenanceScreenProps): ReactElement {
   const L = makeL(lang)
   const hasOrphans = orphans.length > 0
@@ -184,8 +214,13 @@ export function MaintenanceScreen({
           padding: 'var(--space-6) var(--space-7) var(--space-5)',
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 'var(--space-4)',
         }}
       >
+        <div style={{ flex: 1, minWidth: 0 }}>
         <h1
           style={{
             margin: 0,
@@ -256,6 +291,13 @@ export function MaintenanceScreen({
             )}
           </p>
         </details>
+        </div>
+        <SettingsToggles
+          lang={lang}
+          onSetLang={onSetLang}
+          theme={theme}
+          onSetTheme={onSetTheme}
+        />
       </header>
 
       <div
@@ -267,6 +309,18 @@ export function MaintenanceScreen({
           gap: 'var(--space-4)',
         }}
       >
+        <VersionsPanel
+          components={versions}
+          loading={versionsLoading}
+          error={versionsError}
+          lang={lang}
+          onUpdate={onUpdateComponent}
+          updatingId={updatingComponentId}
+          restarting={restarting}
+          restartTimedOut={restartTimedOut}
+          onRetry={onVersionsRetry}
+        />
+
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}
 
         {error && (

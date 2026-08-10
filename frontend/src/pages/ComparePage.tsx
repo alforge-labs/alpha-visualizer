@@ -11,7 +11,7 @@ import { makeL } from '../i18n/strings'
 import { Button, Divider, ErrorBanner, Loading, Toolbar } from '../design/primitives'
 
 export function ComparePage(): React.ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? '戦略比較' : 'Compare')
   const L = makeL(lang)
@@ -70,10 +70,7 @@ export function ComparePage(): React.ReactElement {
               lang={lang}
               onSetLang={(l) => update('lang', l)}
               theme={theme}
-              onSetTheme={(t) => {
-                update('theme', t)
-                update('variation', t === 'dark' ? 'lab' : 'atelier')
-              }}
+              onSetTheme={setTheme}
             />
             <Divider orientation="vertical" />
             <Button variant="primary" size="sm" onClick={backToBrowse}>

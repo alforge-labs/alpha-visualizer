@@ -429,6 +429,76 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
         // チェックリスト + 5 ステップガイド（issue #493）が収まる高さ
         await captureViewport(page, lang, 'start', 1480)
       })
+
+      // maintenance: 「整理」画面。バージョン確認・更新セクション（上）と
+      // 孤児データ削除（下）の両方を 1 枚に収める。
+      //
+      // /api/versions と /api/maintenance/orphan-runs はどちらも forge CLI 委譲
+      // ＋外部通信（GitHub Releases / PyPI）を含み、E2E フィクスチャには forge
+      // バイナリが無いため実応答では両方ともエラー状態になる（e2e/specs/
+      // maintenance.spec.ts がその状態を検証している）。撮影は固定モックで行い、
+      // 3 コンポーネントの状態（更新あり / 最新 / 表示のみ）が 1 枚で伝わる
+      // 組み合わせを選ぶ。
+      test('maintenance', async ({ page }) => {
+        await page.route('**/api/versions', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              components: [
+                {
+                  id: 'forge', status: 'ok', current: '1.3.0', latest: '1.4.0',
+                  update_available: true, updatable: true, message: null,
+                  code: null, as_of: null,
+                },
+                {
+                  id: 'visualizer', status: 'ok', current: '1.6.0', latest: '1.6.0',
+                  update_available: false, updatable: true, message: null,
+                  code: null, as_of: null,
+                },
+                // strike は表示のみ（updatable=false）。更新があっても更新ボタンは
+                // 出ず、最終同期時刻が併記されることがこの 1 行で伝わる
+                {
+                  id: 'strike', status: 'ok', current: '1.0.4', latest: '1.0.5',
+                  update_available: true, updatable: false, message: null,
+                  code: null, as_of: '2026-08-10T09:12:00+09:00',
+                },
+              ],
+            }),
+          }),
+        )
+        await page.route('**/api/maintenance/orphan-runs', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              orphans: [
+                {
+                  strategy_id: 'sma_cross_old', backtest_run_count: 12,
+                  optimization_run_count: 2, bytes: 8_808_038,
+                  first_run_at: '2026-05-02', last_run_at: '2026-07-18',
+                },
+                {
+                  strategy_id: 'rsi_reversal_tmp', backtest_run_count: 4,
+                  optimization_run_count: 0, bytes: 2_411_724,
+                  first_run_at: '2026-06-11', last_run_at: '2026-06-14',
+                },
+                {
+                  strategy_id: 'momo_breakout_v0', backtest_run_count: 1,
+                  optimization_run_count: 0, bytes: 612_368,
+                  first_run_at: '2026-07-01', last_run_at: '2026-07-01',
+                },
+              ],
+              count: 3,
+              total_bytes: 11_832_130,
+            }),
+          }),
+        )
+        await page.goto('/maintenance')
+        await setLang(page, lang)
+        // バージョン表（3 行）＋孤児一覧（3 件）＋削除ボタンの下端 ≈810px に合わせる
+        await captureViewport(page, lang, 'maintenance', 880)
+      })
     })
   }
 })

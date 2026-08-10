@@ -30,7 +30,7 @@ const fetchDatasets = (): Promise<DataListResponse> => api.listDatasets()
  * Render は DevelopScreen に委譲する（ADR-0001）。
  */
 export function DevelopPage(): ReactElement {
-  const { settings, update } = useViewerSettings()
+  const { settings, update, setTheme } = useViewerSettings()
   const { lang, theme } = settings
   useDocumentTitle(lang === 'ja' ? 'AI 戦略開発' : 'Agent Develop')
   const { data: backends, loading: backendsLoading } = useAgentBackends()
@@ -77,10 +77,7 @@ export function DevelopPage(): ReactElement {
       }
       onCancel={() => void runner.cancel()}
       onSetLang={(l) => update('lang', l)}
-      onSetTheme={(t) => {
-        update('theme', t)
-        update('variation', t === 'dark' ? 'lab' : 'atelier')
-      }}
+      onSetTheme={setTheme}
     />
   )
 }

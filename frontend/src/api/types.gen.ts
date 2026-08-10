@@ -601,6 +601,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Versions */
+        get: operations["get_versions_api_versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/versions/forge/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Forge
+         * @description ``alpha-forge self update --yes`` をジョブとして起動する。
+         *
+         *     ゲートは既存の ``local_write_enabled`` を再利用する（routers/data.py・
+         *     routers/pine.py と同じ方針）。パッケージ更新は「書き込み系ローカル限定
+         *     機能」そのもので、新しいフラグを足す理由がない。
+         */
+        post: operations["update_forge_api_versions_forge_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/versions/strike/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Strike
+         * @description alpha-strike は GUI から更新しない（明示的に 400 で断る）。
+         *
+         *     ルート自体を生やさず 404 にすると「まだ実装されていないのか、
+         *     意図的に無いのか」がクライアントから区別できない。
+         */
+        post: operations["update_strike_api_versions_strike_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/versions/visualizer/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Visualizer
+         * @description 自分自身を pip / uv で更新するジョブを起動する。
+         *
+         *     実行中プロセスを差し替えるため、事前ガードを 4 つ通す。1 つでも欠けたら
+         *     ジョブを積まずに 409 で断る（積んでから失敗させると、原因がログの奥に
+         *     埋まったうえに中途半端な状態が残りうる）。
+         */
+        post: operations["update_visualizer_api_versions_visualizer_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -895,6 +983,39 @@ export interface components {
             values: number[];
         } & {
             [key: string]: unknown;
+        };
+        /** ComponentVersion */
+        ComponentVersion: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "forge" | "visualizer" | "strike";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "unknown" | "disabled";
+            /** Current */
+            current?: string | null;
+            /** Latest */
+            latest?: string | null;
+            /**
+             * Update Available
+             * @default false
+             */
+            update_available: boolean;
+            /**
+             * Updatable
+             * @default false
+             */
+            updatable: boolean;
+            /** Message */
+            message?: string | null;
+            /** Code */
+            code?: string | null;
+            /** As Of */
+            as_of?: string | null;
         };
         /** CreateAgentJobRequest */
         CreateAgentJobRequest: {
@@ -1919,6 +2040,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VersionsResponse */
+        VersionsResponse: {
+            /** Components */
+            components: components["schemas"]["ComponentVersion"][];
         };
         /**
          * WFOResponse
@@ -2977,6 +3103,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupStatusResponse"];
+                };
+            };
+        };
+    };
+    get_versions_api_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionsResponse"];
+                };
+            };
+        };
+    };
+    update_forge_api_versions_forge_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
+                };
+            };
+        };
+    };
+    update_strike_api_versions_strike_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_visualizer_api_versions_visualizer_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
                 };
             };
         };
