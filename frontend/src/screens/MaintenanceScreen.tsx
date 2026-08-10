@@ -12,6 +12,13 @@ export interface MaintenanceScreenProps {
   versions: ComponentVersion[]
   versionsLoading: boolean
   versionsError: string | null
+  /** ツール更新ボタン押下（forge / visualizer のみ）。 */
+  onUpdateComponent: (component: 'forge' | 'visualizer') => void
+  /** 進行中の更新対象。VersionsPanel のボタン無効化・文言切り替えに使う。 */
+  updatingComponentId: 'forge' | 'visualizer' | null
+  /** visualizer 更新成功後のサーバー再起動待ち表示。 */
+  restarting: boolean
+  restartTimedOut: boolean
   orphans: OrphanRunItem[]
   totalBytes: number
   loading: boolean
@@ -158,6 +165,10 @@ export function MaintenanceScreen({
   versions,
   versionsLoading,
   versionsError,
+  onUpdateComponent,
+  updatingComponentId,
+  restarting,
+  restartTimedOut,
   orphans,
   totalBytes,
   loading,
@@ -279,6 +290,10 @@ export function MaintenanceScreen({
           loading={versionsLoading}
           error={versionsError}
           lang={lang}
+          onUpdate={onUpdateComponent}
+          updatingId={updatingComponentId}
+          restarting={restarting}
+          restartTimedOut={restartTimedOut}
         />
 
         {loading && <Loading label={L('読み込み中…', 'Loading…')} />}

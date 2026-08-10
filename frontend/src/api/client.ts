@@ -221,6 +221,10 @@ export const api = {
   // 各種ツールのバージョン照会（/maintenance 画面のバージョンセクション）
   getVersions: (): Promise<VersionsResponse> => request<VersionsResponse>('/versions'),
 
+  // 更新ジョブの起動。観察・キャンセルは /api/jobs 系を共用する
+  startComponentUpdate: (component: 'forge' | 'visualizer'): Promise<JobSummary> =>
+    request<JobSummary>(`/versions/${component}/update`, { method: 'POST' }),
+
   // 孤児バックテスト結果（strategies.db に無い strategy_id の結果）の一覧・削除。
   // /maintenance 画面（vis#Task2）から利用する。
   listOrphanRuns: (): Promise<OrphanRunsResponse> =>

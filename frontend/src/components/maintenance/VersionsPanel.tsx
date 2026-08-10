@@ -3,14 +3,24 @@ import type { ComponentVersion } from '../../api/types'
 import type { Lang } from '../../i18n/strings'
 import { makeL } from '../../i18n/strings'
 import { fmtDate } from '../../lib/format'
-import { ErrorBanner, Loading } from '../../design/primitives'
+import { Button, ErrorBanner, Loading } from '../../design/primitives'
 
 export interface VersionsPanelProps {
   components: ComponentVersion[]
   loading: boolean
   error: string | null
   lang: Lang
+  /** 更新ボタン押下。updatable かつ update_available の行にのみ表示する。 */
+  onUpdate?: (component: 'forge' | 'visualizer') => void
+  /** 進行中の更新対象。ボタンを disabled にして二重起動を防ぐ。 */
+  updatingId?: 'forge' | 'visualizer' | null
+  /** サーバー再起動待ちの表示。 */
+  restarting?: boolean
+  restartTimedOut?: boolean
 }
+
+const STRIKE_DEPLOY_DOC_URL =
+  'https://github.com/alforge-labs/alpha-strike/blob/main/docs/ops/deployment.md'
 
 /** API は短い id を返し、表示名はフロントで決める。 */
 const DISPLAY_NAME: Record<ComponentVersion['id'], string> = {
@@ -75,6 +85,10 @@ export function VersionsPanel({
   loading,
   error,
   lang,
+  onUpdate,
+  updatingId,
+  restarting,
+  restartTimedOut,
 }: VersionsPanelProps): ReactElement {
   const l = makeL(lang)
   const rows = components.filter(c => c.status !== 'disabled')
@@ -96,6 +110,7 @@ export function VersionsPanel({
             <th style={TH_BASE}>{l('現在', 'Current')}</th>
             <th style={TH_BASE}>{l('最新', 'Latest')}</th>
             <th style={TH_BASE}>{l('状態', 'Status')}</th>
+            <th style={TH_BASE}>{l('操作', 'Action')}</th>
           </tr>
         </thead>
         <tbody>
@@ -128,10 +143,37 @@ export function VersionsPanel({
                     : l('不明', 'Unknown')}
                 {c.message ? <div style={NOTE_STYLE}>{c.message}</div> : null}
               </td>
+              <td style={TD_BASE}>
+                {c.id === 'strike' ? (
+                  // 稼働中の発注サーバーは GUI から更新しない。手順へ送るだけ
+                  <a href={STRIKE_DEPLOY_DOC_URL} target="_blank" rel="noreferrer">
+                    {l('更新手順', 'Update guide')}
+                  </a>
+                ) : c.updatable && c.update_available && onUpdate ? (
+                  <Button
+                    onClick={() => { onUpdate(c.id as 'forge' | 'visualizer') }}
+                    disabled={updatingId !== null && updatingId !== undefined}
+                    size="sm"
+                  >
+                    {updatingId === c.id ? l('更新中…', 'Updating…') : l('更新', 'Update')}
+                  </Button>
+                ) : null}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {restarting ? (
+        <p style={NOTE_STYLE}>{l('再起動中…', 'Restarting…')}</p>
+      ) : null}
+      {restartTimedOut ? (
+        <p style={NOTE_STYLE}>
+          {l(
+            'サーバーが復帰しませんでした。手動で `alpha-vis serve` を実行してください。',
+            'The server did not come back. Please run `alpha-vis serve` manually.',
+          )}
+        </p>
+      ) : null}
     </section>
   )
 }

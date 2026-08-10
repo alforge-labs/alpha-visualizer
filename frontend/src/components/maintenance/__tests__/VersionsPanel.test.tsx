@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { VersionsPanel } from '../VersionsPanel'
 import type { ComponentVersion } from '../../../api/types'
@@ -50,5 +50,27 @@ describe('VersionsPanel', () => {
     // リアルタイム値だと誤認させないことが、この列の存在理由
     render(<VersionsPanel components={[strikeOk]} loading={false} error={null} lang="ja" />)
     expect(screen.getByText(/2026-08-10/)).toBeInTheDocument()
+  })
+
+  it('update_available かつ updatable の行にだけ更新ボタンを出す', () => {
+    const onUpdate = vi.fn()
+    render(
+      <VersionsPanel
+        components={[forgeOutdated, visLatest, strikeOk]}
+        loading={false} error={null} lang="ja" onUpdate={onUpdate}
+      />,
+    )
+    // forge のみ（visualizer は最新、strike は updatable:false）
+    expect(screen.getAllByRole('button', { name: /更新/ })).toHaveLength(1)
+  })
+
+  it('strike には更新ボタンの代わりに手順への導線を出す', () => {
+    render(
+      <VersionsPanel
+        components={[strikeOk]} loading={false} error={null} lang="ja" onUpdate={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /更新/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link')).toBeInTheDocument()
   })
 })
