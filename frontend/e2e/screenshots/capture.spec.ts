@@ -455,14 +455,8 @@ test.describe.serial('README / docs 用スクリーンショット撮影', () =>
             }),
           }),
         )
-        // /maintenance には言語トグル（SettingsToggles）が無いため、トグルのある
-        // Browse で切り替えてからナビ経由で遷移する。page.goto で入り直すと
-        // clearViewerSettings の addInitScript が再走して言語設定が消えるので、
-        // ここはクライアント遷移（ナビのリンククリック）でなければならない。
-        await gotoBrowse(page)
+        await page.goto('/maintenance')
         await setLang(page, lang)
-        await page.locator('a[href="/maintenance"]').first().click()
-        await expect(page.getByTestId('maintenance-screen')).toBeVisible()
         // バージョン表（3 行）＋孤児一覧（3 件）＋削除ボタンの下端 ≈810px に合わせる
         await captureViewport(page, lang, 'maintenance', 880)
       })

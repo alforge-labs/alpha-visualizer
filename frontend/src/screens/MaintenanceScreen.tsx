@@ -3,6 +3,8 @@ import type { ComponentVersion, OrphanRunItem } from '../api/types'
 import type { PruneResultView } from '../hooks/useOrphanRuns'
 import type { Lang } from '../i18n/strings'
 import { makeL } from '../i18n/strings'
+import type { Theme } from '../hooks/useTheme'
+import { SettingsToggles } from '../components/SettingsToggles'
 import { fmtNumber, fmtDate } from '../lib/format'
 import { Button, ErrorBanner, Loading } from '../design/primitives'
 import { ConfirmActionButton } from '../components/ConfirmActionButton'
@@ -42,6 +44,9 @@ export interface MaintenanceScreenProps {
   deleting: boolean
   result: PruneResultView | null
   lang: Lang
+  theme: Theme
+  onSetLang: (lang: Lang) => void
+  onSetTheme: (theme: Theme) => void
 }
 
 const TH_BASE: CSSProperties = {
@@ -187,6 +192,9 @@ export function MaintenanceScreen({
   deleting,
   result,
   lang,
+  theme,
+  onSetLang,
+  onSetTheme,
 }: MaintenanceScreenProps): ReactElement {
   const L = makeL(lang)
   const hasOrphans = orphans.length > 0
@@ -206,8 +214,13 @@ export function MaintenanceScreen({
           padding: 'var(--space-6) var(--space-7) var(--space-5)',
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 'var(--space-4)',
         }}
       >
+        <div style={{ flex: 1, minWidth: 0 }}>
         <h1
           style={{
             margin: 0,
@@ -278,6 +291,13 @@ export function MaintenanceScreen({
             )}
           </p>
         </details>
+        </div>
+        <SettingsToggles
+          lang={lang}
+          onSetLang={onSetLang}
+          theme={theme}
+          onSetTheme={onSetTheme}
+        />
       </header>
 
       <div

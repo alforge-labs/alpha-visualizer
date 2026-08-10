@@ -46,6 +46,9 @@ function baseProps() {
     deleting: false,
     result: null,
     lang: 'ja' as const,
+    theme: 'light' as const,
+    onSetLang: vi.fn(),
+    onSetTheme: vi.fn(),
   }
 }
 
@@ -225,5 +228,22 @@ describe('<MaintenanceScreen />', () => {
 
     expect(props.onDelete).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('言語トグルから表示言語を切り替えられる', async () => {
+    // 整理画面だけ他の主要画面と違って言語・テーマの切替手段が無く、
+    // 日本語のまま閉じ込められていた（撮影スクリプトも Browse で切り替えてから
+    // 遷移する回避が必要だった）。トグルの存在自体がこのテストの対象。
+    const props = baseProps()
+    render(<MaintenanceScreen {...props} />)
+    await userEvent.click(screen.getByRole('radio', { name: 'English (EN)' }))
+    expect(props.onSetLang).toHaveBeenCalledWith('en')
+  })
+
+  it('テーマトグルから表示テーマを切り替えられる', async () => {
+    const props = baseProps()
+    render(<MaintenanceScreen {...props} />)
+    await userEvent.click(screen.getByRole('radio', { name: 'ダークモード' }))
+    expect(props.onSetTheme).toHaveBeenCalledWith('dark')
   })
 })
