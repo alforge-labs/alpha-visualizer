@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import Annotated, Any, TypeVar
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 
+from alpha_visualizer.concurrency import call_or_exc
 from alpha_visualizer.dependencies import get_forge_config_dep
 from alpha_visualizer.forge_config import ForgeConfig
 from alpha_visualizer.schemas.setup import (
@@ -48,25 +49,11 @@ CHECK_TIMEOUT_SEC = 60
 
 _VERSION_RE = re.compile(r"version\s+(\d[\w.\-]*)")
 
-_T = TypeVar("_T")
-
 
 def _parse_version(stdout: str) -> str | None:
     """``AlphaForge, version 1.3.0`` からバージョン番号だけを抜く。"""
     match = _VERSION_RE.search(stdout)
     return match.group(1) if match else None
-
-
-async def _call_or_exc(func: Any, *args: Any) -> Any:
-    """同期 CLI 呼び出しを別スレッドで実行し、例外は値として返す。
-
-    gather(return_exceptions=True) と違い、呼び出し単位で捕捉するため
-    「どの呼び出しが失敗したか」が位置で確定する。
-    """
-    try:
-        return await asyncio.to_thread(func, *args)
-    except Exception as exc:  # noqa: BLE001 — degraded 設計: 失敗は unknown に落とす
-        return exc
 
 
 def _is_eula_failure(result: Any) -> bool:
@@ -90,12 +77,12 @@ async def get_setup_status(
         )
 
     version_r, paths_r, auth_r, data_r = await asyncio.gather(
-        _call_or_exc(run_forge_capture, ["--version"], forge_cfg, CHECK_TIMEOUT_SEC),
-        _call_or_exc(run_forge_json, ["system", "paths", "--json"], forge_cfg, CHECK_TIMEOUT_SEC),
-        _call_or_exc(
+        call_or_exc(run_forge_capture, ["--version"], forge_cfg, CHECK_TIMEOUT_SEC),
+        call_or_exc(run_forge_json, ["system", "paths", "--json"], forge_cfg, CHECK_TIMEOUT_SEC),
+        call_or_exc(
             run_forge_json, ["system", "auth", "status", "--json"], forge_cfg, CHECK_TIMEOUT_SEC
         ),
-        _call_or_exc(run_forge_json, ["data", "list", "--json"], forge_cfg, CHECK_TIMEOUT_SEC),
+        call_or_exc(run_forge_json, ["data", "list", "--json"], forge_cfg, CHECK_TIMEOUT_SEC),
     )
 
     # cli: 検出済み。version はおまけ（--version の失敗・パース不能でも ok を保つ）

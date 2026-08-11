@@ -30,6 +30,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 
 from alpha_visualizer import __version__
+from alpha_visualizer.concurrency import call_or_exc
 from alpha_visualizer.dependencies import get_forge_config_dep, get_job_manager
 from alpha_visualizer.errors import (
     ConflictError,
@@ -141,20 +142,6 @@ async def _restart_after_success(app: Any, manager: JobManager, job_id: str) -> 
         app.state.restart_requested = True
 
 
-async def _call_or_exc(func: Any, *args: Any) -> Any:
-    """同期呼び出しを別スレッドで実行し、例外は値として返す（degraded 設計）。
-
-    ``asyncio.gather`` に渡す 4 つの呼び出しをすべてこのヘルパで統一して包むことで、
-    forge / PyPI（visualizer・strike）/ strike メタ読み取りのどれか 1 つが想定外の
-    例外を送出しても、gather 全体が例外伝播で落ちて他 2 つを巻き込むことがない
-    （``routers/setup.py`` の同名ヘルパと同じ思想）。
-    """
-    try:
-        return await asyncio.to_thread(func, *args)
-    except Exception as exc:  # noqa: BLE001 — degraded 設計: 失敗は unknown に落とす
-        return exc
-
-
 def _read_strike_meta(events_dir: pathlib.Path) -> dict[str, Any] | None:
     """同期済み ``_meta.json`` を読む。不在・破損は None。"""
     path = events_dir / STRIKE_META_FILENAME
@@ -253,12 +240,10 @@ async def get_versions(
     forge_cfg: Annotated[ForgeConfig, Depends(get_forge_config_dep)],
 ) -> VersionsResponse:
     forge_r, vis_latest_r, strike_latest_r, strike_meta_r = await asyncio.gather(
-        _call_or_exc(
-            run_forge_json, ["self", "version", "--json"], forge_cfg, FORGE_TIMEOUT_SEC
-        ),
-        _call_or_exc(fetch_latest_version, VISUALIZER_PACKAGE),
-        _call_or_exc(fetch_latest_version, STRIKE_PACKAGE),
-        _call_or_exc(_read_strike_meta, forge_cfg.live_events_dir),
+        call_or_exc(run_forge_json, ["self", "version", "--json"], forge_cfg, FORGE_TIMEOUT_SEC),
+        call_or_exc(fetch_latest_version, VISUALIZER_PACKAGE),
+        call_or_exc(fetch_latest_version, STRIKE_PACKAGE),
+        call_or_exc(_read_strike_meta, forge_cfg.live_events_dir),
     )
     # 例外は degraded 設計により「値が取れなかった」と同義に畳み込む。
     # 各 _*_component は None を「unknown へ落とす」契約で既に扱えるため、
