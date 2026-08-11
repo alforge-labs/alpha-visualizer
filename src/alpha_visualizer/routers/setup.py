@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import Annotated, Any, TypeVar
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 
@@ -47,8 +47,6 @@ router = APIRouter()
 CHECK_TIMEOUT_SEC = 60
 
 _VERSION_RE = re.compile(r"version\s+(\d[\w.\-]*)")
-
-_T = TypeVar("_T")
 
 
 def _parse_version(stdout: str) -> str | None:
